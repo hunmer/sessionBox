@@ -28,6 +28,7 @@ function onDragEnd() {
   <draggable
     :model-value="accountStore.sortedGroups"
     :animation="150"
+    handle=".group-handle"
     item-key="id"
     class="flex flex-col gap-0.5"
     @end="onDragEnd"

@@ -10327,6 +10327,14 @@ function deleteAccount(id2) {
   const accounts = getCollection("accounts").filter((a) => a.id !== id2);
   setCollection("accounts", accounts);
 }
+function reorderAccounts(accountIds) {
+  const accounts = getCollection("accounts");
+  accountIds.forEach((id2, order) => {
+    const a = accounts.find((a2) => a2.id === id2);
+    if (a) a.order = order;
+  });
+  setCollection("accounts", accounts);
+}
 function listProxies() {
   return getCollection("proxies");
 }
@@ -10735,6 +10743,7 @@ function registerIpcHandlers() {
     }
     deleteAccount(id2);
   });
+  require$$1.ipcMain.handle("account:reorder", (_e, accountIds) => reorderAccounts(accountIds));
   require$$1.ipcMain.handle("account:uploadIcon", async () => {
     const result = await require$$1.dialog.showOpenDialog({
       title: "选择账号图标",

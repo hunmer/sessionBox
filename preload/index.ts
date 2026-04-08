@@ -69,6 +69,8 @@ const api = {
     update: (id: string, data: Partial<Omit<Account, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('account:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('account:delete', id),
+    reorder: (accountIds: string[]): Promise<void> =>
+      ipcRenderer.invoke('account:reorder', accountIds),
     uploadIcon: (): Promise<string | null> => ipcRenderer.invoke('account:uploadIcon')
   },
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ChevronRight, Plus, MoreHorizontal } from 'lucide-vue-next'
+import draggable from 'vuedraggable'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import AccountItem from './AccountItem.vue'
@@ -35,13 +36,28 @@ const accounts = computed(() => {
 const isGroupActive = computed(() =>
   accounts.value.some((a) => tabStore.activeTab?.accountId === a.id)
 )
+
+/** 账号拖拽排序结束后同步 order */
+function onAccountDragEnd() {
+  const ids = accounts.value.map((a) => a.id)
+  accountStore.reorderAccounts(ids)
+}
+
+/** 拖拽过程中同步本地顺序 */
+function onAccountUpdate(newList: typeof accounts.value) {
+  // 按新顺序更新本地 order，让 computed 重新排序
+  newList.forEach((account, i) => {
+    const item = accountStore.accounts.find((a) => a.id === account.id)
+    if (item) item.order = i
+  })
+}
 </script>
 
 <template>
   <Collapsible v-model:open="open">
     <!-- 分组标题 -->
     <div
-      class="group flex items-center gap-1 px-2 py-1.5 rounded cursor-pointer transition-colors"
+      class="group group-handle flex items-center gap-1 px-2 py-1.5 rounded cursor-pointer transition-colors"
       :class="isGroupActive ? 'text-primary' : 'text-muted-foreground hover:text-sidebar-foreground'"
     >
       <!-- 折叠态：仅显示首字母 -->
@@ -88,16 +104,23 @@ const isGroupActive = computed(() =>
 
     <!-- 账号列表 -->
     <CollapsibleContent v-if="!collapsed">
-      <div class="pl-2">
-        <AccountItem
-          v-for="account in accounts"
-          :key="account.id"
-          :account="account"
-          :collapsed="collapsed"
-          @edit="emit('editAccount', $event)"
-          @delete="emit('deleteAccount', $event)"
-        />
-      </div>
+      <draggable
+        :model-value="accounts"
+        :animation="150"
+        item-key="id"
+        class="pl-2"
+        @end="onAccountDragEnd"
+        @update:model-value="onAccountUpdate"
+      >
+        <template #item="{ element: account }">
+          <AccountItem
+            :account="account"
+            :collapsed="collapsed"
+            @edit="emit('editAccount', $event)"
+            @delete="emit('deleteAccount', $event)"
+          />
+        </template>
+      </draggable>
     </CollapsibleContent>
   </Collapsible>
 </template>

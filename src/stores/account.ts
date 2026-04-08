@@ -92,6 +92,14 @@ export const useAccountStore = defineStore('account', () => {
     accounts.value = accounts.value.filter((a) => a.id !== id)
   }
 
+  async function reorderAccounts(accountIds: string[]) {
+    await api.account.reorder(accountIds)
+    accountIds.forEach((id, order) => {
+      const a = accounts.value.find((a) => a.id === id)
+      if (a) a.order = order
+    })
+  }
+
   /** 初始化：加载所有分组和账号数据 */
   async function init() {
     await Promise.all([loadGroups(), loadAccounts()])
@@ -113,6 +121,7 @@ export const useAccountStore = defineStore('account', () => {
     createAccount,
     updateAccount,
     deleteAccount,
+    reorderAccounts,
     init
   }
 })

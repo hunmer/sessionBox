@@ -91,6 +91,7 @@ const api = {
     create: (data) => electron.ipcRenderer.invoke("account:create", data),
     update: (id, data) => electron.ipcRenderer.invoke("account:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("account:delete", id),
+    reorder: (accountIds) => electron.ipcRenderer.invoke("account:reorder", accountIds),
     uploadIcon: () => electron.ipcRenderer.invoke("account:uploadIcon")
   },
   proxy: {

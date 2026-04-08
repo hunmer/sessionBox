@@ -8,6 +8,7 @@ import {
   updateGroup,
   deleteGroup,
   reorderGroups,
+  reorderAccounts,
   listAccounts,
   createAccount,
   updateAccount,
@@ -61,6 +62,8 @@ export function registerIpcHandlers(): void {
     }
     deleteAccount(id)
   })
+
+  ipcMain.handle('account:reorder', (_e, accountIds: string[]) => reorderAccounts(accountIds))
 
   /** 选择图片并保存到本地图标目录，返回图标标识（img:文件名） */
   ipcMain.handle('account:uploadIcon', async () => {

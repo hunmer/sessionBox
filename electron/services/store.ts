@@ -145,6 +145,15 @@ export function deleteAccount(id: string): void {
   setCollection('accounts', accounts)
 }
 
+export function reorderAccounts(accountIds: string[]): void {
+  const accounts = getCollection('accounts')
+  accountIds.forEach((id, order) => {
+    const a = accounts.find((a) => a.id === id)
+    if (a) a.order = order
+  })
+  setCollection('accounts', accounts)
+}
+
 // ====== 代理操作 ======
 
 export function listProxies(): Proxy[] {

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Plus, Minus, Square, X, Copy } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import draggable from 'vuedraggable'
 import TabItem from './TabItem.vue'
 import { useTabStore } from '@/stores/tab'
@@ -13,6 +15,7 @@ defineProps<{
 
 const tabStore = useTabStore()
 const accountStore = useAccountStore()
+const showAddDialog = ref(false)
 
 function onDragEnd() {
   const ids = tabStore.sortedTabs.map((t) => t.id)
@@ -21,6 +24,7 @@ function onDragEnd() {
 
 function addTab(accountId: string) {
   tabStore.createTab(accountId)
+  showAddDialog.value = false
 }
 </script>
 
@@ -31,7 +35,7 @@ function addTab(accountId: string) {
       :model-value="tabStore.sortedTabs"
       :animation="150"
       item-key="id"
-      class="flex h-full flex-1 min-w-0"
+      class="flex h-full min-w-0"
       @end="onDragEnd"
       @update:model-value="tabStore.tabs = $event"
     >
@@ -41,32 +45,38 @@ function addTab(accountId: string) {
     </draggable>
 
     <!-- 新建标签按钮 -->
-    <DropdownMenu>
-      <DropdownMenuTrigger as-child>
-        <Button variant="ghost" size="icon" class="h-7 w-7 mx-1 flex-shrink-0">
-          <Plus class="w-3.5 h-3.5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuItem
-          v-for="account in accountStore.accounts"
-          :key="account.id"
-          @click="addTab(account.id)"
-        >
-          <img
-            v-if="account.icon?.startsWith('img:')"
-            :src="`account-icon://${account.icon.slice(4)}`"
-            alt=""
-            class="w-4 h-4 rounded-sm object-cover mr-1"
-          />
-          <span v-else class="mr-1">{{ account.icon }}</span>
-          {{ account.name }}
-        </DropdownMenuItem>
-        <template v-if="accountStore.accounts.length === 0">
-          <div class="px-2 py-1.5 text-xs text-muted-foreground">暂无账号，请先创建</div>
-        </template>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button variant="ghost" size="icon" class="h-full w-7 flex-shrink-0" @click="showAddDialog = true">
+      <Plus class="w-3.5 h-3.5" />
+    </Button>
+    <Dialog :open="showAddDialog" @update:open="showAddDialog = $event">
+      <DialogContent class="sm:max-w-[360px]">
+        <DialogHeader>
+          <DialogTitle>新建标签页</DialogTitle>
+        </DialogHeader>
+        <ScrollArea class="max-h-[300px]">
+          <div v-if="accountStore.accounts.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+            暂无账号，请先创建
+          </div>
+          <div v-else class="flex flex-col gap-1">
+            <button
+              v-for="account in accountStore.accounts"
+              :key="account.id"
+              class="flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-accent transition-colors text-left"
+              @click="addTab(account.id)"
+            >
+              <img
+                v-if="account.icon?.startsWith('img:')"
+                :src="`account-icon://${account.icon.slice(4)}`"
+                alt=""
+                class="w-5 h-5 rounded-sm object-cover"
+              />
+              <span v-else class="text-base leading-none">{{ account.icon }}</span>
+              <span>{{ account.name }}</span>
+            </button>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
 
     <!-- 填充可拖拽区域 -->
     <div class="flex-1 min-w-[60px] h-full" style="-webkit-app-region: drag" />

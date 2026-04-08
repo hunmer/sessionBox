@@ -114,16 +114,23 @@
   background: #4a4d5a;
 }
 
-/* 桌面应用 UI 框架禁止文字选中 */
-aside,
-.toolbar-url-input,
-[data-ui-chrome] {
+/* 全局禁止文本选择和链接拖拽 */
+body {
   -webkit-user-select: none;
   user-select: none;
+  -webkit-user-drag: none;
 }
 
-/* 地址栏输入框允许选中 */
-.toolbar-url-input input {
+/* 输入框和文本域允许选中 */
+input,
+textarea,
+[contenteditable="true"] {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* 禁止链接和图片拖拽 */
+a,
+img {
+  -webkit-user-drag: none;
 }
