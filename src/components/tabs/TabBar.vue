@@ -43,13 +43,13 @@ function addTab(accountId: string) {
 </script>
 
 <template>
-  <div class="flex items-end h-[40px] bg-card/50 border-b border-border overflow-hidden">
+  <div class="flex items-center h-[42px] px-2 gap-1 bg-card/30 border-b border-border">
     <!-- 标签列表（可拖拽排序） -->
     <draggable
       :model-value="tabStore.sortedTabs"
       :animation="150"
       item-key="id"
-      class="flex h-full min-w-0"
+      class="flex items-center gap-1 min-w-0 h-full"
       @end="onDragEnd"
       @update:model-value="tabStore.tabs = $event"
     >
@@ -59,7 +59,7 @@ function addTab(accountId: string) {
     </draggable>
 
     <!-- 新建标签按钮 -->
-    <Button variant="ghost" size="icon" class="h-full w-7 flex-shrink-0" @click="showAddDialog = true">
+    <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" @click="showAddDialog = true">
       <Plus class="w-3.5 h-3.5" />
     </Button>
     <Dialog :open="showAddDialog" @update:open="showAddDialog = $event">

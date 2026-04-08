@@ -31,23 +31,18 @@ function handleClose(e: MouseEvent) {
 
 <template>
   <div
-    class="group flex items-center gap-2 h-full px-3.5 border-r border-border cursor-pointer transition-all select-none relative"
+    class="group flex items-center gap-2 h-[30px] px-3 cursor-pointer transition-all select-none"
     :class="isActive
-      ? 'bg-background text-foreground shadow-sm font-medium'
-      : 'bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground/80'"
+      ? 'bg-background text-foreground shadow-sm font-medium rounded-xl'
+      : 'text-muted-foreground hover:bg-background/60 hover:text-foreground/80 rounded-xl'"
     @click="tabStore.switchTab(tab.id)"
   >
-    <!-- 激活状态底部指示条 -->
-    <div
-      v-if="isActive"
-      class="absolute bottom-0 left-2 right-2 h-[2px] bg-primary rounded-full"
-    />
     <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin text-primary/50" />
     <img v-else-if="faviconUrl" :src="faviconUrl" class="w-3.5 h-3.5 flex-shrink-0 rounded-sm" />
     <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
     <span class="truncate text-xs max-w-[120px]">{{ tabLabel }}</span>
     <button
-      class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-secondary transition-opacity"
+      class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-secondary transition-opacity"
       @click="handleClose"
     >
       <X class="w-3 h-3" />
