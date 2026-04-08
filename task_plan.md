@@ -4,7 +4,7 @@
 基于 Electron + Vue 3 + shadcn-vue + Vite + TailwindCSS，构建一个支持多账号（partition）隔离的浏览器工具，包含侧边栏分组管理、多标签页、代理管理和 WebContentsView 集成。
 
 ## Current Phase
-Phase 2
+Phase 5
 
 ## Phases
 
@@ -25,29 +25,29 @@ Phase 2
 - **Status:** complete
 
 ### Phase 3: 数据模型与状态管理
-- [ ] src/types/index.ts — TypeScript 类型定义（Proxy、Group、Account、Tab、NavState）
-- [ ] src/stores/account.ts — 账号/分组 Pinia store
-- [ ] src/stores/tab.ts — Tab 状态 Pinia store
-- [ ] src/stores/proxy.ts — 代理 Pinia store
-- [ ] src/composables/useIpc.ts — IPC 调用封装
-- **Status:** pending
+- [x] src/types/index.ts — TypeScript 类型定义（Proxy、Group、Account、Tab、NavState）
+- [x] src/stores/account.ts — 账号/分组 Pinia store
+- [x] src/stores/tab.ts — Tab 状态 Pinia store
+- [x] src/stores/proxy.ts — 代理 Pinia store
+- [x] src/composables/useIpc.ts — IPC 调用封装
+- **Status:** complete
 
 ### Phase 4: 侧边栏 UI
-- [ ] src/components/sidebar/Sidebar.vue — 侧边栏容器（可折叠）
-- [ ] src/components/sidebar/GroupList.vue — 分组列表（拖拽排序）
-- [ ] src/components/sidebar/GroupItem.vue — 单个分组（可折叠）
-- [ ] src/components/sidebar/AccountItem.vue — 账号项（图标+名称+代理标记+菜单）
-- [ ] src/composables/useDragSort.ts — 拖拽排序通用逻辑
-- [ ] 编辑账号/分组的 Dialog 弹窗
-- **Status:** pending
+- [x] src/components/sidebar/Sidebar.vue — 侧边栏容器（可折叠）
+- [x] src/components/sidebar/GroupList.vue — 分组列表（拖拽排序）
+- [x] src/components/sidebar/GroupItem.vue — 单个分组（可折叠）
+- [x] src/components/sidebar/AccountItem.vue — 账号项（图标+名称+代理标记+菜单）
+- [x] src/composables/useDragSort.ts — 拖拽排序通用逻辑
+- [x] 编辑账号/分组的 Dialog 弹窗
+- **Status:** complete
 
 ### Phase 5: 标签栏与工具栏
-- [ ] src/components/tabs/TabBar.vue — 标签栏容器（拖拽排序）
-- [ ] src/components/tabs/TabItem.vue — 单个标签
-- [ ] src/components/toolbar/BrowserToolbar.vue — 后退/前进/刷新/地址栏
-- [ ] 新建 tab 的账号选择 dropdown
-- [ ] Tab 状态与工具栏联动
-- **Status:** pending
+- [x] src/components/tabs/TabBar.vue — 标签栏容器（拖拽排序）
+- [x] src/components/tabs/TabItem.vue — 单个标签
+- [x] src/components/toolbar/BrowserToolbar.vue — 后退/前进/刷新/地址栏
+- [x] 新建 tab 的账号选择 dropdown
+- [x] Tab 状态与工具栏联动
+- **Status:** complete
 
 ### Phase 6: WebContentsView 集成
 - [ ] electron/services/webview-manager.ts — WebContentsView 生命周期管理

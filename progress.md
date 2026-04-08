@@ -48,25 +48,54 @@
   - src/env.d.ts (updated)
 
 ### Phase 3: 数据模型与状态管理
-- **Status:** pending
+- **Status:** complete
 - Actions taken:
-  -
+  - 创建 src/types/index.ts — Proxy、Group、Account、Tab、NavState 类型定义
+  - 创建 src/stores/account.ts — 账号/分组 Pinia store，含 CRUD、排序、按分组归类
+  - 创建 src/stores/tab.ts — Tab Pinia store，含导航状态管理、主进程事件监听、标签切换逻辑
+  - 创建 src/stores/proxy.ts — 代理 Pinia store，含 CRUD 和代理测试
+  - 创建 src/composables/useIpc.ts — IPC 事件监听组合函数，自动清理
+  - electron-vite build 构建验证通过
 - Files created/modified:
-  -
+  - src/types/index.ts (created)
+  - src/stores/account.ts (created)
+  - src/stores/tab.ts (created)
+  - src/stores/proxy.ts (created)
+  - src/composables/useIpc.ts (created)
 
 ### Phase 4: 侧边栏 UI
-- **Status:** pending
+- **Status:** complete
 - Actions taken:
-  -
+  - 安装 collapsible、alert-dialog shadcn-vue 组件
+  - 创建拖拽排序 composable (useDragSort.ts)
+  - 创建 AccountItem.vue — 账号项（图标+名称+代理标记+菜单）
+  - 创建 GroupItem.vue — 分组（Collapsible 展开/收起）
+  - 创建 GroupList.vue — 分组列表（vuedraggable 拖拽排序）
+  - 创建 GroupDialog.vue — 分组编辑弹窗
+  - 创建 AccountDialog.vue — 账号编辑弹窗（含代理绑定选择）
+  - 创建 Sidebar.vue — 侧边栏主容器（折叠/展开、底部操作栏、删除确认弹窗）
 - Files created/modified:
-  -
+  - src/composables/useDragSort.ts (created)
+  - src/components/sidebar/AccountItem.vue (created)
+  - src/components/sidebar/GroupItem.vue (created)
+  - src/components/sidebar/GroupList.vue (created)
+  - src/components/sidebar/GroupDialog.vue (created)
+  - src/components/sidebar/AccountDialog.vue (created)
+  - src/components/sidebar/Sidebar.vue (created)
 
 ### Phase 5: 标签栏与工具栏
-- **Status:** pending
+- **Status:** complete
 - Actions taken:
-  -
+  - 创建 TabItem.vue — 单个标签（标题、关闭按钮、激活态样式）
+  - 创建 TabBar.vue — 标签栏容器（vuedraggable 拖拽排序、+ 新建标签 dropdown）
+  - 创建 BrowserToolbar.vue — 工具栏（后退/前进/刷新/地址栏，导航状态联动）
+  - 更新 App.vue — 整合侧边栏+标签栏+工具栏+webview 占位区的完整布局
+  - electron-vite build 构建验证通过
 - Files created/modified:
-  -
+  - src/components/tabs/TabItem.vue (created)
+  - src/components/tabs/TabBar.vue (created)
+  - src/components/toolbar/BrowserToolbar.vue (created)
+  - src/App.vue (updated)
 
 ### Phase 6: WebContentsView 集成
 - **Status:** pending
