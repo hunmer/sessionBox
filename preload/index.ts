@@ -93,6 +93,8 @@ const api = {
     reload: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:reload', tabId),
     updateBounds: (rect: { x: number; y: number; width: number; height: number }): void =>
       ipcRenderer.send('tab:update-bounds', rect),
+    setOverlayVisible: (visible: boolean): void =>
+      ipcRenderer.send('tab:set-overlay-visible', visible),
     restoreAll: (): Promise<string[]> => ipcRenderer.invoke('tab:restore-all'),
     saveAll: (tabs: Tab[]): Promise<void> => ipcRenderer.invoke('tab:save-all', tabs)
   },

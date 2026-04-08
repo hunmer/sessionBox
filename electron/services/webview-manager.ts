@@ -198,6 +198,15 @@ class WebviewManager {
     if (entry) entry.view.webContents.reload()
   }
 
+  /** 控制当前活跃视图的可见性（用于 dialog 弹出时隐藏 webview） */
+  setOverlayVisible(visible: boolean): void {
+    if (!this.activeTabId) return
+    const entry = this.views.get(this.activeTabId)
+    if (entry) {
+      entry.view.setVisible(visible)
+    }
+  }
+
   /** 销毁所有视图（退出时调用） */
   destroyAll(): void {
     for (const tabId of this.views.keys()) {

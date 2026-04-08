@@ -80,6 +80,11 @@ export function registerTabIpcHandlers(): void {
     webviewManager.reload(tabId)
   })
 
+  // 控制 WebContentsView 可见性（dialog 弹出时隐藏）
+  ipcMain.on('tab:set-overlay-visible', (_e, visible: boolean) => {
+    webviewManager.setOverlayVisible(visible)
+  })
+
   // 位置同步（渲染进程 → 主进程，fire-and-forget）
   ipcMain.on('tab:update-bounds', (_e, rect: { x: number; y: number; width: number; height: number }) => {
     webviewManager.updateBounds(rect)
