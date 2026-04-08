@@ -55,7 +55,7 @@ function onAccountDragEnd() {
   <Collapsible v-model:open="open">
     <!-- 分组标题 -->
     <div
-      class="group group-handle flex items-center gap-1 px-2 py-1.5 rounded cursor-pointer transition-colors"
+      class="group group-handle flex items-center gap-1 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
       :class="isGroupActive ? 'text-primary' : 'text-muted-foreground hover:text-sidebar-foreground'"
     >
       <!-- 折叠态：仅显示首字母 -->
@@ -106,7 +106,7 @@ function onAccountDragEnd() {
         :model-value="accounts"
         :animation="150"
         item-key="id"
-        class="pl-2"
+        class="pl-3"
         @end="onAccountDragEnd"
         @update:model-value="onAccountUpdate"
       >

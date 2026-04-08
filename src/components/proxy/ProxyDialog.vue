@@ -201,9 +201,9 @@ async function handleDelete() {
 
           <!-- 测试结果 -->
           <div v-if="testResult" class="flex items-center gap-2 text-xs">
-            <CheckCircle2 v-if="testResult.ok" class="w-4 h-4 text-emerald-500" />
+            <CheckCircle2 v-if="testResult.ok" class="w-4 h-4 text-green-500" />
             <XCircle v-else class="w-4 h-4 text-destructive" />
-            <span v-if="testResult.ok" class="text-emerald-500">连接成功，IP: {{ testResult.ip }}</span>
+            <span v-if="testResult.ok" class="text-green-500">连接成功，IP: {{ testResult.ip }}</span>
             <span v-else class="text-destructive">{{ testResult.error }}</span>
           </div>
 

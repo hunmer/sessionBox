@@ -36,7 +36,7 @@ function onDragEnd() {
     :animation="150"
     handle=".group-handle"
     item-key="id"
-    class="flex flex-col gap-0.5"
+    class="flex flex-col gap-1"
     @end="onDragEnd"
     @update:model-value="onGroupUpdate"
   >

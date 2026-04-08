@@ -52,7 +52,7 @@ function onBlur() {
 </script>
 
 <template>
-  <div class="flex items-center gap-1.5 h-[40px] px-2 border-b border-border bg-card/30">
+  <div class="flex items-center gap-2 h-[42px] px-2.5 border-b border-border bg-card/50">
     <!-- 后退 -->
     <Button
       variant="ghost" size="icon" class="h-7 w-7"
@@ -80,7 +80,7 @@ function onBlur() {
     <!-- 地址栏 -->
     <Input
       v-model="urlInput"
-      class="toolbar-url-input flex-1 h-7 text-xs bg-secondary/50 border-transparent focus:border-ring"
+      class="toolbar-url-input flex-1 h-7 text-xs bg-secondary/60 border-transparent focus:border-ring"
       placeholder="输入网址..."
       :disabled="!tabStore.activeTabId"
       @keydown.enter="navigate"

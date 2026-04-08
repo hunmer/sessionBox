@@ -9,6 +9,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-light: var(--primary-light);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -24,63 +25,72 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-hover: var(--sidebar-hover);
   --color-sidebar-border: var(--sidebar-border);
-  --color-emerald: #10b981;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --color-brand: #1456f0;
+  --color-brand-accent: #ea5ec1;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
+  --shadow-brand: 0 0 15px rgba(44, 30, 116, 0.16);
+  --shadow-card: 0 4px 6px rgba(0, 0, 0, 0.08);
+  --shadow-card-elevated: 0 12px 16px -4px rgba(36, 36, 36, 0.08);
 }
 
 @layer base {
   :root.light {
-    --background: #f5f5f5;
-    --foreground: #18181b;
+    --background: #ffffff;
+    --foreground: #222222;
     --card: #ffffff;
-    --card-foreground: #18181b;
+    --card-foreground: #222222;
     --popover: #ffffff;
-    --popover-foreground: #18181b;
-    --primary: #10b981;
+    --popover-foreground: #222222;
+    --primary: #1456f0;
     --primary-foreground: #ffffff;
+    --primary-light: #60a5fa;
     --secondary: #f0f0f0;
-    --secondary-foreground: #18181b;
-    --muted: #f0f0f0;
-    --muted-foreground: #71717a;
-    --accent: #10b981;
+    --secondary-foreground: #333333;
+    --muted: #f2f3f5;
+    --muted-foreground: #8e8e93;
+    --accent: #3b82f6;
     --accent-foreground: #ffffff;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: #e4e4e7;
-    --input: #e4e4e7;
-    --ring: #10b981;
-    --sidebar: #f0f0f0;
-    --sidebar-foreground: #18181b;
-    --sidebar-hover: #e4e4e7;
-    --sidebar-border: #d4d4d8;
+    --border: #e5e7eb;
+    --input: #e5e7eb;
+    --ring: #3b82f6;
+    --sidebar: #f8f9fa;
+    --sidebar-foreground: #222222;
+    --sidebar-hover: #e5e7eb;
+    --sidebar-border: #e5e7eb;
   }
 
   :root.dark {
-    --background: #1a1d27;
-    --foreground: #e4e4e7;
-    --card: #252830;
-    --card-foreground: #e4e4e7;
-    --popover: #252830;
-    --popover-foreground: #e4e4e7;
-    --primary: #10b981;
-    --primary-foreground: #0f1117;
-    --secondary: #252830;
-    --secondary-foreground: #e4e4e7;
-    --muted: #252830;
-    --muted-foreground: #9ca3af;
-    --accent: #10b981;
-    --accent-foreground: #0f1117;
+    --background: #181e25;
+    --foreground: #e8eaed;
+    --card: #1f2733;
+    --card-foreground: #e8eaed;
+    --popover: #1f2733;
+    --popover-foreground: #e8eaed;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --primary-light: #60a5fa;
+    --secondary: #252d38;
+    --secondary-foreground: #e8eaed;
+    --muted: #252d38;
+    --muted-foreground: #8e8e93;
+    --accent: #2563eb;
+    --accent-foreground: #ffffff;
     --destructive: #ef4444;
-    --destructive-foreground: #e4e4e7;
-    --border: #2e3140;
-    --input: #2e3140;
-    --ring: #10b981;
-    --sidebar: #0f1117;
-    --sidebar-foreground: #e4e4e7;
-    --sidebar-hover: #252830;
-    --sidebar-border: #2e3140;
+    --destructive-foreground: #e8eaed;
+    --border: #2d3544;
+    --input: #2d3544;
+    --ring: #3b82f6;
+    --sidebar: #131920;
+    --sidebar-foreground: #e8eaed;
+    --sidebar-hover: #252d38;
+    --sidebar-border: #2d3544;
   }
 
   * {
@@ -105,12 +115,21 @@
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+:root.light ::-webkit-scrollbar-thumb {
+  background: #c5c8cc;
+  border-radius: 3px;
+}
+
+:root.light ::-webkit-scrollbar-thumb:hover {
+  background: #a0a4aa;
+}
+
+:root.dark ::-webkit-scrollbar-thumb {
   background: #3a3d4a;
   border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+:root.dark ::-webkit-scrollbar-thumb:hover {
   background: #4a4d5a;
 }
 
@@ -118,7 +137,7 @@
 body {
   -webkit-user-select: none;
   user-select: none;
-  -webkit-user-drag: none;
+  -webkit-drag: none;
 }
 
 /* 输入框和文本域允许选中 */
@@ -132,5 +151,5 @@ textarea,
 /* 禁止链接和图片拖拽 */
 a,
 img {
-  -webkit-user-drag: none;
+  -webkit-drag: none;
 }

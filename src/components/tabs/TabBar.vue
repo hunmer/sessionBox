@@ -43,7 +43,7 @@ function addTab(accountId: string) {
 </script>
 
 <template>
-  <div class="flex items-end h-[38px] bg-card/30 border-b border-border overflow-hidden">
+  <div class="flex items-end h-[40px] bg-card/50 border-b border-border overflow-hidden">
     <!-- 标签列表（可拖拽排序） -->
     <draggable
       :model-value="tabStore.sortedTabs"

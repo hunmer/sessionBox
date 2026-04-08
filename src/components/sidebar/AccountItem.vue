@@ -63,8 +63,8 @@ function handleClick() {
 
 <template>
   <div
-    class="group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors"
-    :class="isActive ? 'bg-primary/15 text-primary' : 'hover:bg-sidebar-hover text-sidebar-foreground'"
+    class="group flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
+    :class="isActive ? 'bg-primary/10 text-primary' : 'hover:bg-sidebar-hover text-sidebar-foreground'"
     @click="handleClick"
   >
     <!-- 图标 -->
@@ -79,7 +79,7 @@ function handleClick() {
     <!-- 代理标记 -->
     <span
       v-if="!collapsed && account.proxyId"
-      class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary"
+      class="flex-shrink-0 w-2 h-2 rounded-full bg-primary"
       title="已绑定代理"
     />
 

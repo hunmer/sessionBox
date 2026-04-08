@@ -31,7 +31,7 @@ function handleClose(e: MouseEvent) {
 
 <template>
   <div
-    class="group flex items-center gap-1.5 h-full px-3 border-r border-border cursor-pointer transition-all select-none relative"
+    class="group flex items-center gap-2 h-full px-3.5 border-r border-border cursor-pointer transition-all select-none relative"
     :class="isActive
       ? 'bg-background text-foreground shadow-sm font-medium'
       : 'bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground/80'"
@@ -42,7 +42,7 @@ function handleClose(e: MouseEvent) {
       v-if="isActive"
       class="absolute bottom-0 left-2 right-2 h-[2px] bg-primary rounded-full"
     />
-    <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin text-primary/60" />
+    <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin text-primary/50" />
     <img v-else-if="faviconUrl" :src="faviconUrl" class="w-3.5 h-3.5 flex-shrink-0 rounded-sm" />
     <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
     <span class="truncate text-xs max-w-[120px]">{{ tabLabel }}</span>

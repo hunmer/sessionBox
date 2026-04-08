@@ -121,8 +121,8 @@ async function handleDelete() {
     class="flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-200"
   >
     <!-- 顶部：折叠按钮（可拖拽区域） -->
-    <div class="flex items-center justify-between px-2 h-10 border-b border-sidebar-border" style="-webkit-app-region: drag">
-      <span v-if="!collapsed" class="text-sm font-semibold text-sidebar-foreground">SessionBox</span>
+    <div class="flex items-center justify-between px-3 h-11 border-b border-sidebar-border" style="-webkit-app-region: drag">
+      <span v-if="!collapsed" class="text-sm font-medium text-sidebar-foreground">SessionBox</span>
       <Tooltip>
         <TooltipTrigger as-child>
           <Button variant="ghost" size="icon" class="h-7 w-7" style="-webkit-app-region: no-drag" @click="emit('toggleCollapse')">
@@ -147,7 +147,7 @@ async function handleDelete() {
     </ScrollArea>
 
     <!-- 底部操作 -->
-    <div class="border-t border-sidebar-border px-2 py-1.5 flex items-center gap-1">
+    <div class="border-t border-sidebar-border px-3 py-2 flex items-center gap-1.5">
       <template v-if="collapsed">
         <Tooltip>
           <TooltipTrigger as-child>
