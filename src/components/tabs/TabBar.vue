@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Plus, Minus, Square, X, Copy } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeft } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import draggable from 'vuedraggable'
 import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
@@ -79,6 +79,17 @@ function handleAddAccount(account: Account) {
 
     <!-- 填充可拖拽区域 -->
     <div class="flex-1 min-w-[60px] h-full" style="-webkit-app-region: drag" />
+
+    <!-- 标签布局切换按钮 -->
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-7 w-7 rounded-full hover:bg-secondary flex-shrink-0"
+      style="-webkit-app-region: no-drag"
+      @click="tabStore.toggleLayout()"
+    >
+      <PanelLeft class="w-3.5 h-3.5" />
+    </Button>
 
     <!-- 窗口控制按钮 -->
     <div class="flex items-center gap-1.5 flex-shrink-0" style="-webkit-app-region: no-drag">

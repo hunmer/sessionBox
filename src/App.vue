@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
 import TabBar from '@/components/tabs/TabBar.vue'
+import TabBarVertical from '@/components/tabs/TabBarVertical.vue'
 import BrowserToolbar from '@/components/toolbar/BrowserToolbar.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
@@ -21,6 +22,7 @@ const proxyDialogOpen = ref(false)
 const settingsDialogOpen = ref(false)
 const ready = ref(false)
 const isMaximized = ref(false)
+const verticalTabAddDialog = ref(false)
 
 // ====== 侧边栏面板控制 ======
 const SIDEBAR_STORAGE_KEY = 'sessionbox-sidebar-width'
@@ -147,12 +149,20 @@ watch(() => tabStore.activeTabId, () => {
 
         <ResizableHandle />
 
+        <!-- 垂直标签栏面板（仅垂直模式） -->
+        <template v-if="tabStore.tabLayout === 'vertical'">
+          <ResizablePanel size-unit="px" :default-size="180" :min-size="120" :max-size="320">
+            <TabBarVertical v-model:show-add-dialog="verticalTabAddDialog" />
+          </ResizablePanel>
+          <ResizableHandle />
+        </template>
+
         <!-- 主内容区面板 -->
         <ResizablePanel>
           <div class="flex flex-col h-full min-w-0">
             <template v-if="ready">
-              <!-- 标签栏 -->
-              <TabBar :is-maximized="isMaximized" />
+              <!-- 水平标签栏（仅水平模式） -->
+              <TabBar v-if="tabStore.tabLayout === 'horizontal'" :is-maximized="isMaximized" />
 
               <!-- 工具栏 -->
               <BrowserToolbar v-if="tabStore.activeTab" />

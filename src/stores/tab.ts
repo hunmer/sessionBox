@@ -4,12 +4,26 @@ import type { Tab, NavState } from '../types'
 
 const api = window.api
 
+export type TabLayout = 'horizontal' | 'vertical'
+
+const TAB_LAYOUT_KEY = 'sessionbox-tab-layout'
+
 export const useTabStore = defineStore('tab', () => {
   // ====== 状态 ======
   const tabs = ref<Tab[]>([])
   const activeTabId = ref<string | null>(null)
   const navStates = ref<Map<string, NavState>>(new Map())
   const favicons = ref<Map<string, string>>(new Map())
+
+  // ====== 标签栏布局 ======
+  const tabLayout = ref<TabLayout>(
+    (localStorage.getItem(TAB_LAYOUT_KEY) as TabLayout) || 'horizontal'
+  )
+
+  function toggleLayout() {
+    tabLayout.value = tabLayout.value === 'horizontal' ? 'vertical' : 'horizontal'
+    localStorage.setItem(TAB_LAYOUT_KEY, tabLayout.value)
+  }
 
   // ====== 计算属性 ======
 
@@ -106,6 +120,7 @@ export const useTabStore = defineStore('tab', () => {
 
   async function openInNewWindow(tabId: string) {
     await api.tab.openInNewWindow(tabId)
+    await closeTab(tabId)
   }
 
   async function openInBrowser(tabId: string) {
@@ -175,6 +190,8 @@ export const useTabStore = defineStore('tab', () => {
     sortedTabs,
     activeTab,
     activeNavState,
+    tabLayout,
+    toggleLayout,
     loadTabs,
     createTab,
     closeTab,
