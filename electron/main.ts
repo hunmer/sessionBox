@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, net } from 'electron'
+import { app, BrowserWindow, nativeImage, protocol, net } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupUserAgent } from './utils/user-agent'
@@ -50,6 +50,9 @@ if (!gotTheLock) {
   })
 
   function createWindow(): void {
+    const iconPath = app.isPackaged
+      ? join(process.resourcesPath, 'icon.png')
+      : join(__dirname, '../../resources/icon.png')
     const mainWindow = new BrowserWindow({
       width: 1280,
       height: 800,
@@ -57,6 +60,7 @@ if (!gotTheLock) {
       autoHideMenuBar: true,
       frame: false,
       transparent: true,
+      icon: nativeImage.createFromPath(iconPath),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false

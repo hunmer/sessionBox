@@ -46,6 +46,12 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true
   },
+  "extraResources": [
+    {
+      "from": "resources/icon.png",
+      "to": "icon.png"
+    }
+  ],
   "compression": "store",
   "asar": true
 }

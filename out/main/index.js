@@ -10621,7 +10621,8 @@ class WebviewManager {
   }
   /** 销毁所有视图（退出时调用） */
   destroyAll() {
-    for (const tabId of this.views.keys()) {
+    const tabIds = [...this.views.keys()];
+    for (const tabId of tabIds) {
       this.destroyView(tabId);
     }
   }
@@ -10908,6 +10909,7 @@ if (!gotTheLock) {
   require$$1.app.quit();
 } else {
   let createWindow = function() {
+    const iconPath = require$$1.app.isPackaged ? require$$0$1.join(process.resourcesPath, "icon.png") : require$$0$1.join(__dirname, "../../resources/icon.png");
     const mainWindow = new require$$1.BrowserWindow({
       width: 1280,
       height: 800,
@@ -10915,6 +10917,7 @@ if (!gotTheLock) {
       autoHideMenuBar: true,
       frame: false,
       transparent: true,
+      icon: require$$1.nativeImage.createFromPath(iconPath),
       webPreferences: {
         preload: require$$0$1.join(__dirname, "../preload/index.js"),
         sandbox: false
