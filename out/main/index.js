@@ -10611,6 +10611,13 @@ class WebviewManager {
     const entry = this.views.get(tabId);
     if (entry) entry.view.webContents.reload();
   }
+  /** 打开开发者工具 */
+  openDevTools(tabId) {
+    const entry = this.views.get(tabId);
+    if (entry && !entry.view.webContents.isDestroyed()) {
+      entry.view.webContents.openDevTools();
+    }
+  }
   /** 控制当前活跃视图的可见性（用于 dialog 弹出时隐藏 webview） */
   setOverlayVisible(visible) {
     if (!this.activeTabId) return;
@@ -10677,6 +10684,9 @@ function registerTabIpcHandlers() {
   });
   require$$1.ipcMain.handle("tab:reload", (_e, tabId) => {
     webviewManager.reload(tabId);
+  });
+  require$$1.ipcMain.handle("tab:openDevTools", (_e, tabId) => {
+    webviewManager.openDevTools(tabId);
   });
   require$$1.ipcMain.on("tab:set-overlay-visible", (_e, visible) => {
     webviewManager.setOverlayVisible(visible);

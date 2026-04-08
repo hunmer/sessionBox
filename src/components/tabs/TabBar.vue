@@ -2,19 +2,17 @@
 import { ref } from 'vue'
 import { Plus, Minus, Square, X, Copy } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import draggable from 'vuedraggable'
+import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
 import TabItem from './TabItem.vue'
 import { useTabStore } from '@/stores/tab'
-import { useAccountStore } from '@/stores/account'
+import type { Account } from '@/types'
 
 defineProps<{
   isMaximized: boolean
 }>()
 
 const tabStore = useTabStore()
-const accountStore = useAccountStore()
 const showAddDialog = ref(false)
 
 const windowApi = () => window.api
@@ -31,14 +29,25 @@ function closeWindow() {
   windowApi()?.window.close()
 }
 
-function onDragEnd() {
-  const ids = tabStore.sortedTabs.map((t) => t.id)
+function onDragEnd(evt: { oldIndex: number; newIndex: number }) {
+  // sortable 只在 DOM 层移动了元素，手动同步到 store
+  const sorted = [...tabStore.sortedTabs]
+  const [moved] = sorted.splice(evt.oldIndex, 1)
+  sorted.splice(evt.newIndex, 0, moved)
+
+  // 先立即更新本地 order，防止 sortedTabs 重算后回弹
+  const ids = sorted.map((t) => t.id)
+  ids.forEach((id, order) => {
+    const t = tabStore.tabs.find((t) => t.id === id)
+    if (t) t.order = order
+  })
+
+  // 异步持久化到主进程
   tabStore.reorderTabs(ids)
 }
 
-function addTab(accountId: string) {
-  tabStore.createTab(accountId)
-  showAddDialog.value = false
+function handleAddAccount(account: Account) {
+  tabStore.createTab(account.id)
 }
 </script>
 
@@ -51,7 +60,6 @@ function addTab(accountId: string) {
       item-key="id"
       class="flex items-center gap-1 min-w-0 h-full"
       @end="onDragEnd"
-      @update:model-value="tabStore.tabs = $event"
     >
       <template #item="{ element: tab }">
         <TabItem :tab="tab" />
@@ -62,35 +70,12 @@ function addTab(accountId: string) {
     <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" @click="showAddDialog = true">
       <Plus class="w-3.5 h-3.5" />
     </Button>
-    <Dialog :open="showAddDialog" @update:open="showAddDialog = $event">
-      <DialogContent class="sm:max-w-[360px]">
-        <DialogHeader>
-          <DialogTitle>新建标签页</DialogTitle>
-        </DialogHeader>
-        <ScrollArea class="max-h-[300px]">
-          <div v-if="accountStore.accounts.length === 0" class="py-6 text-center text-sm text-muted-foreground">
-            暂无账号，请先创建
-          </div>
-          <div v-else class="flex flex-col gap-1">
-            <button
-              v-for="account in accountStore.accounts"
-              :key="account.id"
-              class="flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-accent transition-colors text-left"
-              @click="addTab(account.id)"
-            >
-              <img
-                v-if="account.icon?.startsWith('img:')"
-                :src="`account-icon://${account.icon.slice(4)}`"
-                alt=""
-                class="w-5 h-5 rounded-sm object-cover"
-              />
-              <span v-else class="text-base leading-none">{{ account.icon }}</span>
-              <span>{{ account.name }}</span>
-            </button>
-          </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+    <AccountPickerDialog
+      :open="showAddDialog"
+      title="新建标签页"
+      @update:open="showAddDialog = $event"
+      @select="handleAddAccount"
+    />
 
     <!-- 填充可拖拽区域 -->
     <div class="flex-1 min-w-[60px] h-full" style="-webkit-app-region: drag" />

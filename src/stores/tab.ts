@@ -100,6 +100,10 @@ export const useTabStore = defineStore('tab', () => {
     await api.tab.reload(tabId)
   }
 
+  async function openDevTools(tabId: string) {
+    await api.tab.openDevTools(tabId)
+  }
+
   /** 注册主进程 → 渲染进程事件监听 */
   function setupListeners() {
     api.on('tab:title-updated', (tabId: unknown, title: unknown) => {
@@ -173,6 +177,7 @@ export const useTabStore = defineStore('tab', () => {
     goBack,
     goForward,
     reload,
+    openDevTools,
     init,
     saveState
   }

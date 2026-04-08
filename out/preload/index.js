@@ -114,6 +114,7 @@ const api = {
     goBack: (tabId) => electron.ipcRenderer.invoke("tab:goBack", tabId),
     goForward: (tabId) => electron.ipcRenderer.invoke("tab:goForward", tabId),
     reload: (tabId) => electron.ipcRenderer.invoke("tab:reload", tabId),
+    openDevTools: (tabId) => electron.ipcRenderer.invoke("tab:openDevTools", tabId),
     updateBounds: (rect) => electron.ipcRenderer.send("tab:update-bounds", rect),
     setOverlayVisible: (visible) => electron.ipcRenderer.send("tab:set-overlay-visible", visible),
     restoreAll: () => electron.ipcRenderer.invoke("tab:restore-all"),

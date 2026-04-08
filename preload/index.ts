@@ -102,6 +102,7 @@ const api = {
     goBack: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:goBack', tabId),
     goForward: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:goForward', tabId),
     reload: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:reload', tabId),
+    openDevTools: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:openDevTools', tabId),
     updateBounds: (rect: { x: number; y: number; width: number; height: number }): void =>
       ipcRenderer.send('tab:update-bounds', rect),
     setOverlayVisible: (visible: boolean): void =>

@@ -243,6 +243,14 @@ class WebviewManager {
     if (entry) entry.view.webContents.reload()
   }
 
+  /** 打开开发者工具 */
+  openDevTools(tabId: string): void {
+    const entry = this.views.get(tabId)
+    if (entry && !entry.view.webContents.isDestroyed()) {
+      entry.view.webContents.openDevTools()
+    }
+  }
+
   /** 控制当前活跃视图的可见性（用于 dialog 弹出时隐藏 webview） */
   setOverlayVisible(visible: boolean): void {
     if (!this.activeTabId) return

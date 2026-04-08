@@ -33,7 +33,7 @@ function handleClose(e: MouseEvent) {
   <div
     class="group flex items-center gap-2 h-[30px] px-3 cursor-pointer transition-all select-none"
     :class="isActive
-      ? 'bg-background text-foreground shadow-sm font-medium rounded-xl'
+      ? 'bg-primary/15 text-primary border border-primary/30 shadow-sm font-medium rounded-xl'
       : 'text-muted-foreground hover:bg-background/60 hover:text-foreground/80 rounded-xl'"
     @click="tabStore.switchTab(tab.id)"
   >

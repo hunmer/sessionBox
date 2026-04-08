@@ -147,7 +147,7 @@ async function handleDelete() {
     </ScrollArea>
 
     <!-- 底部操作 -->
-    <div class="border-t border-sidebar-border px-3 py-2 flex items-center gap-1.5">
+    <div :class="['border-t border-sidebar-border py-2 flex gap-1', collapsed ? 'flex-col items-center px-1' : 'flex-row items-center gap-1.5 px-3']">
       <template v-if="collapsed">
         <Tooltip>
           <TooltipTrigger as-child>
@@ -157,26 +157,22 @@ async function handleDelete() {
           </TooltipTrigger>
           <TooltipContent side="right">新建分组</TooltipContent>
         </Tooltip>
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="icon" class="h-7 w-7">
-                  <MoreVertical class="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right">更多</TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent align="start" side="right">
-            <DropdownMenuItem @click="emit('openProxy')">
-              <Globe class="w-4 h-4 mr-2" />代理设置
-            </DropdownMenuItem>
-            <DropdownMenuItem @click="emit('openSettings')">
-              <Settings class="w-4 h-4 mr-2" />设置
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('openProxy')">
+              <Globe class="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">代理设置</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('openSettings')">
+              <Settings class="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">设置</TooltipContent>
+        </Tooltip>
       </template>
       <template v-else>
         <Button variant="ghost" size="sm" class="flex-1 text-xs" @click.stop="openNewGroup">

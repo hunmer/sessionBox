@@ -4,10 +4,11 @@ import { ChevronRight, Plus, MoreHorizontal } from 'lucide-vue-next'
 import draggable from 'vuedraggable'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
 import AccountItem from './AccountItem.vue'
 import { useAccountStore } from '@/stores/account'
 import { useTabStore } from '@/stores/tab'
-import type { Group } from '@/types'
+import type { Group, Account } from '@/types'
 
 const props = defineProps<{
   group: Group
@@ -18,13 +19,14 @@ const emit = defineEmits<{
   editGroup: [group: Group]
   deleteGroup: [group: Group]
   addAccount: [groupId: string]
-  editAccount: [account: import('@/types').Account]
-  deleteAccount: [account: import('@/types').Account]
+  editAccount: [account: Account]
+  deleteAccount: [account: Account]
 }>()
 
 const accountStore = useAccountStore()
 const tabStore = useTabStore()
 const open = ref(true)
+const pickerOpen = ref(false)
 
 /** 该分组下的账号（已排序） */
 const accounts = computed(() => {
@@ -36,6 +38,16 @@ const accounts = computed(() => {
 const isGroupActive = computed(() =>
   accounts.value.some((a) => tabStore.activeTab?.accountId === a.id)
 )
+
+/** 折叠态选中账号：切换或创建 tab */
+function handlePickerSelect(account: Account) {
+  const accountTabs = tabStore.sortedTabs.filter((t) => t.accountId === account.id)
+  if (accountTabs.length > 0) {
+    tabStore.switchTab(accountTabs[accountTabs.length - 1].id)
+  } else {
+    tabStore.createTab(account.id)
+  }
+}
 
 /** 拖拽过程中立即更新 order 并替换 store 数据，防止 computed 按旧 order 重排 */
 function onAccountUpdate(newList: typeof accounts.value) {
@@ -52,56 +64,67 @@ function onAccountDragEnd() {
 </script>
 
 <template>
-  <Collapsible v-model:open="open">
+  <!-- 折叠态：点击弹出 Dialog 展示账号列表 -->
+  <template v-if="collapsed">
+    <div
+      class="group group-handle flex items-center gap-1 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
+      :class="isGroupActive ? 'text-primary' : 'text-muted-foreground hover:text-sidebar-foreground'"
+      @click="pickerOpen = true"
+    >
+      <span class="flex-1 text-xs font-medium text-center">
+        {{ group.name.charAt(0) }}
+      </span>
+    </div>
+    <AccountPickerDialog
+      :open="pickerOpen"
+      :group-id="group.id"
+      :title="group.name"
+      @update:open="pickerOpen = $event"
+      @select="handlePickerSelect"
+    />
+  </template>
+
+  <!-- 展开态：原有的 Collapsible 行为 -->
+  <Collapsible v-else v-model:open="open">
     <!-- 分组标题 -->
     <div
       class="group group-handle flex items-center gap-1 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
       :class="isGroupActive ? 'text-primary' : 'text-muted-foreground hover:text-sidebar-foreground'"
     >
-      <!-- 折叠态：仅显示首字母 -->
-      <template v-if="collapsed">
-        <span class="flex-1 text-xs font-medium text-center">
-          {{ group.name.charAt(0) }}
-        </span>
-      </template>
-
-      <!-- 展开态 -->
-      <template v-else>
-        <CollapsibleTrigger as-child>
-          <button class="flex-shrink-0 transition-transform" :class="open ? 'rotate-90' : ''">
-            <ChevronRight class="w-3.5 h-3.5" />
-          </button>
-        </CollapsibleTrigger>
-        <span class="flex-1 truncate text-xs font-medium uppercase tracking-wider">
-          {{ group.name }}
-        </span>
-        <!-- 增加账号按钮 -->
-        <button
-          class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity"
-          @click.stop="emit('addAccount', group.id)"
-        >
-          <Plus class="w-3.5 h-3.5" />
+      <CollapsibleTrigger as-child>
+        <button class="flex-shrink-0 transition-transform" :class="open ? 'rotate-90' : ''">
+          <ChevronRight class="w-3.5 h-3.5" />
         </button>
-        <!-- 更多操作 -->
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <button
-              class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity"
-              @click.stop
-            >
-              <MoreHorizontal class="w-3.5 h-3.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" class="w-36">
-            <DropdownMenuItem @click="emit('editGroup', group)">编辑分组</DropdownMenuItem>
-            <DropdownMenuItem class="text-destructive" @click="emit('deleteGroup', group)">删除分组</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </template>
+      </CollapsibleTrigger>
+      <span class="flex-1 truncate text-xs font-medium uppercase tracking-wider">
+        {{ group.name }}
+      </span>
+      <!-- 增加账号按钮 -->
+      <button
+        class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity"
+        @click.stop="emit('addAccount', group.id)"
+      >
+        <Plus class="w-3.5 h-3.5" />
+      </button>
+      <!-- 更多操作 -->
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <button
+            class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity"
+            @click.stop
+          >
+            <MoreHorizontal class="w-3.5 h-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" class="w-36">
+          <DropdownMenuItem @click="emit('editGroup', group)">编辑分组</DropdownMenuItem>
+          <DropdownMenuItem class="text-destructive" @click="emit('deleteGroup', group)">删除分组</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
 
     <!-- 账号列表 -->
-    <CollapsibleContent v-if="!collapsed">
+    <CollapsibleContent>
       <draggable
         :model-value="accounts"
         :animation="150"

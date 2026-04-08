@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { ArrowLeft, ArrowRight, RotateCw, Loader2 } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTabStore } from '@/stores/tab'
@@ -28,6 +28,10 @@ function goForward() {
 
 function reload() {
   if (tabStore.activeTabId) tabStore.reload(tabStore.activeTabId)
+}
+
+function openDevTools() {
+  if (tabStore.activeTabId) tabStore.openDevTools(tabStore.activeTabId)
 }
 
 function navigate() {
@@ -87,5 +91,14 @@ function onBlur() {
       @focus="onFocus"
       @blur="onBlur"
     />
+
+    <!-- 开发者工具 -->
+    <Button
+      variant="ghost" size="icon" class="h-7 w-7"
+      :disabled="!tabStore.activeTabId"
+      @click="openDevTools"
+    >
+      <Code2 class="w-4 h-4" />
+    </Button>
   </div>
 </template>
