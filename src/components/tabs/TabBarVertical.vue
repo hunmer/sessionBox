@@ -40,7 +40,7 @@ function handleAddAccount(account: Account) {
       @end="onDragEnd"
     >
       <template #item="{ element: tab }">
-        <TabItem :tab="tab" />
+        <TabItem :tab="tab" vertical />
       </template>
     </draggable>
 

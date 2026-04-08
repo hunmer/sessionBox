@@ -41,7 +41,7 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 function handleLayout(sizes: number[]) {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    // sizes[0] 是侧边栏面板的像素宽度
+    // sizes[0] 始终是侧边栏面板的像素宽度
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(Math.round(sizes[0])))
   }, 300)
 }
@@ -127,7 +127,7 @@ watch(() => tabStore.activeTabId, () => {
       class="h-screen w-screen overflow-hidden bg-background text-foreground transition-all duration-150"
       :class="isMaximized ? '' : 'rounded-lg'"
     >
-      <ResizablePanelGroup direction="horizontal" @layout="handleLayout">
+      <ResizablePanelGroup :key="tabStore.tabLayout" direction="horizontal" @layout="handleLayout">
         <!-- 侧边栏面板 -->
         <ResizablePanel
           ref="sidebarPanelRef"
