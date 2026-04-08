@@ -7,6 +7,7 @@ const api = window.api
 export type TabLayout = 'horizontal' | 'vertical'
 
 const TAB_LAYOUT_KEY = 'sessionbox-tab-layout'
+const FAVORITE_BAR_KEY = 'sessionbox-favorite-bar-visible'
 
 export const useTabStore = defineStore('tab', () => {
   // ====== 状态 ======
@@ -23,6 +24,14 @@ export const useTabStore = defineStore('tab', () => {
   function toggleLayout() {
     tabLayout.value = tabLayout.value === 'horizontal' ? 'vertical' : 'horizontal'
     localStorage.setItem(TAB_LAYOUT_KEY, tabLayout.value)
+  }
+
+  // ====== 快捷网站栏显隐 ======
+  const favoriteBarVisible = ref(localStorage.getItem(FAVORITE_BAR_KEY) !== 'false')
+
+  function toggleFavoriteBar() {
+    favoriteBarVisible.value = !favoriteBarVisible.value
+    localStorage.setItem(FAVORITE_BAR_KEY, String(favoriteBarVisible.value))
   }
 
   // ====== 计算属性 ======
@@ -200,6 +209,8 @@ export const useTabStore = defineStore('tab', () => {
     activeNavState,
     tabLayout,
     toggleLayout,
+    favoriteBarVisible,
+    toggleFavoriteBar,
     loadTabs,
     createTab,
     createTabForSite,

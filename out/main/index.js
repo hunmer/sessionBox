@@ -10259,7 +10259,10 @@ const defaults = {
   proxies: [],
   tabs: [],
   favoriteSites: [
-    { id: "default-douyin", title: "抖音创作者中心", url: "https://creator.douyin.com/creator-micro/home" },
+    { id: "default-douyin", title: "抖音", url: "https://www.douyin.com" },
+    { id: "default-iqiyi", title: "爱奇艺", url: "https://www.iqiyi.com" },
+    { id: "default-qq", title: "腾讯", url: "https://www.qq.com" },
+    { id: "default-douyin-creator", title: "抖音创作者中心", url: "https://creator.douyin.com/creator-micro/home" },
     { id: "default-wechat", title: "微信视频号助手", url: "https://channels.weixin.qq.com/platform/post/create" }
   ]
 };
@@ -10465,18 +10468,21 @@ class WebviewManager {
     this.mainWindow = win;
   }
   /** 创建 WebContentsView 并添加到窗口 */
+  // accountId 为空字符串时使用默认 session（不设置 partition）
   createView(tabId, accountId, url) {
     if (!this.mainWindow) return;
-    const account = getAccountById(accountId);
-    if (!account) return;
-    const proxyId = account.proxyId ?? getGroupById(account.groupId)?.proxyId;
+    const account = accountId ? getAccountById(accountId) : void 0;
+    if (accountId && !account) return;
+    const proxyId = account?.proxyId ?? (account ? getGroupById(account.groupId)?.proxyId : void 0);
     const proxy = proxyId ? getProxyById(proxyId) : void 0;
     const view = new require$$1.WebContentsView({
       webPreferences: {
-        partition: `persist:account-${accountId}`
+        partition: accountId ? `persist:account-${accountId}` : void 0
       }
     });
-    view.webContents.setUserAgent(getUserAgent(account.userAgent));
+    if (account?.userAgent) {
+      view.webContents.setUserAgent(getUserAgent(account.userAgent));
+    }
     registerBlockedProtocolHandlers(view.webContents.session);
     if (proxy) {
       const auth = proxy.username ? `${proxy.username}:${proxy.password}@` : "";
@@ -10655,10 +10661,21 @@ const webviewManager = new WebviewManager();
 function registerTabIpcHandlers() {
   require$$1.ipcMain.handle("tab:list", () => listTabs());
   require$$1.ipcMain.handle("tab:create", (_e, accountId, url) => {
-    const account = getAccountById(accountId);
-    if (!account) throw new Error(`账号 ${accountId} 不存在`);
     const tabs = listTabs();
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1;
+    if (!accountId) {
+      const tabUrl2 = url || "https://www.baidu.com";
+      const tab2 = createTab({
+        accountId: "",
+        title: "新标签页",
+        url: tabUrl2,
+        order
+      });
+      webviewManager.createView(tab2.id, "", tabUrl2);
+      return tab2;
+    }
+    const account = getAccountById(accountId);
+    if (!account) throw new Error(`账号 ${accountId} 不存在`);
     const tabUrl = url || account.defaultUrl;
     const tab = createTab({
       accountId,
@@ -10730,9 +10747,13 @@ function registerTabIpcHandlers() {
     webviewManager.destroyAll();
     const tabs = listTabs();
     for (const tab of tabs) {
-      const account = getAccountById(tab.accountId);
-      if (account) {
-        webviewManager.createView(tab.id, tab.accountId, tab.url || account.defaultUrl);
+      if (tab.accountId) {
+        const account = getAccountById(tab.accountId);
+        if (account) {
+          webviewManager.createView(tab.id, tab.accountId, tab.url || account.defaultUrl);
+        }
+      } else {
+        webviewManager.createView(tab.id, "", tab.url || "https://www.baidu.com");
       }
     }
     return tabs.map((t) => t.id);

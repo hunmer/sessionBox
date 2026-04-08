@@ -25,10 +25,6 @@ const ready = ref(false)
 const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
 
-// ====== 快捷网站栏显隐 ======
-const FAVORITE_BAR_KEY = 'sessionbox-favorite-bar-visible'
-const favoriteBarVisible = ref(localStorage.getItem(FAVORITE_BAR_KEY) !== 'false')
-
 // ====== 侧边栏面板控制 ======
 const SIDEBAR_STORAGE_KEY = 'sessionbox-sidebar-width'
 const SIDEBAR_COLLAPSED_SIZE = 52
@@ -183,7 +179,7 @@ watch(() => tabStore.activeTabId, () => {
               <TabBar v-if="tabStore.tabLayout === 'horizontal'" :is-maximized="isMaximized" />
 
               <!-- 快捷网站栏 -->
-              <FavoriteBar v-if="favoriteBarVisible" />
+              <FavoriteBar v-if="tabStore.favoriteBarVisible" />
 
               <!-- 工具栏 -->
               <BrowserToolbar v-if="tabStore.activeTab" />
