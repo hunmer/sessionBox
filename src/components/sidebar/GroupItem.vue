@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ChevronRight, Pencil, Trash2 } from 'lucide-vue-next'
+import { ChevronRight, Plus, MoreHorizontal } from 'lucide-vue-next'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import AccountItem from './AccountItem.vue'
@@ -16,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   editGroup: [group: Group]
   deleteGroup: [group: Group]
+  addAccount: [groupId: string]
   editAccount: [account: import('@/types').Account]
   deleteAccount: [account: import('@/types').Account]
 }>()
@@ -60,13 +61,21 @@ const isGroupActive = computed(() =>
         <span class="flex-1 truncate text-xs font-medium uppercase tracking-wider">
           {{ group.name }}
         </span>
+        <!-- 增加账号按钮 -->
+        <button
+          class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity"
+          @click.stop="emit('addAccount', group.id)"
+        >
+          <Plus class="w-3.5 h-3.5" />
+        </button>
+        <!-- 更多操作 -->
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
             <button
               class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity"
               @click.stop
             >
-              <Pencil class="w-3 h-3" />
+              <MoreHorizontal class="w-3.5 h-3.5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" class="w-36">

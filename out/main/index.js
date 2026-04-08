@@ -10604,6 +10604,7 @@ function registerTabIpcHandlers() {
     webviewManager.updateBounds(rect);
   });
   require$$1.ipcMain.handle("tab:restore-all", () => {
+    webviewManager.destroyAll();
     const tabs = listTabs();
     for (const tab of tabs) {
       const account = getAccountById(tab.accountId);

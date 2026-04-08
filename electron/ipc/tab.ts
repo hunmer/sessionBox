@@ -91,7 +91,9 @@ export function registerTabIpcHandlers(): void {
   })
 
   // 启动时恢复所有保存的 tab（重建 WebContentsView）
+  // 先清除旧视图，避免刷新时重复叠加
   ipcMain.handle('tab:restore-all', () => {
+    webviewManager.destroyAll()
     const tabs = listTabs()
     for (const tab of tabs) {
       const account = getAccountById(tab.accountId)

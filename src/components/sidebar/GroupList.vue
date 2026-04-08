@@ -11,6 +11,7 @@ defineProps<{
 const emit = defineEmits<{
   editGroup: [group: Group]
   deleteGroup: [group: Group]
+  addAccount: [groupId: string]
   editAccount: [account: Account]
   deleteAccount: [account: Account]
 }>()
