@@ -68,7 +68,8 @@ const api = {
       ipcRenderer.invoke('account:create', data),
     update: (id: string, data: Partial<Omit<Account, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('account:update', id, data),
-    delete: (id: string): Promise<void> => ipcRenderer.invoke('account:delete', id)
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('account:delete', id),
+    uploadIcon: (): Promise<string | null> => ipcRenderer.invoke('account:uploadIcon')
   },
 
   proxy: {
@@ -112,6 +113,13 @@ const api = {
     update: (id: string, data: Partial<Omit<FavoriteSite, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('favoriteSite:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('favoriteSite:delete', id)
+  },
+
+  window: {
+    minimize: (): Promise<void> => ipcRenderer.invoke('window:minimize'),
+    maximize: (): Promise<boolean> => ipcRenderer.invoke('window:maximize'),
+    close: (): Promise<void> => ipcRenderer.invoke('window:close'),
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized')
   },
 
   // 主进程 → 渲染进程事件监听

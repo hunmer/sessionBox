@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, nextTick, ref, watch } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
 import TabBar from '@/components/tabs/TabBar.vue'
 import BrowserToolbar from '@/components/toolbar/BrowserToolbar.vue'
@@ -19,6 +20,45 @@ const favoriteSiteStore = useFavoriteSiteStore()
 const proxyDialogOpen = ref(false)
 const settingsDialogOpen = ref(false)
 const ready = ref(false)
+const isMaximized = ref(false)
+
+// ====== 侧边栏面板控制 ======
+const SIDEBAR_STORAGE_KEY = 'sessionbox-sidebar-width'
+const SIDEBAR_COLLAPSED_SIZE = 52
+const SIDEBAR_DEFAULT_SIZE = 260
+
+const sidebarPanelRef = ref<InstanceType<typeof ResizablePanel>>()
+const sidebarCollapsed = ref(false)
+
+// 从 localStorage 恢复侧边栏宽度
+const savedWidth = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+const sidebarDefaultSize = savedWidth ? Number(savedWidth) : SIDEBAR_DEFAULT_SIZE
+
+/** 节流保存侧边栏宽度 */
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+function handleLayout(sizes: number[]) {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    // sizes[0] 是侧边栏面板的像素宽度
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(Math.round(sizes[0])))
+  }, 300)
+}
+
+/** 折叠/展开侧边栏 */
+function toggleSidebar() {
+  const panel = sidebarPanelRef.value as any
+  if (!panel) return
+  if (sidebarCollapsed.value) {
+    panel.expand()
+  } else {
+    panel.collapse()
+  }
+}
+
+// 窗口最大化状态
+window.api.on('window:maximized', () => { isMaximized.value = true })
+window.api.on('window:unmaximized', () => { isMaximized.value = false })
+window.api.window.isMaximized().then((m: boolean) => { isMaximized.value = m })
 
 /** 向主进程同步 webview 容器的位置和大小 */
 function sendBounds() {
@@ -73,44 +113,69 @@ watch(() => tabStore.activeTabId, () => {
 
 <template>
   <TooltipProvider :delay-duration="300">
-    <div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-      <!-- 侧边栏 -->
-      <Sidebar @open-proxy="proxyDialogOpen = true" @open-settings="settingsDialogOpen = true" />
+    <div
+      class="h-screen w-screen overflow-hidden bg-background text-foreground transition-all duration-150"
+      :class="isMaximized ? '' : 'rounded-lg'"
+    >
+      <ResizablePanelGroup direction="horizontal" @layout="handleLayout">
+        <!-- 侧边栏面板 -->
+        <ResizablePanel
+          ref="sidebarPanelRef"
+          size-unit="px"
+          :default-size="sidebarDefaultSize"
+          :min-size="SIDEBAR_COLLAPSED_SIZE"
+          :collapsed-size="SIDEBAR_COLLAPSED_SIZE"
+          collapsible
+          @collapse="sidebarCollapsed = true"
+          @expand="sidebarCollapsed = false"
+        >
+          <Sidebar
+            :collapsed="sidebarCollapsed"
+            @open-proxy="proxyDialogOpen = true"
+            @open-settings="settingsDialogOpen = true"
+            @toggle-collapse="toggleSidebar"
+          />
+        </ResizablePanel>
 
-      <!-- 主内容区 -->
-      <div class="flex flex-col flex-1 min-w-0">
-        <template v-if="ready">
-          <!-- 标签栏 -->
-          <TabBar />
+        <ResizableHandle />
 
-          <!-- 工具栏 -->
-          <BrowserToolbar v-if="tabStore.activeTab" />
+        <!-- 主内容区面板 -->
+        <ResizablePanel>
+          <div class="flex flex-col h-full min-w-0">
+            <template v-if="ready">
+              <!-- 标签栏 -->
+              <TabBar :is-maximized="isMaximized" />
 
-          <!-- WebContentsView 占位区域 -->
-          <div class="flex-1 relative bg-background">
-            <div
-              v-if="!tabStore.activeTab"
-              class="flex flex-col items-center justify-center h-full gap-4"
-            >
-              <div class="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
-                <svg class="w-8 h-8 text-muted-foreground/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5a17.92 17.92 0 0 1-8.716-2.247m0 0A8.966 8.966 0 0 1 3 12c0-1.264.26-2.466.73-3.555" />
-                </svg>
+              <!-- 工具栏 -->
+              <BrowserToolbar v-if="tabStore.activeTab" />
+
+              <!-- WebContentsView 占位区域 -->
+              <div class="flex-1 relative bg-background">
+                <div
+                  v-if="!tabStore.activeTab"
+                  class="flex flex-col items-center justify-center h-full gap-4"
+                >
+                  <div class="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-muted-foreground/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5a17.92 17.92 0 0 1-8.716-2.247m0 0A8.966 8.966 0 0 1 3 12c0-1.264.26-2.466.73-3.555" />
+                    </svg>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-sm text-muted-foreground">点击左侧账号或使用标签栏 + 按钮打开新标签页</p>
+                  </div>
+                </div>
+                <!-- 主进程在此区域叠加 WebContentsView -->
+                <div id="webview-container" class="absolute inset-0" />
               </div>
-              <div class="text-center">
-                <p class="text-sm text-muted-foreground">点击左侧账号或使用标签栏 + 按钮打开新标签页</p>
-              </div>
+            </template>
+
+            <!-- 加载态 -->
+            <div v-else class="flex items-center justify-center flex-1">
+              <p class="text-muted-foreground text-sm">加载中...</p>
             </div>
-            <!-- 主进程在此区域叠加 WebContentsView -->
-            <div id="webview-container" class="absolute inset-0" />
           </div>
-        </template>
-
-        <!-- 加载态 -->
-        <div v-else class="flex items-center justify-center flex-1">
-          <p class="text-muted-foreground text-sm">加载中...</p>
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
 
     <!-- 代理管理弹窗 -->

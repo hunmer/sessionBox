@@ -90,7 +90,8 @@ const api = {
     list: () => electron.ipcRenderer.invoke("account:list"),
     create: (data) => electron.ipcRenderer.invoke("account:create", data),
     update: (id, data) => electron.ipcRenderer.invoke("account:update", id, data),
-    delete: (id) => electron.ipcRenderer.invoke("account:delete", id)
+    delete: (id) => electron.ipcRenderer.invoke("account:delete", id),
+    uploadIcon: () => electron.ipcRenderer.invoke("account:uploadIcon")
   },
   proxy: {
     list: () => electron.ipcRenderer.invoke("proxy:list"),
@@ -121,6 +122,12 @@ const api = {
     create: (data) => electron.ipcRenderer.invoke("favoriteSite:create", data),
     update: (id, data) => electron.ipcRenderer.invoke("favoriteSite:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("favoriteSite:delete", id)
+  },
+  window: {
+    minimize: () => electron.ipcRenderer.invoke("window:minimize"),
+    maximize: () => electron.ipcRenderer.invoke("window:maximize"),
+    close: () => electron.ipcRenderer.invoke("window:close"),
+    isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized")
   },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {

@@ -79,6 +79,13 @@ class WebviewManager {
       return { action: 'deny' }
     })
 
+    // 禁止打开唤起外部应用的协议（仅允许 http/https）
+    wc.on('will-navigate', (event, url) => {
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        event.preventDefault()
+      }
+    })
+
     wc.on('page-title-updated', (_e, title) => {
       win.webContents.send('on:tab:title-updated', tabId, title)
     })

@@ -22,6 +22,21 @@ const isActive = computed(() =>
   tabStore.activeTab?.accountId === props.account.id
 )
 
+/** 图标是否为自定义图片 */
+const isImageIcon = computed(() => props.account.icon?.startsWith('img:'))
+
+/** 图片图标的协议路径 */
+const imageIconSrc = computed(() => {
+  if (!isImageIcon.value) return ''
+  return `account-icon://${props.account.icon.slice(4)}`
+})
+
+/** 显示的文本图标 */
+const textIcon = computed(() => {
+  if (isImageIcon.value) return ''
+  return props.collapsed ? props.account.name.charAt(0) : props.account.icon || props.account.name.charAt(0)
+})
+
 /** 点击账号 */
 function handleClick() {
   // 查找该账号的所有 tab
@@ -43,8 +58,9 @@ function handleClick() {
     @click="handleClick"
   >
     <!-- 图标 -->
-    <span class="flex-shrink-0 w-5 h-5 flex items-center justify-center text-sm">
-      {{ collapsed ? account.name.charAt(0) : account.icon || account.name.charAt(0) }}
+    <span class="flex-shrink-0 w-5 h-5 flex items-center justify-center text-sm overflow-hidden">
+      <img v-if="isImageIcon" :src="imageIconSrc" alt="" class="w-full h-full object-cover rounded-sm" />
+      <template v-else>{{ textIcon }}</template>
     </span>
 
     <!-- 名称（折叠时隐藏） -->

@@ -23,6 +23,8 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 const require$$1 = require("electron");
 const require$$0$1 = require("path");
+const node_fs = require("node:fs");
+const node_crypto = require("node:crypto");
 const require$$1$2 = require("util");
 const require$$0 = require("fs");
 const require$$3$1 = require("crypto");
@@ -10459,6 +10461,11 @@ class WebviewManager {
       }
       return { action: "deny" };
     });
+    wc.on("will-navigate", (event, url) => {
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        event.preventDefault();
+      }
+    });
     wc.on("page-title-updated", (_e, title2) => {
       win.webContents.send("on:tab:title-updated", tabId, title2);
     });
@@ -10704,6 +10711,7 @@ async function hotUpdateProxy(proxyId, isDelete = false) {
     }
   }
 }
+const iconDir = require$$0$1.join(require$$1.app.getPath("userData"), "account-icons");
 function registerIpcHandlers() {
   require$$1.ipcMain.handle("group:list", () => listGroups());
   require$$1.ipcMain.handle("group:create", (_e, name) => createGroup(name));
@@ -10719,7 +10727,29 @@ function registerIpcHandlers() {
     "account:update",
     (_e, id2, data) => updateAccount(id2, data)
   );
-  require$$1.ipcMain.handle("account:delete", (_e, id2) => deleteAccount(id2));
+  require$$1.ipcMain.handle("account:delete", (_e, id2) => {
+    const account = getAccountById(id2);
+    if (account?.icon?.startsWith("img:")) {
+      const filePath = require$$0$1.join(iconDir, account.icon.slice(4));
+      if (node_fs.existsSync(filePath)) node_fs.unlinkSync(filePath);
+    }
+    deleteAccount(id2);
+  });
+  require$$1.ipcMain.handle("account:uploadIcon", async () => {
+    const result = await require$$1.dialog.showOpenDialog({
+      title: "选择账号图标",
+      filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
+      properties: ["openFile"]
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    if (!node_fs.existsSync(iconDir)) node_fs.mkdirSync(iconDir, { recursive: true });
+    const srcPath = result.filePaths[0];
+    const ext = srcPath.split(".").pop() || "png";
+    const fileName = `${node_crypto.randomUUID()}.${ext}`;
+    const destPath = require$$0$1.join(iconDir, fileName);
+    node_fs.copyFileSync(srcPath, destPath);
+    return `img:${fileName}`;
+  });
   registerProxyIpcHandlers();
   registerTabIpcHandlers();
   require$$1.ipcMain.handle("favoriteSite:list", () => listFavoriteSites());
@@ -10732,14 +10762,42 @@ function registerIpcHandlers() {
     (_e, id2, data) => updateFavoriteSite(id2, data)
   );
   require$$1.ipcMain.handle("favoriteSite:delete", (_e, id2) => deleteFavoriteSite(id2));
+  require$$1.ipcMain.handle("window:minimize", () => {
+    const win = require$$1.BrowserWindow.getFocusedWindow();
+    win?.minimize();
+  });
+  require$$1.ipcMain.handle("window:maximize", () => {
+    const win = require$$1.BrowserWindow.getFocusedWindow();
+    if (!win) return false;
+    if (win.isMaximized()) {
+      win.unmaximize();
+      return false;
+    }
+    win.maximize();
+    return true;
+  });
+  require$$1.ipcMain.handle("window:close", () => {
+    require$$1.BrowserWindow.getFocusedWindow()?.close();
+  });
+  require$$1.ipcMain.handle("window:isMaximized", () => {
+    return require$$1.BrowserWindow.getFocusedWindow()?.isMaximized() ?? false;
+  });
 }
 setupUserAgent();
+require$$1.protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "account-icon",
+    privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
+  }
+]);
 function createWindow() {
   const mainWindow = new require$$1.BrowserWindow({
     width: 1280,
     height: 800,
     show: false,
     autoHideMenuBar: true,
+    frame: false,
+    transparent: true,
     webPreferences: {
       preload: require$$0$1.join(__dirname, "../preload/index.js"),
       sandbox: false
@@ -10748,6 +10806,12 @@ function createWindow() {
   webviewManager.setMainWindow(mainWindow);
   mainWindow.on("ready-to-show", () => {
     mainWindow.show();
+  });
+  mainWindow.on("maximize", () => {
+    mainWindow.webContents.send("on:window:maximized");
+  });
+  mainWindow.on("unmaximize", () => {
+    mainWindow.webContents.send("on:window:unmaximized");
   });
   mainWindow.on("closed", () => {
     webviewManager.destroyAll();
@@ -10764,6 +10828,11 @@ require$$1.app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window);
   });
   registerIpcHandlers();
+  const iconDir2 = require$$0$1.join(require$$1.app.getPath("userData"), "account-icons");
+  require$$1.protocol.handle("account-icon", (request) => {
+    const fileName = decodeURIComponent(request.url.replace("account-icon://", ""));
+    return require$$1.net.fetch(`file://${require$$0$1.join(iconDir2, fileName).replace(/\\/g, "/")}`);
+  });
   createWindow();
   require$$1.app.on("activate", () => {
     if (require$$1.BrowserWindow.getAllWindows().length === 0) createWindow();

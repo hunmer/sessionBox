@@ -89,7 +89,7 @@
 
   body {
     margin: 0;
-    background-color: var(--background);
+    background-color: transparent;
     color: var(--foreground);
     font-family: system-ui, -apple-system, sans-serif;
   }

@@ -19,10 +19,14 @@ import type { Group, Account } from '@/types'
 const accountStore = useAccountStore()
 const tabStore = useTabStore()
 
-const collapsed = ref(false)
+const props = defineProps<{
+  collapsed?: boolean
+}>()
+
 const emit = defineEmits<{
   openProxy: []
   openSettings: []
+  toggleCollapse: []
 }>()
 
 // ====== 编辑弹窗状态 ======
@@ -115,14 +119,13 @@ async function handleDelete() {
 <template>
   <aside
     class="flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-200"
-    :class="collapsed ? 'w-[52px]' : 'w-[260px]'"
   >
-    <!-- 顶部：折叠按钮 -->
-    <div class="flex items-center justify-between px-2 h-10 border-b border-sidebar-border">
+    <!-- 顶部：折叠按钮（可拖拽区域） -->
+    <div class="flex items-center justify-between px-2 h-10 border-b border-sidebar-border" style="-webkit-app-region: drag">
       <span v-if="!collapsed" class="text-sm font-semibold text-sidebar-foreground">SessionBox</span>
       <Tooltip>
         <TooltipTrigger as-child>
-          <Button variant="ghost" size="icon" class="h-7 w-7" @click="collapsed = !collapsed">
+          <Button variant="ghost" size="icon" class="h-7 w-7" style="-webkit-app-region: no-drag" @click="emit('toggleCollapse')">
             <PanelLeftClose v-if="!collapsed" class="w-4 h-4" />
             <PanelLeft v-else class="w-4 h-4" />
           </Button>
