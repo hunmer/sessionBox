@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Tab, NavState } from '../types'
+import { useAccountStore } from './account'
 
 const api = window.api
 
@@ -8,6 +9,7 @@ export type TabLayout = 'horizontal' | 'vertical'
 
 const TAB_LAYOUT_KEY = 'sessionbox-tab-layout'
 const FAVORITE_BAR_KEY = 'sessionbox-favorite-bar-visible'
+const TAB_GROUP_KEY = 'sessionbox-tab-group-enabled'
 
 export const useTabStore = defineStore('tab', () => {
   // ====== 状态 ======
@@ -32,6 +34,52 @@ export const useTabStore = defineStore('tab', () => {
   function toggleFavoriteBar() {
     favoriteBarVisible.value = !favoriteBarVisible.value
     localStorage.setItem(FAVORITE_BAR_KEY, String(favoriteBarVisible.value))
+  }
+
+  // ====== 标签页自动分组 ======
+  const TAB_GROUP_ORDER_KEY = 'sessionbox-tab-group-order'
+  const tabGroupEnabled = ref(localStorage.getItem(TAB_GROUP_KEY) === 'true')
+
+  function toggleTabGroup() {
+    tabGroupEnabled.value = !tabGroupEnabled.value
+    localStorage.setItem(TAB_GROUP_KEY, String(tabGroupEnabled.value))
+  }
+
+  /** 按分组聚合标签页（返回有序数组，支持自定义排序） */
+  const groupedTabs = computed(() => {
+    const accountStore = useAccountStore()
+    const map = new Map<string, { group: { id: string; name: string }; tabs: Tab[] }>()
+
+    for (const tab of sortedTabs.value) {
+      const account = accountStore.getAccount(tab.accountId)
+      if (!account) continue
+      const group = accountStore.getGroup(account.groupId)
+      const groupKey = group?.id ?? '__ungrouped__'
+      const groupName = group?.name ?? '未分组'
+
+      if (!map.has(groupKey)) {
+        map.set(groupKey, { group: { id: groupKey, name: groupName }, tabs: [] })
+      }
+      map.get(groupKey)!.tabs.push(tab)
+    }
+
+    // 按保存的排序顺序排列，未保存过的排在末尾
+    const savedOrder: string[] = JSON.parse(localStorage.getItem(TAB_GROUP_ORDER_KEY) || '[]')
+    const entries = [...map.entries()]
+    entries.sort((a, b) => {
+      const idxA = savedOrder.indexOf(a[0])
+      const idxB = savedOrder.indexOf(b[0])
+      if (idxA === -1 && idxB === -1) return 0
+      if (idxA === -1) return 1
+      if (idxB === -1) return -1
+      return idxA - idxB
+    })
+    return entries
+  })
+
+  /** 保存分组排序 */
+  function reorderTabGroups(groupIds: string[]) {
+    localStorage.setItem(TAB_GROUP_ORDER_KEY, JSON.stringify(groupIds))
   }
 
   // ====== 计算属性 ======
@@ -211,6 +259,10 @@ export const useTabStore = defineStore('tab', () => {
     toggleLayout,
     favoriteBarVisible,
     toggleFavoriteBar,
+    tabGroupEnabled,
+    toggleTabGroup,
+    groupedTabs,
+    reorderTabGroups,
     loadTabs,
     createTab,
     createTabForSite,

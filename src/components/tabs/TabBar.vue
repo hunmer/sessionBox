@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeft, Bookmark } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeft, Bookmark, FolderOpen } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import draggable from 'vuedraggable'
 import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
@@ -30,20 +30,25 @@ function closeWindow() {
 }
 
 function onDragEnd(evt: { oldIndex: number; newIndex: number }) {
-  // sortable 只在 DOM 层移动了元素，手动同步到 store
   const sorted = [...tabStore.sortedTabs]
   const [moved] = sorted.splice(evt.oldIndex, 1)
   sorted.splice(evt.newIndex, 0, moved)
 
-  // 先立即更新本地 order，防止 sortedTabs 重算后回弹
   const ids = sorted.map((t) => t.id)
   ids.forEach((id, order) => {
     const t = tabStore.tabs.find((t) => t.id === id)
     if (t) t.order = order
   })
 
-  // 异步持久化到主进程
   tabStore.reorderTabs(ids)
+}
+
+/** 分组 badge 拖拽结束回调 */
+function onGroupDragEnd(evt: { oldIndex: number; newIndex: number }) {
+  const entries = [...tabStore.groupedTabs]
+  const [moved] = entries.splice(evt.oldIndex, 1)
+  entries.splice(evt.newIndex, 0, moved)
+  tabStore.reorderTabGroups(entries.map((e) => e[0]))
 }
 
 function handleAddAccount(account: Account) {
@@ -53,8 +58,33 @@ function handleAddAccount(account: Account) {
 
 <template>
   <div class="flex items-center h-[42px] px-2 gap-1 bg-card/30 border-b border-border">
-    <!-- 标签列表（可拖拽排序） -->
+    <!-- 标签列表 - 分组模式 -->
+    <template v-if="tabStore.tabGroupEnabled">
+      <draggable
+        :model-value="tabStore.groupedTabs"
+        :animation="150"
+        item-key="0"
+        class="flex items-center gap-1 min-w-0 h-full"
+        @end="onGroupDragEnd"
+      >
+        <template #item="{ element: entry }">
+          <div class="flex items-center gap-0.5">
+            <!-- 分组 badge -->
+            <span
+              class="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-muted text-muted-foreground cursor-grab select-none"
+            >
+              {{ entry[1].group.name }}
+            </span>
+            <!-- 组内标签列表 -->
+            <TabItem v-for="tab in entry[1].tabs" :key="tab.id" :tab="tab" />
+          </div>
+        </template>
+      </draggable>
+    </template>
+
+    <!-- 标签列表 - 扁平模式（可拖拽排序） -->
     <draggable
+      v-else
       :model-value="tabStore.sortedTabs"
       :animation="150"
       item-key="id"
@@ -89,6 +119,18 @@ function handleAddAccount(account: Account) {
       @click="tabStore.toggleLayout()"
     >
       <PanelLeft class="w-3.5 h-3.5" />
+    </Button>
+
+    <!-- 标签自动分组按钮 -->
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-7 w-7 rounded-full flex-shrink-0"
+      :class="tabStore.tabGroupEnabled ? 'bg-secondary text-primary' : 'hover:bg-secondary'"
+      style="-webkit-app-region: no-drag"
+      @click="tabStore.toggleTabGroup()"
+    >
+      <FolderOpen class="w-3.5 h-3.5" />
     </Button>
 
     <!-- 快捷网站栏切换按钮 -->
