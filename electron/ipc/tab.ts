@@ -20,22 +20,23 @@ export function registerTabIpcHandlers(): void {
   ipcMain.handle('tab:list', () => listTabs())
 
   // 创建 tab（含 WebContentsView）
-  ipcMain.handle('tab:create', (_e, accountId: string) => {
+  ipcMain.handle('tab:create', (_e, accountId: string, url?: string) => {
     const account = getAccountById(accountId)
     if (!account) throw new Error(`账号 ${accountId} 不存在`)
 
     const tabs = listTabs()
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
+    const tabUrl = url || account.defaultUrl
 
     const tab = createTab({
       accountId,
       title: account.name,
-      url: account.defaultUrl,
+      url: tabUrl,
       order
     })
 
     // 创建 WebContentsView
-    webviewManager.createView(tab.id, accountId, account.defaultUrl)
+    webviewManager.createView(tab.id, accountId, tabUrl)
 
     return tab
   })

@@ -35,7 +35,15 @@ export const useTabStore = defineStore('tab', () => {
   async function createTab(accountId: string) {
     const tab = await api.tab.create(accountId)
     tabs.value.push(tab)
-    activeTabId.value = tab.id
+    await switchTab(tab.id)
+    return tab
+  }
+
+  /** 使用指定 URL 创建新 tab（用于新窗口拦截） */
+  async function createTabWithUrl(accountId: string, url: string) {
+    const tab = await api.tab.create(accountId, url)
+    tabs.value.push(tab)
+    await switchTab(tab.id)
     return tab
   }
 
@@ -47,7 +55,11 @@ export const useTabStore = defineStore('tab', () => {
     // 如果关闭的是当前激活标签，切换到相邻标签
     if (activeTabId.value === tabId) {
       const remaining = sortedTabs.value
-      activeTabId.value = remaining.length > 0 ? remaining[0].id : null
+      if (remaining.length > 0) {
+        await switchTab(remaining[0].id)
+      } else {
+        activeTabId.value = null
+      }
     }
   }
 
@@ -106,6 +118,11 @@ export const useTabStore = defineStore('tab', () => {
       // favicon 更新处理，后续阶段扩展
       console.log(`[TabStore] favicon updated: ${tabId} ${url}`)
     })
+
+    // 新窗口打开 → 在新 tab 中加载
+    api.on('tab:open-url', async (accountId: unknown, url: unknown) => {
+      await createTabWithUrl(accountId as string, url as string)
+    })
   }
 
   /** 初始化 */
@@ -117,9 +134,7 @@ export const useTabStore = defineStore('tab', () => {
     if (tabs.value.length > 0) {
       await api.tab.restoreAll()
       const sorted = sortedTabs.value
-      activeTabId.value = sorted[0].id
-      // 激活第一个 tab
-      await api.tab.switch(sorted[0].id)
+      await switchTab(sorted[0].id)
     }
   }
 

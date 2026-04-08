@@ -10427,6 +10427,13 @@ class WebviewManager {
     const wc = view.webContents;
     const win = this.mainWindow;
     if (!win) return;
+    wc.setWindowOpenHandler(({ url }) => {
+      const entry = this.views.get(tabId);
+      if (entry) {
+        win.webContents.send("on:tab:open-url", entry.accountId, url);
+      }
+      return { action: "deny" };
+    });
     wc.on("page-title-updated", (_e, title2) => {
       win.webContents.send("on:tab:title-updated", tabId, title2);
     });
@@ -10484,8 +10491,10 @@ class WebviewManager {
     }
     const target = this.views.get(tabId);
     if (target) {
+      target.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
       target.view.setVisible(true);
       this.activeTabId = tabId;
+      this.mainWindow.webContents.send("on:tab:request-bounds");
     }
   }
   /** 更新当前活跃视图的位置和大小 */
@@ -10538,18 +10547,19 @@ class WebviewManager {
 const webviewManager = new WebviewManager();
 function registerTabIpcHandlers() {
   require$$1.ipcMain.handle("tab:list", () => listTabs());
-  require$$1.ipcMain.handle("tab:create", (_e, accountId) => {
+  require$$1.ipcMain.handle("tab:create", (_e, accountId, url) => {
     const account = getAccountById(accountId);
     if (!account) throw new Error(`账号 ${accountId} 不存在`);
     const tabs = listTabs();
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1;
+    const tabUrl = url || account.defaultUrl;
     const tab = createTab({
       accountId,
       title: account.name,
-      url: account.defaultUrl,
+      url: tabUrl,
       order
     });
-    webviewManager.createView(tab.id, accountId, account.defaultUrl);
+    webviewManager.createView(tab.id, accountId, tabUrl);
     return tab;
   });
   require$$1.ipcMain.handle("tab:close", (_e, tabId) => {

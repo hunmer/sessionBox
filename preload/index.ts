@@ -80,7 +80,7 @@ const api = {
 
   tab: {
     list: (): Promise<Tab[]> => ipcRenderer.invoke('tab:list'),
-    create: (accountId: string): Promise<Tab> => ipcRenderer.invoke('tab:create', accountId),
+    create: (accountId: string, url?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', accountId, url),
     close: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:close', tabId),
     switch: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:switch', tabId),
     update: (tabId: string, data: Partial<Omit<Tab, 'id'>>): Promise<void> =>

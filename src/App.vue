@@ -46,6 +46,9 @@ onMounted(async () => {
     resizeObserver = new ResizeObserver(() => sendBounds())
     resizeObserver.observe(container)
   }
+
+  // 主进程请求同步 bounds（switchView 后触发）
+  window.api.on('tab:request-bounds', () => sendBounds())
 })
 
 onUnmounted(() => {

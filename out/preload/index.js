@@ -102,7 +102,7 @@ const api = {
   },
   tab: {
     list: () => electron.ipcRenderer.invoke("tab:list"),
-    create: (accountId) => electron.ipcRenderer.invoke("tab:create", accountId),
+    create: (accountId, url) => electron.ipcRenderer.invoke("tab:create", accountId, url),
     close: (tabId) => electron.ipcRenderer.invoke("tab:close", tabId),
     switch: (tabId) => electron.ipcRenderer.invoke("tab:switch", tabId),
     update: (tabId, data) => electron.ipcRenderer.invoke("tab:update", tabId, data),

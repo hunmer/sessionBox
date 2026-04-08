@@ -70,6 +70,15 @@ class WebviewManager {
     const win = this.mainWindow
     if (!win) return
 
+    // 拦截新窗口打开，在应用内新 tab 中加载
+    wc.setWindowOpenHandler(({ url }) => {
+      const entry = this.views.get(tabId)
+      if (entry) {
+        win.webContents.send('on:tab:open-url', entry.accountId, url)
+      }
+      return { action: 'deny' }
+    })
+
     wc.on('page-title-updated', (_e, title) => {
       win.webContents.send('on:tab:title-updated', tabId, title)
     })
@@ -142,8 +151,13 @@ class WebviewManager {
     // 显示目标视图
     const target = this.views.get(tabId)
     if (target) {
+      // 先设置 bounds 再显示，避免视图渲染空白
+      target.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
       target.view.setVisible(true)
       this.activeTabId = tabId
+
+      // 通知渲染进程同步真实 bounds
+      this.mainWindow.webContents.send('on:tab:request-bounds')
     }
   }
 
