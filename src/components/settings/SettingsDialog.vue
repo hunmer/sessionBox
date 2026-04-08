@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Settings, Sun, Moon, Globe, Plus, Trash2, ExternalLink } from 'lucide-vue-next'
+import { Settings, Sun, Moon, Plus, Trash2, ExternalLink } from 'lucide-vue-next'
 import appIcon from '../../../resources/icon.png'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,14 @@ async function addSite() {
   await favoriteSiteStore.createSite({ title, url })
   newTitle.value = ''
   newUrl.value = ''
+}
+
+function getHostname(url: string) {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return ''
+  }
 }
 
 async function removeSite(id: string) {
@@ -116,7 +124,12 @@ function openExternal(url: string) {
                 :key="site.id"
                 class="flex items-center gap-2 text-sm px-3 py-2 rounded-md border bg-card"
               >
-                <Globe class="w-4 h-4 text-muted-foreground shrink-0" />
+                <img
+                  :src="'https://icon.horse/icon/' + getHostname(site.url)"
+                  :alt="site.title"
+                  class="w-4 h-4 shrink-0 rounded-sm"
+                  @error="($event.target as HTMLImageElement).style.display = 'none'"
+                />
                 <span class="font-medium truncate">{{ site.title }}</span>
                 <span class="text-muted-foreground truncate text-xs flex-1">{{ site.url }}</span>
                 <Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" @click="removeSite(site.id)">
