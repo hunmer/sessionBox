@@ -161,16 +161,22 @@ class WebviewManager {
   /** 销毁指定 Tab 的 WebContentsView */
   destroyView(tabId: string): void {
     const entry = this.views.get(tabId)
-    if (!entry || !this.mainWindow) return
+    if (!entry) return
 
-    // 先隐藏并重置 bounds，避免移除时视觉残留
-    entry.view.setVisible(false)
-    entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
-    this.mainWindow.contentView.removeChildView(entry.view)
-    if (!entry.view.webContents.isDestroyed()) {
-      entry.view.webContents.close()
-    }
     this.views.delete(tabId)
+
+    try {
+      if (!this.mainWindow?.isDestroyed()) {
+        entry.view.setVisible(false)
+        entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+        this.mainWindow.contentView.removeChildView(entry.view)
+      }
+      if (!entry.view.webContents.isDestroyed()) {
+        entry.view.webContents.close()
+      }
+    } catch {
+      // 窗口或视图已被 Electron 销毁，安全忽略
+    }
 
     if (this.activeTabId === tabId) {
       this.activeTabId = null
@@ -248,7 +254,8 @@ class WebviewManager {
 
   /** 销毁所有视图（退出时调用） */
   destroyAll(): void {
-    for (const tabId of this.views.keys()) {
+    const tabIds = [...this.views.keys()]
+    for (const tabId of tabIds) {
       this.destroyView(tabId)
     }
   }

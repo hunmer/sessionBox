@@ -1,0 +1,51 @@
+{
+  "appId": "com.session-box.app",
+  "productName": "SessionBox",
+  "directories": {
+    "output": "dist-app"
+  },
+  "files": [
+    "out/**/*",
+    "package.json",
+    "node_modules/**/*",
+    "!node_modules/**/{README.md,readme.md,README,readme,CHANGELOG.md,CHANGELOG,LICENSE,license,LICENSE.md,.npmignore,.editorconfig,.eslintrc,.eslintrc.js,.eslintrc.json,.eslintrc.yml}",
+    "!node_modules/.bin",
+    "!node_modules/**/*.{md,ts,map,d.ts}",
+    "!node_modules/**/{test,tests,__tests__,example,examples,docs,doc,website,.github,.vscode}"
+  ],
+  "mac": {
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["universal"]
+      }
+    ],
+    "icon": "resources/icon.icns",
+    "category": "public.app-category.productivity"
+  },
+  "dmg": {
+    "contents": [
+      { "x": 130, "y": 220 },
+      { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+    ]
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "resources/icon.png",
+    "requestedExecutionLevel": "asInvoker"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": true,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "compression": "store",
+  "asar": true
+}
