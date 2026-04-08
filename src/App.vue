@@ -133,6 +133,11 @@ window.addEventListener('beforeunload', () => {
 watch(() => tabStore.activeTabId, () => {
   nextTick(() => sendBounds())
 })
+
+// 快捷网站栏显隐时同步 bounds
+watch(() => tabStore.favoriteBarVisible, () => {
+  nextTick(() => sendBounds())
+})
 </script>
 
 <template>
