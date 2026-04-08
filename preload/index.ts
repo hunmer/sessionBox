@@ -17,6 +17,7 @@ export interface Group {
   name: string
   order: number
   proxyId?: string
+  color?: string
 }
 
 export interface Account {
@@ -56,7 +57,7 @@ export interface FavoriteSite {
 const api = {
   group: {
     list: (): Promise<Group[]> => ipcRenderer.invoke('group:list'),
-    create: (name: string): Promise<Group> => ipcRenderer.invoke('group:create', name),
+    create: (name: string, color?: string): Promise<Group> => ipcRenderer.invoke('group:create', name, color),
     update: (id: string, data: Partial<Omit<Group, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('group:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('group:delete', id),

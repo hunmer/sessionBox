@@ -20,6 +20,7 @@ export interface Group {
   name: string
   order: number
   proxyId?: string // 分组级代理绑定
+  color?: string // 分组颜色
 }
 
 // 账号

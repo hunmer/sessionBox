@@ -30,7 +30,8 @@ function closeWindow() {
 }
 
 function onDragEnd(evt: { oldIndex: number; newIndex: number }) {
-  const sorted = [...tabStore.sortedTabs]
+  const source = tabStore.tabGroupEnabled ? tabStore.groupedSortedTabs : tabStore.sortedTabs
+  const sorted = [...source]
   const [moved] = sorted.splice(evt.oldIndex, 1)
   sorted.splice(evt.newIndex, 0, moved)
 
@@ -43,14 +44,6 @@ function onDragEnd(evt: { oldIndex: number; newIndex: number }) {
   tabStore.reorderTabs(ids)
 }
 
-/** 分组 badge 拖拽结束回调 */
-function onGroupDragEnd(evt: { oldIndex: number; newIndex: number }) {
-  const entries = [...tabStore.groupedTabs]
-  const [moved] = entries.splice(evt.oldIndex, 1)
-  entries.splice(evt.newIndex, 0, moved)
-  tabStore.reorderTabGroups(entries.map((e) => e[0]))
-}
-
 function handleAddAccount(account: Account) {
   tabStore.createTab(account.id)
 }
@@ -58,29 +51,32 @@ function handleAddAccount(account: Account) {
 
 <template>
   <div class="flex items-center h-[42px] px-2 gap-1 bg-card/30 border-b border-border">
-    <!-- 标签列表 - 分组模式 -->
-    <template v-if="tabStore.tabGroupEnabled">
-      <draggable
-        :model-value="tabStore.groupedTabs"
-        :animation="150"
-        item-key="0"
-        class="flex items-center gap-1 min-w-0 h-full"
-        @end="onGroupDragEnd"
-      >
-        <template #item="{ element: entry }">
-          <div class="flex items-center gap-0.5">
-            <!-- 分组 badge -->
-            <span
-              class="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-muted text-muted-foreground cursor-grab select-none"
-            >
-              {{ entry[1].group.name }}
-            </span>
-            <!-- 组内标签列表 -->
-            <TabItem v-for="tab in entry[1].tabs" :key="tab.id" :tab="tab" />
-          </div>
-        </template>
-      </draggable>
-    </template>
+    <!-- 标签列表 - 分组模式（每个 tab 独立可拖拽） -->
+    <draggable
+      v-if="tabStore.tabGroupEnabled"
+      :model-value="tabStore.groupedSortedTabs"
+      :animation="150"
+      item-key="id"
+      class="flex items-center gap-1 min-w-0 h-full"
+      @end="onDragEnd"
+    >
+      <template #item="{ element: tab }">
+        <div class="flex items-center gap-0.5">
+          <!-- 分组 badge：仅在该组第一个 tab 前显示 -->
+          <span
+            v-if="tab.isGroupStart"
+            class="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded-md select-none"
+            :style="tab.groupColor
+              ? { backgroundColor: tab.groupColor + '22', color: tab.groupColor, borderBottom: `2px solid ${tab.groupColor}` }
+              : {}"
+            :class="!tab.groupColor && 'bg-muted text-muted-foreground'"
+          >
+            {{ tab.groupName }}
+          </span>
+          <TabItem :tab="tab" />
+        </div>
+      </template>
+    </draggable>
 
     <!-- 标签列表 - 扁平模式（可拖拽排序） -->
     <draggable

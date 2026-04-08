@@ -17,6 +17,7 @@ export interface Group {
   name: string
   order: number
   proxyId?: string
+  color?: string
 }
 
 export interface Account {
@@ -85,12 +86,13 @@ export function listGroups(): Group[] {
   return getCollection('groups').sort((a, b) => a.order - b.order)
 }
 
-export function createGroup(name: string): Group {
+export function createGroup(name: string, color?: string): Group {
   const groups = getCollection('groups')
   const group: Group = {
     id: randomUUID(),
     name,
-    order: groups.length
+    order: groups.length,
+    ...(color ? { color } : {})
   }
   groups.push(group)
   setCollection('groups', groups)

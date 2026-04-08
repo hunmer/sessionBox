@@ -37,7 +37,6 @@ export const useTabStore = defineStore('tab', () => {
   }
 
   // ====== 标签页自动分组 ======
-  const TAB_GROUP_ORDER_KEY = 'sessionbox-tab-group-order'
   const tabGroupEnabled = ref(localStorage.getItem(TAB_GROUP_KEY) === 'true')
 
   function toggleTabGroup() {
@@ -45,42 +44,41 @@ export const useTabStore = defineStore('tab', () => {
     localStorage.setItem(TAB_GROUP_KEY, String(tabGroupEnabled.value))
   }
 
-  /** 按分组聚合标签页（返回有序数组，支持自定义排序） */
-  const groupedTabs = computed(() => {
-    const accountStore = useAccountStore()
-    const map = new Map<string, { group: { id: string; name: string }; tabs: Tab[] }>()
+  /** 按 tab 的 order 排列，同组标签聚拢在一起；拖拽 tab 改变 order 即改变位置和分组顺序 */
+  const groupedSortedTabs = computed(() => {
+    if (!tabGroupEnabled.value) return sortedTabs.value
 
+    const accountStore = useAccountStore()
+
+    // 按 tab 原有 order 分组
+    const groupMap = new Map<string, { name: string; color?: string; tabs: Tab[] }>()
     for (const tab of sortedTabs.value) {
       const account = accountStore.getAccount(tab.accountId)
       if (!account) continue
       const group = accountStore.getGroup(account.groupId)
-      const groupKey = group?.id ?? '__ungrouped__'
-      const groupName = group?.name ?? '未分组'
-
-      if (!map.has(groupKey)) {
-        map.set(groupKey, { group: { id: groupKey, name: groupName }, tabs: [] })
-      }
-      map.get(groupKey)!.tabs.push(tab)
+      const key = group?.id ?? '__ungrouped__'
+      const name = group?.name ?? '未分组'
+      const color = group?.color
+      if (!groupMap.has(key)) groupMap.set(key, { name, color, tabs: [] })
+      groupMap.get(key)!.tabs.push(tab)
     }
 
-    // 按保存的排序顺序排列，未保存过的排在末尾
-    const savedOrder: string[] = JSON.parse(localStorage.getItem(TAB_GROUP_ORDER_KEY) || '[]')
-    const entries = [...map.entries()]
-    entries.sort((a, b) => {
-      const idxA = savedOrder.indexOf(a[0])
-      const idxB = savedOrder.indexOf(b[0])
-      if (idxA === -1 && idxB === -1) return 0
-      if (idxA === -1) return 1
-      if (idxB === -1) return -1
-      return idxA - idxB
+    // 按 tabs 数组中第一个 tab 的 order 决定分组间排序
+    const sortedGroups = [...groupMap.entries()].sort((a, b) => {
+      const orderA = a[1].tabs[0]?.order ?? 0
+      const orderB = b[1].tabs[0]?.order ?? 0
+      return orderA - orderB
     })
-    return entries
-  })
 
-  /** 保存分组排序 */
-  function reorderTabGroups(groupIds: string[]) {
-    localStorage.setItem(TAB_GROUP_ORDER_KEY, JSON.stringify(groupIds))
-  }
+    // 扁平化为带分组标记的列表
+    const result: (Tab & { groupName: string; groupColor?: string; isGroupStart: boolean })[] = []
+    for (const [, group] of sortedGroups) {
+      group.tabs.forEach((tab, i) => {
+        result.push({ ...tab, groupName: group.name, groupColor: group.color, isGroupStart: i === 0 })
+      })
+    }
+    return result
+  })
 
   // ====== 计算属性 ======
 
@@ -261,8 +259,7 @@ export const useTabStore = defineStore('tab', () => {
     toggleFavoriteBar,
     tabGroupEnabled,
     toggleTabGroup,
-    groupedTabs,
-    reorderTabGroups,
+    groupedSortedTabs,
     loadTabs,
     createTab,
     createTabForSite,

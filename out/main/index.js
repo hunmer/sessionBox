@@ -10276,12 +10276,13 @@ function setCollection(key, value) {
 function listGroups() {
   return getCollection("groups").sort((a, b) => a.order - b.order);
 }
-function createGroup(name) {
+function createGroup(name, color) {
   const groups = getCollection("groups");
   const group = {
     id: require$$3$1.randomUUID(),
     name,
-    order: groups.length
+    order: groups.length,
+    ...color ? { color } : {}
   };
   groups.push(group);
   setCollection("groups", groups);
@@ -10826,7 +10827,7 @@ async function hotUpdateProxy(proxyId, isDelete = false) {
 const iconDir = require$$0$1.join(require$$1.app.getPath("userData"), "account-icons");
 function registerIpcHandlers() {
   require$$1.ipcMain.handle("group:list", () => listGroups());
-  require$$1.ipcMain.handle("group:create", (_e, name) => createGroup(name));
+  require$$1.ipcMain.handle("group:create", (_e, name, color) => createGroup(name, color));
   require$$1.ipcMain.handle(
     "group:update",
     (_e, id2, data) => updateGroup(id2, data)

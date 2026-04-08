@@ -43,8 +43,8 @@ export const useAccountStore = defineStore('account', () => {
     groups.value = await api.group.list()
   }
 
-  async function createGroup(name: string) {
-    const group = await api.group.create(name)
+  async function createGroup(name: string, color?: string) {
+    const group = await api.group.create(name, color)
     groups.value.push(group)
     return group
   }
