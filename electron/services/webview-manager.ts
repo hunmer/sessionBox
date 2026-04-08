@@ -276,6 +276,16 @@ class WebviewManager {
     }
     return result
   }
+
+  /** 获取指定 tab 的视图信息 */
+  getViewInfo(tabId: string): { url: string; accountId: string } | null {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) return null
+    return {
+      url: entry.view.webContents.getURL(),
+      accountId: entry.accountId
+    }
+  }
 }
 
 export const webviewManager = new WebviewManager()

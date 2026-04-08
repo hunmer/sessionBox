@@ -104,6 +104,14 @@ export const useTabStore = defineStore('tab', () => {
     await api.tab.openDevTools(tabId)
   }
 
+  async function openInNewWindow(tabId: string) {
+    await api.tab.openInNewWindow(tabId)
+  }
+
+  async function openInBrowser(tabId: string) {
+    await api.tab.openInBrowser(tabId)
+  }
+
   /** 注册主进程 → 渲染进程事件监听 */
   function setupListeners() {
     api.on('tab:title-updated', (tabId: unknown, title: unknown) => {
@@ -178,6 +186,8 @@ export const useTabStore = defineStore('tab', () => {
     goForward,
     reload,
     openDevTools,
+    openInNewWindow,
+    openInBrowser,
     init,
     saveState
   }

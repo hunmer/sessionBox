@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { X, Globe, Loader2 } from 'lucide-vue-next'
+import { X, Globe, Loader2, ExternalLink, Monitor } from 'lucide-vue-next'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger
+} from '@/components/ui/context-menu'
 import type { Tab } from '@/types'
 import { useTabStore } from '@/stores/tab'
 import { useAccountStore } from '@/stores/account'
@@ -30,22 +36,34 @@ function handleClose(e: MouseEvent) {
 </script>
 
 <template>
-  <div
-    class="group flex items-center gap-2 h-[30px] px-3 cursor-pointer transition-all select-none"
-    :class="isActive
-      ? 'bg-primary/15 text-primary border border-primary/30 shadow-sm font-medium rounded-xl'
-      : 'text-muted-foreground hover:bg-background/60 hover:text-foreground/80 rounded-xl'"
-    @click="tabStore.switchTab(tab.id)"
-  >
-    <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin text-primary/50" />
-    <img v-else-if="faviconUrl" :src="faviconUrl" class="w-3.5 h-3.5 flex-shrink-0 rounded-sm" />
-    <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
-    <span class="truncate text-xs max-w-[120px]">{{ tabLabel }}</span>
-    <button
-      class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-secondary transition-opacity"
-      @click="handleClose"
-    >
-      <X class="w-3 h-3" />
-    </button>
-  </div>
+  <ContextMenu>
+    <ContextMenuTrigger as-child>
+      <div
+        class="group flex items-center gap-2 h-[30px] px-3 cursor-pointer transition-all select-none"
+        :class="isActive
+          ? 'bg-primary/15 text-primary border border-primary/30 shadow-sm font-medium rounded-xl'
+          : 'text-muted-foreground hover:bg-background/60 hover:text-foreground/80 rounded-xl'"
+        @click="tabStore.switchTab(tab.id)"
+      >
+        <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin text-primary/50" />
+        <img v-else-if="faviconUrl" :src="faviconUrl" class="w-3.5 h-3.5 flex-shrink-0 rounded-sm" />
+        <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
+        <span class="truncate text-xs max-w-[120px]">{{ tabLabel }}</span>
+        <button
+          class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-secondary transition-opacity"
+          @click="handleClose"
+        >
+          <X class="w-3 h-3" />
+        </button>
+      </div>
+    </ContextMenuTrigger>
+    <ContextMenuContent class="w-44">
+      <ContextMenuItem @click="tabStore.openInNewWindow(tab.id)">
+        <Monitor class="w-3.5 h-3.5 mr-2" />新窗口打开
+      </ContextMenuItem>
+      <ContextMenuItem @click="tabStore.openInBrowser(tab.id)">
+        <ExternalLink class="w-3.5 h-3.5 mr-2" />浏览器打开
+      </ContextMenuItem>
+    </ContextMenuContent>
+  </ContextMenu>
 </template>

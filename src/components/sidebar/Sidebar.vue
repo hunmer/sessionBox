@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { PanelLeftClose, PanelLeft, Plus, Globe, Settings, MoreVertical } from 'lucide-vue-next'
+import appIcon from '../../../resources/icon.png'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -122,6 +123,7 @@ async function handleDelete() {
   >
     <!-- 顶部：折叠按钮（可拖拽区域） -->
     <div class="flex items-center justify-between px-3 h-11 border-b border-sidebar-border" style="-webkit-app-region: drag">
+      <img v-if="!collapsed" :src="appIcon" alt="" class="w-5 h-5 flex-shrink-0 rounded-sm" />
       <span v-if="!collapsed" class="text-sm font-medium text-sidebar-foreground">SessionBox</span>
       <Tooltip>
         <TooltipTrigger as-child>

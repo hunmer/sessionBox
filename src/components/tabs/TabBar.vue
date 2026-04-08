@@ -81,31 +81,31 @@ function handleAddAccount(account: Account) {
     <div class="flex-1 min-w-[60px] h-full" style="-webkit-app-region: drag" />
 
     <!-- 窗口控制按钮 -->
-    <div class="flex items-center h-full flex-shrink-0" style="-webkit-app-region: no-drag">
+    <div class="flex items-center gap-1.5 flex-shrink-0" style="-webkit-app-region: no-drag">
       <Button
         variant="ghost"
         size="icon"
-        class="h-full w-10 rounded-none hover:bg-secondary"
+        class="h-7 w-7 rounded-full hover:bg-secondary"
         @click="minimizeWindow()"
       >
-        <Minus class="w-3.5 h-3.5" />
+        <Minus class="w-3 h-3" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        class="h-full w-10 rounded-none hover:bg-secondary"
+        class="h-7 w-7 rounded-full hover:bg-secondary"
         @click="maximizeWindow()"
       >
-        <Copy v-if="isMaximized" class="w-3.5 h-3.5" />
-        <Square v-else class="w-3 h-3" />
+        <Copy v-if="isMaximized" class="w-3 h-3" />
+        <Square v-else class="w-2.5 h-2.5" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        class="h-full w-10 rounded-none hover:bg-red-500/80 hover:text-white"
+        class="h-7 w-7 rounded-full hover:bg-red-500/80 hover:text-white"
         @click="closeWindow()"
       >
-        <X class="w-4 h-4" />
+        <X class="w-3.5 h-3.5" />
       </Button>
     </div>
   </div>

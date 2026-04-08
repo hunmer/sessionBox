@@ -10641,6 +10641,15 @@ class WebviewManager {
     }
     return result;
   }
+  /** 获取指定 tab 的视图信息 */
+  getViewInfo(tabId) {
+    const entry = this.views.get(tabId);
+    if (!entry || entry.view.webContents.isDestroyed()) return null;
+    return {
+      url: entry.view.webContents.getURL(),
+      accountId: entry.accountId
+    };
+  }
 }
 const webviewManager = new WebviewManager();
 function registerTabIpcHandlers() {
@@ -10693,6 +10702,29 @@ function registerTabIpcHandlers() {
   });
   require$$1.ipcMain.on("tab:update-bounds", (_e, rect) => {
     webviewManager.updateBounds(rect);
+  });
+  require$$1.ipcMain.handle("tab:open-in-new-window", (_e, tabId) => {
+    const info = webviewManager.getViewInfo(tabId);
+    if (!info) throw new Error(`Tab ${tabId} 不存在`);
+    const account = getAccountById(info.accountId);
+    const newWin = new require$$1.BrowserWindow({
+      width: 1280,
+      height: 800,
+      show: false,
+      autoHideMenuBar: true,
+      title: account?.name ?? "新窗口",
+      webPreferences: {
+        partition: `persist:account-${info.accountId}`,
+        sandbox: false
+      }
+    });
+    newWin.loadURL(info.url);
+    newWin.once("ready-to-show", () => newWin.show());
+  });
+  require$$1.ipcMain.handle("tab:open-in-browser", async (_e, tabId) => {
+    const info = webviewManager.getViewInfo(tabId);
+    if (!info) throw new Error(`Tab ${tabId} 不存在`);
+    await require$$1.shell.openExternal(info.url);
   });
   require$$1.ipcMain.handle("tab:restore-all", () => {
     webviewManager.destroyAll();

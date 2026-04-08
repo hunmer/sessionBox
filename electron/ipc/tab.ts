@@ -1,4 +1,5 @@
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow, shell } from 'electron'
+import { join } from 'path'
 import {
   listTabs,
   createTab,
@@ -92,6 +93,37 @@ export function registerTabIpcHandlers(): void {
   // 位置同步（渲染进程 → 主进程，fire-and-forget）
   ipcMain.on('tab:update-bounds', (_e, rect: { x: number; y: number; width: number; height: number }) => {
     webviewManager.updateBounds(rect)
+  })
+
+  // 在新 BrowserWindow 中打开指定 tab 的当前 URL
+  ipcMain.handle('tab:open-in-new-window', (_e, tabId: string) => {
+    const info = webviewManager.getViewInfo(tabId)
+    if (!info) throw new Error(`Tab ${tabId} 不存在`)
+
+    const account = getAccountById(info.accountId)
+
+    const newWin = new BrowserWindow({
+      width: 1280,
+      height: 800,
+      show: false,
+      autoHideMenuBar: true,
+      title: account?.name ?? '新窗口',
+      webPreferences: {
+        partition: `persist:account-${info.accountId}`,
+        sandbox: false
+      }
+    })
+
+    newWin.loadURL(info.url)
+    newWin.once('ready-to-show', () => newWin.show())
+  })
+
+  // 使用系统默认浏览器打开指定 tab 的当前 URL
+  ipcMain.handle('tab:open-in-browser', async (_e, tabId: string) => {
+    const info = webviewManager.getViewInfo(tabId)
+    if (!info) throw new Error(`Tab ${tabId} 不存在`)
+
+    await shell.openExternal(info.url)
   })
 
   // 启动时恢复所有保存的 tab（重建 WebContentsView）
