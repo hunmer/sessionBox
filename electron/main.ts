@@ -115,6 +115,18 @@ if (!gotTheLock) {
       return net.fetch(`file://${join(iconDir, fileName).replace(/\\/g, '/')}`)
     })
 
+    // 注册已知第三方协议的空处理器，防止网站唤起外部应用时系统弹出"打开方式"对话框
+    // 当 Chromium 发现这些协议有内部 handler 时，不会委托给操作系统处理
+    const blockedSchemes = [
+      'bitbrowser', 'microsoft-edge', 'thunder', 'xunlei', 'ed2k',
+      'flashget', 'qqdl', 'baidubar', 'alipays', 'weixin', 'tg',
+      'zoommtg', 'teams', 'slack', 'discord', 'spotify', 'steam',
+      'skype', 'magnet', 'vb-hyperlink'
+    ]
+    for (const scheme of blockedSchemes) {
+      protocol.handle(scheme, () => new Response(null, { status: 204 }))
+    }
+
     createWindow()
 
     app.on('activate', () => {
