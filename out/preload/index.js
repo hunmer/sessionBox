@@ -79,7 +79,45 @@ const electronAPI = {
   }
 };
 const api = {
-  // Phase 2 扩展 IPC API
+  group: {
+    list: () => electron.ipcRenderer.invoke("group:list"),
+    create: (name) => electron.ipcRenderer.invoke("group:create", name),
+    update: (id, data) => electron.ipcRenderer.invoke("group:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("group:delete", id),
+    reorder: (groupIds) => electron.ipcRenderer.invoke("group:reorder", groupIds)
+  },
+  account: {
+    list: () => electron.ipcRenderer.invoke("account:list"),
+    create: (data) => electron.ipcRenderer.invoke("account:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("account:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("account:delete", id)
+  },
+  proxy: {
+    list: () => electron.ipcRenderer.invoke("proxy:list"),
+    create: (data) => electron.ipcRenderer.invoke("proxy:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("proxy:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("proxy:delete", id),
+    test: (proxyId) => electron.ipcRenderer.invoke("proxy:test", proxyId)
+  },
+  tab: {
+    list: () => electron.ipcRenderer.invoke("tab:list"),
+    create: (accountId) => electron.ipcRenderer.invoke("tab:create", accountId),
+    close: (tabId) => electron.ipcRenderer.invoke("tab:close", tabId),
+    switch: (tabId) => electron.ipcRenderer.invoke("tab:switch", tabId),
+    update: (tabId, data) => electron.ipcRenderer.invoke("tab:update", tabId, data),
+    reorder: (tabIds) => electron.ipcRenderer.invoke("tab:reorder", tabIds),
+    navigate: (tabId, url) => electron.ipcRenderer.invoke("tab:navigate", tabId, url),
+    goBack: (tabId) => electron.ipcRenderer.invoke("tab:goBack", tabId),
+    goForward: (tabId) => electron.ipcRenderer.invoke("tab:goForward", tabId),
+    reload: (tabId) => electron.ipcRenderer.invoke("tab:reload", tabId)
+  },
+  // 主进程 → 渲染进程事件监听
+  on: (event, callback) => {
+    const channel = `on:${event}`;
+    const handler = (_e, ...args) => callback(...args);
+    electron.ipcRenderer.on(channel, handler);
+    return () => electron.ipcRenderer.removeListener(channel, handler);
+  }
 };
 if (process.contextIsolated) {
   try {

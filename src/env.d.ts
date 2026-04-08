@@ -5,3 +5,7 @@ declare module '*.vue' {
   const component: DefineComponent<object, object, unknown>
   export default component
 }
+
+interface Window {
+  api: import('../preload/index').IpcAPI
+}

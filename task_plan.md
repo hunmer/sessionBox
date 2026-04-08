@@ -4,7 +4,7 @@
 基于 Electron + Vue 3 + shadcn-vue + Vite + TailwindCSS，构建一个支持多账号（partition）隔离的浏览器工具，包含侧边栏分组管理、多标签页、代理管理和 WebContentsView 集成。
 
 ## Current Phase
-Phase 1
+Phase 2
 
 ## Phases
 
@@ -14,7 +14,7 @@ Phase 1
 - [ ] 配置 shadcn-vue（components.json）并添加基础组件
 - [ ] 配置 TailwindCSS 深色主题配色方案
 - [ ] 设置目录结构（electron/、src/、preload/）
-- **Status:** pending
+- **Status:** complete
 
 ### Phase 2: 主进程基础架构
 - [ ] electron/main.ts — 窗口创建、生命周期管理
@@ -22,7 +22,7 @@ Phase 1
 - [ ] electron/utils/user-agent.ts — UA 覆盖逻辑
 - [ ] preload/index.ts — IPC API 暴露（contextBridge）
 - [ ] electron/ipc/index.ts — IPC 处理器统一注册
-- **Status:** pending
+- **Status:** complete
 
 ### Phase 3: 数据模型与状态管理
 - [ ] src/types/index.ts — TypeScript 类型定义（Proxy、Group、Account、Tab、NavState）

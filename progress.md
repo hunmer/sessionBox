@@ -19,7 +19,7 @@
   - progress.md (created)
 
 ### Phase 1: 项目初始化与基础配置
-- **Status:** in_progress
+- **Status:** complete
 - Actions taken:
   - pnpm install 完成，安装了 204 个包
   - 批准并构建了 electron、esbuild、vue-demi 的构建脚本
@@ -30,11 +30,22 @@
   - package.json (updated: added pnpm.onlyBuiltDependencies)
 
 ### Phase 2: 主进程基础架构
-- **Status:** pending
+- **Status:** complete
 - Actions taken:
-  -
+  - 创建 electron/services/store.ts — electron-store 封装，支持分组/账号/代理/Tab 完整 CRUD
+  - 创建 electron/utils/user-agent.ts — Chrome UA 覆盖逻辑
+  - 创建 electron/ipc/index.ts — IPC 处理器统一注册（group/account/proxy/tab）
+  - 增强 preload/index.ts — 完整 IPC API 类型定义与 contextBridge 暴露
+  - 增强 electron/main.ts — 集成 UA 设置、IPC 注册
+  - 更新 src/env.d.ts — 添加 Window.api 类型声明
+  - electron-vite build 构建验证通过
 - Files created/modified:
-  -
+  - electron/services/store.ts (created)
+  - electron/utils/user-agent.ts (created)
+  - electron/ipc/index.ts (created)
+  - preload/index.ts (updated)
+  - electron/main.ts (updated)
+  - src/env.d.ts (updated)
 
 ### Phase 3: 数据模型与状态管理
 - **Status:** pending
