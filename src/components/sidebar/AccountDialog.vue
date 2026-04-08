@@ -26,14 +26,15 @@ const proxyStore = useProxyStore()
 
 const name = ref('')
 const icon = ref('👤')
-const proxyId = ref('')
+const NO_PROXY = '__none__'
+const proxyId = ref(NO_PROXY)
 const defaultUrl = ref('about:blank')
 
 watch(() => props.open, (val) => {
   if (val) {
     name.value = props.account?.name ?? ''
     icon.value = props.account?.icon ?? '👤'
-    proxyId.value = props.account?.proxyId ?? ''
+    proxyId.value = props.account?.proxyId || NO_PROXY
     defaultUrl.value = props.account?.defaultUrl ?? 'about:blank'
   }
 })
@@ -48,7 +49,7 @@ function handleSave() {
     groupId: props.account?.groupId ?? props.groupId ?? '',
     name: trimmed,
     icon: icon.value,
-    proxyId: proxyId.value || undefined,
+    proxyId: proxyId.value === NO_PROXY ? undefined : proxyId.value,
     defaultUrl: defaultUrl.value.trim() || 'about:blank',
     order: props.account?.order ?? accountStore.accounts.length
   })
@@ -73,7 +74,7 @@ function handleSave() {
             <SelectValue placeholder="不绑定代理" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">不绑定代理</SelectItem>
+            <SelectItem :value="NO_PROXY">不绑定代理</SelectItem>
             <SelectItem v-for="p in proxyOptions" :key="p.id" :value="p.id">
               {{ p.name }} ({{ p.type }}://{{ p.host }}:{{ p.port }})
             </SelectItem>
