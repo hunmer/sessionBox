@@ -29,6 +29,10 @@ const SIDEBAR_STORAGE_KEY = 'sessionbox-sidebar-width'
 const SIDEBAR_COLLAPSED_SIZE = 52
 const SIDEBAR_DEFAULT_SIZE = 260
 
+// ====== 垂直标签栏面板控制 ======
+const VERTICAL_TAB_STORAGE_KEY = 'sessionbox-vertical-tab-width'
+const VERTICAL_TAB_DEFAULT_SIZE = 180
+
 const sidebarPanelRef = ref<InstanceType<typeof ResizablePanel>>()
 const sidebarCollapsed = ref(false)
 
@@ -36,13 +40,22 @@ const sidebarCollapsed = ref(false)
 const savedWidth = localStorage.getItem(SIDEBAR_STORAGE_KEY)
 const sidebarDefaultSize = savedWidth ? Number(savedWidth) : SIDEBAR_DEFAULT_SIZE
 
-/** 节流保存侧边栏宽度 */
+// 从 localStorage 恢复垂直标签栏宽度
+const savedVerticalTabWidth = localStorage.getItem(VERTICAL_TAB_STORAGE_KEY)
+const verticalTabDefaultSize = savedVerticalTabWidth ? Number(savedVerticalTabWidth) : VERTICAL_TAB_DEFAULT_SIZE
+
+/** 节流保存面板宽度 + 同步 webview bounds */
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 function handleLayout(sizes: number[]) {
+  nextTick(() => sendBounds())
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     // sizes[0] 始终是侧边栏面板的像素宽度
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(Math.round(sizes[0])))
+    // 垂直模式下 sizes[1] 是垂直标签栏面板的像素宽度
+    if (tabStore.tabLayout === 'vertical' && sizes.length >= 3) {
+      localStorage.setItem(VERTICAL_TAB_STORAGE_KEY, String(Math.round(sizes[1])))
+    }
   }, 300)
 }
 
@@ -151,7 +164,7 @@ watch(() => tabStore.activeTabId, () => {
 
         <!-- 垂直标签栏面板（仅垂直模式） -->
         <template v-if="tabStore.tabLayout === 'vertical'">
-          <ResizablePanel size-unit="px" :default-size="180" :min-size="120" :max-size="320">
+          <ResizablePanel size-unit="px" :default-size="verticalTabDefaultSize" :min-size="120" :max-size="320">
             <TabBarVertical v-model:show-add-dialog="verticalTabAddDialog" />
           </ResizablePanel>
           <ResizableHandle />
