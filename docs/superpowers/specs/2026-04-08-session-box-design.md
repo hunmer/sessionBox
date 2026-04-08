@@ -140,22 +140,36 @@ interface Account {
   name: string
   icon: string        // 预设图标名称
   proxyId?: string    // 账号级代理（优先于分组代理）
+  userAgent?: string  // 自定义 UA（优先于全局默认值）
   defaultUrl: string  // 启动 URL，默认 about:blank
   order: number
 }
 
-// 标签页
+// 标签页（持久化模型）
 interface Tab {
   id: string
   accountId: string
   title: string
   url: string
   order: number
-  webContentId?: number  // WebContentsView 的 id
+}
+
+// 导航状态（运行时，不持久化）
+interface NavState {
+  canGoBack: boolean
+  canGoForward: boolean
+  isLoading: boolean
+}
+
+// 标签页运行时数据（不持久化，仅主进程内存维护）
+interface RuntimeTab extends Tab {
+  webContentId?: number  // WebContentsView 的 id，重启后失效
 }
 ```
 
 代理优先级：账号级代理 > 分组级代理 > 无代理
+UA 优先级：账号自定义 UA > 全局默认 Chrome UA
+`webContentId` 为运行时临时字段，不参与持久化。应用重启后由主进程重新创建 WebContentsView 并赋值。
 
 ## UI 布局
 
@@ -183,9 +197,9 @@ interface Tab {
 - 分组标题点击展开/收起，使用 shadcn Collapsible
 - 分组和账号列表均支持拖拽排序（vuedraggable）
 - 账号悬浮时显示 `⋯` 按钮，点击弹出 DropdownMenu（编辑/删除）
-- 点击账号：无 tab 则创建新 tab 加载 defaultUrl，有 tab 则切换到第一个
+- 点击账号：无 tab 则创建新 tab 加载 defaultUrl，有 tab 则切换到该账号最近活跃的 tab（同账号所有 tab 都已关闭则视为无 tab）
 - 当前有激活 webview 的账号显示高亮样式
-- 底部有「代理设置」入口和「+ 分组」按钮
+- 底部有「代理设置」入口（折叠态显示 Globe 图标）和「+ 分组」按钮
 
 ### 标签栏
 
@@ -243,7 +257,7 @@ interface IpcAPI {
 
   proxy: {
     list(): Promise<Proxy[]>
-    create(data: Omit<Proxy, 'id'>): Proxy>
+    create(data: Omit<Proxy, 'id'>): Promise<Proxy>
     update(id: string, data: Partial<Proxy>): Promise<void>
     delete(id: string): Promise<void>
     test(proxyId: string): Promise<{ ok: boolean; ip?: string; error?: string }>
@@ -259,8 +273,9 @@ interface IpcAPI {
 
 ### 通道命名规范
 
-- 渲染 → 主进程：`tab:create`、`account:list`、`proxy:test`
-- 主进程 → 渲染：`on:tab:title-updated`、`on:tab:url-updated`
+- 渲染 → 主进程：`tab:create`、`account:list`、`proxy:test`、`group:reorder`、`tab:reorder`
+- 主进程 → 渲染：`on:tab:title-updated`、`on:tab:url-updated`（preload `on()` 内部自动加 `on:` 前缀）
+- reorder 方法行为：前端传入排序后的 ID 数组，主进程按顺序覆盖各记录的 `order` 字段
 
 ## WebContentsView 管理
 
@@ -270,7 +285,7 @@ interface IpcAPI {
 2. 主进程查询 accountId 对应的 partition（格式：`persist:account-{id}`）
 3. 创建 WebContentsView，设置 partition 实现 session 隔离
 4. 查找代理优先级：账号级 > 分组级 > 无，如有则对 session 设置 proxy
-5. 设置 User-Agent 为 Chrome 标准值
+5. 设置 User-Agent：账号自定义 UA > 全局默认 Chrome UA
 6. 将 WebContentsView 添加到 BrowserWindow
 7. 计算视图位置并设置 bounds
 8. 加载 defaultUrl
@@ -280,7 +295,7 @@ interface IpcAPI {
 ### 位置同步
 
 - 渲染进程中 webview 占位区域使用固定 div，通过 ResizeObserver 监听
-- 尺寸变化时 IPC 发送 `{ x, y, width, height }` 给主进程
+- 尺寸变化时 IPC 发送 `{ x, y, width, height }` 给主进程（坐标需乘以 `devicePixelRatio` 处理 DPI 缩放）
 - 主进程更新当前活动 WebContentsView 的 bounds
 - 侧边栏折叠/展开时自动调整
 
@@ -299,7 +314,47 @@ interface IpcAPI {
 ## User-Agent 覆盖
 
 - 主进程启动时设置 `app.userAgentFallback` 为最新稳定版 Chrome UA
-- 每个 WebContentsView 创建时单独设置 `webContents.setUserAgent(...)`
+- 每个 WebContentsView 创建时：如果账号有自定义 UA 则使用自定义值，否则使用全局默认
+
+## 级联操作与边界场景
+
+### 删除账号
+
+- 删除前检查是否有打开的 tab，如有则先关闭所有 tab（销毁对应 WebContentsView），再删除账号数据
+- 在删除确认弹窗中提示"将关闭 N 个已打开的标签页"
+
+### 删除分组
+
+- 分组内有账号时阻止删除，提示用户先移出或删除分组内的所有账号
+- 分组内为空时直接删除
+
+### 删除代理
+
+- 删除代理时，遍历所有账号和分组，清除引用该代理的 `proxyId` 字段（设为 undefined）
+- 删除后对受影响的 session 调用 `webContents.session.setProxy({ proxyRules: '' })` 移除代理
+
+### 代理热更新
+
+- 修改已绑定账号/分组的代理时，找到该 partition 下所有活跃的 WebContentsView
+- 调用 `webContents.session.setProxy()` 更新代理配置
+- 自动刷新页面使新代理生效，并在 UI 提示用户"代理已更新，页面已刷新"
+
+### 关闭最后一个 tab
+
+- 所有 tab 关闭后，webview 区域显示空状态引导："点击左侧账号或使用 + 按钮打开新标签页"
+- 工具栏的后退/前进/刷新按钮禁用，地址栏清空
+
+### 多 tab 共享 session
+
+- 同一账号的多个 tab 共享同一 partition session，这是预期行为
+- 一个 tab 中的登录/退出会影响同账号的其他 tab
+- 侧边栏账号右键菜单中可提示"此账号已打开 N 个标签页"
+
+### 应用退出与恢复
+
+- 窗口关闭前，主进程遍历所有活跃 tab，将 { id, accountId, title, url, order } 写入 electron-store
+- 退出时批量销毁所有 WebContentsView
+- 启动时从 store 读取 tab 列表，逐个重新创建 WebContentsView
 
 ## 视觉风格
 
