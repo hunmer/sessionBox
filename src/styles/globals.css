@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-emerald: #10b981;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+@layer base {
+  :root {
+    --background: #1a1d27;
+    --foreground: #e4e4e7;
+    --card: #252830;
+    --card-foreground: #e4e4e7;
+    --popover: #252830;
+    --popover-foreground: #e4e4e7;
+    --primary: #10b981;
+    --primary-foreground: #0f1117;
+    --secondary: #252830;
+    --secondary-foreground: #e4e4e7;
+    --muted: #252830;
+    --muted-foreground: #9ca3af;
+    --accent: #10b981;
+    --accent-foreground: #0f1117;
+    --destructive: #ef4444;
+    --destructive-foreground: #e4e4e7;
+    --border: #2e3140;
+    --input: #2e3140;
+    --ring: #10b981;
+    --sidebar: #0f1117;
+    --sidebar-foreground: #e4e4e7;
+    --sidebar-hover: #252830;
+    --sidebar-border: #2e3140;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3a3d4a;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4d5a;
+}
