@@ -106,7 +106,7 @@ function onAccountDragEnd() {
         :model-value="accounts"
         :animation="150"
         item-key="id"
-        class="pl-3"
+        class="space-y-0.5 pl-3"
         @end="onAccountDragEnd"
         @update:model-value="onAccountUpdate"
       >
