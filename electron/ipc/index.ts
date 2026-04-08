@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow, dialog, app } from 'electron'
 import { join } from 'path'
 import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync } from 'node:fs'
+import { execSync } from 'child_process'
 import { randomUUID } from 'node:crypto'
 import {
   listGroups,
@@ -74,10 +75,44 @@ export function registerIpcHandlers(): void {
     const shortcutPath = join(desktopPath, `${account.name}.url`)
     const protocolUrl = `sessionbox://openAccount?id=${account.id}`
 
-    // 使用 .url 文件（Internet Shortcut），通过协议处理器唤起应用
-    const iconFile = account.icon?.startsWith('img:')
-      ? join(iconDir, account.icon.slice(4)).replace(/\\/g, '/')
-      : process.execPath.replace(/\\/g, '/')
+    // 默认使用应用图标
+    let iconFile = process.execPath.replace(/\\/g, '/')
+
+    // 如果有自定义图片图标，转换为 ICO 格式供快捷方式使用（.url 不支持 PNG/JPG）
+    if (account.icon?.startsWith('img:')) {
+      const imgName = account.icon.slice(4)
+      const imgPath = join(iconDir, imgName)
+
+      if (existsSync(imgPath) && !imgName.endsWith('.svg')) {
+        const icoName = imgName.replace(/\.[^.]+$/, '.ico')
+        const icoPath = join(iconDir, icoName)
+
+        // 缓存 ICO，避免重复转换
+        if (!existsSync(icoPath)) {
+          try {
+            const psScript = `
+Add-Type -AssemblyName System.Drawing
+$img = [System.Drawing.Image]::FromFile('${imgPath}')
+$icon = [System.Drawing.Icon]::FromHandle($img.GetHicon())
+$stream = [System.IO.FileStream]::new('${icoPath}', 'Create')
+$icon.Save($stream)
+$stream.Close()
+$img.Dispose()`
+            const encoded = Buffer.from(psScript, 'utf16le').toString('base64')
+            execSync(`powershell -NoProfile -EncodedCommand ${encoded}`, {
+              windowsHide: true,
+              timeout: 5000
+            })
+          } catch {
+            // 转换失败，继续使用默认应用图标
+          }
+        }
+
+        if (existsSync(icoPath)) {
+          iconFile = icoPath.replace(/\\/g, '/')
+        }
+      }
+    }
 
     const content = [
       '[InternetShortcut]',

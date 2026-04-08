@@ -70,8 +70,12 @@ class WebviewManager {
     const win = this.mainWindow
     if (!win) return
 
+    // 仅允许 http/https 协议的判断
+    const isWebUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://')
+
     // 拦截新窗口打开，在应用内新 tab 中加载
     wc.setWindowOpenHandler(({ url }) => {
+      if (!isWebUrl(url)) return { action: 'deny' }
       const entry = this.views.get(tabId)
       if (entry) {
         win.webContents.send('on:tab:open-url', entry.accountId, url)
@@ -79,11 +83,14 @@ class WebviewManager {
       return { action: 'deny' }
     })
 
-    // 禁止打开唤起外部应用的协议（仅允许 http/https）
+    // 拦截主框架导航中的非 http/https 协议
     wc.on('will-navigate', (event, url) => {
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        event.preventDefault()
-      }
+      if (!isWebUrl(url)) event.preventDefault()
+    })
+
+    // 拦截服务端重定向（302等）到自定义协议的跳转
+    wc.on('will-redirect', (event, url) => {
+      if (!isWebUrl(url)) event.preventDefault()
     })
 
     wc.on('page-title-updated', (_e, title) => {

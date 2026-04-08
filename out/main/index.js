@@ -24,6 +24,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 const require$$1 = require("electron");
 const require$$0$1 = require("path");
 const node_fs = require("node:fs");
+const child_process = require("child_process");
 const node_crypto = require("node:crypto");
 const require$$1$2 = require("util");
 const require$$0 = require("fs");
@@ -10462,7 +10463,9 @@ class WebviewManager {
     const wc = view.webContents;
     const win = this.mainWindow;
     if (!win) return;
+    const isWebUrl = (url) => url.startsWith("http://") || url.startsWith("https://");
     wc.setWindowOpenHandler(({ url }) => {
+      if (!isWebUrl(url)) return { action: "deny" };
       const entry = this.views.get(tabId);
       if (entry) {
         win.webContents.send("on:tab:open-url", entry.accountId, url);
@@ -10470,9 +10473,10 @@ class WebviewManager {
       return { action: "deny" };
     });
     wc.on("will-navigate", (event, url) => {
-      if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        event.preventDefault();
-      }
+      if (!isWebUrl(url)) event.preventDefault();
+    });
+    wc.on("will-redirect", (event, url) => {
+      if (!isWebUrl(url)) event.preventDefault();
     });
     wc.on("page-title-updated", (_e, title2) => {
       win.webContents.send("on:tab:title-updated", tabId, title2);
@@ -10750,7 +10754,36 @@ function registerIpcHandlers() {
     const desktopPath = require$$1.app.getPath("desktop");
     const shortcutPath = require$$0$1.join(desktopPath, `${account.name}.url`);
     const protocolUrl = `sessionbox://openAccount?id=${account.id}`;
-    const iconFile = account.icon?.startsWith("img:") ? require$$0$1.join(iconDir, account.icon.slice(4)).replace(/\\/g, "/") : process.execPath.replace(/\\/g, "/");
+    let iconFile = process.execPath.replace(/\\/g, "/");
+    if (account.icon?.startsWith("img:")) {
+      const imgName = account.icon.slice(4);
+      const imgPath = require$$0$1.join(iconDir, imgName);
+      if (node_fs.existsSync(imgPath) && !imgName.endsWith(".svg")) {
+        const icoName = imgName.replace(/\.[^.]+$/, ".ico");
+        const icoPath = require$$0$1.join(iconDir, icoName);
+        if (!node_fs.existsSync(icoPath)) {
+          try {
+            const psScript = `
+Add-Type -AssemblyName System.Drawing
+$img = [System.Drawing.Image]::FromFile('${imgPath}')
+$icon = [System.Drawing.Icon]::FromHandle($img.GetHicon())
+$stream = [System.IO.FileStream]::new('${icoPath}', 'Create')
+$icon.Save($stream)
+$stream.Close()
+$img.Dispose()`;
+            const encoded = Buffer.from(psScript, "utf16le").toString("base64");
+            child_process.execSync(`powershell -NoProfile -EncodedCommand ${encoded}`, {
+              windowsHide: true,
+              timeout: 5e3
+            });
+          } catch {
+          }
+        }
+        if (node_fs.existsSync(icoPath)) {
+          iconFile = icoPath.replace(/\\/g, "/");
+        }
+      }
+    }
     const content = [
       "[InternetShortcut]",
       `URL=${protocolUrl}`,
