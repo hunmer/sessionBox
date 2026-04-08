@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { MoreHorizontal, ExternalLink } from 'lucide-vue-next'
+import { MoreHorizontal, ExternalLink, Pencil, Trash2 } from 'lucide-vue-next'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTabStore } from '@/stores/tab'
 import type { Account } from '@/types'
@@ -93,12 +93,16 @@ function handleClick() {
           <MoreHorizontal class="w-3.5 h-3.5" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" class="w-36">
+      <DropdownMenuContent align="end" class="w-44">
         <DropdownMenuItem @click="createDesktopShortcut">
           <ExternalLink class="w-3.5 h-3.5 mr-2" />创建桌面快捷方式
         </DropdownMenuItem>
-        <DropdownMenuItem @click="emit('edit', account)">编辑</DropdownMenuItem>
-        <DropdownMenuItem class="text-destructive" @click="emit('delete', account)">删除</DropdownMenuItem>
+        <DropdownMenuItem @click="emit('edit', account)">
+          <Pencil class="w-3.5 h-3.5 mr-2" />编辑
+        </DropdownMenuItem>
+        <DropdownMenuItem class="text-destructive" @click="emit('delete', account)">
+          <Trash2 class="w-3.5 h-3.5 mr-2" />删除
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   </div>

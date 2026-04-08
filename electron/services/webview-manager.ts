@@ -1,6 +1,21 @@
-import { WebContentsView, BrowserWindow } from 'electron'
+import { WebContentsView, BrowserWindow, Session } from 'electron'
 import { getAccountById, getGroupById, getProxyById } from './store'
 import { getUserAgent } from '../utils/user-agent'
+
+/** 已知第三方协议列表，阻止其唤起外部应用 */
+export const BLOCKED_SCHEMES = [
+  'bitbrowser', 'microsoft-edge', 'thunder', 'xunlei', 'ed2k',
+  'flashget', 'qqdl', 'baidubar', 'alipays', 'weixin', 'tg',
+  'zoommtg', 'teams', 'slack', 'discord', 'spotify', 'steam',
+  'skype', 'magnet', 'vb-hyperlink'
+]
+
+/** 在指定 session 上注册第三方协议拦截（返回 204 静默丢弃） */
+function registerBlockedProtocolHandlers(session: Session): void {
+  for (const scheme of BLOCKED_SCHEMES) {
+    session.protocol.handle(scheme, () => new Response(null, { status: 204 }))
+  }
+}
 
 interface ViewEntry {
   view: WebContentsView
@@ -47,6 +62,9 @@ class WebviewManager {
       const proxyRules = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`
       view.webContents.session.setProxy({ proxyRules })
     }
+
+    // 在 webview session 上注册第三方协议拦截，防止弹出"打开方式"对话框
+    registerBlockedProtocolHandlers(view.webContents.session)
 
     // 加载 URL
     view.webContents.loadURL(url)

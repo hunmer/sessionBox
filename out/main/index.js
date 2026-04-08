@@ -10427,6 +10427,33 @@ function deleteFavoriteSite(id2) {
   const sites = getCollection("favoriteSites").filter((s) => s.id !== id2);
   setCollection("favoriteSites", sites);
 }
+const BLOCKED_SCHEMES = [
+  "bitbrowser",
+  "microsoft-edge",
+  "thunder",
+  "xunlei",
+  "ed2k",
+  "flashget",
+  "qqdl",
+  "baidubar",
+  "alipays",
+  "weixin",
+  "tg",
+  "zoommtg",
+  "teams",
+  "slack",
+  "discord",
+  "spotify",
+  "steam",
+  "skype",
+  "magnet",
+  "vb-hyperlink"
+];
+function registerBlockedProtocolHandlers(session) {
+  for (const scheme of BLOCKED_SCHEMES) {
+    session.protocol.handle(scheme, () => new Response(null, { status: 204 }));
+  }
+}
 class WebviewManager {
   views = /* @__PURE__ */ new Map();
   mainWindow = null;
@@ -10452,6 +10479,7 @@ class WebviewManager {
       const proxyRules = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
       view.webContents.session.setProxy({ proxyRules });
     }
+    registerBlockedProtocolHandlers(view.webContents.session);
     view.webContents.loadURL(url);
     view.setVisible(false);
     this.mainWindow.contentView.addChildView(view);
@@ -10924,6 +10952,9 @@ if (!gotTheLock) {
       const fileName = decodeURIComponent(request.url.replace("account-icon://", ""));
       return require$$1.net.fetch(`file://${require$$0$1.join(iconDir2, fileName).replace(/\\/g, "/")}`);
     });
+    for (const scheme of BLOCKED_SCHEMES) {
+      require$$1.protocol.handle(scheme, () => new Response(null, { status: 204 }));
+    }
     createWindow();
     require$$1.app.on("activate", () => {
       if (require$$1.BrowserWindow.getAllWindows().length === 0) createWindow();
