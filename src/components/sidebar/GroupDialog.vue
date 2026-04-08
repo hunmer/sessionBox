@@ -21,21 +21,22 @@ const emit = defineEmits<{
 
 const proxyStore = useProxyStore()
 const name = ref('')
-const proxyId = ref('')
+const NO_PROXY = '__none__'
+const proxyId = ref(NO_PROXY)
 
 const proxyOptions = computed(() => proxyStore.proxies)
 
 watch(() => props.open, (val) => {
   if (val) {
     name.value = props.group?.name ?? ''
-    proxyId.value = props.group?.proxyId ?? ''
+    proxyId.value = props.group?.proxyId || NO_PROXY
   }
 })
 
 function handleSave() {
   const trimmed = name.value.trim()
   if (!trimmed) return
-  emit('save', { name: trimmed, proxyId: proxyId.value || undefined })
+  emit('save', { name: trimmed, proxyId: proxyId.value === NO_PROXY ? undefined : proxyId.value })
   emit('update:open', false)
 }
 </script>
@@ -53,7 +54,7 @@ function handleSave() {
             <SelectValue placeholder="不绑定代理" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">不绑定代理</SelectItem>
+            <SelectItem :value="NO_PROXY">不绑定代理</SelectItem>
             <SelectItem v-for="p in proxyOptions" :key="p.id" :value="p.id">
               {{ p.name }} ({{ p.type }}://{{ p.host }}:{{ p.port }})
             </SelectItem>

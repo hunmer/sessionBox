@@ -136,6 +136,7 @@ async function handleDelete() {
         :collapsed="collapsed"
         @edit-group="openEditGroup"
         @delete-group="confirmDeleteGroup"
+        @add-account="openNewAccount"
         @edit-account="openEditAccount"
         @delete-account="confirmDeleteAccount"
       />

@@ -39,6 +39,7 @@ function onDragEnd() {
         :collapsed="collapsed"
         @edit-group="emit('editGroup', $event)"
         @delete-group="emit('deleteGroup', $event)"
+        @add-account="emit('addAccount', $event)"
         @edit-account="emit('editAccount', $event)"
         @delete-account="emit('deleteAccount', $event)"
       />
