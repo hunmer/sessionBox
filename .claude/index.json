@@ -1,0 +1,152 @@
+{
+  "timestamp": "2026-04-09T02:12:31+08:00",
+  "project": "sessionBox",
+  "version": "0.0.1",
+  "description": "多账号浏览器工具，支持 partition 隔离、代理管理、拖拽排序",
+  "language_distribution": {
+    "TypeScript": "75%",
+    "Vue SFC": "20%",
+    "CSS": "3%",
+    "JavaScript": "2%"
+  },
+  "modules": [
+    {
+      "path": "electron/",
+      "name": "主进程",
+      "language": "TypeScript",
+      "entry": "electron/main.ts",
+      "interfaces": [
+        "electron/ipc/index.ts",
+        "electron/ipc/tab.ts",
+        "electron/ipc/proxy.ts"
+      ],
+      "data_models": [
+        "electron/services/store.ts"
+      ],
+      "services": [
+        "electron/services/store.ts",
+        "electron/services/webview-manager.ts",
+        "electron/services/proxy.ts"
+      ],
+      "utils": [
+        "electron/utils/user-agent.ts"
+      ],
+      "tests": [],
+      "config_files": [],
+      "claude_md": "electron/CLAUDE.md",
+      "file_count": 8,
+      "scanned_files": 8,
+      "coverage": "100%"
+    },
+    {
+      "path": "preload/",
+      "name": "预加载",
+      "language": "TypeScript",
+      "entry": "preload/index.ts",
+      "interfaces": [
+        "preload/index.ts",
+        "preload/index.d.ts"
+      ],
+      "tests": [],
+      "config_files": [],
+      "claude_md": "preload/CLAUDE.md",
+      "file_count": 2,
+      "scanned_files": 2,
+      "coverage": "100%"
+    },
+    {
+      "path": "src/",
+      "name": "渲染进程",
+      "language": "TypeScript + Vue",
+      "entry": "src/main.ts",
+      "interfaces": [
+        "src/types/index.ts",
+        "src/env.d.ts"
+      ],
+      "data_models": [
+        "src/types/index.ts"
+      ],
+      "services": [
+        "src/stores/account.ts",
+        "src/stores/tab.ts",
+        "src/stores/proxy.ts",
+        "src/stores/favoriteSite.ts",
+        "src/stores/theme.ts"
+      ],
+      "utils": [
+        "src/lib/utils.ts",
+        "src/lib/webview-overlay.ts",
+        "src/composables/useDragSort.ts",
+        "src/composables/useIpc.ts"
+      ],
+      "tests": [],
+      "config_files": [],
+      "claude_md": "src/CLAUDE.md",
+      "file_count": 107,
+      "scanned_files": 107,
+      "coverage": "100%"
+    },
+    {
+      "path": "scripts/",
+      "name": "构建脚本",
+      "language": "JavaScript",
+      "entry": "scripts/build-production.js",
+      "interfaces": [],
+      "tests": [],
+      "config_files": [],
+      "claude_md": null,
+      "file_count": 1,
+      "scanned_files": 1,
+      "coverage": "100%"
+    }
+  ],
+  "root_config_files": [
+    "package.json",
+    "electron.vite.config.ts",
+    "electron-builder.json",
+    "tsconfig.json",
+    "tsconfig.node.json",
+    "tsconfig.web.json",
+    "index.html",
+    ".gitignore"
+  ],
+  "resource_files": [
+    "resources/icon.png",
+    "resources/icon.icns"
+  ],
+  "coverage": {
+    "total_source_files_estimated": 118,
+    "scanned_files": 118,
+    "coverage_percent": 100,
+    "modules_with_claude_md": 3,
+    "modules_total": 4,
+    "truncated": false
+  },
+  "gaps": {
+    "missing_tests": true,
+    "missing_lint_config": true,
+    "missing_data_model_docs": false,
+    "missing_interface_docs": false,
+    "notes": [
+      "项目无任何测试文件（无单元测试、集成测试、E2E 测试）",
+      "项目无 lint/format 配置（无 ESLint、Prettier 等）",
+      "数据模型类型在三处重复定义（src/types/index.ts、electron/services/store.ts、preload/index.ts），建议统一维护"
+    ]
+  },
+  "ignored": {
+    "patterns": [
+      "node_modules/",
+      "out/",
+      "dist-app/"
+    ],
+    "source": ".gitignore"
+  },
+  "scan_history": [
+    {
+      "timestamp": "2026-04-09T02:12:31+08:00",
+      "phase": "A+B+C",
+      "trigger": "initialization",
+      "notes": "首次全量扫描，仓库规模较小，三阶段一次性完成"
+    }
+  ]
+}

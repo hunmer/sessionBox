@@ -2,6 +2,7 @@
   "name": "session-box",
   "version": "0.0.1",
   "description": "多账号浏览器工具，支持 partition 隔离、代理管理、拖拽排序",
+  "packageManager": "pnpm@10.17.1",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
