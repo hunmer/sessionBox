@@ -9,6 +9,7 @@ export const useTabStore = defineStore('tab', () => {
   const tabs = ref<Tab[]>([])
   const activeTabId = ref<string | null>(null)
   const navStates = ref<Map<string, NavState>>(new Map())
+  const favicons = ref<Map<string, string>>(new Map())
 
   // ====== 计算属性 ======
 
@@ -51,6 +52,7 @@ export const useTabStore = defineStore('tab', () => {
     await api.tab.close(tabId)
     tabs.value = tabs.value.filter((t) => t.id !== tabId)
     navStates.value.delete(tabId)
+    favicons.value.delete(tabId)
 
     // 如果关闭的是当前激活标签，切换到相邻标签
     if (activeTabId.value === tabId) {
@@ -115,8 +117,7 @@ export const useTabStore = defineStore('tab', () => {
     })
 
     api.on('tab:favicon-updated', (tabId: unknown, url: unknown) => {
-      // favicon 更新处理，后续阶段扩展
-      console.log(`[TabStore] favicon updated: ${tabId} ${url}`)
+      favicons.value.set(tabId as string, url as string)
     })
 
     // 新窗口打开 → 在新 tab 中加载
@@ -147,6 +148,7 @@ export const useTabStore = defineStore('tab', () => {
     tabs,
     activeTabId,
     navStates,
+    favicons,
     sortedTabs,
     activeTab,
     activeNavState,
