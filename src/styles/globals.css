@@ -31,7 +31,33 @@
 }
 
 @layer base {
-  :root {
+  :root.light {
+    --background: #f5f5f5;
+    --foreground: #18181b;
+    --card: #ffffff;
+    --card-foreground: #18181b;
+    --popover: #ffffff;
+    --popover-foreground: #18181b;
+    --primary: #10b981;
+    --primary-foreground: #ffffff;
+    --secondary: #f0f0f0;
+    --secondary-foreground: #18181b;
+    --muted: #f0f0f0;
+    --muted-foreground: #71717a;
+    --accent: #10b981;
+    --accent-foreground: #ffffff;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #e4e4e7;
+    --input: #e4e4e7;
+    --ring: #10b981;
+    --sidebar: #f0f0f0;
+    --sidebar-foreground: #18181b;
+    --sidebar-hover: #e4e4e7;
+    --sidebar-border: #d4d4d8;
+  }
+
+  :root.dark {
     --background: #1a1d27;
     --foreground: #e4e4e7;
     --card: #252830;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { PanelLeftClose, PanelLeft, Plus, Globe } from 'lucide-vue-next'
+import { PanelLeftClose, PanelLeft, Plus, Globe, Settings, MoreVertical } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -22,6 +22,7 @@ const tabStore = useTabStore()
 const collapsed = ref(false)
 const emit = defineEmits<{
   openProxy: []
+  openSettings: []
 }>()
 
 // ====== 编辑弹窗状态 ======
@@ -153,14 +154,26 @@ async function handleDelete() {
           </TooltipTrigger>
           <TooltipContent side="right">新建分组</TooltipContent>
         </Tooltip>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('openProxy')">
-              <Globe class="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">代理设置</TooltipContent>
-        </Tooltip>
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon" class="h-7 w-7">
+                  <MoreVertical class="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right">更多</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start" side="right">
+            <DropdownMenuItem @click="emit('openProxy')">
+              <Globe class="w-4 h-4 mr-2" />代理设置
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="emit('openSettings')">
+              <Settings class="w-4 h-4 mr-2" />设置
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </template>
       <template v-else>
         <DropdownMenu>
@@ -180,14 +193,21 @@ async function handleDelete() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('openProxy')">
-              <Globe class="w-4 h-4" />
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="ghost" size="icon" class="h-7 w-7">
+              <MoreVertical class="w-4 h-4" />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top">代理设置</TooltipContent>
-        </Tooltip>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem @click="emit('openProxy')">
+              <Globe class="w-4 h-4 mr-2" />代理设置
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="emit('openSettings')">
+              <Settings class="w-4 h-4 mr-2" />设置
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </template>
     </div>
 

@@ -5,6 +5,7 @@ import Sidebar from '@/components/sidebar/Sidebar.vue'
 import TabBar from '@/components/tabs/TabBar.vue'
 import BrowserToolbar from '@/components/toolbar/BrowserToolbar.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
+import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import { useAccountStore } from '@/stores/account'
 import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
@@ -14,6 +15,7 @@ const tabStore = useTabStore()
 const proxyStore = useProxyStore()
 
 const proxyDialogOpen = ref(false)
+const settingsDialogOpen = ref(false)
 const ready = ref(false)
 
 /** 向主进程同步 webview 容器的位置和大小 */
@@ -70,7 +72,7 @@ watch(() => tabStore.activeTabId, () => {
   <TooltipProvider :delay-duration="300">
     <div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       <!-- 侧边栏 -->
-      <Sidebar @open-proxy="proxyDialogOpen = true" />
+      <Sidebar @open-proxy="proxyDialogOpen = true" @open-settings="settingsDialogOpen = true" />
 
       <!-- 主内容区 -->
       <div class="flex flex-col flex-1 min-w-0">
@@ -110,5 +112,8 @@ watch(() => tabStore.activeTabId, () => {
 
     <!-- 代理管理弹窗 -->
     <ProxyDialog :open="proxyDialogOpen" @update:open="proxyDialogOpen = $event" />
+
+    <!-- 设置弹窗 -->
+    <SettingsDialog :open="settingsDialogOpen" @update:open="settingsDialogOpen = $event" />
   </TooltipProvider>
 </template>
