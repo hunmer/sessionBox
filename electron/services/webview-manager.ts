@@ -127,6 +127,9 @@ class WebviewManager {
     const entry = this.views.get(tabId)
     if (!entry || !this.mainWindow) return
 
+    // 先隐藏并重置 bounds，避免移除时视觉残留
+    entry.view.setVisible(false)
+    entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
     this.mainWindow.contentView.removeChildView(entry.view)
     if (!entry.view.webContents.isDestroyed()) {
       entry.view.webContents.close()

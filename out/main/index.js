@@ -10473,6 +10473,8 @@ class WebviewManager {
   destroyView(tabId) {
     const entry = this.views.get(tabId);
     if (!entry || !this.mainWindow) return;
+    entry.view.setVisible(false);
+    entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
     this.mainWindow.contentView.removeChildView(entry.view);
     if (!entry.view.webContents.isDestroyed()) {
       entry.view.webContents.close();
