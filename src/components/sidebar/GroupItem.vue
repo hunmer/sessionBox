@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { ChevronRight, Plus, MoreHorizontal } from 'lucide-vue-next'
 import draggable from 'vuedraggable'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
 import AccountItem from './AccountItem.vue'
@@ -71,7 +72,7 @@ function onAccountDragEnd() {
       :class="isGroupActive ? 'text-primary' : 'text-muted-foreground hover:text-sidebar-foreground'"
       @click="pickerOpen = true"
     >
-      <span class="flex-1 text-xs font-medium text-center">
+      <span class="flex-1 text-xs font-medium text-center" :style="group.color ? { color: group.color } : undefined">
         {{ group.name.charAt(0) }}
       </span>
     </div>
@@ -96,9 +97,13 @@ function onAccountDragEnd() {
           <ChevronRight class="w-3.5 h-3.5" />
         </button>
       </CollapsibleTrigger>
-      <span class="flex-1 truncate text-xs font-medium uppercase tracking-wider">
+      <Badge
+        class="flex-1 truncate uppercase tracking-wider text-[10px]"
+        :variant="group.color ? 'outline' : 'outline'"
+        :style="group.color ? { borderColor: group.color, color: group.color } : undefined"
+      >
         {{ group.name }}
-      </span>
+      </Badge>
       <!-- 增加账号按钮 -->
       <button
         class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity"
