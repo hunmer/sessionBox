@@ -10451,7 +10451,10 @@ const BLOCKED_SCHEMES = [
 ];
 function registerBlockedProtocolHandlers(session) {
   for (const scheme of BLOCKED_SCHEMES) {
-    session.protocol.handle(scheme, () => new Response(null, { status: 204 }));
+    try {
+      session.protocol.handle(scheme, () => new Response(null, { status: 204 }));
+    } catch {
+    }
   }
 }
 class WebviewManager {
@@ -10474,12 +10477,12 @@ class WebviewManager {
       }
     });
     view.webContents.setUserAgent(getUserAgent(account.userAgent));
+    registerBlockedProtocolHandlers(view.webContents.session);
     if (proxy) {
       const auth = proxy.username ? `${proxy.username}:${proxy.password}@` : "";
       const proxyRules = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
       view.webContents.session.setProxy({ proxyRules });
     }
-    registerBlockedProtocolHandlers(view.webContents.session);
     view.webContents.loadURL(url);
     view.setVisible(false);
     this.mainWindow.contentView.addChildView(view);

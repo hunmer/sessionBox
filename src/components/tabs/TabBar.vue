@@ -17,6 +17,20 @@ const tabStore = useTabStore()
 const accountStore = useAccountStore()
 const showAddDialog = ref(false)
 
+const windowApi = () => window.api
+
+function minimizeWindow() {
+  windowApi()?.window.minimize()
+}
+
+function maximizeWindow() {
+  windowApi()?.window.maximize()
+}
+
+function closeWindow() {
+  windowApi()?.window.close()
+}
+
 function onDragEnd() {
   const ids = tabStore.sortedTabs.map((t) => t.id)
   tabStore.reorderTabs(ids)
@@ -87,7 +101,7 @@ function addTab(accountId: string) {
         variant="ghost"
         size="icon"
         class="h-full w-10 rounded-none hover:bg-secondary"
-        @click="window.api.window.minimize()"
+        @click="minimizeWindow()"
       >
         <Minus class="w-3.5 h-3.5" />
       </Button>
@@ -95,7 +109,7 @@ function addTab(accountId: string) {
         variant="ghost"
         size="icon"
         class="h-full w-10 rounded-none hover:bg-secondary"
-        @click="window.api.window.maximize()"
+        @click="maximizeWindow()"
       >
         <Copy v-if="isMaximized" class="w-3.5 h-3.5" />
         <Square v-else class="w-3 h-3" />
@@ -104,7 +118,7 @@ function addTab(accountId: string) {
         variant="ghost"
         size="icon"
         class="h-full w-10 rounded-none hover:bg-red-500/80 hover:text-white"
-        @click="window.api.window.close()"
+        @click="closeWindow()"
       >
         <X class="w-4 h-4" />
       </Button>

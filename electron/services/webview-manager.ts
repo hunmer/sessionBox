@@ -13,7 +13,11 @@ export const BLOCKED_SCHEMES = [
 /** 在指定 session 上注册第三方协议拦截（返回 204 静默丢弃） */
 function registerBlockedProtocolHandlers(session: Session): void {
   for (const scheme of BLOCKED_SCHEMES) {
-    session.protocol.handle(scheme, () => new Response(null, { status: 204 }))
+    try {
+      session.protocol.handle(scheme, () => new Response(null, { status: 204 }))
+    } catch {
+      // 某些 scheme 不被允许注册，静默跳过
+    }
   }
 }
 
@@ -56,15 +60,15 @@ class WebviewManager {
     // 设置 User-Agent
     view.webContents.setUserAgent(getUserAgent(account.userAgent))
 
+    // 拦截第三方协议，防止唤起外部应用
+    registerBlockedProtocolHandlers(view.webContents.session)
+
     // 设置代理（在加载 URL 之前）
     if (proxy) {
       const auth = proxy.username ? `${proxy.username}:${proxy.password}@` : ''
       const proxyRules = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`
       view.webContents.session.setProxy({ proxyRules })
     }
-
-    // 在 webview session 上注册第三方协议拦截，防止弹出"打开方式"对话框
-    registerBlockedProtocolHandlers(view.webContents.session)
 
     // 加载 URL
     view.webContents.loadURL(url)

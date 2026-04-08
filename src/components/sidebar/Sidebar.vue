@@ -179,23 +179,9 @@ async function handleDelete() {
         </DropdownMenu>
       </template>
       <template v-else>
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button variant="ghost" size="sm" class="flex-1 text-xs" @click.stop>
-              <Plus class="w-3.5 h-3.5 mr-1" />新建分组
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem @click="openNewGroup">新建空分组</DropdownMenuItem>
-            <DropdownMenuItem
-              v-for="group in accountStore.sortedGroups"
-              :key="group.id"
-              @click="openNewAccount(group.id)"
-            >
-              在「{{ group.name }}」中新建账号
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button variant="ghost" size="sm" class="flex-1 text-xs" @click.stop="openNewGroup">
+          <Plus class="w-3.5 h-3.5 mr-1" />新建分组
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
             <Button variant="ghost" size="icon" class="h-7 w-7">
