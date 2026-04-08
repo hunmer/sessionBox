@@ -1,6 +1,6 @@
 import { ipcMain, BrowserWindow, dialog, app } from 'electron'
 import { join } from 'path'
-import { copyFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs'
+import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import {
   listGroups,
@@ -64,6 +64,32 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('account:reorder', (_e, accountIds: string[]) => reorderAccounts(accountIds))
+
+  /** 创建桌面快捷方式（.url 文件），使用 sessionbox:// 协议打开账号 */
+  ipcMain.handle('account:createDesktopShortcut', (_e, accountId: string) => {
+    const account = getAccountById(accountId)
+    if (!account) throw new Error(`账号 ${accountId} 不存在`)
+
+    const desktopPath = app.getPath('desktop')
+    const shortcutPath = join(desktopPath, `${account.name}.url`)
+    const protocolUrl = `sessionbox://openAccount?id=${account.id}`
+
+    // 使用 .url 文件（Internet Shortcut），通过协议处理器唤起应用
+    const iconFile = account.icon?.startsWith('img:')
+      ? join(iconDir, account.icon.slice(4)).replace(/\\/g, '/')
+      : process.execPath.replace(/\\/g, '/')
+
+    const content = [
+      '[InternetShortcut]',
+      `URL=${protocolUrl}`,
+      `IconFile=${iconFile}`,
+      'IconIndex=0',
+      ''
+    ].join('\r\n')
+
+    writeFileSync(shortcutPath, content, 'utf-8')
+    return shortcutPath
+  })
 
   /** 选择图片并保存到本地图标目录，返回图标标识（img:文件名） */
   ipcMain.handle('account:uploadIcon', async () => {

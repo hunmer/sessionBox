@@ -31,10 +31,17 @@ function handleClose(e: MouseEvent) {
 
 <template>
   <div
-    class="group flex items-center gap-1.5 h-full px-3 border-r border-border cursor-pointer transition-colors select-none"
-    :class="isActive ? 'bg-background text-foreground' : 'bg-card/50 text-muted-foreground hover:bg-card'"
+    class="group flex items-center gap-1.5 h-full px-3 border-r border-border cursor-pointer transition-all select-none relative"
+    :class="isActive
+      ? 'bg-background text-foreground shadow-sm font-medium'
+      : 'bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground/80'"
     @click="tabStore.switchTab(tab.id)"
   >
+    <!-- 激活状态底部指示条 -->
+    <div
+      v-if="isActive"
+      class="absolute bottom-0 left-2 right-2 h-[2px] bg-primary rounded-full"
+    />
     <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin text-primary/60" />
     <img v-else-if="faviconUrl" :src="faviconUrl" class="w-3.5 h-3.5 flex-shrink-0 rounded-sm" />
     <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />

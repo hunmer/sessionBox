@@ -10744,6 +10744,23 @@ function registerIpcHandlers() {
     deleteAccount(id2);
   });
   require$$1.ipcMain.handle("account:reorder", (_e, accountIds) => reorderAccounts(accountIds));
+  require$$1.ipcMain.handle("account:createDesktopShortcut", (_e, accountId) => {
+    const account = getAccountById(accountId);
+    if (!account) throw new Error(`账号 ${accountId} 不存在`);
+    const desktopPath = require$$1.app.getPath("desktop");
+    const shortcutPath = require$$0$1.join(desktopPath, `${account.name}.url`);
+    const protocolUrl = `sessionbox://openAccount?id=${account.id}`;
+    const iconFile = account.icon?.startsWith("img:") ? require$$0$1.join(iconDir, account.icon.slice(4)).replace(/\\/g, "/") : process.execPath.replace(/\\/g, "/");
+    const content = [
+      "[InternetShortcut]",
+      `URL=${protocolUrl}`,
+      `IconFile=${iconFile}`,
+      "IconIndex=0",
+      ""
+    ].join("\r\n");
+    node_fs.writeFileSync(shortcutPath, content, "utf-8");
+    return shortcutPath;
+  });
   require$$1.ipcMain.handle("account:uploadIcon", async () => {
     const result = await require$$1.dialog.showOpenDialog({
       title: "选择账号图标",
@@ -10799,56 +10816,89 @@ require$$1.protocol.registerSchemesAsPrivileged([
     privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
   }
 ]);
-function createWindow() {
-  const mainWindow = new require$$1.BrowserWindow({
-    width: 1280,
-    height: 800,
-    show: false,
-    autoHideMenuBar: true,
-    frame: false,
-    transparent: true,
-    webPreferences: {
-      preload: require$$0$1.join(__dirname, "../preload/index.js"),
-      sandbox: false
+require$$1.app.setAsDefaultProtocolClient("sessionbox");
+function handleProtocolUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.host === "openAccount") {
+      const accountId = parsed.searchParams.get("id");
+      if (!accountId) return;
+      const win = require$$1.BrowserWindow.getAllWindows()[0];
+      if (win) {
+        if (win.isMinimized()) win.restore();
+        win.focus();
+        win.webContents.send("on:open-account", accountId);
+      }
     }
-  });
-  webviewManager.setMainWindow(mainWindow);
-  mainWindow.on("ready-to-show", () => {
-    mainWindow.show();
-  });
-  mainWindow.on("maximize", () => {
-    mainWindow.webContents.send("on:window:maximized");
-  });
-  mainWindow.on("unmaximize", () => {
-    mainWindow.webContents.send("on:window:unmaximized");
-  });
-  mainWindow.on("closed", () => {
-    webviewManager.destroyAll();
-  });
-  if (process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
-  } else {
-    mainWindow.loadFile(require$$0$1.join(__dirname, "../renderer/index.html"));
+  } catch (e) {
+    console.error("协议 URL 解析失败", e);
   }
 }
-require$$1.app.whenReady().then(() => {
-  electronApp.setAppUserModelId("com.session-box");
-  require$$1.app.on("browser-window-created", (_, window) => {
-    optimizer.watchWindowShortcuts(window);
+const gotTheLock = require$$1.app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  require$$1.app.quit();
+} else {
+  let createWindow = function() {
+    const mainWindow = new require$$1.BrowserWindow({
+      width: 1280,
+      height: 800,
+      show: false,
+      autoHideMenuBar: true,
+      frame: false,
+      transparent: true,
+      webPreferences: {
+        preload: require$$0$1.join(__dirname, "../preload/index.js"),
+        sandbox: false
+      }
+    });
+    webviewManager.setMainWindow(mainWindow);
+    mainWindow.on("ready-to-show", () => {
+      mainWindow.show();
+    });
+    mainWindow.on("maximize", () => {
+      mainWindow.webContents.send("on:window:maximized");
+    });
+    mainWindow.on("unmaximize", () => {
+      mainWindow.webContents.send("on:window:unmaximized");
+    });
+    mainWindow.on("closed", () => {
+      webviewManager.destroyAll();
+    });
+    const protocolUrl = process.argv.find((arg) => arg.startsWith("sessionbox://"));
+    if (protocolUrl) {
+      mainWindow.webContents.once("did-finish-load", () => {
+        handleProtocolUrl(protocolUrl);
+      });
+    }
+    if (process.env.ELECTRON_RENDERER_URL) {
+      mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+    } else {
+      mainWindow.loadFile(require$$0$1.join(__dirname, "../renderer/index.html"));
+    }
+  };
+  require$$1.app.on("second-instance", (_e, argv) => {
+    const url = argv.find((arg) => arg.startsWith("sessionbox://"));
+    if (url) handleProtocolUrl(url);
   });
-  registerIpcHandlers();
-  const iconDir2 = require$$0$1.join(require$$1.app.getPath("userData"), "account-icons");
-  require$$1.protocol.handle("account-icon", (request) => {
-    const fileName = decodeURIComponent(request.url.replace("account-icon://", ""));
-    return require$$1.net.fetch(`file://${require$$0$1.join(iconDir2, fileName).replace(/\\/g, "/")}`);
+  require$$1.app.whenReady().then(() => {
+    electronApp.setAppUserModelId("com.session-box");
+    require$$1.app.on("browser-window-created", (_, window) => {
+      optimizer.watchWindowShortcuts(window);
+    });
+    registerIpcHandlers();
+    const iconDir2 = require$$0$1.join(require$$1.app.getPath("userData"), "account-icons");
+    require$$1.protocol.handle("account-icon", (request) => {
+      const fileName = decodeURIComponent(request.url.replace("account-icon://", ""));
+      return require$$1.net.fetch(`file://${require$$0$1.join(iconDir2, fileName).replace(/\\/g, "/")}`);
+    });
+    createWindow();
+    require$$1.app.on("activate", () => {
+      if (require$$1.BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
   });
-  createWindow();
-  require$$1.app.on("activate", () => {
-    if (require$$1.BrowserWindow.getAllWindows().length === 0) createWindow();
+  require$$1.app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") {
+      require$$1.app.quit();
+    }
   });
-});
-require$$1.app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    require$$1.app.quit();
-  }
-});
+}

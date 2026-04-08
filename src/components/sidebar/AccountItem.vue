@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { MoreHorizontal } from 'lucide-vue-next'
+import { MoreHorizontal, ExternalLink } from 'lucide-vue-next'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTabStore } from '@/stores/tab'
 import type { Account } from '@/types'
@@ -16,6 +16,16 @@ const emit = defineEmits<{
 }>()
 
 const tabStore = useTabStore()
+const api = window.api
+
+/** 创建桌面快捷方式 */
+async function createDesktopShortcut() {
+  try {
+    await api.account.createDesktopShortcut(props.account.id)
+  } catch (e) {
+    console.error('创建快捷方式失败', e)
+  }
+}
 
 /** 当前账号是否有激活的 tab */
 const isActive = computed(() =>
@@ -84,6 +94,9 @@ function handleClick() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" class="w-36">
+        <DropdownMenuItem @click="createDesktopShortcut">
+          <ExternalLink class="w-3.5 h-3.5 mr-2" />创建桌面快捷方式
+        </DropdownMenuItem>
         <DropdownMenuItem @click="emit('edit', account)">编辑</DropdownMenuItem>
         <DropdownMenuItem class="text-destructive" @click="emit('delete', account)">删除</DropdownMenuItem>
       </DropdownMenuContent>

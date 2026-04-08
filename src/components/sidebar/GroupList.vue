@@ -18,8 +18,14 @@ const emit = defineEmits<{
 
 const accountStore = useAccountStore()
 
+/** 拖拽过程中立即更新 order，防止 computed 按旧 order 重排 */
+function onGroupUpdate(newGroups: Group[]) {
+  newGroups.forEach((g, i) => { g.order = i })
+  accountStore.groups = newGroups
+}
+
 function onDragEnd() {
-  const ids = accountStore.sortedGroups.map((g) => g.id)
+  const ids = accountStore.groups.map((g) => g.id)
   accountStore.reorderGroups(ids)
 }
 </script>
@@ -32,7 +38,7 @@ function onDragEnd() {
     item-key="id"
     class="flex flex-col gap-0.5"
     @end="onDragEnd"
-    @update:model-value="accountStore.groups = $event"
+    @update:model-value="onGroupUpdate"
   >
     <template #item="{ element: group }">
       <GroupItem

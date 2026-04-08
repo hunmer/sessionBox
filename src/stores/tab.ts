@@ -124,6 +124,17 @@ export const useTabStore = defineStore('tab', () => {
     api.on('tab:open-url', async (accountId: unknown, url: unknown) => {
       await createTabWithUrl(accountId as string, url as string)
     })
+
+    // 深度链接 → 激活或创建对应账号的 tab
+    api.on('open-account', async (accountId: unknown) => {
+      const id = accountId as string
+      const accountTabs = sortedTabs.value.filter((t) => t.accountId === id)
+      if (accountTabs.length > 0) {
+        await switchTab(accountTabs[accountTabs.length - 1].id)
+      } else {
+        await createTab(id)
+      }
+    })
   }
 
   /** 初始化 */

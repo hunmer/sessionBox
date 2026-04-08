@@ -37,19 +37,17 @@ const isGroupActive = computed(() =>
   accounts.value.some((a) => tabStore.activeTab?.accountId === a.id)
 )
 
-/** 账号拖拽排序结束后同步 order */
+/** 拖拽过程中立即更新 order 并替换 store 数据，防止 computed 按旧 order 重排 */
+function onAccountUpdate(newList: typeof accounts.value) {
+  newList.forEach((a, i) => { a.order = i })
+  const otherAccounts = accountStore.accounts.filter(a => a.groupId !== props.group.id)
+  accountStore.accounts = [...otherAccounts, ...newList]
+}
+
+/** 拖拽结束后持久化新顺序 */
 function onAccountDragEnd() {
   const ids = accounts.value.map((a) => a.id)
   accountStore.reorderAccounts(ids)
-}
-
-/** 拖拽过程中同步本地顺序 */
-function onAccountUpdate(newList: typeof accounts.value) {
-  // 按新顺序更新本地 order，让 computed 重新排序
-  newList.forEach((account, i) => {
-    const item = accountStore.accounts.find((a) => a.id === account.id)
-    if (item) item.order = i
-  })
 }
 </script>
 

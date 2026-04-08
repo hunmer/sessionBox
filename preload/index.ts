@@ -71,7 +71,9 @@ const api = {
     delete: (id: string): Promise<void> => ipcRenderer.invoke('account:delete', id),
     reorder: (accountIds: string[]): Promise<void> =>
       ipcRenderer.invoke('account:reorder', accountIds),
-    uploadIcon: (): Promise<string | null> => ipcRenderer.invoke('account:uploadIcon')
+    uploadIcon: (): Promise<string | null> => ipcRenderer.invoke('account:uploadIcon'),
+    createDesktopShortcut: (accountId: string): Promise<string> =>
+      ipcRenderer.invoke('account:createDesktopShortcut', accountId)
   },
 
   proxy: {

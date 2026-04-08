@@ -16,73 +16,115 @@ protocol.registerSchemesAsPrivileged([
   }
 ])
 
-function createWindow(): void {
-  const mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    show: false,
-    autoHideMenuBar: true,
-    frame: false,
-    transparent: true,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+// 注册 sessionbox:// 深度链接协议
+app.setAsDefaultProtocolClient('sessionbox')
+
+/** 处理 sessionbox:// 协议 URL */
+function handleProtocolUrl(url: string): void {
+  try {
+    const parsed = new URL(url)
+    if (parsed.host === 'openAccount') {
+      const accountId = parsed.searchParams.get('id')
+      if (!accountId) return
+      const win = BrowserWindow.getAllWindows()[0]
+      if (win) {
+        if (win.isMinimized()) win.restore()
+        win.focus()
+        win.webContents.send('on:open-account', accountId)
+      }
     }
-  })
-
-  // 初始化 WebContentsView 管理器
-  webviewManager.setMainWindow(mainWindow)
-
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
-
-  // 通知渲染进程窗口最大化状态变化
-  mainWindow.on('maximize', () => {
-    mainWindow.webContents.send('on:window:maximized')
-  })
-  mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send('on:window:unmaximized')
-  })
-
-  // 窗口关闭时销毁所有 WebContentsView
-  mainWindow.on('closed', () => {
-    webviewManager.destroyAll()
-  })
-
-  if (process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  } catch (e) {
+    console.error('协议 URL 解析失败', e)
   }
 }
 
-app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.session-box')
-
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
+// 单实例锁：防止多开，同时用于接收深度链接
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  // Windows: 协议 URL 通过 second-instance 事件传入（应用已在运行时）
+  app.on('second-instance', (_e, argv) => {
+    const url = argv.find((arg) => arg.startsWith('sessionbox://'))
+    if (url) handleProtocolUrl(url)
   })
 
-  // 注册所有 IPC 处理器
-  registerIpcHandlers()
+  function createWindow(): void {
+    const mainWindow = new BrowserWindow({
+      width: 1280,
+      height: 800,
+      show: false,
+      autoHideMenuBar: true,
+      frame: false,
+      transparent: true,
+      webPreferences: {
+        preload: join(__dirname, '../preload/index.js'),
+        sandbox: false
+      }
+    })
 
-  // 注册 account-icon:// 协议，从 userData/account-icons/ 目录提供文件
-  const iconDir = join(app.getPath('userData'), 'account-icons')
-  protocol.handle('account-icon', (request) => {
-    const fileName = decodeURIComponent(request.url.replace('account-icon://', ''))
-    return net.fetch(`file://${join(iconDir, fileName).replace(/\\/g, '/')}`)
-  })
+    // 初始化 WebContentsView 管理器
+    webviewManager.setMainWindow(mainWindow)
 
-  createWindow()
+    mainWindow.on('ready-to-show', () => {
+      mainWindow.show()
+    })
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-})
+    // 通知渲染进程窗口最大化状态变化
+    mainWindow.on('maximize', () => {
+      mainWindow.webContents.send('on:window:maximized')
+    })
+    mainWindow.on('unmaximize', () => {
+      mainWindow.webContents.send('on:window:unmaximized')
+    })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
+    // 窗口关闭时销毁所有 WebContentsView
+    mainWindow.on('closed', () => {
+      webviewManager.destroyAll()
+    })
+
+    // 首次启动时处理协议 URL（例如从桌面快捷方式启动）
+    const protocolUrl = process.argv.find((arg) => arg.startsWith('sessionbox://'))
+    if (protocolUrl) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        handleProtocolUrl(protocolUrl)
+      })
+    }
+
+    if (process.env.ELECTRON_RENDERER_URL) {
+      mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+    } else {
+      mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    }
   }
-})
+
+  app.whenReady().then(() => {
+    electronApp.setAppUserModelId('com.session-box')
+
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window)
+    })
+
+    // 注册所有 IPC 处理器
+    registerIpcHandlers()
+
+    // 注册 account-icon:// 协议，从 userData/account-icons/ 目录提供文件
+    const iconDir = join(app.getPath('userData'), 'account-icons')
+    protocol.handle('account-icon', (request) => {
+      const fileName = decodeURIComponent(request.url.replace('account-icon://', ''))
+      return net.fetch(`file://${join(iconDir, fileName).replace(/\\/g, '/')}`)
+    })
+
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit()
+    }
+  })
+}
