@@ -19,11 +19,15 @@
   - progress.md (created)
 
 ### Phase 1: 项目初始化与基础配置
-- **Status:** pending
+- **Status:** in_progress
 - Actions taken:
-  -
+  - pnpm install 完成，安装了 204 个包
+  - 批准并构建了 electron、esbuild、vue-demi 的构建脚本
+  - 生成 pnpm-lock.yaml
+  - electron v20.18.3 验证通过
 - Files created/modified:
-  -
+  - pnpm-lock.yaml (created)
+  - package.json (updated: added pnpm.onlyBuiltDependencies)
 
 ### Phase 2: 主进程基础架构
 - **Status:** pending
