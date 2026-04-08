@@ -50,6 +50,14 @@ function toggleSidebar() {
   if (!panel) return
   if (sidebarCollapsed.value) {
     panel.expand()
+    // expand() 依赖内部记录的折叠前大小，首次启动时该记录不存在，
+    // 会回退到 minSize（52px）= collapsedSize，等于没展开。
+    // 需要在下一帧检测是否仍然折叠，手动 resize 到默认宽度。
+    nextTick(() => {
+      if (panel.isCollapsed) {
+        panel.resize(SIDEBAR_DEFAULT_SIZE)
+      }
+    })
   } else {
     panel.collapse()
   }
