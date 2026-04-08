@@ -132,6 +132,8 @@ const api = {
     isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized')
   },
 
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),
+
   // 主进程 → 渲染进程事件监听
   on: (event: string, callback: (...args: unknown[]) => void): (() => void) => {
     const channel = `on:${event}`

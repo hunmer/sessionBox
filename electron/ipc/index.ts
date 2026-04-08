@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog, app } from 'electron'
+import { ipcMain, BrowserWindow, dialog, app, shell } from 'electron'
 import { join } from 'path'
 import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'child_process'
@@ -190,4 +190,7 @@ $img.Dispose()`
   ipcMain.handle('window:isMaximized', () => {
     return BrowserWindow.getFocusedWindow()?.isMaximized() ?? false
   })
+
+  // ====== 外部链接 ======
+  ipcMain.handle('openExternal', (_e, url: string) => shell.openExternal(url))
 }

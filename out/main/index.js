@@ -10942,6 +10942,7 @@ $img.Dispose()`;
   require$$1.ipcMain.handle("window:isMaximized", () => {
     return require$$1.BrowserWindow.getFocusedWindow()?.isMaximized() ?? false;
   });
+  require$$1.ipcMain.handle("openExternal", (_e, url) => require$$1.shell.openExternal(url));
 }
 setupUserAgent();
 require$$1.protocol.registerSchemesAsPrivileged([

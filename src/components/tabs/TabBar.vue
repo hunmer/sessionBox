@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeft, Bookmark, FolderOpen } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeft, Bookmark, FolderOpen, MoreHorizontal, Check } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import draggable from 'vuedraggable'
 import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
 import TabItem from './TabItem.vue'
@@ -106,40 +113,37 @@ function handleAddAccount(account: Account) {
     <!-- 填充可拖拽区域 -->
     <div class="flex-1 min-w-[60px] h-full" style="-webkit-app-region: drag" />
 
-    <!-- 标签布局切换按钮 -->
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-7 w-7 rounded-full hover:bg-secondary flex-shrink-0"
-      style="-webkit-app-region: no-drag"
-      @click="tabStore.toggleLayout()"
-    >
-      <PanelLeft class="w-3.5 h-3.5" />
-    </Button>
-
-    <!-- 标签自动分组按钮 -->
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-7 w-7 rounded-full flex-shrink-0"
-      :class="tabStore.tabGroupEnabled ? 'bg-secondary text-primary' : 'hover:bg-secondary'"
-      style="-webkit-app-region: no-drag"
-      @click="tabStore.toggleTabGroup()"
-    >
-      <FolderOpen class="w-3.5 h-3.5" />
-    </Button>
-
-    <!-- 快捷网站栏切换按钮 -->
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-7 w-7 rounded-full flex-shrink-0"
-      :class="tabStore.favoriteBarVisible ? 'bg-secondary text-primary' : 'hover:bg-secondary'"
-      style="-webkit-app-region: no-drag"
-      @click="tabStore.toggleFavoriteBar()"
-    >
-      <Bookmark class="w-3.5 h-3.5" />
-    </Button>
+    <!-- 更多选项 -->
+    <DropdownMenu>
+      <DropdownMenuTrigger as-child>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-7 w-7 rounded-full hover:bg-secondary flex-shrink-0"
+          style="-webkit-app-region: no-drag"
+        >
+          <MoreHorizontal class="w-3.5 h-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" class="w-48">
+        <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleLayout()">
+          <PanelLeft class="size-4 mr-2" />
+          <span class="flex-1">侧边栏布局</span>
+          <Check v-if="tabStore.tabLayout === 'vertical'" class="size-4 text-primary" />
+        </DropdownMenuItem>
+        <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleTabGroup()">
+          <FolderOpen class="size-4 mr-2" />
+          <span class="flex-1">自动分组</span>
+          <Check v-if="tabStore.tabGroupEnabled" class="size-4 text-primary" />
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleFavoriteBar()">
+          <Bookmark class="size-4 mr-2" />
+          <span class="flex-1">快捷网站栏</span>
+          <Check v-if="tabStore.favoriteBarVisible" class="size-4 text-primary" />
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
 
     <!-- 窗口控制按钮 -->
     <div class="flex items-center gap-1.5 flex-shrink-0" style="-webkit-app-region: no-drag">

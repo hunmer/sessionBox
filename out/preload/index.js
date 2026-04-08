@@ -134,6 +134,7 @@ const api = {
     close: () => electron.ipcRenderer.invoke("window:close"),
     isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized")
   },
+  openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
     const channel = `on:${event}`;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Settings, Sun, Moon, Globe, Plus, Trash2 } from 'lucide-vue-next'
+import { Settings, Sun, Moon, Globe, Plus, Trash2, ExternalLink } from 'lucide-vue-next'
+import appIcon from '../../../resources/icon.png'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,7 +17,8 @@ const favoriteSiteStore = useFavoriteSiteStore()
 // 左侧 tab 列表
 const tabs = [
   { key: 'general', label: '常规' },
-  { key: 'sites', label: '常用网站' }
+  { key: 'sites', label: '常用网站' },
+  { key: 'about', label: '关于' }
 ]
 const activeTab = ref('general')
 
@@ -40,6 +42,10 @@ async function addSite() {
 
 async function removeSite(id: string) {
   await favoriteSiteStore.deleteSite(id)
+}
+
+function openExternal(url: string) {
+  window.api.openExternal(url)
 }
 </script>
 
@@ -121,6 +127,22 @@ async function removeSite(id: string) {
                 暂无常用网站，请添加
               </p>
             </div>
+          </div>
+
+          <!-- 关于 -->
+          <div v-else-if="activeTab === 'about'" class="flex flex-col items-center justify-center py-8 gap-4">
+            <img :src="appIcon" alt="SessionBox" class="w-20 h-20 rounded-xl" />
+            <div class="text-center">
+              <h3 class="text-lg font-semibold">SessionBox</h3>
+              <p class="text-xs text-muted-foreground mt-1">版本 0.0.1</p>
+            </div>
+            <button
+              class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mt-2"
+              @click="openExternal('https://github.com/hunmer/sessionBox')"
+            >
+              <ExternalLink class="w-3.5 h-3.5" />
+              GitHub
+            </button>
           </div>
         </div>
       </div>
