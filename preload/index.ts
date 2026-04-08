@@ -44,6 +44,12 @@ export interface NavState {
   isLoading: boolean
 }
 
+export interface FavoriteSite {
+  id: string
+  title: string
+  url: string
+}
+
 // IPC API 定义
 const api = {
   group: {
@@ -97,6 +103,15 @@ const api = {
       ipcRenderer.send('tab:set-overlay-visible', visible),
     restoreAll: (): Promise<string[]> => ipcRenderer.invoke('tab:restore-all'),
     saveAll: (tabs: Tab[]): Promise<void> => ipcRenderer.invoke('tab:save-all', tabs)
+  },
+
+  favoriteSite: {
+    list: (): Promise<FavoriteSite[]> => ipcRenderer.invoke('favoriteSite:list'),
+    create: (data: Omit<FavoriteSite, 'id'>): Promise<FavoriteSite> =>
+      ipcRenderer.invoke('favoriteSite:create', data),
+    update: (id: string, data: Partial<Omit<FavoriteSite, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('favoriteSite:update', id, data),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('favoriteSite:delete', id)
   },
 
   // 主进程 → 渲染进程事件监听

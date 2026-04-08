@@ -8,9 +8,13 @@ import {
   listAccounts,
   createAccount,
   updateAccount,
-  deleteAccount
+  deleteAccount,
+  listFavoriteSites,
+  createFavoriteSite,
+  updateFavoriteSite,
+  deleteFavoriteSite
 } from '../services/store'
-import type { Account, Group } from '../services/store'
+import type { Account, Group, FavoriteSite } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 
@@ -48,4 +52,17 @@ export function registerIpcHandlers(): void {
 
   // ====== Tab（详细处理在 ipc/tab.ts） ======
   registerTabIpcHandlers()
+
+  // ====== 常用网站 ======
+  ipcMain.handle('favoriteSite:list', () => listFavoriteSites())
+
+  ipcMain.handle('favoriteSite:create', (_e, data: Omit<FavoriteSite, 'id'>) =>
+    createFavoriteSite(data)
+  )
+
+  ipcMain.handle('favoriteSite:update', (_e, id: string, data: Partial<Omit<FavoriteSite, 'id'>>) =>
+    updateFavoriteSite(id, data)
+  )
+
+  ipcMain.handle('favoriteSite:delete', (_e, id: string) => deleteFavoriteSite(id))
 }

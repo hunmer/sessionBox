@@ -10254,7 +10254,11 @@ const defaults = {
   groups: [],
   accounts: [],
   proxies: [],
-  tabs: []
+  tabs: [],
+  favoriteSites: [
+    { id: "default-douyin", title: "抖音创作者中心", url: "https://creator.douyin.com/creator-micro/home" },
+    { id: "default-wechat", title: "微信视频号助手", url: "https://channels.weixin.qq.com/platform/post/create" }
+  ]
 };
 const store = new Store({ defaults });
 function getCollection(key) {
@@ -10390,6 +10394,27 @@ function reorderTabs(tabIds) {
 }
 function saveTabs(tabs) {
   setCollection("tabs", tabs);
+}
+function listFavoriteSites() {
+  return getCollection("favoriteSites");
+}
+function createFavoriteSite(data) {
+  const sites = getCollection("favoriteSites");
+  const site = { ...data, id: require$$3$1.randomUUID() };
+  sites.push(site);
+  setCollection("favoriteSites", sites);
+  return site;
+}
+function updateFavoriteSite(id2, data) {
+  const sites = getCollection("favoriteSites");
+  const idx = sites.findIndex((s) => s.id === id2);
+  if (idx === -1) throw new Error(`常用网站 ${id2} 不存在`);
+  sites[idx] = { ...sites[idx], ...data };
+  setCollection("favoriteSites", sites);
+}
+function deleteFavoriteSite(id2) {
+  const sites = getCollection("favoriteSites").filter((s) => s.id !== id2);
+  setCollection("favoriteSites", sites);
 }
 class WebviewManager {
   views = /* @__PURE__ */ new Map();
@@ -10697,6 +10722,16 @@ function registerIpcHandlers() {
   require$$1.ipcMain.handle("account:delete", (_e, id2) => deleteAccount(id2));
   registerProxyIpcHandlers();
   registerTabIpcHandlers();
+  require$$1.ipcMain.handle("favoriteSite:list", () => listFavoriteSites());
+  require$$1.ipcMain.handle(
+    "favoriteSite:create",
+    (_e, data) => createFavoriteSite(data)
+  );
+  require$$1.ipcMain.handle(
+    "favoriteSite:update",
+    (_e, id2, data) => updateFavoriteSite(id2, data)
+  );
+  require$$1.ipcMain.handle("favoriteSite:delete", (_e, id2) => deleteFavoriteSite(id2));
 }
 setupUserAgent();
 function createWindow() {

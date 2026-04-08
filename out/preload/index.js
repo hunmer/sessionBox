@@ -116,6 +116,12 @@ const api = {
     restoreAll: () => electron.ipcRenderer.invoke("tab:restore-all"),
     saveAll: (tabs) => electron.ipcRenderer.invoke("tab:save-all", tabs)
   },
+  favoriteSite: {
+    list: () => electron.ipcRenderer.invoke("favoriteSite:list"),
+    create: (data) => electron.ipcRenderer.invoke("favoriteSite:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("favoriteSite:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("favoriteSite:delete", id)
+  },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
     const channel = `on:${event}`;

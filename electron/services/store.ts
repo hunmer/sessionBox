@@ -38,18 +38,29 @@ export interface Tab {
   order: number
 }
 
+export interface FavoriteSite {
+  id: string
+  title: string
+  url: string
+}
+
 interface StoreSchema {
   groups: Group[]
   accounts: Account[]
   proxies: Proxy[]
   tabs: Tab[]
+  favoriteSites: FavoriteSite[]
 }
 
 const defaults: StoreSchema = {
   groups: [],
   accounts: [],
   proxies: [],
-  tabs: []
+  tabs: [],
+  favoriteSites: [
+    { id: 'default-douyin', title: '抖音创作者中心', url: 'https://creator.douyin.com/creator-micro/home' },
+    { id: 'default-wechat', title: '微信视频号助手', url: 'https://channels.weixin.qq.com/platform/post/create' }
+  ]
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -224,4 +235,31 @@ export function reorderTabs(tabIds: string[]): void {
 
 export function saveTabs(tabs: Tab[]): void {
   setCollection('tabs', tabs)
+}
+
+// ====== 常用网站操作 ======
+
+export function listFavoriteSites(): FavoriteSite[] {
+  return getCollection('favoriteSites')
+}
+
+export function createFavoriteSite(data: Omit<FavoriteSite, 'id'>): FavoriteSite {
+  const sites = getCollection('favoriteSites')
+  const site: FavoriteSite = { ...data, id: randomUUID() }
+  sites.push(site)
+  setCollection('favoriteSites', sites)
+  return site
+}
+
+export function updateFavoriteSite(id: string, data: Partial<Omit<FavoriteSite, 'id'>>): void {
+  const sites = getCollection('favoriteSites')
+  const idx = sites.findIndex((s) => s.id === id)
+  if (idx === -1) throw new Error(`常用网站 ${id} 不存在`)
+  sites[idx] = { ...sites[idx], ...data }
+  setCollection('favoriteSites', sites)
+}
+
+export function deleteFavoriteSite(id: string): void {
+  const sites = getCollection('favoriteSites').filter((s) => s.id !== id)
+  setCollection('favoriteSites', sites)
 }

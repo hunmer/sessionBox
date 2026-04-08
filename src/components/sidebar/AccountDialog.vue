@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/select'
 import { useAccountStore } from '@/stores/account'
 import { useProxyStore } from '@/stores/proxy'
+import { useFavoriteSiteStore } from '@/stores/favoriteSite'
 import type { Account } from '@/types'
 
 const props = defineProps<{
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 
 const accountStore = useAccountStore()
 const proxyStore = useProxyStore()
+const favoriteSiteStore = useFavoriteSiteStore()
 
 const name = ref('')
 const icon = ref('👤')
@@ -68,7 +70,23 @@ function handleSave() {
           <Input v-model="icon" class="w-16 text-center" placeholder="图标" />
           <Input v-model="name" class="flex-1" placeholder="账号名称" autofocus @keydown.enter="handleSave" />
         </div>
-        <Input v-model="defaultUrl" placeholder="启动 URL（默认 about:blank）" />
+        <div class="flex gap-2">
+          <Select @update:model-value="(url) => { if (url) defaultUrl = String(url) }">
+            <SelectTrigger class="w-40 shrink-0">
+              <SelectValue placeholder="常用网址" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="site in favoriteSiteStore.sites"
+                :key="site.id"
+                :value="site.url"
+              >
+                {{ site.title }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Input v-model="defaultUrl" placeholder="启动 URL（默认 about:blank）" class="flex-1" />
+        </div>
         <Select v-model="proxyId">
           <SelectTrigger>
             <SelectValue placeholder="不绑定代理" />

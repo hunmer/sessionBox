@@ -43,6 +43,13 @@ export interface Tab {
   order: number
 }
 
+// 常用网站
+export interface FavoriteSite {
+  id: string
+  title: string
+  url: string
+}
+
 // 导航状态（运行时，不持久化）
 export interface NavState {
   canGoBack: boolean

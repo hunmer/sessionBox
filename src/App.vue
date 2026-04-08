@@ -9,10 +9,12 @@ import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import { useAccountStore } from '@/stores/account'
 import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
+import { useFavoriteSiteStore } from '@/stores/favoriteSite'
 
 const accountStore = useAccountStore()
 const tabStore = useTabStore()
 const proxyStore = useProxyStore()
+const favoriteSiteStore = useFavoriteSiteStore()
 
 const proxyDialogOpen = ref(false)
 const settingsDialogOpen = ref(false)
@@ -37,7 +39,8 @@ onMounted(async () => {
   await Promise.all([
     accountStore.init(),
     tabStore.init(),
-    proxyStore.init()
+    proxyStore.init(),
+    favoriteSiteStore.init()
   ])
   ready.value = true
 
