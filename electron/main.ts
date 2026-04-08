@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupUserAgent } from './utils/user-agent'
 import { registerIpcHandlers } from './ipc'
+import { webviewManager } from './services/webview-manager'
 
 // 在 app ready 之前设置 UA
 setupUserAgent()
@@ -19,8 +20,16 @@ function createWindow(): void {
     }
   })
 
+  // 初始化 WebContentsView 管理器
+  webviewManager.setMainWindow(mainWindow)
+
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  // 窗口关闭时销毁所有 WebContentsView
+  mainWindow.on('closed', () => {
+    webviewManager.destroyAll()
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {

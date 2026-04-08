@@ -14639,11 +14639,11 @@ var PopperAnchor_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ d
   }
 });
 var PopperAnchor_default = PopperAnchor_vue_vue_type_script_setup_true_lang_default;
-const _hoisted_1$c = {
+const _hoisted_1$d = {
   key: 0,
   d: "M0 0L6 6L12 0"
 };
-const _hoisted_2$6 = {
+const _hoisted_2$7 = {
   key: 1,
   d: "M0 0L4.58579 4.58579C5.36683 5.36683 6.63316 5.36684 7.41421 4.58579L12 0"
 };
@@ -14684,7 +14684,7 @@ var Arrow_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ defineCo
         viewBox: _ctx.asChild ? void 0 : "0 0 12 6",
         preserveAspectRatio: _ctx.asChild ? void 0 : "none"
       }), {
-        default: withCtx(() => [renderSlot(_ctx.$slots, "default", {}, () => [!_ctx.rounded ? (openBlock(), createElementBlock("path", _hoisted_1$c)) : (openBlock(), createElementBlock("path", _hoisted_2$6))])]),
+        default: withCtx(() => [renderSlot(_ctx.$slots, "default", {}, () => [!_ctx.rounded ? (openBlock(), createElementBlock("path", _hoisted_1$d)) : (openBlock(), createElementBlock("path", _hoisted_2$7))])]),
         _: 3
       }, 16, [
         "width",
@@ -19349,7 +19349,7 @@ function compare(value, currentValue, comparator) {
 function shouldShowPlaceholder(value) {
   return value === void 0 || value === null || value === "" || Array.isArray(value) && value.length === 0;
 }
-const _hoisted_1$b = {
+const _hoisted_1$c = {
   key: 0,
   value: ""
 };
@@ -19497,7 +19497,7 @@ var SelectRoot_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ def
           disabled: unref(disabled),
           value: unref(modelValue)
         }, {
-          default: withCtx(() => [unref(isNullish)(unref(modelValue)) ? (openBlock(), createElementBlock("option", _hoisted_1$b)) : createCommentVNode("v-if", true), (openBlock(true), createElementBlock(Fragment, null, renderList(Array.from(optionsSet.value), (option2) => {
+          default: withCtx(() => [unref(isNullish)(unref(modelValue)) ? (openBlock(), createElementBlock("option", _hoisted_1$c)) : createCommentVNode("v-if", true), (openBlock(true), createElementBlock(Fragment, null, renderList(Array.from(optionsSet.value), (option2) => {
             return openBlock(), createElementBlock("option", mergeProps({ key: option2.value ?? "" }, { ref_for: true }, option2), null, 16);
           }), 128))]),
           _: 1
@@ -20142,7 +20142,7 @@ var SelectProvider_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */
   }
 });
 var SelectProvider_default = SelectProvider_vue_vue_type_script_setup_true_lang_default;
-const _hoisted_1$a = { key: 1 };
+const _hoisted_1$b = { key: 1 };
 var SelectContent_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ defineComponent({
   inheritAttrs: false,
   __name: "SelectContent",
@@ -20279,7 +20279,7 @@ var SelectContent_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ 
           _: 3
         }, 16)]),
         _: 3
-      }, 8, ["present"])) : fragment.value ? (openBlock(), createElementBlock("div", _hoisted_1$a, [(openBlock(), createBlock(Teleport, { to: fragment.value }, [createVNode(SelectProvider_default, { context: unref(rootContext) }, {
+      }, 8, ["present"])) : fragment.value ? (openBlock(), createElementBlock("div", _hoisted_1$b, [(openBlock(), createBlock(Teleport, { to: fragment.value }, [createVNode(SelectProvider_default, { context: unref(rootContext) }, {
         default: withCtx(() => [renderSlot(_ctx.$slots, "default")]),
         _: 3
       }, 8, ["context"])], 8, ["to"]))])) : createCommentVNode("v-if", true);
@@ -21615,7 +21615,7 @@ var TooltipTrigger_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */
   }
 });
 var TooltipTrigger_default = TooltipTrigger_vue_vue_type_script_setup_true_lang_default;
-const _sfc_main$J = /* @__PURE__ */ defineComponent({
+const _sfc_main$K = /* @__PURE__ */ defineComponent({
   __name: "Tooltip",
   props: {
     defaultOpen: { type: Boolean },
@@ -24218,7 +24218,7 @@ const twMerge = /* @__PURE__ */ createTailwindMerge(getDefaultConfig);
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
-const _sfc_main$I = /* @__PURE__ */ defineComponent({
+const _sfc_main$J = /* @__PURE__ */ defineComponent({
   ...{
     inheritAttrs: false
   },
@@ -24266,7 +24266,7 @@ const _sfc_main$I = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$H = /* @__PURE__ */ defineComponent({
+const _sfc_main$I = /* @__PURE__ */ defineComponent({
   __name: "TooltipProvider",
   props: {
     delayDuration: { default: 0 },
@@ -24289,7 +24289,7 @@ const _sfc_main$H = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$G = /* @__PURE__ */ defineComponent({
+const _sfc_main$H = /* @__PURE__ */ defineComponent({
   __name: "TooltipTrigger",
   props: {
     reference: {},
@@ -24428,6 +24428,27 @@ const ChevronUp = createLucideIcon("ChevronUpIcon", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const CircleCheck = createLucideIcon("CircleCheckIcon", [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["path", { d: "m9 12 2 2 4-4", key: "dzmm74" }]
+]);
+/**
+ * @license lucide-vue-next v0.460.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const CircleX = createLucideIcon("CircleXIcon", [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["path", { d: "m15 9-6 6", key: "1uzhvr" }],
+  ["path", { d: "m9 9 6 6", key: "z0biqf" }]
+]);
+/**
+ * @license lucide-vue-next v0.460.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Ellipsis = createLucideIcon("EllipsisIcon", [
   ["circle", { cx: "12", cy: "12", r: "1", key: "41hilf" }],
   ["circle", { cx: "19", cy: "12", r: "1", key: "1wjl8i" }],
@@ -24496,6 +24517,18 @@ const Pencil = createLucideIcon("PencilIcon", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const Plug = createLucideIcon("PlugIcon", [
+  ["path", { d: "M12 22v-5", key: "1ega77" }],
+  ["path", { d: "M9 8V2", key: "14iosj" }],
+  ["path", { d: "M15 8V2", key: "18g5xt" }],
+  ["path", { d: "M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z", key: "osxo6l" }]
+]);
+/**
+ * @license lucide-vue-next v0.460.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Plus = createLucideIcon("PlusIcon", [
   ["path", { d: "M5 12h14", key: "1ays0h" }],
   ["path", { d: "M12 5v14", key: "s699le" }]
@@ -24509,6 +24542,19 @@ const Plus = createLucideIcon("PlusIcon", [
 const RotateCw = createLucideIcon("RotateCwIcon", [
   ["path", { d: "M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8", key: "1p45f6" }],
   ["path", { d: "M21 3v5h-5", key: "1q7to0" }]
+]);
+/**
+ * @license lucide-vue-next v0.460.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Trash2 = createLucideIcon("Trash2Icon", [
+  ["path", { d: "M3 6h18", key: "d0wm0j" }],
+  ["path", { d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", key: "4alrt4" }],
+  ["path", { d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2", key: "v07s0e" }],
+  ["line", { x1: "10", x2: "10", y1: "11", y2: "17", key: "1uufr5" }],
+  ["line", { x1: "14", x2: "14", y1: "11", y2: "17", key: "xtxkd" }]
 ]);
 /**
  * @license lucide-vue-next v0.460.0 - ISC
@@ -24560,7 +24606,7 @@ const cva = (base, config) => (props) => {
   }, []);
   return cx(base, getVariantClassNames, getCompoundVariantClassNames, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
 };
-const _sfc_main$F = /* @__PURE__ */ defineComponent({
+const _sfc_main$G = /* @__PURE__ */ defineComponent({
   __name: "Button",
   props: {
     variant: {},
@@ -24615,7 +24661,7 @@ const buttonVariants = cva(
     }
   }
 );
-const _sfc_main$E = /* @__PURE__ */ defineComponent({
+const _sfc_main$F = /* @__PURE__ */ defineComponent({
   __name: "ScrollBar",
   props: {
     orientation: { default: "vertical" },
@@ -24647,7 +24693,7 @@ const _sfc_main$E = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$D = /* @__PURE__ */ defineComponent({
+const _sfc_main$E = /* @__PURE__ */ defineComponent({
   __name: "ScrollArea",
   props: {
     type: {},
@@ -24674,7 +24720,7 @@ const _sfc_main$D = /* @__PURE__ */ defineComponent({
             ]),
             _: 3
           }),
-          createVNode(_sfc_main$E),
+          createVNode(_sfc_main$F),
           createVNode(unref(ScrollAreaCorner_default))
         ]),
         _: 3
@@ -24682,7 +24728,7 @@ const _sfc_main$D = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$C = /* @__PURE__ */ defineComponent({
+const _sfc_main$D = /* @__PURE__ */ defineComponent({
   __name: "AlertDialog",
   props: {
     open: { type: Boolean },
@@ -24703,7 +24749,7 @@ const _sfc_main$C = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$B = /* @__PURE__ */ defineComponent({
+const _sfc_main$C = /* @__PURE__ */ defineComponent({
   __name: "AlertDialogAction",
   props: {
     asChild: { type: Boolean },
@@ -24725,7 +24771,7 @@ const _sfc_main$B = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$A = /* @__PURE__ */ defineComponent({
+const _sfc_main$B = /* @__PURE__ */ defineComponent({
   __name: "AlertDialogCancel",
   props: {
     asChild: { type: Boolean },
@@ -24751,7 +24797,7 @@ const _sfc_main$A = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$z = /* @__PURE__ */ defineComponent({
+const _sfc_main$A = /* @__PURE__ */ defineComponent({
   ...{
     inheritAttrs: false
   },
@@ -24793,7 +24839,7 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$y = /* @__PURE__ */ defineComponent({
+const _sfc_main$z = /* @__PURE__ */ defineComponent({
   __name: "AlertDialogDescription",
   props: {
     asChild: { type: Boolean },
@@ -24815,7 +24861,7 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$x = /* @__PURE__ */ defineComponent({
+const _sfc_main$y = /* @__PURE__ */ defineComponent({
   __name: "AlertDialogFooter",
   props: {
     class: { type: [Boolean, null, String, Object, Array] }
@@ -24837,7 +24883,7 @@ const _sfc_main$x = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$w = /* @__PURE__ */ defineComponent({
+const _sfc_main$x = /* @__PURE__ */ defineComponent({
   __name: "AlertDialogHeader",
   props: {
     class: { type: [Boolean, null, String, Object, Array] }
@@ -24854,7 +24900,7 @@ const _sfc_main$w = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$v = /* @__PURE__ */ defineComponent({
+const _sfc_main$w = /* @__PURE__ */ defineComponent({
   __name: "AlertDialogTitle",
   props: {
     asChild: { type: Boolean },
@@ -24876,7 +24922,7 @@ const _sfc_main$v = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$u = /* @__PURE__ */ defineComponent({
+const _sfc_main$v = /* @__PURE__ */ defineComponent({
   __name: "DropdownMenu",
   props: {
     defaultOpen: { type: Boolean },
@@ -24899,7 +24945,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$t = /* @__PURE__ */ defineComponent({
+const _sfc_main$u = /* @__PURE__ */ defineComponent({
   ...{
     inheritAttrs: false
   },
@@ -24952,7 +24998,7 @@ const _sfc_main$t = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$s = /* @__PURE__ */ defineComponent({
+const _sfc_main$t = /* @__PURE__ */ defineComponent({
   __name: "DropdownMenuItem",
   props: {
     disabled: { type: Boolean },
@@ -24983,7 +25029,7 @@ const _sfc_main$s = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$r = /* @__PURE__ */ defineComponent({
+const _sfc_main$s = /* @__PURE__ */ defineComponent({
   __name: "DropdownMenuTrigger",
   props: {
     disabled: { type: Boolean },
@@ -37947,7 +37993,7 @@ function requireVuedraggable_umd() {
 }
 var vuedraggable_umdExports = requireVuedraggable_umd();
 const draggable = /* @__PURE__ */ getDefaultExportFromCjs(vuedraggable_umdExports);
-const _sfc_main$q = /* @__PURE__ */ defineComponent({
+const _sfc_main$r = /* @__PURE__ */ defineComponent({
   __name: "Collapsible",
   props: {
     defaultOpen: { type: Boolean },
@@ -37972,7 +38018,7 @@ const _sfc_main$q = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$p = /* @__PURE__ */ defineComponent({
+const _sfc_main$q = /* @__PURE__ */ defineComponent({
   __name: "CollapsibleContent",
   props: {
     forceMount: { type: Boolean },
@@ -37991,7 +38037,7 @@ const _sfc_main$p = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$o = /* @__PURE__ */ defineComponent({
+const _sfc_main$p = /* @__PURE__ */ defineComponent({
   __name: "CollapsibleTrigger",
   props: {
     asChild: { type: Boolean },
@@ -38088,9 +38134,14 @@ const useTabStore = /* @__PURE__ */ defineStore("tab", () => {
     await loadTabs();
     setupListeners();
     if (tabs.value.length > 0) {
+      await api$2.tab.restoreAll();
       const sorted = sortedTabs.value;
       activeTabId.value = sorted[0].id;
+      await api$2.tab.switch(sorted[0].id);
     }
+  }
+  async function saveState() {
+    await api$2.tab.saveAll(tabs.value);
   }
   return {
     tabs,
@@ -38109,20 +38160,21 @@ const useTabStore = /* @__PURE__ */ defineStore("tab", () => {
     goBack,
     goForward,
     reload,
-    init
+    init,
+    saveState
   };
 });
-const _hoisted_1$9 = { class: "flex-shrink-0 w-5 h-5 flex items-center justify-center text-sm" };
-const _hoisted_2$5 = {
+const _hoisted_1$a = { class: "flex-shrink-0 w-5 h-5 flex items-center justify-center text-sm" };
+const _hoisted_2$6 = {
   key: 0,
   class: "flex-1 truncate text-sm"
 };
-const _hoisted_3$3 = {
+const _hoisted_3$4 = {
   key: 1,
   class: "flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary",
   title: "已绑定代理"
 };
-const _sfc_main$n = /* @__PURE__ */ defineComponent({
+const _sfc_main$o = /* @__PURE__ */ defineComponent({
   __name: "AccountItem",
   props: {
     account: {},
@@ -38149,12 +38201,12 @@ const _sfc_main$n = /* @__PURE__ */ defineComponent({
         class: normalizeClass(["group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors", isActive.value ? "bg-primary/15 text-primary" : "hover:bg-sidebar-hover text-sidebar-foreground"]),
         onClick: handleClick
       }, [
-        createBaseVNode("span", _hoisted_1$9, toDisplayString(__props.collapsed ? __props.account.name.charAt(0) : __props.account.icon || __props.account.name.charAt(0)), 1),
-        !__props.collapsed ? (openBlock(), createElementBlock("span", _hoisted_2$5, toDisplayString(__props.account.name), 1)) : createCommentVNode("", true),
-        !__props.collapsed && __props.account.proxyId ? (openBlock(), createElementBlock("span", _hoisted_3$3)) : createCommentVNode("", true),
-        !__props.collapsed ? (openBlock(), createBlock(unref(_sfc_main$u), { key: 2 }, {
+        createBaseVNode("span", _hoisted_1$a, toDisplayString(__props.collapsed ? __props.account.name.charAt(0) : __props.account.icon || __props.account.name.charAt(0)), 1),
+        !__props.collapsed ? (openBlock(), createElementBlock("span", _hoisted_2$6, toDisplayString(__props.account.name), 1)) : createCommentVNode("", true),
+        !__props.collapsed && __props.account.proxyId ? (openBlock(), createElementBlock("span", _hoisted_3$4)) : createCommentVNode("", true),
+        !__props.collapsed ? (openBlock(), createBlock(unref(_sfc_main$v), { key: 2 }, {
           default: withCtx(() => [
-            createVNode(unref(_sfc_main$r), { "as-child": "" }, {
+            createVNode(unref(_sfc_main$s), { "as-child": "" }, {
               default: withCtx(() => [
                 createBaseVNode("button", {
                   class: "flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity",
@@ -38166,12 +38218,12 @@ const _sfc_main$n = /* @__PURE__ */ defineComponent({
               ]),
               _: 1
             }),
-            createVNode(unref(_sfc_main$t), {
+            createVNode(unref(_sfc_main$u), {
               align: "end",
               class: "w-36"
             }, {
               default: withCtx(() => [
-                createVNode(unref(_sfc_main$s), {
+                createVNode(unref(_sfc_main$t), {
                   onClick: _cache[1] || (_cache[1] = ($event) => emit2("edit", __props.account))
                 }, {
                   default: withCtx(() => [..._cache[3] || (_cache[3] = [
@@ -38179,7 +38231,7 @@ const _sfc_main$n = /* @__PURE__ */ defineComponent({
                   ])]),
                   _: 1
                 }),
-                createVNode(unref(_sfc_main$s), {
+                createVNode(unref(_sfc_main$t), {
                   class: "text-destructive",
                   onClick: _cache[2] || (_cache[2] = ($event) => emit2("delete", __props.account))
                 }, {
@@ -38283,13 +38335,13 @@ const useAccountStore = /* @__PURE__ */ defineStore("account", () => {
     init
   };
 });
-const _hoisted_1$8 = {
+const _hoisted_1$9 = {
   key: 0,
   class: "flex-1 text-xs font-medium text-center"
 };
-const _hoisted_2$4 = { class: "flex-1 truncate text-xs font-medium uppercase tracking-wider" };
-const _hoisted_3$2 = { class: "pl-2" };
-const _sfc_main$m = /* @__PURE__ */ defineComponent({
+const _hoisted_2$5 = { class: "flex-1 truncate text-xs font-medium uppercase tracking-wider" };
+const _hoisted_3$3 = { class: "pl-2" };
+const _sfc_main$n = /* @__PURE__ */ defineComponent({
   __name: "GroupItem",
   props: {
     group: {},
@@ -38310,7 +38362,7 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
       () => accounts.value.some((a) => tabStore.activeTab?.accountId === a.id)
     );
     return (_ctx, _cache) => {
-      return openBlock(), createBlock(unref(_sfc_main$q), {
+      return openBlock(), createBlock(unref(_sfc_main$r), {
         open: open.value,
         "onUpdate:open": _cache[5] || (_cache[5] = ($event) => open.value = $event)
       }, {
@@ -38318,8 +38370,8 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
           createBaseVNode("div", {
             class: normalizeClass(["group flex items-center gap-1 px-2 py-1.5 rounded cursor-pointer transition-colors", isGroupActive.value ? "text-primary" : "text-muted-foreground hover:text-sidebar-foreground"])
           }, [
-            __props.collapsed ? (openBlock(), createElementBlock("span", _hoisted_1$8, toDisplayString(__props.group.name.charAt(0)), 1)) : (openBlock(), createElementBlock(Fragment, { key: 1 }, [
-              createVNode(unref(_sfc_main$o), { "as-child": "" }, {
+            __props.collapsed ? (openBlock(), createElementBlock("span", _hoisted_1$9, toDisplayString(__props.group.name.charAt(0)), 1)) : (openBlock(), createElementBlock(Fragment, { key: 1 }, [
+              createVNode(unref(_sfc_main$p), { "as-child": "" }, {
                 default: withCtx(() => [
                   createBaseVNode("button", {
                     class: normalizeClass(["flex-shrink-0 transition-transform", open.value ? "rotate-90" : ""])
@@ -38329,10 +38381,10 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
                 ]),
                 _: 1
               }),
-              createBaseVNode("span", _hoisted_2$4, toDisplayString(__props.group.name), 1),
-              createVNode(unref(_sfc_main$u), null, {
+              createBaseVNode("span", _hoisted_2$5, toDisplayString(__props.group.name), 1),
+              createVNode(unref(_sfc_main$v), null, {
                 default: withCtx(() => [
-                  createVNode(unref(_sfc_main$r), { "as-child": "" }, {
+                  createVNode(unref(_sfc_main$s), { "as-child": "" }, {
                     default: withCtx(() => [
                       createBaseVNode("button", {
                         class: "flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity",
@@ -38344,12 +38396,12 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
                     ]),
                     _: 1
                   }),
-                  createVNode(unref(_sfc_main$t), {
+                  createVNode(unref(_sfc_main$u), {
                     align: "end",
                     class: "w-36"
                   }, {
                     default: withCtx(() => [
-                      createVNode(unref(_sfc_main$s), {
+                      createVNode(unref(_sfc_main$t), {
                         onClick: _cache[1] || (_cache[1] = ($event) => emit2("editGroup", __props.group))
                       }, {
                         default: withCtx(() => [..._cache[6] || (_cache[6] = [
@@ -38357,7 +38409,7 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
                         ])]),
                         _: 1
                       }),
-                      createVNode(unref(_sfc_main$s), {
+                      createVNode(unref(_sfc_main$t), {
                         class: "text-destructive",
                         onClick: _cache[2] || (_cache[2] = ($event) => emit2("deleteGroup", __props.group))
                       }, {
@@ -38374,11 +38426,11 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
               })
             ], 64))
           ], 2),
-          !__props.collapsed ? (openBlock(), createBlock(unref(_sfc_main$p), { key: 0 }, {
+          !__props.collapsed ? (openBlock(), createBlock(unref(_sfc_main$q), { key: 0 }, {
             default: withCtx(() => [
-              createBaseVNode("div", _hoisted_3$2, [
+              createBaseVNode("div", _hoisted_3$3, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(accounts.value, (account) => {
-                  return openBlock(), createBlock(_sfc_main$n, {
+                  return openBlock(), createBlock(_sfc_main$o, {
                     key: account.id,
                     account,
                     collapsed: __props.collapsed,
@@ -38396,7 +38448,7 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$l = /* @__PURE__ */ defineComponent({
+const _sfc_main$m = /* @__PURE__ */ defineComponent({
   __name: "GroupList",
   props: {
     collapsed: { type: Boolean }
@@ -38419,7 +38471,7 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
         "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => unref(accountStore).groups = $event)
       }, {
         item: withCtx(({ element: group }) => [
-          createVNode(_sfc_main$m, {
+          createVNode(_sfc_main$n, {
             group,
             collapsed: __props.collapsed,
             onEditGroup: _cache[0] || (_cache[0] = ($event) => emit2("editGroup", $event)),
@@ -38433,7 +38485,7 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$k = /* @__PURE__ */ defineComponent({
+const _sfc_main$l = /* @__PURE__ */ defineComponent({
   __name: "Dialog",
   props: {
     open: { type: Boolean },
@@ -38455,7 +38507,7 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$j = /* @__PURE__ */ defineComponent({
+const _sfc_main$k = /* @__PURE__ */ defineComponent({
   __name: "DialogOverlay",
   props: {
     forceMount: { type: Boolean },
@@ -38478,7 +38530,7 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$i = /* @__PURE__ */ defineComponent({
+const _sfc_main$j = /* @__PURE__ */ defineComponent({
   ...{
     inheritAttrs: false
   },
@@ -38500,7 +38552,7 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
     return (_ctx, _cache) => {
       return openBlock(), createBlock(unref(DialogPortal_default), null, {
         default: withCtx(() => [
-          createVNode(_sfc_main$j),
+          createVNode(_sfc_main$k),
           createVNode(unref(DialogContent_default), mergeProps({ "data-slot": "dialog-content" }, { ..._ctx.$attrs, ...unref(forwarded) }, {
             class: unref(cn)(
               "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
@@ -38529,7 +38581,7 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$h = /* @__PURE__ */ defineComponent({
+const _sfc_main$i = /* @__PURE__ */ defineComponent({
   __name: "DialogFooter",
   props: {
     class: { type: [Boolean, null, String, Object, Array] },
@@ -38548,7 +38600,7 @@ const _sfc_main$h = /* @__PURE__ */ defineComponent({
           "as-child": ""
         }, {
           default: withCtx(() => [
-            createVNode(unref(_sfc_main$F), { variant: "outline" }, {
+            createVNode(unref(_sfc_main$G), { variant: "outline" }, {
               default: withCtx(() => [..._cache[0] || (_cache[0] = [
                 createTextVNode(" Close ", -1)
               ])]),
@@ -38561,7 +38613,7 @@ const _sfc_main$h = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$g = /* @__PURE__ */ defineComponent({
+const _sfc_main$h = /* @__PURE__ */ defineComponent({
   __name: "DialogHeader",
   props: {
     class: { type: [Boolean, null, String, Object, Array] }
@@ -38578,7 +38630,7 @@ const _sfc_main$g = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$f = /* @__PURE__ */ defineComponent({
+const _sfc_main$g = /* @__PURE__ */ defineComponent({
   __name: "DialogTitle",
   props: {
     asChild: { type: Boolean },
@@ -38601,7 +38653,7 @@ const _sfc_main$f = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$e = /* @__PURE__ */ defineComponent({
+const _sfc_main$f = /* @__PURE__ */ defineComponent({
   __name: "Input",
   props: {
     defaultValue: {},
@@ -38632,90 +38684,7 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$7 = { class: "py-2" };
-const _sfc_main$d = /* @__PURE__ */ defineComponent({
-  __name: "GroupDialog",
-  props: {
-    open: { type: Boolean },
-    group: {}
-  },
-  emits: ["update:open", "save"],
-  setup(__props, { emit: __emit }) {
-    const props = __props;
-    const emit2 = __emit;
-    const name = /* @__PURE__ */ ref("");
-    watch(() => props.open, (val) => {
-      if (val) {
-        name.value = props.group?.name ?? "";
-      }
-    });
-    function handleSave() {
-      const trimmed = name.value.trim();
-      if (!trimmed) return;
-      emit2("save", { name: trimmed });
-      emit2("update:open", false);
-    }
-    return (_ctx, _cache) => {
-      return openBlock(), createBlock(unref(_sfc_main$k), {
-        open: __props.open,
-        "onUpdate:open": _cache[2] || (_cache[2] = ($event) => emit2("update:open", $event))
-      }, {
-        default: withCtx(() => [
-          createVNode(unref(_sfc_main$i), { class: "sm:max-w-sm" }, {
-            default: withCtx(() => [
-              createVNode(unref(_sfc_main$g), null, {
-                default: withCtx(() => [
-                  createVNode(unref(_sfc_main$f), null, {
-                    default: withCtx(() => [
-                      createTextVNode(toDisplayString(__props.group ? "编辑分组" : "新建分组"), 1)
-                    ]),
-                    _: 1
-                  })
-                ]),
-                _: 1
-              }),
-              createBaseVNode("div", _hoisted_1$7, [
-                createVNode(unref(_sfc_main$e), {
-                  modelValue: name.value,
-                  "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => name.value = $event),
-                  placeholder: "分组名称",
-                  autofocus: "",
-                  onKeydown: withKeys(handleSave, ["enter"])
-                }, null, 8, ["modelValue"])
-              ]),
-              createVNode(unref(_sfc_main$h), null, {
-                default: withCtx(() => [
-                  createVNode(unref(_sfc_main$F), {
-                    variant: "ghost",
-                    onClick: _cache[1] || (_cache[1] = ($event) => emit2("update:open", false))
-                  }, {
-                    default: withCtx(() => [..._cache[3] || (_cache[3] = [
-                      createTextVNode("取消", -1)
-                    ])]),
-                    _: 1
-                  }),
-                  createVNode(unref(_sfc_main$F), {
-                    disabled: !name.value.trim(),
-                    onClick: handleSave
-                  }, {
-                    default: withCtx(() => [..._cache[4] || (_cache[4] = [
-                      createTextVNode("保存", -1)
-                    ])]),
-                    _: 1
-                  }, 8, ["disabled"])
-                ]),
-                _: 1
-              })
-            ]),
-            _: 1
-          })
-        ]),
-        _: 1
-      }, 8, ["open"]);
-    };
-  }
-});
-const _sfc_main$c = /* @__PURE__ */ defineComponent({
+const _sfc_main$e = /* @__PURE__ */ defineComponent({
   __name: "Select",
   props: {
     open: { type: Boolean },
@@ -38745,7 +38714,7 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$b = /* @__PURE__ */ defineComponent({
+const _sfc_main$d = /* @__PURE__ */ defineComponent({
   ...{
     inheritAttrs: false
   },
@@ -38794,7 +38763,7 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
             )
           }), {
             default: withCtx(() => [
-              createVNode(unref(_sfc_main$8)),
+              createVNode(unref(_sfc_main$a)),
               createVNode(unref(SelectViewport_default), {
                 class: normalizeClass(unref(cn)("p-1", __props.position === "popper" && "h-[var(--reka-select-trigger-height)] w-full min-w-[var(--reka-select-trigger-width)] scroll-my-1"))
               }, {
@@ -38803,7 +38772,7 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
                 ]),
                 _: 3
               }, 8, ["class"]),
-              createVNode(unref(_sfc_main$9))
+              createVNode(unref(_sfc_main$b))
             ]),
             _: 3
           }, 16, ["class"])
@@ -38813,8 +38782,8 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$6 = { class: "absolute right-2 flex size-3.5 items-center justify-center" };
-const _sfc_main$a = /* @__PURE__ */ defineComponent({
+const _hoisted_1$8 = { class: "absolute right-2 flex size-3.5 items-center justify-center" };
+const _sfc_main$c = /* @__PURE__ */ defineComponent({
   __name: "SelectItem",
   props: {
     value: {},
@@ -38836,7 +38805,7 @@ const _sfc_main$a = /* @__PURE__ */ defineComponent({
         )
       }), {
         default: withCtx(() => [
-          createBaseVNode("span", _hoisted_1$6, [
+          createBaseVNode("span", _hoisted_1$8, [
             createVNode(unref(SelectItemIndicator_default), null, {
               default: withCtx(() => [
                 renderSlot(_ctx.$slots, "indicator-icon", {}, () => [
@@ -38858,7 +38827,7 @@ const _sfc_main$a = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$9 = /* @__PURE__ */ defineComponent({
+const _sfc_main$b = /* @__PURE__ */ defineComponent({
   __name: "SelectScrollDownButton",
   props: {
     asChild: { type: Boolean },
@@ -38883,7 +38852,7 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$8 = /* @__PURE__ */ defineComponent({
+const _sfc_main$a = /* @__PURE__ */ defineComponent({
   __name: "SelectScrollUpButton",
   props: {
     asChild: { type: Boolean },
@@ -38908,7 +38877,7 @@ const _sfc_main$8 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$7 = /* @__PURE__ */ defineComponent({
+const _sfc_main$9 = /* @__PURE__ */ defineComponent({
   __name: "SelectTrigger",
   props: {
     disabled: { type: Boolean },
@@ -38946,7 +38915,7 @@ const _sfc_main$7 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$6 = /* @__PURE__ */ defineComponent({
+const _sfc_main$8 = /* @__PURE__ */ defineComponent({
   __name: "SelectValue",
   props: {
     placeholder: {},
@@ -39005,9 +38974,132 @@ const useProxyStore = /* @__PURE__ */ defineStore("proxy", () => {
     init
   };
 });
-const _hoisted_1$5 = { class: "flex flex-col gap-3 py-2" };
-const _hoisted_2$3 = { class: "flex gap-2" };
-const _sfc_main$5 = /* @__PURE__ */ defineComponent({
+const _hoisted_1$7 = { class: "py-2 flex flex-col gap-3" };
+const _sfc_main$7 = /* @__PURE__ */ defineComponent({
+  __name: "GroupDialog",
+  props: {
+    open: { type: Boolean },
+    group: {}
+  },
+  emits: ["update:open", "save"],
+  setup(__props, { emit: __emit }) {
+    const props = __props;
+    const emit2 = __emit;
+    const proxyStore = useProxyStore();
+    const name = /* @__PURE__ */ ref("");
+    const proxyId = /* @__PURE__ */ ref("");
+    const proxyOptions = computed(() => proxyStore.proxies);
+    watch(() => props.open, (val) => {
+      if (val) {
+        name.value = props.group?.name ?? "";
+        proxyId.value = props.group?.proxyId ?? "";
+      }
+    });
+    function handleSave() {
+      const trimmed = name.value.trim();
+      if (!trimmed) return;
+      emit2("save", { name: trimmed, proxyId: proxyId.value || void 0 });
+      emit2("update:open", false);
+    }
+    return (_ctx, _cache) => {
+      return openBlock(), createBlock(unref(_sfc_main$l), {
+        open: __props.open,
+        "onUpdate:open": _cache[3] || (_cache[3] = ($event) => emit2("update:open", $event))
+      }, {
+        default: withCtx(() => [
+          createVNode(unref(_sfc_main$j), { class: "sm:max-w-sm" }, {
+            default: withCtx(() => [
+              createVNode(unref(_sfc_main$h), null, {
+                default: withCtx(() => [
+                  createVNode(unref(_sfc_main$g), null, {
+                    default: withCtx(() => [
+                      createTextVNode(toDisplayString(__props.group ? "编辑分组" : "新建分组"), 1)
+                    ]),
+                    _: 1
+                  })
+                ]),
+                _: 1
+              }),
+              createBaseVNode("div", _hoisted_1$7, [
+                createVNode(unref(_sfc_main$f), {
+                  modelValue: name.value,
+                  "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => name.value = $event),
+                  placeholder: "分组名称",
+                  autofocus: "",
+                  onKeydown: withKeys(handleSave, ["enter"])
+                }, null, 8, ["modelValue"]),
+                createVNode(unref(_sfc_main$e), {
+                  modelValue: proxyId.value,
+                  "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => proxyId.value = $event)
+                }, {
+                  default: withCtx(() => [
+                    createVNode(unref(_sfc_main$9), null, {
+                      default: withCtx(() => [
+                        createVNode(unref(_sfc_main$8), { placeholder: "不绑定代理" })
+                      ]),
+                      _: 1
+                    }),
+                    createVNode(unref(_sfc_main$d), null, {
+                      default: withCtx(() => [
+                        createVNode(unref(_sfc_main$c), { value: "" }, {
+                          default: withCtx(() => [..._cache[4] || (_cache[4] = [
+                            createTextVNode("不绑定代理", -1)
+                          ])]),
+                          _: 1
+                        }),
+                        (openBlock(true), createElementBlock(Fragment, null, renderList(proxyOptions.value, (p2) => {
+                          return openBlock(), createBlock(unref(_sfc_main$c), {
+                            key: p2.id,
+                            value: p2.id
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode(toDisplayString(p2.name) + " (" + toDisplayString(p2.type) + "://" + toDisplayString(p2.host) + ":" + toDisplayString(p2.port) + ") ", 1)
+                            ]),
+                            _: 2
+                          }, 1032, ["value"]);
+                        }), 128))
+                      ]),
+                      _: 1
+                    })
+                  ]),
+                  _: 1
+                }, 8, ["modelValue"])
+              ]),
+              createVNode(unref(_sfc_main$i), null, {
+                default: withCtx(() => [
+                  createVNode(unref(_sfc_main$G), {
+                    variant: "ghost",
+                    onClick: _cache[2] || (_cache[2] = ($event) => emit2("update:open", false))
+                  }, {
+                    default: withCtx(() => [..._cache[5] || (_cache[5] = [
+                      createTextVNode("取消", -1)
+                    ])]),
+                    _: 1
+                  }),
+                  createVNode(unref(_sfc_main$G), {
+                    disabled: !name.value.trim(),
+                    onClick: handleSave
+                  }, {
+                    default: withCtx(() => [..._cache[6] || (_cache[6] = [
+                      createTextVNode("保存", -1)
+                    ])]),
+                    _: 1
+                  }, 8, ["disabled"])
+                ]),
+                _: 1
+              })
+            ]),
+            _: 1
+          })
+        ]),
+        _: 1
+      }, 8, ["open"]);
+    };
+  }
+});
+const _hoisted_1$6 = { class: "flex flex-col gap-3 py-2" };
+const _hoisted_2$4 = { class: "flex gap-2" };
+const _sfc_main$6 = /* @__PURE__ */ defineComponent({
   __name: "AccountDialog",
   props: {
     open: { type: Boolean },
@@ -39047,16 +39139,16 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
       emit2("update:open", false);
     }
     return (_ctx, _cache) => {
-      return openBlock(), createBlock(unref(_sfc_main$k), {
+      return openBlock(), createBlock(unref(_sfc_main$l), {
         open: __props.open,
         "onUpdate:open": _cache[5] || (_cache[5] = ($event) => emit2("update:open", $event))
       }, {
         default: withCtx(() => [
-          createVNode(unref(_sfc_main$i), { class: "sm:max-w-sm" }, {
+          createVNode(unref(_sfc_main$j), { class: "sm:max-w-sm" }, {
             default: withCtx(() => [
-              createVNode(unref(_sfc_main$g), null, {
+              createVNode(unref(_sfc_main$h), null, {
                 default: withCtx(() => [
-                  createVNode(unref(_sfc_main$f), null, {
+                  createVNode(unref(_sfc_main$g), null, {
                     default: withCtx(() => [
                       createTextVNode(toDisplayString(__props.account ? "编辑账号" : "新建账号"), 1)
                     ]),
@@ -39065,15 +39157,15 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
                 ]),
                 _: 1
               }),
-              createBaseVNode("div", _hoisted_1$5, [
-                createBaseVNode("div", _hoisted_2$3, [
-                  createVNode(unref(_sfc_main$e), {
+              createBaseVNode("div", _hoisted_1$6, [
+                createBaseVNode("div", _hoisted_2$4, [
+                  createVNode(unref(_sfc_main$f), {
                     modelValue: icon.value,
                     "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => icon.value = $event),
                     class: "w-16 text-center",
                     placeholder: "图标"
                   }, null, 8, ["modelValue"]),
-                  createVNode(unref(_sfc_main$e), {
+                  createVNode(unref(_sfc_main$f), {
                     modelValue: name.value,
                     "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => name.value = $event),
                     class: "flex-1",
@@ -39082,32 +39174,32 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
                     onKeydown: withKeys(handleSave, ["enter"])
                   }, null, 8, ["modelValue"])
                 ]),
-                createVNode(unref(_sfc_main$e), {
+                createVNode(unref(_sfc_main$f), {
                   modelValue: defaultUrl.value,
                   "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => defaultUrl.value = $event),
                   placeholder: "启动 URL（默认 about:blank）"
                 }, null, 8, ["modelValue"]),
-                createVNode(unref(_sfc_main$c), {
+                createVNode(unref(_sfc_main$e), {
                   modelValue: proxyId.value,
                   "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => proxyId.value = $event)
                 }, {
                   default: withCtx(() => [
-                    createVNode(unref(_sfc_main$7), null, {
+                    createVNode(unref(_sfc_main$9), null, {
                       default: withCtx(() => [
-                        createVNode(unref(_sfc_main$6), { placeholder: "不绑定代理" })
+                        createVNode(unref(_sfc_main$8), { placeholder: "不绑定代理" })
                       ]),
                       _: 1
                     }),
-                    createVNode(unref(_sfc_main$b), null, {
+                    createVNode(unref(_sfc_main$d), null, {
                       default: withCtx(() => [
-                        createVNode(unref(_sfc_main$a), { value: "" }, {
+                        createVNode(unref(_sfc_main$c), { value: "" }, {
                           default: withCtx(() => [..._cache[6] || (_cache[6] = [
                             createTextVNode("不绑定代理", -1)
                           ])]),
                           _: 1
                         }),
                         (openBlock(true), createElementBlock(Fragment, null, renderList(proxyOptions.value, (p2) => {
-                          return openBlock(), createBlock(unref(_sfc_main$a), {
+                          return openBlock(), createBlock(unref(_sfc_main$c), {
                             key: p2.id,
                             value: p2.id
                           }, {
@@ -39124,9 +39216,9 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
                   _: 1
                 }, 8, ["modelValue"])
               ]),
-              createVNode(unref(_sfc_main$h), null, {
+              createVNode(unref(_sfc_main$i), null, {
                 default: withCtx(() => [
-                  createVNode(unref(_sfc_main$F), {
+                  createVNode(unref(_sfc_main$G), {
                     variant: "ghost",
                     onClick: _cache[4] || (_cache[4] = ($event) => emit2("update:open", false))
                   }, {
@@ -39135,7 +39227,7 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
                     ])]),
                     _: 1
                   }),
-                  createVNode(unref(_sfc_main$F), {
+                  createVNode(unref(_sfc_main$G), {
                     disabled: !name.value.trim(),
                     onClick: handleSave
                   }, {
@@ -39156,13 +39248,13 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$4 = { class: "flex items-center justify-between px-2 h-10 border-b border-sidebar-border" };
-const _hoisted_2$2 = {
+const _hoisted_1$5 = { class: "flex items-center justify-between px-2 h-10 border-b border-sidebar-border" };
+const _hoisted_2$3 = {
   key: 0,
   class: "text-sm font-semibold text-sidebar-foreground"
 };
-const _hoisted_3$1 = { class: "border-t border-sidebar-border px-2 py-1.5 flex items-center gap-1" };
-const _sfc_main$4 = /* @__PURE__ */ defineComponent({
+const _hoisted_3$2 = { class: "border-t border-sidebar-border px-2 py-1.5 flex items-center gap-1" };
+const _sfc_main$5 = /* @__PURE__ */ defineComponent({
   __name: "Sidebar",
   emits: ["openProxy"],
   setup(__props, { emit: __emit }) {
@@ -39241,13 +39333,13 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
       return openBlock(), createElementBlock("aside", {
         class: normalizeClass(["flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-200", collapsed.value ? "w-[52px]" : "w-[260px]"])
       }, [
-        createBaseVNode("div", _hoisted_1$4, [
-          !collapsed.value ? (openBlock(), createElementBlock("span", _hoisted_2$2, "SessionBox")) : createCommentVNode("", true),
-          createVNode(unref(_sfc_main$J), null, {
+        createBaseVNode("div", _hoisted_1$5, [
+          !collapsed.value ? (openBlock(), createElementBlock("span", _hoisted_2$3, "SessionBox")) : createCommentVNode("", true),
+          createVNode(unref(_sfc_main$K), null, {
             default: withCtx(() => [
-              createVNode(unref(_sfc_main$G), { "as-child": "" }, {
+              createVNode(unref(_sfc_main$H), { "as-child": "" }, {
                 default: withCtx(() => [
-                  createVNode(unref(_sfc_main$F), {
+                  createVNode(unref(_sfc_main$G), {
                     variant: "ghost",
                     size: "icon",
                     class: "h-7 w-7",
@@ -39267,7 +39359,7 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
                 ]),
                 _: 1
               }),
-              createVNode(unref(_sfc_main$I), { side: "right" }, {
+              createVNode(unref(_sfc_main$J), { side: "right" }, {
                 default: withCtx(() => [
                   createTextVNode(toDisplayString(collapsed.value ? "展开侧边栏" : "折叠侧边栏"), 1)
                 ]),
@@ -39277,9 +39369,9 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
             _: 1
           })
         ]),
-        createVNode(unref(_sfc_main$D), { class: "flex-1 px-1 py-1" }, {
+        createVNode(unref(_sfc_main$E), { class: "flex-1 px-1 py-1" }, {
           default: withCtx(() => [
-            createVNode(_sfc_main$l, {
+            createVNode(_sfc_main$m, {
               collapsed: collapsed.value,
               onEditGroup: openEditGroup,
               onDeleteGroup: confirmDeleteGroup,
@@ -39289,13 +39381,13 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
           ]),
           _: 1
         }),
-        createBaseVNode("div", _hoisted_3$1, [
+        createBaseVNode("div", _hoisted_3$2, [
           collapsed.value ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
-            createVNode(unref(_sfc_main$J), null, {
+            createVNode(unref(_sfc_main$K), null, {
               default: withCtx(() => [
-                createVNode(unref(_sfc_main$G), { "as-child": "" }, {
+                createVNode(unref(_sfc_main$H), { "as-child": "" }, {
                   default: withCtx(() => [
-                    createVNode(unref(_sfc_main$F), {
+                    createVNode(unref(_sfc_main$G), {
                       variant: "ghost",
                       size: "icon",
                       class: "h-7 w-7",
@@ -39309,7 +39401,7 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                createVNode(unref(_sfc_main$I), { side: "right" }, {
+                createVNode(unref(_sfc_main$J), { side: "right" }, {
                   default: withCtx(() => [..._cache[7] || (_cache[7] = [
                     createTextVNode("新建分组", -1)
                   ])]),
@@ -39318,11 +39410,11 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
               ]),
               _: 1
             }),
-            createVNode(unref(_sfc_main$J), null, {
+            createVNode(unref(_sfc_main$K), null, {
               default: withCtx(() => [
-                createVNode(unref(_sfc_main$G), { "as-child": "" }, {
+                createVNode(unref(_sfc_main$H), { "as-child": "" }, {
                   default: withCtx(() => [
-                    createVNode(unref(_sfc_main$F), {
+                    createVNode(unref(_sfc_main$G), {
                       variant: "ghost",
                       size: "icon",
                       class: "h-7 w-7",
@@ -39336,7 +39428,7 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                createVNode(unref(_sfc_main$I), { side: "right" }, {
+                createVNode(unref(_sfc_main$J), { side: "right" }, {
                   default: withCtx(() => [..._cache[8] || (_cache[8] = [
                     createTextVNode("代理设置", -1)
                   ])]),
@@ -39346,11 +39438,11 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
               _: 1
             })
           ], 64)) : (openBlock(), createElementBlock(Fragment, { key: 1 }, [
-            createVNode(unref(_sfc_main$u), null, {
+            createVNode(unref(_sfc_main$v), null, {
               default: withCtx(() => [
-                createVNode(unref(_sfc_main$r), { "as-child": "" }, {
+                createVNode(unref(_sfc_main$s), { "as-child": "" }, {
                   default: withCtx(() => [
-                    createVNode(unref(_sfc_main$F), {
+                    createVNode(unref(_sfc_main$G), {
                       variant: "ghost",
                       size: "sm",
                       class: "flex-1 text-xs",
@@ -39366,16 +39458,16 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                createVNode(unref(_sfc_main$t), { align: "start" }, {
+                createVNode(unref(_sfc_main$u), { align: "start" }, {
                   default: withCtx(() => [
-                    createVNode(unref(_sfc_main$s), { onClick: openNewGroup }, {
+                    createVNode(unref(_sfc_main$t), { onClick: openNewGroup }, {
                       default: withCtx(() => [..._cache[10] || (_cache[10] = [
                         createTextVNode("新建空分组", -1)
                       ])]),
                       _: 1
                     }),
                     (openBlock(true), createElementBlock(Fragment, null, renderList(unref(accountStore).sortedGroups, (group) => {
-                      return openBlock(), createBlock(unref(_sfc_main$s), {
+                      return openBlock(), createBlock(unref(_sfc_main$t), {
                         key: group.id,
                         onClick: ($event) => openNewAccount(group.id)
                       }, {
@@ -39391,11 +39483,11 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
               ]),
               _: 1
             }),
-            createVNode(unref(_sfc_main$J), null, {
+            createVNode(unref(_sfc_main$K), null, {
               default: withCtx(() => [
-                createVNode(unref(_sfc_main$G), { "as-child": "" }, {
+                createVNode(unref(_sfc_main$H), { "as-child": "" }, {
                   default: withCtx(() => [
-                    createVNode(unref(_sfc_main$F), {
+                    createVNode(unref(_sfc_main$G), {
                       variant: "ghost",
                       size: "icon",
                       class: "h-7 w-7",
@@ -39409,7 +39501,7 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                createVNode(unref(_sfc_main$I), { side: "top" }, {
+                createVNode(unref(_sfc_main$J), { side: "top" }, {
                   default: withCtx(() => [..._cache[11] || (_cache[11] = [
                     createTextVNode("代理设置", -1)
                   ])]),
@@ -39420,35 +39512,35 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
             })
           ], 64))
         ]),
-        createVNode(_sfc_main$d, {
+        createVNode(_sfc_main$7, {
           open: groupDialogOpen.value,
           group: editingGroup.value,
           "onUpdate:open": _cache[4] || (_cache[4] = ($event) => groupDialogOpen.value = $event),
           onSave: handleGroupSave
         }, null, 8, ["open", "group"]),
-        createVNode(_sfc_main$5, {
+        createVNode(_sfc_main$6, {
           open: accountDialogOpen.value,
           account: editingAccount.value,
           "group-id": newAccountGroupId.value,
           "onUpdate:open": _cache[5] || (_cache[5] = ($event) => accountDialogOpen.value = $event),
           onSave: handleAccountSave
         }, null, 8, ["open", "account", "group-id"]),
-        createVNode(unref(_sfc_main$C), {
+        createVNode(unref(_sfc_main$D), {
           open: deleteDialogOpen.value,
           "onUpdate:open": _cache[6] || (_cache[6] = ($event) => deleteDialogOpen.value = $event)
         }, {
           default: withCtx(() => [
-            createVNode(unref(_sfc_main$z), null, {
+            createVNode(unref(_sfc_main$A), null, {
               default: withCtx(() => [
-                createVNode(unref(_sfc_main$w), null, {
+                createVNode(unref(_sfc_main$x), null, {
                   default: withCtx(() => [
-                    createVNode(unref(_sfc_main$v), null, {
+                    createVNode(unref(_sfc_main$w), null, {
                       default: withCtx(() => [..._cache[12] || (_cache[12] = [
                         createTextVNode("确认删除", -1)
                       ])]),
                       _: 1
                     }),
-                    createVNode(unref(_sfc_main$y), null, {
+                    createVNode(unref(_sfc_main$z), null, {
                       default: withCtx(() => [
                         createTextVNode(toDisplayString(deleteMessage.value), 1)
                       ]),
@@ -39457,15 +39549,15 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                createVNode(unref(_sfc_main$x), null, {
+                createVNode(unref(_sfc_main$y), null, {
                   default: withCtx(() => [
-                    createVNode(unref(_sfc_main$A), null, {
+                    createVNode(unref(_sfc_main$B), null, {
                       default: withCtx(() => [..._cache[13] || (_cache[13] = [
                         createTextVNode("取消", -1)
                       ])]),
                       _: 1
                     }),
-                    createVNode(unref(_sfc_main$B), {
+                    createVNode(unref(_sfc_main$C), {
                       class: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
                       onClick: handleDelete
                     }, {
@@ -39487,8 +39579,8 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$3 = { class: "truncate text-xs max-w-[120px]" };
-const _sfc_main$3 = /* @__PURE__ */ defineComponent({
+const _hoisted_1$4 = { class: "truncate text-xs max-w-[120px]" };
+const _sfc_main$4 = /* @__PURE__ */ defineComponent({
   __name: "TabItem",
   props: {
     tab: {}
@@ -39497,6 +39589,7 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
     const props = __props;
     const tabStore = useTabStore();
     const isActive = computed(() => tabStore.activeTabId === props.tab.id);
+    const isLoading = computed(() => tabStore.navStates.get(props.tab.id)?.isLoading ?? false);
     function handleClose(e) {
       e.stopPropagation();
       tabStore.closeTab(props.tab.id);
@@ -39506,7 +39599,14 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
         class: normalizeClass(["group flex items-center gap-1.5 h-full px-3 border-r border-border cursor-pointer transition-colors select-none", isActive.value ? "bg-background text-foreground" : "bg-card/50 text-muted-foreground hover:bg-card"]),
         onClick: _cache[0] || (_cache[0] = ($event) => unref(tabStore).switchTab(__props.tab.id))
       }, [
-        createBaseVNode("span", _hoisted_1$3, toDisplayString(__props.tab.title || __props.tab.url || "新标签页"), 1),
+        isLoading.value ? (openBlock(), createBlock(unref(LoaderCircle), {
+          key: 0,
+          class: "w-3.5 h-3.5 flex-shrink-0 animate-spin text-primary/60"
+        })) : (openBlock(), createBlock(unref(Globe), {
+          key: 1,
+          class: "w-3.5 h-3.5 flex-shrink-0 opacity-50"
+        })),
+        createBaseVNode("span", _hoisted_1$4, toDisplayString(__props.tab.title || __props.tab.url || "新标签页"), 1),
         createBaseVNode("button", {
           class: "flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-secondary transition-opacity",
           onClick: handleClose
@@ -39517,12 +39617,12 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$2 = { class: "flex items-end h-[38px] bg-card/30 border-b border-border overflow-hidden" };
-const _hoisted_2$1 = {
+const _hoisted_1$3 = { class: "flex items-end h-[38px] bg-card/30 border-b border-border overflow-hidden" };
+const _hoisted_2$2 = {
   key: 0,
   class: "px-2 py-1.5 text-xs text-muted-foreground"
 };
-const _sfc_main$2 = /* @__PURE__ */ defineComponent({
+const _sfc_main$3 = /* @__PURE__ */ defineComponent({
   __name: "TabBar",
   setup(__props) {
     const tabStore = useTabStore();
@@ -39535,7 +39635,7 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
       tabStore.createTab(accountId);
     }
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$2, [
+      return openBlock(), createElementBlock("div", _hoisted_1$3, [
         createVNode(unref(draggable), {
           "model-value": unref(tabStore).sortedTabs,
           animation: 150,
@@ -39545,15 +39645,15 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
           "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => unref(tabStore).tabs = $event)
         }, {
           item: withCtx(({ element: tab }) => [
-            createVNode(_sfc_main$3, { tab }, null, 8, ["tab"])
+            createVNode(_sfc_main$4, { tab }, null, 8, ["tab"])
           ]),
           _: 1
         }, 8, ["model-value"]),
-        createVNode(unref(_sfc_main$u), null, {
+        createVNode(unref(_sfc_main$v), null, {
           default: withCtx(() => [
-            createVNode(unref(_sfc_main$r), { "as-child": "" }, {
+            createVNode(unref(_sfc_main$s), { "as-child": "" }, {
               default: withCtx(() => [
-                createVNode(unref(_sfc_main$F), {
+                createVNode(unref(_sfc_main$G), {
                   variant: "ghost",
                   size: "icon",
                   class: "h-7 w-7 mx-1 flex-shrink-0"
@@ -39566,10 +39666,10 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
               ]),
               _: 1
             }),
-            createVNode(unref(_sfc_main$t), { align: "start" }, {
+            createVNode(unref(_sfc_main$u), { align: "start" }, {
               default: withCtx(() => [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(unref(accountStore).accounts, (account) => {
-                  return openBlock(), createBlock(unref(_sfc_main$s), {
+                  return openBlock(), createBlock(unref(_sfc_main$t), {
                     key: account.id,
                     onClick: ($event) => addTab(account.id)
                   }, {
@@ -39579,7 +39679,7 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
                     _: 2
                   }, 1032, ["onClick"]);
                 }), 128)),
-                unref(accountStore).accounts.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_2$1, "暂无账号，请先创建")) : createCommentVNode("", true)
+                unref(accountStore).accounts.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_2$2, "暂无账号，请先创建")) : createCommentVNode("", true)
               ]),
               _: 1
             })
@@ -39590,8 +39690,8 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$1 = { class: "flex items-center gap-1.5 h-[40px] px-2 border-b border-border bg-card/30" };
-const _sfc_main$1 = /* @__PURE__ */ defineComponent({
+const _hoisted_1$2 = { class: "flex items-center gap-1.5 h-[40px] px-2 border-b border-border bg-card/30" };
+const _sfc_main$2 = /* @__PURE__ */ defineComponent({
   __name: "BrowserToolbar",
   setup(__props) {
     const tabStore = useTabStore();
@@ -39628,8 +39728,8 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
       urlInput.value = tabStore.activeTab?.url ?? "";
     }
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$1, [
-        createVNode(unref(_sfc_main$F), {
+      return openBlock(), createElementBlock("div", _hoisted_1$2, [
+        createVNode(unref(_sfc_main$G), {
           variant: "ghost",
           size: "icon",
           class: "h-7 w-7",
@@ -39641,7 +39741,7 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
           ]),
           _: 1
         }, 8, ["disabled"]),
-        createVNode(unref(_sfc_main$F), {
+        createVNode(unref(_sfc_main$G), {
           variant: "ghost",
           size: "icon",
           class: "h-7 w-7",
@@ -39653,7 +39753,7 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
           ]),
           _: 1
         }, 8, ["disabled"]),
-        createVNode(unref(_sfc_main$F), {
+        createVNode(unref(_sfc_main$G), {
           variant: "ghost",
           size: "icon",
           class: "h-7 w-7",
@@ -39670,7 +39770,7 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
           ]),
           _: 1
         }),
-        createVNode(unref(_sfc_main$e), {
+        createVNode(unref(_sfc_main$f), {
           modelValue: urlInput.value,
           "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => urlInput.value = $event),
           class: "toolbar-url-input flex-1 h-7 text-xs bg-secondary/50 border-transparent focus:border-ring",
@@ -39684,12 +39784,402 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
     };
   }
 });
+const _hoisted_1$1 = { class: "flex-1 min-h-0 flex flex-col gap-3" };
+const _hoisted_2$1 = {
+  key: 0,
+  class: "text-center py-6 text-muted-foreground text-sm"
+};
+const _hoisted_3$1 = {
+  key: 1,
+  class: "flex flex-col gap-1 pr-2"
+};
+const _hoisted_4$1 = { class: "flex-1 min-w-0" };
+const _hoisted_5$1 = { class: "text-sm font-medium truncate" };
+const _hoisted_6 = { class: "text-xs text-muted-foreground" };
+const _hoisted_7 = {
+  key: 0,
+  class: "flex justify-center"
+};
+const _hoisted_8 = {
+  key: 1,
+  class: "border rounded-md p-3 flex flex-col gap-2.5 bg-muted/30"
+};
+const _hoisted_9 = { class: "flex gap-2" };
+const _hoisted_10 = { class: "flex gap-2" };
+const _hoisted_11 = { class: "flex gap-2" };
+const _hoisted_12 = {
+  key: 0,
+  class: "flex items-center gap-2 text-xs"
+};
+const _hoisted_13 = {
+  key: 2,
+  class: "text-emerald-500"
+};
+const _hoisted_14 = {
+  key: 3,
+  class: "text-destructive"
+};
+const _hoisted_15 = { class: "flex justify-between pt-1" };
+const _hoisted_16 = { class: "flex gap-2" };
+const _sfc_main$1 = /* @__PURE__ */ defineComponent({
+  __name: "ProxyDialog",
+  props: {
+    open: { type: Boolean }
+  },
+  emits: ["update:open"],
+  setup(__props, { emit: __emit }) {
+    const props = __props;
+    const emit2 = __emit;
+    const proxyStore = useProxyStore();
+    const editing = /* @__PURE__ */ ref(false);
+    const editingId = /* @__PURE__ */ ref(null);
+    const formName = /* @__PURE__ */ ref("");
+    const formType = /* @__PURE__ */ ref("socks5");
+    const formHost = /* @__PURE__ */ ref("");
+    const formPort = /* @__PURE__ */ ref(1080);
+    const formUser = /* @__PURE__ */ ref("");
+    const formPass = /* @__PURE__ */ ref("");
+    const testing = /* @__PURE__ */ ref(false);
+    const testResult = /* @__PURE__ */ ref(null);
+    const deleteTarget = /* @__PURE__ */ ref(null);
+    const proxyTypes = [
+      { value: "socks5", label: "SOCKS5" },
+      { value: "http", label: "HTTP" },
+      { value: "https", label: "HTTPS" }
+    ];
+    watch(() => props.open, (val) => {
+      if (val) {
+        resetForm();
+        testResult.value = null;
+      }
+    });
+    function resetForm() {
+      editing.value = false;
+      editingId.value = null;
+      formName.value = "";
+      formType.value = "socks5";
+      formHost.value = "";
+      formPort.value = 1080;
+      formUser.value = "";
+      formPass.value = "";
+      testResult.value = null;
+    }
+    function startEdit(proxy) {
+      editing.value = true;
+      editingId.value = proxy.id;
+      formName.value = proxy.name;
+      formType.value = proxy.type;
+      formHost.value = proxy.host;
+      formPort.value = proxy.port;
+      formUser.value = proxy.username ?? "";
+      formPass.value = proxy.password ?? "";
+      testResult.value = null;
+    }
+    function startNew() {
+      resetForm();
+      editing.value = true;
+    }
+    async function handleSave() {
+      const name = formName.value.trim();
+      if (!name || !formHost.value.trim()) return;
+      const data = {
+        name,
+        type: formType.value,
+        host: formHost.value.trim(),
+        port: formPort.value,
+        username: formUser.value.trim() || void 0,
+        password: formPass.value.trim() || void 0
+      };
+      if (editingId.value) {
+        await proxyStore.updateProxy(editingId.value, data);
+      } else {
+        await proxyStore.createProxy(data);
+      }
+      resetForm();
+    }
+    async function handleTest() {
+      testing.value = true;
+      testResult.value = null;
+      if (editingId.value) {
+        testResult.value = await proxyStore.testProxy(editingId.value);
+      } else {
+        testResult.value = await window.api.proxy.testConfig({
+          name: formName.value,
+          type: formType.value,
+          host: formHost.value.trim(),
+          port: formPort.value,
+          username: formUser.value.trim() || void 0,
+          password: formPass.value.trim() || void 0
+        });
+      }
+      testing.value = false;
+    }
+    async function handleDelete() {
+      if (!deleteTarget.value) return;
+      await proxyStore.deleteProxy(deleteTarget.value.id);
+      if (editingId.value === deleteTarget.value.id) resetForm();
+      deleteTarget.value = null;
+    }
+    return (_ctx, _cache) => {
+      return openBlock(), createBlock(unref(_sfc_main$l), {
+        open: __props.open,
+        "onUpdate:open": _cache[7] || (_cache[7] = ($event) => emit2("update:open", $event))
+      }, {
+        default: withCtx(() => [
+          createVNode(unref(_sfc_main$j), { class: "sm:max-w-lg max-h-[85vh] flex flex-col" }, {
+            default: withCtx(() => [
+              createVNode(unref(_sfc_main$h), null, {
+                default: withCtx(() => [
+                  createVNode(unref(_sfc_main$g), { class: "flex items-center gap-2" }, {
+                    default: withCtx(() => [
+                      createVNode(unref(Plug), { class: "w-4 h-4" }),
+                      _cache[8] || (_cache[8] = createTextVNode(" 代理管理 ", -1))
+                    ]),
+                    _: 1
+                  })
+                ]),
+                _: 1
+              }),
+              createBaseVNode("div", _hoisted_1$1, [
+                createVNode(unref(_sfc_main$E), { class: "flex-1 min-h-0 max-h-[200px]" }, {
+                  default: withCtx(() => [
+                    unref(proxyStore).proxies.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_2$1, " 暂无代理配置 ")) : (openBlock(), createElementBlock("div", _hoisted_3$1, [
+                      (openBlock(true), createElementBlock(Fragment, null, renderList(unref(proxyStore).proxies, (proxy) => {
+                        return openBlock(), createElementBlock("div", {
+                          key: proxy.id,
+                          class: normalizeClass(["flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted/50 group", editingId.value === proxy.id ? "bg-muted" : ""])
+                        }, [
+                          createBaseVNode("div", _hoisted_4$1, [
+                            createBaseVNode("div", _hoisted_5$1, toDisplayString(proxy.name), 1),
+                            createBaseVNode("div", _hoisted_6, toDisplayString(proxy.type) + "://" + toDisplayString(proxy.host) + ":" + toDisplayString(proxy.port), 1)
+                          ]),
+                          createVNode(unref(_sfc_main$G), {
+                            variant: "ghost",
+                            size: "icon",
+                            class: "h-7 w-7 opacity-0 group-hover:opacity-100",
+                            onClick: ($event) => startEdit(proxy)
+                          }, {
+                            default: withCtx(() => [
+                              createVNode(unref(Pencil), { class: "w-3.5 h-3.5" })
+                            ]),
+                            _: 1
+                          }, 8, ["onClick"]),
+                          createVNode(unref(_sfc_main$G), {
+                            variant: "ghost",
+                            size: "icon",
+                            class: "h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive",
+                            onClick: ($event) => deleteTarget.value = proxy
+                          }, {
+                            default: withCtx(() => [
+                              createVNode(unref(Trash2), { class: "w-3.5 h-3.5" })
+                            ]),
+                            _: 1
+                          }, 8, ["onClick"])
+                        ], 2);
+                      }), 128))
+                    ]))
+                  ]),
+                  _: 1
+                }),
+                !editing.value ? (openBlock(), createElementBlock("div", _hoisted_7, [
+                  createVNode(unref(_sfc_main$G), {
+                    variant: "outline",
+                    size: "sm",
+                    onClick: startNew
+                  }, {
+                    default: withCtx(() => [
+                      createVNode(unref(Plus), { class: "w-3.5 h-3.5 mr-1" }),
+                      _cache[9] || (_cache[9] = createTextVNode("新建代理 ", -1))
+                    ]),
+                    _: 1
+                  })
+                ])) : createCommentVNode("", true),
+                editing.value ? (openBlock(), createElementBlock("div", _hoisted_8, [
+                  createBaseVNode("div", _hoisted_9, [
+                    createVNode(unref(_sfc_main$f), {
+                      modelValue: formName.value,
+                      "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => formName.value = $event),
+                      placeholder: "代理名称",
+                      class: "flex-1"
+                    }, null, 8, ["modelValue"]),
+                    createVNode(unref(_sfc_main$e), {
+                      modelValue: formType.value,
+                      "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => formType.value = $event)
+                    }, {
+                      default: withCtx(() => [
+                        createVNode(unref(_sfc_main$9), { class: "w-28" }, {
+                          default: withCtx(() => [
+                            createVNode(unref(_sfc_main$8))
+                          ]),
+                          _: 1
+                        }),
+                        createVNode(unref(_sfc_main$d), null, {
+                          default: withCtx(() => [
+                            (openBlock(), createElementBlock(Fragment, null, renderList(proxyTypes, (t) => {
+                              return createVNode(unref(_sfc_main$c), {
+                                key: t.value,
+                                value: t.value
+                              }, {
+                                default: withCtx(() => [
+                                  createTextVNode(toDisplayString(t.label), 1)
+                                ]),
+                                _: 2
+                              }, 1032, ["value"]);
+                            }), 64))
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      _: 1
+                    }, 8, ["modelValue"])
+                  ]),
+                  createBaseVNode("div", _hoisted_10, [
+                    createVNode(unref(_sfc_main$f), {
+                      modelValue: formHost.value,
+                      "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => formHost.value = $event),
+                      placeholder: "主机地址",
+                      class: "flex-1"
+                    }, null, 8, ["modelValue"]),
+                    createVNode(unref(_sfc_main$f), {
+                      modelValue: formPort.value,
+                      "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => formPort.value = $event),
+                      modelModifiers: { number: true },
+                      type: "number",
+                      placeholder: "端口",
+                      class: "w-24"
+                    }, null, 8, ["modelValue"])
+                  ]),
+                  createBaseVNode("div", _hoisted_11, [
+                    createVNode(unref(_sfc_main$f), {
+                      modelValue: formUser.value,
+                      "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => formUser.value = $event),
+                      placeholder: "用户名（可选）",
+                      class: "flex-1"
+                    }, null, 8, ["modelValue"]),
+                    createVNode(unref(_sfc_main$f), {
+                      modelValue: formPass.value,
+                      "onUpdate:modelValue": _cache[5] || (_cache[5] = ($event) => formPass.value = $event),
+                      type: "password",
+                      placeholder: "密码（可选）",
+                      class: "flex-1"
+                    }, null, 8, ["modelValue"])
+                  ]),
+                  testResult.value ? (openBlock(), createElementBlock("div", _hoisted_12, [
+                    testResult.value.ok ? (openBlock(), createBlock(unref(CircleCheck), {
+                      key: 0,
+                      class: "w-4 h-4 text-emerald-500"
+                    })) : (openBlock(), createBlock(unref(CircleX), {
+                      key: 1,
+                      class: "w-4 h-4 text-destructive"
+                    })),
+                    testResult.value.ok ? (openBlock(), createElementBlock("span", _hoisted_13, "连接成功，IP: " + toDisplayString(testResult.value.ip), 1)) : (openBlock(), createElementBlock("span", _hoisted_14, toDisplayString(testResult.value.error), 1))
+                  ])) : createCommentVNode("", true),
+                  createBaseVNode("div", _hoisted_15, [
+                    createVNode(unref(_sfc_main$G), {
+                      variant: "outline",
+                      size: "sm",
+                      disabled: testing.value,
+                      onClick: handleTest
+                    }, {
+                      default: withCtx(() => [
+                        testing.value ? (openBlock(), createBlock(unref(LoaderCircle), {
+                          key: 0,
+                          class: "w-3.5 h-3.5 mr-1 animate-spin"
+                        })) : createCommentVNode("", true),
+                        _cache[10] || (_cache[10] = createTextVNode(" 测试连接 ", -1))
+                      ]),
+                      _: 1
+                    }, 8, ["disabled"]),
+                    createBaseVNode("div", _hoisted_16, [
+                      createVNode(unref(_sfc_main$G), {
+                        variant: "ghost",
+                        size: "sm",
+                        onClick: resetForm
+                      }, {
+                        default: withCtx(() => [..._cache[11] || (_cache[11] = [
+                          createTextVNode("取消", -1)
+                        ])]),
+                        _: 1
+                      }),
+                      createVNode(unref(_sfc_main$G), {
+                        size: "sm",
+                        disabled: !formName.value.trim() || !formHost.value.trim(),
+                        onClick: handleSave
+                      }, {
+                        default: withCtx(() => [..._cache[12] || (_cache[12] = [
+                          createTextVNode("保存", -1)
+                        ])]),
+                        _: 1
+                      }, 8, ["disabled"])
+                    ])
+                  ])
+                ])) : createCommentVNode("", true)
+              ]),
+              createVNode(unref(_sfc_main$D), {
+                open: !!deleteTarget.value,
+                "onUpdate:open": _cache[6] || (_cache[6] = ($event) => deleteTarget.value = null)
+              }, {
+                default: withCtx(() => [
+                  createVNode(unref(_sfc_main$A), null, {
+                    default: withCtx(() => [
+                      createVNode(unref(_sfc_main$x), null, {
+                        default: withCtx(() => [
+                          createVNode(unref(_sfc_main$w), null, {
+                            default: withCtx(() => [..._cache[13] || (_cache[13] = [
+                              createTextVNode("确认删除", -1)
+                            ])]),
+                            _: 1
+                          }),
+                          createVNode(unref(_sfc_main$z), null, {
+                            default: withCtx(() => [
+                              createTextVNode(" 确定删除代理「" + toDisplayString(deleteTarget.value?.name) + "」？绑定此代理的账号和分组将自动解除绑定。 ", 1)
+                            ]),
+                            _: 1
+                          })
+                        ]),
+                        _: 1
+                      }),
+                      createVNode(unref(_sfc_main$y), null, {
+                        default: withCtx(() => [
+                          createVNode(unref(_sfc_main$B), null, {
+                            default: withCtx(() => [..._cache[14] || (_cache[14] = [
+                              createTextVNode("取消", -1)
+                            ])]),
+                            _: 1
+                          }),
+                          createVNode(unref(_sfc_main$C), {
+                            class: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+                            onClick: handleDelete
+                          }, {
+                            default: withCtx(() => [..._cache[15] || (_cache[15] = [
+                              createTextVNode(" 删除 ", -1)
+                            ])]),
+                            _: 1
+                          })
+                        ]),
+                        _: 1
+                      })
+                    ]),
+                    _: 1
+                  })
+                ]),
+                _: 1
+              }, 8, ["open"])
+            ]),
+            _: 1
+          })
+        ]),
+        _: 1
+      }, 8, ["open"]);
+    };
+  }
+});
 const _hoisted_1 = { class: "flex h-screen w-screen overflow-hidden bg-background text-foreground" };
 const _hoisted_2 = { class: "flex flex-col flex-1 min-w-0" };
 const _hoisted_3 = { class: "flex-1 relative bg-background" };
 const _hoisted_4 = {
   key: 0,
-  class: "flex items-center justify-center h-full"
+  class: "flex flex-col items-center justify-center h-full gap-4"
 };
 const _hoisted_5 = {
   key: 1,
@@ -39703,6 +40193,18 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
     const proxyStore = useProxyStore();
     const proxyDialogOpen = /* @__PURE__ */ ref(false);
     const ready = /* @__PURE__ */ ref(false);
+    function sendBounds() {
+      const container = document.getElementById("webview-container");
+      if (!container || !tabStore.activeTabId) return;
+      const rect = container.getBoundingClientRect();
+      window.api.tab.updateBounds({
+        x: Math.round(rect.x),
+        y: Math.round(rect.y),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height)
+      });
+    }
+    let resizeObserver = null;
     onMounted(async () => {
       await Promise.all([
         accountStore.init(),
@@ -39710,32 +40212,69 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
         proxyStore.init()
       ]);
       ready.value = true;
+      await nextTick();
+      const container = document.getElementById("webview-container");
+      if (container) {
+        resizeObserver = new ResizeObserver(() => sendBounds());
+        resizeObserver.observe(container);
+      }
+    });
+    onUnmounted(() => {
+      resizeObserver?.disconnect();
+    });
+    window.addEventListener("beforeunload", () => {
+      tabStore.saveState();
+    });
+    watch(() => tabStore.activeTabId, () => {
+      nextTick(() => sendBounds());
     });
     return (_ctx, _cache) => {
-      return openBlock(), createBlock(unref(_sfc_main$H), { "delay-duration": 300 }, {
+      return openBlock(), createBlock(unref(_sfc_main$I), { "delay-duration": 300 }, {
         default: withCtx(() => [
           createBaseVNode("div", _hoisted_1, [
-            createVNode(_sfc_main$4, {
+            createVNode(_sfc_main$5, {
               onOpenProxy: _cache[0] || (_cache[0] = ($event) => proxyDialogOpen.value = true)
             }),
             createBaseVNode("div", _hoisted_2, [
               ready.value ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
-                createVNode(_sfc_main$2),
-                unref(tabStore).activeTab ? (openBlock(), createBlock(_sfc_main$1, { key: 0 })) : createCommentVNode("", true),
+                createVNode(_sfc_main$3),
+                unref(tabStore).activeTab ? (openBlock(), createBlock(_sfc_main$2, { key: 0 })) : createCommentVNode("", true),
                 createBaseVNode("div", _hoisted_3, [
-                  !unref(tabStore).activeTab ? (openBlock(), createElementBlock("div", _hoisted_4, [..._cache[1] || (_cache[1] = [
-                    createBaseVNode("p", { class: "text-muted-foreground text-sm" }, "点击左侧账号或使用 + 按钮打开新标签页", -1)
+                  !unref(tabStore).activeTab ? (openBlock(), createElementBlock("div", _hoisted_4, [..._cache[2] || (_cache[2] = [
+                    createBaseVNode("div", { class: "w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center" }, [
+                      createBaseVNode("svg", {
+                        class: "w-8 h-8 text-muted-foreground/60",
+                        xmlns: "http://www.w3.org/2000/svg",
+                        fill: "none",
+                        viewBox: "0 0 24 24",
+                        "stroke-width": "1.5",
+                        stroke: "currentColor"
+                      }, [
+                        createBaseVNode("path", {
+                          "stroke-linecap": "round",
+                          "stroke-linejoin": "round",
+                          d: "M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5a17.92 17.92 0 0 1-8.716-2.247m0 0A8.966 8.966 0 0 1 3 12c0-1.264.26-2.466.73-3.555"
+                        })
+                      ])
+                    ], -1),
+                    createBaseVNode("div", { class: "text-center" }, [
+                      createBaseVNode("p", { class: "text-sm text-muted-foreground" }, "点击左侧账号或使用标签栏 + 按钮打开新标签页")
+                    ], -1)
                   ])])) : createCommentVNode("", true),
-                  _cache[2] || (_cache[2] = createBaseVNode("div", {
+                  _cache[3] || (_cache[3] = createBaseVNode("div", {
                     id: "webview-container",
                     class: "absolute inset-0"
                   }, null, -1))
                 ])
-              ], 64)) : (openBlock(), createElementBlock("div", _hoisted_5, [..._cache[3] || (_cache[3] = [
+              ], 64)) : (openBlock(), createElementBlock("div", _hoisted_5, [..._cache[4] || (_cache[4] = [
                 createBaseVNode("p", { class: "text-muted-foreground text-sm" }, "加载中...", -1)
               ])]))
             ])
-          ])
+          ]),
+          createVNode(_sfc_main$1, {
+            open: proxyDialogOpen.value,
+            "onUpdate:open": _cache[1] || (_cache[1] = ($event) => proxyDialogOpen.value = $event)
+          }, null, 8, ["open"])
         ]),
         _: 1
       });

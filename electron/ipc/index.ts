@@ -8,19 +8,11 @@ import {
   listAccounts,
   createAccount,
   updateAccount,
-  deleteAccount,
-  listProxies,
-  createProxy,
-  updateProxy,
-  deleteProxy,
-  listTabs,
-  createTab,
-  updateTab,
-  deleteTab,
-  reorderTabs,
-  saveTabs
+  deleteAccount
 } from '../services/store'
-import type { Account, Group, Proxy, Tab } from '../services/store'
+import type { Account, Group } from '../services/store'
+import { registerTabIpcHandlers } from './tab'
+import { registerProxyIpcHandlers } from './proxy'
 
 /**
  * 注册所有 IPC 处理器
@@ -51,29 +43,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('account:delete', (_e, id: string) => deleteAccount(id))
 
-  // ====== 代理 ======
-  ipcMain.handle('proxy:list', () => listProxies())
+  // ====== 代理（详细处理在 ipc/proxy.ts，含热更新） ======
+  registerProxyIpcHandlers()
 
-  ipcMain.handle('proxy:create', (_e, data: Omit<Proxy, 'id'>) => createProxy(data))
-
-  ipcMain.handle('proxy:update', (_e, id: string, data: Partial<Omit<Proxy, 'id'>>) =>
-    updateProxy(id, data)
-  )
-
-  ipcMain.handle('proxy:delete', (_e, id: string) => deleteProxy(id))
-
-  // ====== Tab（基础 CRUD，WebContentsView 相关在 Phase 6 扩展） ======
-  ipcMain.handle('tab:list', () => listTabs())
-
-  ipcMain.handle('tab:create', (_e, data: Omit<Tab, 'id'>) => createTab(data))
-
-  ipcMain.handle('tab:update', (_e, id: string, data: Partial<Omit<Tab, 'id'>>) =>
-    updateTab(id, data)
-  )
-
-  ipcMain.handle('tab:delete', (_e, id: string) => deleteTab(id))
-
-  ipcMain.handle('tab:reorder', (_e, tabIds: string[]) => reorderTabs(tabIds))
-
-  ipcMain.handle('tab:save-all', (_e, tabs: Tab[]) => saveTabs(tabs))
+  // ====== Tab（详细处理在 ipc/tab.ts） ======
+  registerTabIpcHandlers()
 }

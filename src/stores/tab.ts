@@ -112,11 +112,20 @@ export const useTabStore = defineStore('tab', () => {
   async function init() {
     await loadTabs()
     setupListeners()
-    // 恢复时激活第一个标签
+
+    // 恢复保存的 tab（重建 WebContentsView）
     if (tabs.value.length > 0) {
+      await api.tab.restoreAll()
       const sorted = sortedTabs.value
       activeTabId.value = sorted[0].id
+      // 激活第一个 tab
+      await api.tab.switch(sorted[0].id)
     }
+  }
+
+  /** 保存当前所有 tab 状态到主进程（退出前调用） */
+  async function saveState() {
+    await api.tab.saveAll(tabs.value)
   }
 
   return {
@@ -136,6 +145,7 @@ export const useTabStore = defineStore('tab', () => {
     goBack,
     goForward,
     reload,
-    init
+    init,
+    saveState
   }
 })

@@ -73,7 +73,9 @@ const api = {
       ipcRenderer.invoke('proxy:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('proxy:delete', id),
     test: (proxyId: string): Promise<{ ok: boolean; ip?: string; error?: string }> =>
-      ipcRenderer.invoke('proxy:test', proxyId)
+      ipcRenderer.invoke('proxy:test', proxyId),
+    testConfig: (config: Omit<Proxy, 'id'>): Promise<{ ok: boolean; ip?: string; error?: string }> =>
+      ipcRenderer.invoke('proxy:test-config', config)
   },
 
   tab: {
@@ -88,7 +90,11 @@ const api = {
       ipcRenderer.invoke('tab:navigate', tabId, url),
     goBack: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:goBack', tabId),
     goForward: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:goForward', tabId),
-    reload: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:reload', tabId)
+    reload: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:reload', tabId),
+    updateBounds: (rect: { x: number; y: number; width: number; height: number }): void =>
+      ipcRenderer.send('tab:update-bounds', rect),
+    restoreAll: (): Promise<string[]> => ipcRenderer.invoke('tab:restore-all'),
+    saveAll: (tabs: Tab[]): Promise<void> => ipcRenderer.invoke('tab:save-all', tabs)
   },
 
   // 主进程 → 渲染进程事件监听

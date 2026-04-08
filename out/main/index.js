@@ -1,4 +1,26 @@
 "use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 const require$$1 = require("electron");
 const require$$0$1 = require("path");
 const require$$1$2 = require("util");
@@ -103,6 +125,9 @@ const optimizer = {
 const CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
 function setupUserAgent() {
   require$$1.app.userAgentFallback = CHROME_UA;
+}
+function getUserAgent(accountUserAgent) {
+  return accountUserAgent || CHROME_UA;
 }
 function getDefaultExportFromCjs(x) {
   return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
@@ -7254,7 +7279,7 @@ var hasRequiredAjv;
 function requireAjv() {
   if (hasRequiredAjv) return ajv.exports;
   hasRequiredAjv = 1;
-  (function(module, exports$1) {
+  (function(module2, exports$1) {
     Object.defineProperty(exports$1, "__esModule", { value: true });
     exports$1.MissingRefError = exports$1.ValidationError = exports$1.CodeGen = exports$1.Name = exports$1.nil = exports$1.stringify = exports$1.str = exports$1._ = exports$1.KeywordCxt = exports$1.Ajv = void 0;
     const core_1 = /* @__PURE__ */ requireCore$1();
@@ -7283,8 +7308,8 @@ function requireAjv() {
       }
     }
     exports$1.Ajv = Ajv;
-    module.exports = exports$1 = Ajv;
-    module.exports.Ajv = Ajv;
+    module2.exports = exports$1 = Ajv;
+    module2.exports.Ajv = Ajv;
     Object.defineProperty(exports$1, "__esModule", { value: true });
     exports$1.default = Ajv;
     var validate_1 = /* @__PURE__ */ requireValidate();
@@ -7569,7 +7594,7 @@ var hasRequiredDist;
 function requireDist() {
   if (hasRequiredDist) return dist.exports;
   hasRequiredDist = 1;
-  (function(module, exports$1) {
+  (function(module2, exports$1) {
     Object.defineProperty(exports$1, "__esModule", { value: true });
     const formats_1 = requireFormats();
     const limit_1 = requireLimit();
@@ -7602,7 +7627,7 @@ function requireDist() {
       for (const f of list)
         ajv2.addFormat(f, fs2[f]);
     }
-    module.exports = exports$1 = formatsPlugin;
+    module2.exports = exports$1 = formatsPlugin;
     Object.defineProperty(exports$1, "__esModule", { value: true });
     exports$1.default = formatsPlugin;
   })(dist, dist.exports);
@@ -7753,14 +7778,14 @@ var hasRequiredRe;
 function requireRe() {
   if (hasRequiredRe) return re.exports;
   hasRequiredRe = 1;
-  (function(module, exports$1) {
+  (function(module2, exports$1) {
     const {
       MAX_SAFE_COMPONENT_LENGTH,
       MAX_SAFE_BUILD_LENGTH,
       MAX_LENGTH
     } = requireConstants();
     const debug = requireDebug();
-    exports$1 = module.exports = {};
+    exports$1 = module2.exports = {};
     const re2 = exports$1.re = [];
     const safeRe = exports$1.safeRe = [];
     const src = exports$1.src = [];
@@ -9696,7 +9721,7 @@ var hasRequiredSource;
 function requireSource() {
   if (hasRequiredSource) return source$1.exports;
   hasRequiredSource = 1;
-  (function(module, exports$1) {
+  (function(module2, exports$1) {
     var __classPrivateFieldSet = source && source.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
       if (kind === "m") throw new TypeError("Private method is not writable");
       if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
@@ -9736,7 +9761,7 @@ function requireSource() {
     let parentDir = "";
     try {
       delete require.cache[__filename];
-      parentDir = path.dirname((_b = (_a = module.parent) === null || _a === void 0 ? void 0 : _a.filename) !== null && _b !== void 0 ? _b : ".");
+      parentDir = path.dirname((_b = (_a = module2.parent) === null || _a === void 0 ? void 0 : _a.filename) !== null && _b !== void 0 ? _b : ".");
     } catch (_c) {
     }
     const checkValueType = (key, value) => {
@@ -10150,8 +10175,8 @@ function requireSource() {
       }
     }
     exports$1.default = Conf;
-    module.exports = Conf;
-    module.exports.default = Conf;
+    module2.exports = Conf;
+    module2.exports.default = Conf;
   })(source$1, source$1.exports);
   return source$1.exports;
 }
@@ -10325,6 +10350,15 @@ function deleteProxy(id2) {
   const proxies = getCollection("proxies").filter((p) => p.id !== id2);
   setCollection("proxies", proxies);
 }
+function getAccountById(id2) {
+  return getCollection("accounts").find((a) => a.id === id2);
+}
+function getGroupById(id2) {
+  return getCollection("groups").find((g) => g.id === id2);
+}
+function getProxyById(id2) {
+  return getCollection("proxies").find((p) => p.id === id2);
+}
 function listTabs() {
   return getCollection("tabs").sort((a, b) => a.order - b.order);
 }
@@ -10357,6 +10391,270 @@ function reorderTabs(tabIds) {
 function saveTabs(tabs) {
   setCollection("tabs", tabs);
 }
+class WebviewManager {
+  views = /* @__PURE__ */ new Map();
+  mainWindow = null;
+  activeTabId = null;
+  setMainWindow(win) {
+    this.mainWindow = win;
+  }
+  /** 创建 WebContentsView 并添加到窗口 */
+  createView(tabId, accountId, url) {
+    if (!this.mainWindow) return;
+    const account = getAccountById(accountId);
+    if (!account) return;
+    const proxyId = account.proxyId ?? getGroupById(account.groupId)?.proxyId;
+    const proxy = proxyId ? getProxyById(proxyId) : void 0;
+    const view = new require$$1.WebContentsView({
+      webPreferences: {
+        partition: `persist:account-${accountId}`
+      }
+    });
+    view.webContents.setUserAgent(getUserAgent(account.userAgent));
+    if (proxy) {
+      const auth = proxy.username ? `${proxy.username}:${proxy.password}@` : "";
+      const proxyRules = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
+      view.webContents.session.setProxy({ proxyRules });
+    }
+    view.webContents.loadURL(url);
+    view.setVisible(false);
+    this.mainWindow.contentView.addChildView(view);
+    this.views.set(tabId, { view, tabId, accountId });
+    this.setupEventForwarding(tabId, view);
+  }
+  /** 注册 WebContents 事件 → 渲染进程转发 */
+  setupEventForwarding(tabId, view) {
+    const wc = view.webContents;
+    const win = this.mainWindow;
+    if (!win) return;
+    wc.on("page-title-updated", (_e, title2) => {
+      win.webContents.send("on:tab:title-updated", tabId, title2);
+    });
+    wc.on("did-navigate", (_e, url) => {
+      win.webContents.send("on:tab:url-updated", tabId, url);
+      this.sendNavState(tabId);
+    });
+    wc.on("did-navigate-in-page", (_e, url) => {
+      win.webContents.send("on:tab:url-updated", tabId, url);
+      this.sendNavState(tabId);
+    });
+    wc.on("did-start-loading", () => {
+      this.sendNavState(tabId);
+    });
+    wc.on("did-stop-loading", () => {
+      this.sendNavState(tabId);
+    });
+    wc.on("page-favicon-updated", (_e, favicons) => {
+      if (favicons.length > 0) {
+        win.webContents.send("on:tab:favicon-updated", tabId, favicons[0]);
+      }
+    });
+  }
+  /** 向渲染进程发送导航状态 */
+  sendNavState(tabId) {
+    const entry = this.views.get(tabId);
+    if (!entry || !this.mainWindow) return;
+    const wc = entry.view.webContents;
+    const state = {
+      canGoBack: wc.navigationHistory.canGoBack(),
+      canGoForward: wc.navigationHistory.canGoForward(),
+      isLoading: wc.isLoading()
+    };
+    this.mainWindow.webContents.send("on:tab:nav-state", tabId, state);
+  }
+  /** 销毁指定 Tab 的 WebContentsView */
+  destroyView(tabId) {
+    const entry = this.views.get(tabId);
+    if (!entry || !this.mainWindow) return;
+    this.mainWindow.contentView.removeChildView(entry.view);
+    if (!entry.view.webContents.isDestroyed()) {
+      entry.view.webContents.close();
+    }
+    this.views.delete(tabId);
+    if (this.activeTabId === tabId) {
+      this.activeTabId = null;
+    }
+  }
+  /** 切换 Tab 可见性 */
+  switchView(tabId) {
+    if (!this.mainWindow) return;
+    if (this.activeTabId) {
+      const current = this.views.get(this.activeTabId);
+      if (current) current.view.setVisible(false);
+    }
+    const target = this.views.get(tabId);
+    if (target) {
+      target.view.setVisible(true);
+      this.activeTabId = tabId;
+    }
+  }
+  /** 更新当前活跃视图的位置和大小 */
+  updateBounds(rect) {
+    if (!this.activeTabId) return;
+    const entry = this.views.get(this.activeTabId);
+    if (entry) {
+      entry.view.setBounds(rect);
+    }
+  }
+  /** 导航到指定 URL */
+  navigate(tabId, url) {
+    const entry = this.views.get(tabId);
+    if (entry) entry.view.webContents.loadURL(url);
+  }
+  /** 后退 */
+  goBack(tabId) {
+    const entry = this.views.get(tabId);
+    if (entry && entry.view.webContents.navigationHistory.canGoBack()) {
+      entry.view.webContents.navigationHistory.goBack();
+    }
+  }
+  /** 前进 */
+  goForward(tabId) {
+    const entry = this.views.get(tabId);
+    if (entry && entry.view.webContents.navigationHistory.canGoForward()) {
+      entry.view.webContents.navigationHistory.goForward();
+    }
+  }
+  /** 刷新 */
+  reload(tabId) {
+    const entry = this.views.get(tabId);
+    if (entry) entry.view.webContents.reload();
+  }
+  /** 销毁所有视图（退出时调用） */
+  destroyAll() {
+    for (const tabId of this.views.keys()) {
+      this.destroyView(tabId);
+    }
+  }
+  /** 获取指定账号的所有活跃 Tab ID */
+  getTabIdsByAccount(accountId) {
+    const result = [];
+    for (const [tabId, entry] of this.views) {
+      if (entry.accountId === accountId) result.push(tabId);
+    }
+    return result;
+  }
+}
+const webviewManager = new WebviewManager();
+function registerTabIpcHandlers() {
+  require$$1.ipcMain.handle("tab:list", () => listTabs());
+  require$$1.ipcMain.handle("tab:create", (_e, accountId) => {
+    const account = getAccountById(accountId);
+    if (!account) throw new Error(`账号 ${accountId} 不存在`);
+    const tabs = listTabs();
+    const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1;
+    const tab = createTab({
+      accountId,
+      title: account.name,
+      url: account.defaultUrl,
+      order
+    });
+    webviewManager.createView(tab.id, accountId, account.defaultUrl);
+    return tab;
+  });
+  require$$1.ipcMain.handle("tab:close", (_e, tabId) => {
+    webviewManager.destroyView(tabId);
+    deleteTab(tabId);
+  });
+  require$$1.ipcMain.handle("tab:switch", (_e, tabId) => {
+    webviewManager.switchView(tabId);
+  });
+  require$$1.ipcMain.handle(
+    "tab:update",
+    (_e, id2, data) => updateTab(id2, data)
+  );
+  require$$1.ipcMain.handle("tab:reorder", (_e, tabIds) => reorderTabs(tabIds));
+  require$$1.ipcMain.handle("tab:save-all", (_e, tabs) => saveTabs(tabs));
+  require$$1.ipcMain.handle("tab:navigate", (_e, tabId, url) => {
+    webviewManager.navigate(tabId, url);
+  });
+  require$$1.ipcMain.handle("tab:goBack", (_e, tabId) => {
+    webviewManager.goBack(tabId);
+  });
+  require$$1.ipcMain.handle("tab:goForward", (_e, tabId) => {
+    webviewManager.goForward(tabId);
+  });
+  require$$1.ipcMain.handle("tab:reload", (_e, tabId) => {
+    webviewManager.reload(tabId);
+  });
+  require$$1.ipcMain.on("tab:update-bounds", (_e, rect) => {
+    webviewManager.updateBounds(rect);
+  });
+  require$$1.ipcMain.handle("tab:restore-all", () => {
+    const tabs = listTabs();
+    for (const tab of tabs) {
+      const account = getAccountById(tab.accountId);
+      if (account) {
+        webviewManager.createView(tab.id, tab.accountId, tab.url || account.defaultUrl);
+      }
+    }
+    return tabs.map((t) => t.id);
+  });
+}
+function buildProxyRules(proxy) {
+  const auth = proxy.username ? `${proxy.username}:${proxy.password}@` : "";
+  return `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
+}
+async function testProxy(proxy) {
+  const proxyRules = buildProxyRules(proxy);
+  try {
+    const { session } = await import("electron");
+    const tempSession = session.fromPartition("persist:__proxy_test__");
+    await tempSession.setProxy({ proxyRules });
+    const response = await require$$1.net.fetch("https://httpbin.org/ip", {
+      session: tempSession
+    });
+    if (!response.ok) {
+      return { ok: false, error: `HTTP ${response.status}` };
+    }
+    const data = await response.json();
+    return { ok: true, ip: data.origin };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
+  }
+}
+function registerProxyIpcHandlers() {
+  require$$1.ipcMain.handle("proxy:list", () => listProxies());
+  require$$1.ipcMain.handle("proxy:create", (_e, data) => createProxy(data));
+  require$$1.ipcMain.handle("proxy:update", async (_e, id2, data) => {
+    updateProxy(id2, data);
+    await hotUpdateProxy(id2);
+  });
+  require$$1.ipcMain.handle("proxy:delete", async (_e, id2) => {
+    await hotUpdateProxy(id2, true);
+    deleteProxy(id2);
+  });
+  require$$1.ipcMain.handle("proxy:test", async (_e, proxyId) => {
+    const proxy = getProxyById(proxyId);
+    if (!proxy) return { ok: false, error: "代理不存在" };
+    return testProxy(proxy);
+  });
+  require$$1.ipcMain.handle("proxy:test-config", async (_e, config) => {
+    return testProxy({ ...config });
+  });
+}
+async function hotUpdateProxy(proxyId, isDelete = false) {
+  const proxy = isDelete ? null : getProxyById(proxyId);
+  const proxyRules = proxy ? buildProxyRules(proxy) : "";
+  const accounts = listAccounts();
+  for (const account of accounts) {
+    const effectiveProxyId = account.proxyId ?? getGroupById(account.groupId)?.proxyId;
+    if (effectiveProxyId !== proxyId) continue;
+    const partition = `persist:account-${account.id}`;
+    const { session } = await import("electron");
+    const ses = session.fromPartition(partition);
+    if (isDelete || !proxy) {
+      await ses.setProxy({ proxyRules: "" });
+    } else {
+      await ses.setProxy({ proxyRules });
+    }
+    const tabIds = webviewManager.getTabIdsByAccount(account.id);
+    for (const tabId of tabIds) {
+      webviewManager.reload(tabId);
+    }
+  }
+}
 function registerIpcHandlers() {
   require$$1.ipcMain.handle("group:list", () => listGroups());
   require$$1.ipcMain.handle("group:create", (_e, name) => createGroup(name));
@@ -10373,22 +10671,8 @@ function registerIpcHandlers() {
     (_e, id2, data) => updateAccount(id2, data)
   );
   require$$1.ipcMain.handle("account:delete", (_e, id2) => deleteAccount(id2));
-  require$$1.ipcMain.handle("proxy:list", () => listProxies());
-  require$$1.ipcMain.handle("proxy:create", (_e, data) => createProxy(data));
-  require$$1.ipcMain.handle(
-    "proxy:update",
-    (_e, id2, data) => updateProxy(id2, data)
-  );
-  require$$1.ipcMain.handle("proxy:delete", (_e, id2) => deleteProxy(id2));
-  require$$1.ipcMain.handle("tab:list", () => listTabs());
-  require$$1.ipcMain.handle("tab:create", (_e, data) => createTab(data));
-  require$$1.ipcMain.handle(
-    "tab:update",
-    (_e, id2, data) => updateTab(id2, data)
-  );
-  require$$1.ipcMain.handle("tab:delete", (_e, id2) => deleteTab(id2));
-  require$$1.ipcMain.handle("tab:reorder", (_e, tabIds) => reorderTabs(tabIds));
-  require$$1.ipcMain.handle("tab:save-all", (_e, tabs) => saveTabs(tabs));
+  registerProxyIpcHandlers();
+  registerTabIpcHandlers();
 }
 setupUserAgent();
 function createWindow() {
@@ -10402,8 +10686,12 @@ function createWindow() {
       sandbox: false
     }
   });
+  webviewManager.setMainWindow(mainWindow);
   mainWindow.on("ready-to-show", () => {
     mainWindow.show();
+  });
+  mainWindow.on("closed", () => {
+    webviewManager.destroyAll();
   });
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);

@@ -56,7 +56,7 @@ function openEditGroup(group: Group) {
   groupDialogOpen.value = true
 }
 
-async function handleGroupSave(data: { name: string }) {
+async function handleGroupSave(data: { name: string; proxyId?: string }) {
   if (editingGroup.value) {
     await accountStore.updateGroup(editingGroup.value.id, data)
   } else {

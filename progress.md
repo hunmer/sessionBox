@@ -98,25 +98,66 @@
   - src/App.vue (updated)
 
 ### Phase 6: WebContentsView 集成
-- **Status:** pending
+- **Status:** complete
 - Actions taken:
-  -
+  - 添加 store.ts 辅助查询函数（getAccountById、getGroupById、getProxyById）
+  - 创建 webview-manager.ts — WebContentsView 生命周期管理器（创建/销毁/切换/导航/位置同步/事件转发）
+  - 创建 ipc/tab.ts — Tab 相关 IPC 处理器，整合 WebContentsView 操作与数据持久化
+  - 更新 ipc/index.ts — 移除旧 tab handlers，引入 ipc/tab.ts 模块
+  - 更新 main.ts — 初始化 WebviewManager，窗口关闭时清理视图
+  - 更新 preload/index.ts — 添加 updateBounds IPC 方法（fire-and-forget）
+  - 更新 App.vue — 添加 ResizeObserver + bounds 同步，Tab 切换时自动发送位置
+  - electron-vite build 构建验证通过
 - Files created/modified:
-  -
+  - electron/services/store.ts (updated: 添加辅助查询函数)
+  - electron/services/webview-manager.ts (created)
+  - electron/ipc/tab.ts (created)
+  - electron/ipc/index.ts (updated: 移除旧 tab handlers，引入新模块)
+  - electron/main.ts (updated: 初始化 WebviewManager)
+  - preload/index.ts (updated: 添加 updateBounds)
+  - src/App.vue (updated: ResizeObserver + bounds 同步)
 
 ### Phase 7: 代理管理
-- **Status:** pending
+- **Status:** complete
 - Actions taken:
-  -
+  - 创建 electron/services/proxy.ts — 代理规则构建 + 测试连接（net.fetch + session.setProxy）
+  - 创建 electron/ipc/proxy.ts — 代理 IPC 处理器（CRUD + 测试 + 热更新）
+  - 更新 electron/ipc/index.ts — 代理 IPC 委托给 ipc/proxy.ts 模块
+  - 创建 src/components/proxy/ProxyDialog.vue — 代理管理弹窗（列表/新建/编辑/测试/删除）
+  - 更新 src/components/sidebar/GroupDialog.vue — 添加代理绑定选择
+  - 更新 src/components/sidebar/Sidebar.vue — handleGroupSave 支持 proxyId
+  - 更新 preload/index.ts — 添加 proxy:testConfig IPC 方法
+  - 更新 src/App.vue — 集成 ProxyDialog 组件
+  - electron-vite build 构建验证通过
 - Files created/modified:
-  -
+  - electron/services/proxy.ts (created)
+  - electron/ipc/proxy.ts (created)
+  - electron/ipc/index.ts (updated)
+  - src/components/proxy/ProxyDialog.vue (created)
+  - src/components/sidebar/GroupDialog.vue (updated)
+  - src/components/sidebar/Sidebar.vue (updated)
+  - preload/index.ts (updated)
+  - src/App.vue (updated)
 
 ### Phase 8: 边界场景与收尾
-- **Status:** pending
+- **Status:** complete
 - Actions taken:
-  -
+  - 级联操作已验证：删除账号先关闭 tab（Sidebar.vue）、删除分组检查是否为空（store.ts）、删除代理清除引用并热更新（ipc/proxy.ts）
+  - 添加 tab:restore-all IPC — 启动时重建所有保存 tab 的 WebContentsView
+  - 添加 tab.saveState() — 退出前同步 tab 运行时数据回主进程 store
+  - preload 补充 restoreAll / saveAll 方法
+  - tab store init() 中集成恢复流程，自动激活第一个 tab
+  - 优化空状态引导页：地球图标 + 居中布局
+  - TabItem 增加 favicon 图标和加载状态指示
+  - 全局 CSS 增加 UI 框架禁止文字选中
+  - electron-vite build 构建验证通过
 - Files created/modified:
-  -
+  - electron/ipc/tab.ts (updated: 添加 tab:restore-all)
+  - preload/index.ts (updated: 添加 restoreAll / saveAll)
+  - src/stores/tab.ts (updated: init 恢复流程 + saveState)
+  - src/App.vue (updated: beforeunload 保存 + 空状态优化)
+  - src/components/tabs/TabItem.vue (updated: favicon + 加载状态)
+  - src/styles/globals.css (updated: 禁止 UI 文字选中)
 
 ## Test Results
 | Test | Input | Expected | Actual | Status |

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { X } from 'lucide-vue-next'
+import { X, Globe, Loader2 } from 'lucide-vue-next'
 import type { Tab } from '@/types'
 import { useTabStore } from '@/stores/tab'
 
@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const tabStore = useTabStore()
 const isActive = computed(() => tabStore.activeTabId === props.tab.id)
+const isLoading = computed(() => tabStore.navStates.get(props.tab.id)?.isLoading ?? false)
 
 function handleClose(e: MouseEvent) {
   e.stopPropagation()
@@ -23,6 +24,8 @@ function handleClose(e: MouseEvent) {
     :class="isActive ? 'bg-background text-foreground' : 'bg-card/50 text-muted-foreground hover:bg-card'"
     @click="tabStore.switchTab(tab.id)"
   >
+    <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin text-primary/60" />
+    <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
     <span class="truncate text-xs max-w-[120px]">{{ tab.title || tab.url || '新标签页' }}</span>
     <button
       class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-secondary transition-opacity"

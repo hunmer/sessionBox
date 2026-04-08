@@ -4,7 +4,7 @@
 基于 Electron + Vue 3 + shadcn-vue + Vite + TailwindCSS，构建一个支持多账号（partition）隔离的浏览器工具，包含侧边栏分组管理、多标签页、代理管理和 WebContentsView 集成。
 
 ## Current Phase
-Phase 5
+Phase 8
 
 ## Phases
 
@@ -50,29 +50,29 @@ Phase 5
 - **Status:** complete
 
 ### Phase 6: WebContentsView 集成
-- [ ] electron/services/webview-manager.ts — WebContentsView 生命周期管理
-- [ ] electron/ipc/tab.ts — Tab 相关 IPC（创建/关闭/切换/导航）
-- [ ] 位置同步：ResizeObserver + IPC bounds 更新 + DPI 处理
-- [ ] Tab 切换可见性管理
-- [ ] 主进程 → 渲染进程事件转发（title/url/navState 更新）
-- **Status:** pending
+- [x] electron/services/webview-manager.ts — WebContentsView 生命周期管理
+- [x] electron/ipc/tab.ts — Tab 相关 IPC（创建/关闭/切换/导航）
+- [x] 位置同步：ResizeObserver + IPC bounds 更新 + DPI 处理
+- [x] Tab 切换可见性管理
+- [x] 主进程 → 渲染进程事件转发（title/url/navState 更新）
+- **Status:** complete
 
 ### Phase 7: 代理管理
-- [ ] electron/services/proxy.ts — 代理设置应用（session.setProxy）
-- [ ] electron/ipc/proxy.ts — 代理 IPC（CRUD + 测试）
-- [ ] src/components/proxy/ProxyDialog.vue — 代理管理弹窗
-- [ ] 代理测试功能（请求 httpbin.org/ip）
-- [ ] 代理绑定到分组/账号（Select 下拉）
-- [ ] 代理热更新（修改后自动刷新受影响的页面）
-- **Status:** pending
+- [x] electron/services/proxy.ts — 代理设置应用（session.setProxy）
+- [x] electron/ipc/proxy.ts — 代理 IPC（CRUD + 测试）
+- [x] src/components/proxy/ProxyDialog.vue — 代理管理弹窗
+- [x] 代理测试功能（请求 httpbin.org/ip）
+- [x] 代理绑定到分组/账号（Select 下拉）
+- [x] 代理热更新（修改后自动刷新受影响的页面）
+- **Status:** complete
 
 ### Phase 8: 边界场景与收尾
-- [ ] 级联操作：删除账号（先关闭 tab）、删除分组（检查是否为空）、删除代理（清除引用）
-- [ ] 应用退出保存 tab 状态 + 启动恢复
-- [ ] 关闭最后一个 tab 的空状态引导页
-- [ ] 全局样式优化与细节打磨
-- [ ] 端到端功能验证
-- **Status:** pending
+- [x] 级联操作：删除账号（先关闭 tab）、删除分组（检查是否为空）、删除代理（清除引用）
+- [x] 应用退出保存 tab 状态 + 启动恢复
+- [x] 关闭最后一个 tab 的空状态引导页
+- [x] 全局样式优化与细节打磨
+- [x] 端到端功能验证
+- **Status:** complete
 
 ## Key Questions
 1. electron-vite 的 WebContentsView 项目模板如何配置？→ 需研究

@@ -172,6 +172,20 @@ export function deleteProxy(id: string): void {
   setCollection('proxies', proxies)
 }
 
+// ====== 辅助查询 ======
+
+export function getAccountById(id: string): Account | undefined {
+  return getCollection('accounts').find((a) => a.id === id)
+}
+
+export function getGroupById(id: string): Group | undefined {
+  return getCollection('groups').find((g) => g.id === id)
+}
+
+export function getProxyById(id: string): Proxy | undefined {
+  return getCollection('proxies').find((p) => p.id === id)
+}
+
 // ====== Tab 操作 ======
 
 export function listTabs(): Tab[] {

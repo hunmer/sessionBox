@@ -87,3 +87,17 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #4a4d5a;
 }
+
+/* 桌面应用 UI 框架禁止文字选中 */
+aside,
+.toolbar-url-input,
+[data-ui-chrome] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 地址栏输入框允许选中 */
+.toolbar-url-input input {
+  -webkit-user-select: text;
+  user-select: text;
+}

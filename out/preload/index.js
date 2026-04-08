@@ -97,7 +97,8 @@ const api = {
     create: (data) => electron.ipcRenderer.invoke("proxy:create", data),
     update: (id, data) => electron.ipcRenderer.invoke("proxy:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("proxy:delete", id),
-    test: (proxyId) => electron.ipcRenderer.invoke("proxy:test", proxyId)
+    test: (proxyId) => electron.ipcRenderer.invoke("proxy:test", proxyId),
+    testConfig: (config) => electron.ipcRenderer.invoke("proxy:test-config", config)
   },
   tab: {
     list: () => electron.ipcRenderer.invoke("tab:list"),
@@ -109,7 +110,10 @@ const api = {
     navigate: (tabId, url) => electron.ipcRenderer.invoke("tab:navigate", tabId, url),
     goBack: (tabId) => electron.ipcRenderer.invoke("tab:goBack", tabId),
     goForward: (tabId) => electron.ipcRenderer.invoke("tab:goForward", tabId),
-    reload: (tabId) => electron.ipcRenderer.invoke("tab:reload", tabId)
+    reload: (tabId) => electron.ipcRenderer.invoke("tab:reload", tabId),
+    updateBounds: (rect) => electron.ipcRenderer.send("tab:update-bounds", rect),
+    restoreAll: () => electron.ipcRenderer.invoke("tab:restore-all"),
+    saveAll: (tabs) => electron.ipcRenderer.invoke("tab:save-all", tabs)
   },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
