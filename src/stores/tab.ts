@@ -54,6 +54,14 @@ export const useTabStore = defineStore('tab', () => {
     return tab
   }
 
+  /** 使用指定 URL 创建新 tab（用于快捷网站 / 新窗口拦截） */
+  async function createTabForSite(url: string, accountId?: string) {
+    const tab = await api.tab.create(accountId || null, url)
+    tabs.value.push(tab)
+    await switchTab(tab.id)
+    return tab
+  }
+
   /** 使用指定 URL 创建新 tab（用于新窗口拦截） */
   async function createTabWithUrl(accountId: string, url: string) {
     const tab = await api.tab.create(accountId, url)
@@ -194,6 +202,7 @@ export const useTabStore = defineStore('tab', () => {
     toggleLayout,
     loadTabs,
     createTab,
+    createTabForSite,
     closeTab,
     switchTab,
     updateTab,

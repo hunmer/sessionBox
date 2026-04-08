@@ -41,24 +41,27 @@ class WebviewManager {
   }
 
   /** 创建 WebContentsView 并添加到窗口 */
+  // accountId 为空字符串时使用默认 session（不设置 partition）
   createView(tabId: string, accountId: string, url: string): void {
     if (!this.mainWindow) return
 
-    const account = getAccountById(accountId)
-    if (!account) return
+    const account = accountId ? getAccountById(accountId) : undefined
+    if (accountId && !account) return
 
     // 确定代理配置：账号级 > 分组级
-    const proxyId = account.proxyId ?? getGroupById(account.groupId)?.proxyId
+    const proxyId = account?.proxyId ?? (account ? getGroupById(account.groupId)?.proxyId : undefined)
     const proxy = proxyId ? getProxyById(proxyId) : undefined
 
     const view = new WebContentsView({
       webPreferences: {
-        partition: `persist:account-${accountId}`
+        partition: accountId ? `persist:account-${accountId}` : undefined
       }
     })
 
     // 设置 User-Agent
-    view.webContents.setUserAgent(getUserAgent(account.userAgent))
+    if (account?.userAgent) {
+      view.webContents.setUserAgent(getUserAgent(account.userAgent))
+    }
 
     // 拦截第三方协议，防止唤起外部应用
     registerBlockedProtocolHandlers(view.webContents.session)

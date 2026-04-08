@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2 } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTabStore } from '@/stores/tab'
+import { useFavoriteSiteStore } from '@/stores/favoriteSite'
 
 const tabStore = useTabStore()
+const favoriteSiteStore = useFavoriteSiteStore()
 const urlInput = ref('')
 const isFocused = ref(false)
 
@@ -53,6 +55,27 @@ function onBlur() {
   isFocused.value = false
   urlInput.value = tabStore.activeTab?.url ?? ''
 }
+
+/** 当前 URL 是否已收藏 */
+const isFavorited = computed(() => {
+  const url = tabStore.activeTab?.url
+  if (!url) return false
+  return favoriteSiteStore.sites.some(s => s.url === url)
+})
+
+/** 切换收藏状态 */
+async function toggleFavorite() {
+  const url = tabStore.activeTab?.url
+  if (!url) return
+
+  if (isFavorited.value) {
+    const site = favoriteSiteStore.sites.find(s => s.url === url)
+    if (site) await favoriteSiteStore.deleteSite(site.id)
+  } else {
+    const title = tabStore.activeTab?.title || url
+    await favoriteSiteStore.createSite({ title, url })
+  }
+}
 </script>
 
 <template>
@@ -82,15 +105,27 @@ function onBlur() {
     </Button>
 
     <!-- 地址栏 -->
-    <Input
-      v-model="urlInput"
-      class="toolbar-url-input flex-1 h-7 text-xs bg-secondary/60 border-transparent focus:border-ring"
-      placeholder="输入网址..."
-      :disabled="!tabStore.activeTabId"
-      @keydown.enter="navigate"
-      @focus="onFocus"
-      @blur="onBlur"
-    />
+    <div class="relative flex-1 flex items-center">
+      <Button
+        variant="ghost"
+        size="icon"
+        class="absolute left-0.5 h-6 w-6 z-10 rounded-sm"
+        :class="isFavorited ? 'text-yellow-500' : 'text-muted-foreground'"
+        :disabled="!tabStore.activeTabId"
+        @click="toggleFavorite"
+      >
+        <Star class="w-3.5 h-3.5" :fill="isFavorited ? 'currentColor' : 'none'" />
+      </Button>
+      <Input
+        v-model="urlInput"
+        class="toolbar-url-input flex-1 h-7 text-xs bg-secondary/60 border-transparent focus:border-ring pl-7"
+        placeholder="输入网址..."
+        :disabled="!tabStore.activeTabId"
+        @keydown.enter="navigate"
+        @focus="onFocus"
+        @blur="onBlur"
+      />
+    </div>
 
     <!-- 开发者工具 -->
     <Button

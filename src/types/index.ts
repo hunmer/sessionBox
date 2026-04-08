@@ -48,6 +48,8 @@ export interface FavoriteSite {
   id: string
   title: string
   url: string
+  accountId?: string // 可选绑定账号，使用其 partition
+  favicon?: string   // 图标 URL
 }
 
 // 导航状态（运行时，不持久化）

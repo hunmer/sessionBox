@@ -42,6 +42,8 @@ export interface FavoriteSite {
   id: string
   title: string
   url: string
+  accountId?: string // 可选绑定账号，使用其 partition
+  favicon?: string   // 图标 URL
 }
 
 interface StoreSchema {
@@ -58,7 +60,10 @@ const defaults: StoreSchema = {
   proxies: [],
   tabs: [],
   favoriteSites: [
-    { id: 'default-douyin', title: '抖音创作者中心', url: 'https://creator.douyin.com/creator-micro/home' },
+    { id: 'default-douyin', title: '抖音', url: 'https://www.douyin.com' },
+    { id: 'default-iqiyi', title: '爱奇艺', url: 'https://www.iqiyi.com' },
+    { id: 'default-qq', title: '腾讯', url: 'https://www.qq.com' },
+    { id: 'default-douyin-creator', title: '抖音创作者中心', url: 'https://creator.douyin.com/creator-micro/home' },
     { id: 'default-wechat', title: '微信视频号助手', url: 'https://channels.weixin.qq.com/platform/post/create' }
   ]
 }

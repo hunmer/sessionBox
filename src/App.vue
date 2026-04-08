@@ -6,6 +6,7 @@ import Sidebar from '@/components/sidebar/Sidebar.vue'
 import TabBar from '@/components/tabs/TabBar.vue'
 import TabBarVertical from '@/components/tabs/TabBarVertical.vue'
 import BrowserToolbar from '@/components/toolbar/BrowserToolbar.vue'
+import FavoriteBar from '@/components/favorite/FavoriteBar.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import { useAccountStore } from '@/stores/account'
@@ -23,6 +24,10 @@ const settingsDialogOpen = ref(false)
 const ready = ref(false)
 const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
+
+// ====== 快捷网站栏显隐 ======
+const FAVORITE_BAR_KEY = 'sessionbox-favorite-bar-visible'
+const favoriteBarVisible = ref(localStorage.getItem(FAVORITE_BAR_KEY) !== 'false')
 
 // ====== 侧边栏面板控制 ======
 const SIDEBAR_STORAGE_KEY = 'sessionbox-sidebar-width'
@@ -176,6 +181,9 @@ watch(() => tabStore.activeTabId, () => {
             <template v-if="ready">
               <!-- 水平标签栏（仅水平模式） -->
               <TabBar v-if="tabStore.tabLayout === 'horizontal'" :is-maximized="isMaximized" />
+
+              <!-- 快捷网站栏 -->
+              <FavoriteBar v-if="favoriteBarVisible" />
 
               <!-- 工具栏 -->
               <BrowserToolbar v-if="tabStore.activeTab" />

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeft } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeft, Bookmark } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import draggable from 'vuedraggable'
 import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
@@ -14,6 +14,16 @@ defineProps<{
 
 const tabStore = useTabStore()
 const showAddDialog = ref(false)
+
+const FAVORITE_BAR_KEY = 'sessionbox-favorite-bar-visible'
+const favoriteBarVisible = ref(localStorage.getItem(FAVORITE_BAR_KEY) !== 'false')
+
+function toggleFavoriteBar() {
+  favoriteBarVisible.value = !favoriteBarVisible.value
+  localStorage.setItem(FAVORITE_BAR_KEY, String(favoriteBarVisible.value))
+}
+
+defineExpose({ favoriteBarVisible })
 
 const windowApi = () => window.api
 
@@ -89,6 +99,18 @@ function handleAddAccount(account: Account) {
       @click="tabStore.toggleLayout()"
     >
       <PanelLeft class="w-3.5 h-3.5" />
+    </Button>
+
+    <!-- 快捷网站栏切换按钮 -->
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-7 w-7 rounded-full flex-shrink-0"
+      :class="favoriteBarVisible ? 'bg-secondary text-primary' : 'hover:bg-secondary'"
+      style="-webkit-app-region: no-drag"
+      @click="toggleFavoriteBar()"
+    >
+      <Bookmark class="w-3.5 h-3.5" />
     </Button>
 
     <!-- 窗口控制按钮 -->

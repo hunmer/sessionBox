@@ -21,24 +21,35 @@ export function registerTabIpcHandlers(): void {
   ipcMain.handle('tab:list', () => listTabs())
 
   // 创建 tab（含 WebContentsView）
-  ipcMain.handle('tab:create', (_e, accountId: string, url?: string) => {
+  // accountId 为空字符串时使用默认 partition（无账号关联）
+  ipcMain.handle('tab:create', (_e, accountId: string | null, url?: string) => {
+    const tabs = listTabs()
+    const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
+
+    if (!accountId) {
+      // 无账号模式：使用默认 partition
+      const tabUrl = url || 'https://www.baidu.com'
+      const tab = createTab({
+        accountId: '',
+        title: '新标签页',
+        url: tabUrl,
+        order
+      })
+      webviewManager.createView(tab.id, '', tabUrl)
+      return tab
+    }
+
     const account = getAccountById(accountId)
     if (!account) throw new Error(`账号 ${accountId} 不存在`)
 
-    const tabs = listTabs()
-    const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
     const tabUrl = url || account.defaultUrl
-
     const tab = createTab({
       accountId,
       title: account.name,
       url: tabUrl,
       order
     })
-
-    // 创建 WebContentsView
     webviewManager.createView(tab.id, accountId, tabUrl)
-
     return tab
   })
 
@@ -132,9 +143,13 @@ export function registerTabIpcHandlers(): void {
     webviewManager.destroyAll()
     const tabs = listTabs()
     for (const tab of tabs) {
-      const account = getAccountById(tab.accountId)
-      if (account) {
-        webviewManager.createView(tab.id, tab.accountId, tab.url || account.defaultUrl)
+      if (tab.accountId) {
+        const account = getAccountById(tab.accountId)
+        if (account) {
+          webviewManager.createView(tab.id, tab.accountId, tab.url || account.defaultUrl)
+        }
+      } else {
+        webviewManager.createView(tab.id, '', tab.url || 'https://www.baidu.com')
       }
     }
     return tabs.map((t) => t.id)
