@@ -29,11 +29,14 @@ const workspaceStore = useWorkspaceStore()
 /** 展示的账号列表，支持按分组和工作区过滤 */
 const accounts = computed(() => {
   let list = accountStore.accounts
-  // 按工作区过滤
+  // 按工作区过滤：直接匹配 group.workspaceId
   if (props.filterByWorkspace !== false) {
     const activeId = workspaceStore.activeWorkspaceId
-    const groupIds = new Set(accountStore.workspaceGroups.map((g) => g.id))
-    list = list.filter((a) => groupIds.has(a.groupId))
+    list = list.filter((a) => {
+      const group = accountStore.groups.find((g) => g.id === a.groupId)
+      if (!group) return false
+      return (group.workspaceId || '__default__') === activeId
+    })
   }
   // 按分组过滤
   if (props.groupId) {
