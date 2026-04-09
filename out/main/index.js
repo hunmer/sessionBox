@@ -27488,9 +27488,44 @@ function registerUpdaterIpc() {
   });
   console.log("[AutoUpdater] IPC 处理器已注册");
 }
+function readExtensionIcon(extensionPath) {
+  const manifestPath = path2.join(extensionPath, "manifest.json");
+  if (!fs3.existsSync(manifestPath)) return void 0;
+  try {
+    const manifest = JSON.parse(fs3.readFileSync(manifestPath, "utf-8"));
+    const icons = manifest.icons;
+    if (!icons) return void 0;
+    for (const size of [48, 128, 32, 16]) {
+      const iconPath = icons[String(size)];
+      if (iconPath && fs3.existsSync(path2.join(extensionPath, iconPath))) {
+        return path2.join(extensionPath, iconPath);
+      }
+    }
+    const sizes = Object.keys(icons).map(Number).sort((a, b) => b - a);
+    if (sizes.length > 0) {
+      const iconPath = icons[String(sizes[0])];
+      if (iconPath && fs3.existsSync(path2.join(extensionPath, iconPath))) {
+        return path2.join(extensionPath, iconPath);
+      }
+    }
+    return void 0;
+  } catch {
+    return void 0;
+  }
+}
 function registerExtensionHandlers() {
   require$$1.ipcMain.handle("extension:list", async () => {
-    return listExtensions();
+    const extensions = listExtensions();
+    for (const ext of extensions) {
+      if (!ext.icon) {
+        const icon = readExtensionIcon(ext.path);
+        if (icon) {
+          ext.icon = icon;
+          updateExtension(ext.id, { icon });
+        }
+      }
+    }
+    return extensions;
   });
   require$$1.ipcMain.handle("extension:select", async (event) => {
     console.log("[Extension IPC] extension:select called");
@@ -27519,12 +27554,20 @@ function registerExtensionHandlers() {
     }
     const existedExtension = listExtensions().find((extension) => extension.path === extensionPath);
     if (existedExtension) {
+      if (!existedExtension.icon) {
+        const icon = readExtensionIcon(extensionPath);
+        if (icon) {
+          existedExtension.icon = icon;
+          updateExtension(existedExtension.id, { icon });
+        }
+      }
       return existedExtension;
     }
     return createExtension({
       name: extensionName,
       path: extensionPath,
-      enabled: true
+      enabled: true,
+      icon: readExtensionIcon(extensionPath)
     });
   });
   require$$1.ipcMain.handle("extension:load", async (_event, extensionId) => {
@@ -27681,6 +27724,10 @@ require$$1.protocol.registerSchemesAsPrivileged([
   {
     scheme: "account-icon",
     privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
+  },
+  {
+    scheme: "extension-icon",
+    privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
   }
 ]);
 require$$1.app.setAsDefaultProtocolClient("sessionbox");
@@ -27760,6 +27807,12 @@ if (!gotTheLock) {
     require$$1.protocol.handle("account-icon", (request) => {
       const fileName = decodeURIComponent(request.url.replace("account-icon://", ""));
       return require$$1.net.fetch(`file://${require$$1$2.join(iconDir2, fileName).replace(/\\/g, "/")}`);
+    });
+    require$$1.protocol.handle("extension-icon", (request) => {
+      const extensionId = decodeURIComponent(request.url.replace("extension-icon://", ""));
+      const extension = listExtensions().find((e) => e.id === extensionId);
+      if (!extension?.icon) return new Response("Not found", { status: 404 });
+      return require$$1.net.fetch(`file://${extension.icon.replace(/\\/g, "/")}`);
     });
     for (const scheme of BLOCKED_SCHEMES) {
       require$$1.protocol.handle(scheme, () => new Response(null, { status: 204 }));

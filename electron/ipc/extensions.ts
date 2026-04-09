@@ -15,11 +15,61 @@ import {
 } from '../services/extensions'
 
 /**
+ * 从扩展目录的 manifest.json 读取图标路径，返回绝对路径。
+ * 优先选择 48px 图标，回退到最大可用尺寸。
+ */
+function readExtensionIcon(extensionPath: string): string | undefined {
+  const manifestPath = join(extensionPath, 'manifest.json')
+  if (!existsSync(manifestPath)) return undefined
+
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
+      icons?: Record<string, string>
+    }
+    const icons = manifest.icons
+    if (!icons) return undefined
+
+    // 优先 48，然后 128、32、16
+    for (const size of [48, 128, 32, 16]) {
+      const iconPath = icons[String(size)]
+      if (iconPath && existsSync(join(extensionPath, iconPath))) {
+        return join(extensionPath, iconPath)
+      }
+    }
+
+    // 回退：取最大的图标
+    const sizes = Object.keys(icons)
+      .map(Number)
+      .sort((a, b) => b - a)
+    if (sizes.length > 0) {
+      const iconPath = icons[String(sizes[0])]
+      if (iconPath && existsSync(join(extensionPath, iconPath))) {
+        return join(extensionPath, iconPath)
+      }
+    }
+    return undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * 注册扩展相关 IPC 处理器。
  */
 export function registerExtensionHandlers(): void {
   ipcMain.handle('extension:list', async (): Promise<Extension[]> => {
-    return listExtensions()
+    const extensions = listExtensions()
+    // 为缺少图标的扩展自动填充（兼容已有数据）
+    for (const ext of extensions) {
+      if (!ext.icon) {
+        const icon = readExtensionIcon(ext.path)
+        if (icon) {
+          ext.icon = icon
+          updateExtension(ext.id, { icon })
+        }
+      }
+    }
+    return extensions
   })
 
   ipcMain.handle('extension:select', async (event): Promise<Extension | null> => {
@@ -61,13 +111,22 @@ export function registerExtensionHandlers(): void {
 
     const existedExtension = listExtensions().find((extension) => extension.path === extensionPath)
     if (existedExtension) {
+      // 补充图标（兼容旧数据）
+      if (!existedExtension.icon) {
+        const icon = readExtensionIcon(extensionPath)
+        if (icon) {
+          existedExtension.icon = icon
+          updateExtension(existedExtension.id, { icon })
+        }
+      }
       return existedExtension
     }
 
     return createExtension({
       name: extensionName,
       path: extensionPath,
-      enabled: true
+      enabled: true,
+      icon: readExtensionIcon(extensionPath)
     })
   })
 

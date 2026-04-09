@@ -20,8 +20,11 @@ const props = defineProps<{
 const tabStore = useTabStore()
 const accountStore = useAccountStore()
 
-// 始终显示 【分组名】账号名
+// http 开头时显示 【分组名】账号名，否则使用页面标题
 const tabLabel = computed(() => {
+  if (!props.tab.url?.startsWith('http')) {
+    return props.tab.title || '新标签页'
+  }
   const account = accountStore.getAccount(props.tab.accountId)
   if (!account) return '新标签页'
   const group = accountStore.getGroup(account.groupId)

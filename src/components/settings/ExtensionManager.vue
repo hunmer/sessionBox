@@ -104,7 +104,12 @@ defineExpose({ open, close })
               class="flex items-center justify-between p-3"
             >
               <div class="flex items-center gap-3 min-w-0">
-                <div class="w-8 h-8 bg-secondary rounded flex items-center justify-center">
+                <img
+                  v-if="ext.icon"
+                  :src="`extension-icon://${ext.id}`"
+                  class="w-8 h-8 rounded object-contain"
+                />
+                <div v-else class="w-8 h-8 bg-secondary rounded flex items-center justify-center">
                   <Puzzle class="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div class="min-w-0">

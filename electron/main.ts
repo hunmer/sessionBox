@@ -4,15 +4,20 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupUserAgent } from './utils/user-agent'
 import { registerIpcHandlers } from './ipc'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
+import { listExtensions } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
 
 // 在 app ready 之前设置 UA
 setupUserAgent()
 
-// 注册自定义协议，用于加载账号图标（必须在 app ready 前调用）
+// 注册自定义协议，用于加载账号图标和扩展图标（必须在 app ready 前调用）
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'account-icon',
+    privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
+  },
+  {
+    scheme: 'extension-icon',
     privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
   }
 ])
@@ -121,6 +126,14 @@ if (!gotTheLock) {
     protocol.handle('account-icon', (request) => {
       const fileName = decodeURIComponent(request.url.replace('account-icon://', ''))
       return net.fetch(`file://${join(iconDir, fileName).replace(/\\/g, '/')}`)
+    })
+
+    // 注册 extension-icon:// 协议，通过扩展 ID 查找并返回扩展图标文件
+    protocol.handle('extension-icon', (request) => {
+      const extensionId = decodeURIComponent(request.url.replace('extension-icon://', ''))
+      const extension = listExtensions().find((e) => e.id === extensionId)
+      if (!extension?.icon) return new Response('Not found', { status: 404 })
+      return net.fetch(`file://${extension.icon.replace(/\\/g, '/')}`)
     })
 
     // 注册已知第三方协议的空处理器，防止网站唤起外部应用时系统弹出"打开方式"对话框

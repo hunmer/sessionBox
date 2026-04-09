@@ -74,19 +74,11 @@ export default defineConfig({
     },
     optimizeDeps: {
       exclude: [
-        'electron-chrome-extensions',
-        'electron-chrome-extensions/browser-action',
-        'electron-chrome-extensions/dist/browser-action'
+        'electron-chrome-extensions'
       ]
     },
     plugins: [
-      vue({
-        template: {
-          compilerOptions: {
-            isCustomElement: (tag) => tag === 'browser-action-list'
-          }
-        }
-      }),
+      vue(),
       tailwindcss(),
       // 仅开发环境启用 Vue DevTools
       ...(isProduction ? [] : [vueDevTools({ launchEditor: getEditor() })])
