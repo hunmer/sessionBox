@@ -69,7 +69,15 @@ export default defineConfig({
     root: '.',
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src')
+        '@': resolve(__dirname, 'src'),
+        'electron-chrome-extensions/browser-action': resolve(
+          __dirname,
+          'node_modules/electron-chrome-extensions/dist/esm/browser-action.mjs'
+        ),
+        'electron-chrome-extensions/dist/browser-action': resolve(
+          __dirname,
+          'node_modules/electron-chrome-extensions/dist/esm/browser-action.mjs'
+        )
       }
     },
     plugins: [

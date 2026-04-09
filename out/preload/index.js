@@ -131,11 +131,11 @@ const api = {
   extension: {
     list: () => electron.ipcRenderer.invoke("extension:list"),
     select: () => electron.ipcRenderer.invoke("extension:select"),
-    load: (accountId, extensionId) => electron.ipcRenderer.invoke("extension:load", accountId, extensionId),
-    unload: (accountId, extensionId) => electron.ipcRenderer.invoke("extension:unload", accountId, extensionId),
+    load: (extensionId) => electron.ipcRenderer.invoke("extension:load", extensionId),
+    unload: (extensionId) => electron.ipcRenderer.invoke("extension:unload", extensionId),
     delete: (extensionId) => electron.ipcRenderer.invoke("extension:delete", extensionId),
     update: (id, data) => electron.ipcRenderer.invoke("extension:update", id, data),
-    getLoaded: (accountId) => electron.ipcRenderer.invoke("extension:getLoaded", accountId)
+    getLoaded: () => electron.ipcRenderer.invoke("extension:getLoaded")
   },
   window: {
     minimize: () => electron.ipcRenderer.invoke("window:minimize"),

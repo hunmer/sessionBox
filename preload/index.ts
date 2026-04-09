@@ -137,14 +137,14 @@ const api = {
   extension: {
     list: (): Promise<Extension[]> => ipcRenderer.invoke('extension:list'),
     select: (): Promise<Extension | null> => ipcRenderer.invoke('extension:select'),
-    load: (accountId: string, extensionId: string): Promise<void> =>
-      ipcRenderer.invoke('extension:load', accountId, extensionId),
-    unload: (accountId: string, extensionId: string): Promise<void> =>
-      ipcRenderer.invoke('extension:unload', accountId, extensionId),
+    load: (extensionId: string): Promise<void> =>
+      ipcRenderer.invoke('extension:load', extensionId),
+    unload: (extensionId: string): Promise<void> =>
+      ipcRenderer.invoke('extension:unload', extensionId),
     delete: (extensionId: string): Promise<void> => ipcRenderer.invoke('extension:delete', extensionId),
     update: (id: string, data: Partial<Omit<Extension, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('extension:update', id, data),
-    getLoaded: (accountId: string): Promise<string[]> => ipcRenderer.invoke('extension:getLoaded', accountId)
+    getLoaded: (): Promise<string[]> => ipcRenderer.invoke('extension:getLoaded')
   },
 
   window: {

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SessionBox Popup Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        background:
+          radial-gradient(circle at top, #fef3c7 0%, transparent 45%),
+          linear-gradient(160deg, #fffdf8 0%, #f8fafc 100%);
+        color: #1f2937;
+      }
+
+      body {
+        margin: 0;
+        width: 320px;
+        min-height: 220px;
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .badge {
+        display: inline-block;
+        margin-bottom: 10px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #111827;
+        color: #f9fafb;
+        font-size: 12px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+
+      p {
+        margin: 0 0 14px;
+        color: #4b5563;
+        line-height: 1.5;
+        font-size: 13px;
+      }
+
+      .row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      button {
+        flex: 1;
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      #countButton {
+        background: #2563eb;
+        color: #fff;
+      }
+
+      #resetButton {
+        background: #e5e7eb;
+        color: #111827;
+      }
+
+      .stat {
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.7);
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      }
+
+      .stat-label {
+        font-size: 12px;
+        color: #6b7280;
+      }
+
+      .stat-value {
+        margin-top: 6px;
+        font-size: 28px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <div class="badge">Popup Demo</div>
+      <h1>扩展已加载</h1>
+      <p>这个页面用于验证导入后的扩展按钮和 popup 是否能正常工作。</p>
+
+      <div class="row">
+        <button id="countButton" type="button">点击 +1</button>
+        <button id="resetButton" type="button">重置</button>
+      </div>
+
+      <section class="stat">
+        <div class="stat-label">当前点击次数</div>
+        <div id="countValue" class="stat-value">0</div>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+  </html>

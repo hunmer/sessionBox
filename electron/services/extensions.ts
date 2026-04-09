@@ -1,152 +1,248 @@
 import { session } from 'electron'
 import { ElectronChromeExtensions } from 'electron-chrome-extensions'
-import { getAccountById, addExtensionToAccount, removeExtensionFromAccount, getAccountExtensions, Extension } from './store'
-import { webviewManager } from './webview-manager'
+import type { BrowserWindow, Session, WebContents } from 'electron'
+import { listAccounts, listExtensions, type Extension } from './store'
 
-// 每个 partition 一个扩展管理器实例
-const extensionsMap = new Map<string, ElectronChromeExtensions>()
+const extensionRuntimeLicense = process.env.ELECTRON_CHROME_EXTENSIONS_LICENSE || 'GPL-3.0'
+const defaultPartitionKey = '__default__'
 
-// 扩展的 manifest 信息缓存
+type PartitionKey = string
+
+// 每个 partition 一个扩展管理器实例。
+const extensionsMap = new Map<PartitionKey, ElectronChromeExtensions>()
+
+// 记录应用内扩展 ID 到 Electron 实际扩展 ID 的映射。
+const partitionExtensionIds = new Map<PartitionKey, Map<string, string>>()
+
+// 缓存扩展信息，供工具栏等 UI 使用。
 const extensionInfoMap = new Map<string, { name: string; icon?: string }>()
 
-/**
- * 获取或创建账号的 ElectronChromeExtensions 实例
- */
-export function getExtensionsForAccount(accountId: string): ElectronChromeExtensions | null {
-  const account = getAccountById(accountId)
-  if (!account) return null
+// 避免同一 partition 并发重复加载同一个扩展。
+const pendingLoads = new Map<string, Promise<string>>()
 
-  const partition = `persist:account-${accountId}`
+function getPartitionKey(accountId?: string | null): PartitionKey {
+  return accountId ? `persist:account-${accountId}` : defaultPartitionKey
+}
 
-  if (!extensionsMap.has(partition)) {
-    const browserSession = session.fromPartition(partition)
+function getSessionForAccount(accountId?: string | null): Session {
+  return accountId ? session.fromPartition(getPartitionKey(accountId)) : session.defaultSession
+}
 
-    const extensions = new ElectronChromeExtensions({
-      session: browserSession,
-      createTab(details) {
-        // 集成到 webviewManager 创建新标签
-        // 这里需要与 tab 系统联动，暂时返回 undefined
-        console.log('[Extensions] createTab requested:', details)
-        return undefined as unknown as [Electron.WebContents, Electron.BrowserWindow]
-      },
-      selectTab(webContents, browserWindow) {
-        // 处理 tab 切换
-        console.log('[Extensions] selectTab:', webContents.id)
-      },
-      removeTab(webContents, browserWindow) {
-        // 处理 tab 关闭
-        console.log('[Extensions] removeTab:', webContents.id)
-      }
-    })
-
-    // 处理 crx:// 协议用于加载扩展图标
-    ElectronChromeExtensions.handleCRXProtocol(browserSession)
-
-    extensionsMap.set(partition, extensions)
+function getLoadedMap(partitionKey: PartitionKey): Map<string, string> {
+  let loadedMap = partitionExtensionIds.get(partitionKey)
+  if (!loadedMap) {
+    loadedMap = new Map<string, string>()
+    partitionExtensionIds.set(partitionKey, loadedMap)
   }
+  return loadedMap
+}
 
-  return extensionsMap.get(partition)!
+function getAllKnownAccountIds(): string[] {
+  return listAccounts().map((account) => account.id)
+}
+
+function getAllTargetAccountIds(): Array<string | null> {
+  return [null, ...getAllKnownAccountIds()]
+}
+
+function getEnabledExtensions(): Extension[] {
+  return listExtensions().filter((extension) => extension.enabled)
+}
+
+function getLoadedElectronExtensionId(
+  browserSession: Session,
+  extensionPath: string
+): string | undefined {
+  const sessionExtensions = browserSession.extensions || browserSession
+  return sessionExtensions
+    .getAllExtensions()
+    .find((loadedExtension) => loadedExtension.path === extensionPath)?.id
+}
+
+function createExtensionsInstance(browserSession: Session): ElectronChromeExtensions {
+  const instance = new ElectronChromeExtensions({
+    license: extensionRuntimeLicense,
+    session: browserSession,
+    createTab(details) {
+      console.log('[Extensions] createTab requested:', details)
+      return undefined as unknown as [WebContents, BrowserWindow]
+    },
+    selectTab(webContents) {
+      console.log('[Extensions] selectTab:', webContents.id)
+    },
+    removeTab(webContents) {
+      console.log('[Extensions] removeTab:', webContents.id)
+    }
+  })
+
+  ElectronChromeExtensions.handleCRXProtocol(browserSession)
+  return instance
 }
 
 /**
- * 为账号加载扩展
+ * 获取或创建 partition 对应的 ElectronChromeExtensions 实例。
  */
-export async function loadExtensionForAccount(accountId: string, extension: Extension): Promise<void> {
-  console.log('[loadExtensionForAccount] Starting...', { accountId, extensionPath: extension.path })
+export function getExtensionsForAccount(accountId?: string | null): ElectronChromeExtensions {
+  const partitionKey = getPartitionKey(accountId)
 
-  const extInstance = getExtensionsForAccount(accountId)
-  if (!extInstance) {
-    console.error('[loadExtensionForAccount] Failed to get extensions instance for account:', accountId)
-    throw new Error(`账号 ${accountId} 不存在`)
+  if (!extensionsMap.has(partitionKey)) {
+    const browserSession = getSessionForAccount(accountId)
+    extensionsMap.set(partitionKey, createExtensionsInstance(browserSession))
   }
 
-  const partition = `persist:account-${accountId}`
-  const browserSession = session.fromPartition(partition)
+  return extensionsMap.get(partitionKey)!
+}
 
-  try {
-    // 加载扩展到 session
-    console.log('[loadExtensionForAccount] Calling browserSession.loadExtension...')
+async function loadExtensionIntoAccount(
+  accountId: string | null | undefined,
+  extension: Extension
+): Promise<string> {
+  const partitionKey = getPartitionKey(accountId)
+  const browserSession = getSessionForAccount(accountId)
+  const loadedMap = getLoadedMap(partitionKey)
+
+  const existingLoadedId =
+    loadedMap.get(extension.id) || getLoadedElectronExtensionId(browserSession, extension.path)
+  if (existingLoadedId) {
+    loadedMap.set(extension.id, existingLoadedId)
+    extensionInfoMap.set(`${partitionKey}:${existingLoadedId}`, {
+      name: extension.name,
+      icon: extension.icon
+    })
+    return existingLoadedId
+  }
+
+  const pendingKey = `${partitionKey}:${extension.id}`
+  const existingTask = pendingLoads.get(pendingKey)
+  if (existingTask) {
+    return existingTask
+  }
+
+  const loadTask = (async () => {
+    getExtensionsForAccount(accountId)
+
+    console.log('[Extensions] Loading extension into partition:', {
+      partitionKey,
+      extensionId: extension.id,
+      path: extension.path
+    })
+
     const loadedExt = await browserSession.loadExtension(extension.path)
-    console.log('[Extensions] Loaded extension:', loadedExt.id, extension.name)
-
-    // 缓存扩展信息
-    extensionInfoMap.set(`${partition}:${loadedExt.id}`, {
+    loadedMap.set(extension.id, loadedExt.id)
+    extensionInfoMap.set(`${partitionKey}:${loadedExt.id}`, {
       name: extension.name,
       icon: extension.icon
     })
 
-    // 关联到账号
-    addExtensionToAccount(accountId, loadedExt.id)
-  } catch (error) {
-    console.error('[Extensions] Failed to load extension:', error)
-    throw error
-  }
-}
+    return loadedExt.id
+  })()
 
-/**
- * 为账号卸载扩展
- */
-export async function unloadExtensionFromAccount(accountId: string, extensionId: string): Promise<void> {
-  const extInstance = getExtensionsForAccount(accountId)
-  if (!extInstance) return
-
-  const partition = `persist:account-${accountId}`
-  const browserSession = session.fromPartition(partition)
+  pendingLoads.set(pendingKey, loadTask)
 
   try {
-    await browserSession.unloadExtension(extensionId)
-    console.log('[Extensions] Unloaded extension:', extensionId)
-
-    // 移除关联
-    removeExtensionFromAccount(accountId, extensionId)
-    extensionInfoMap.delete(`${partition}:${extensionId}`)
-  } catch (error) {
-    console.error('[Extensions] Failed to unload extension:', error)
-    throw error
+    return await loadTask
+  } finally {
+    pendingLoads.delete(pendingKey)
   }
 }
 
 /**
- * 获取账号已加载的扩展 ID 列表
+ * 确保某个 partition 已加载全部全局扩展。
  */
-export function getLoadedExtensionIds(accountId: string): string[] {
-  return getAccountExtensions(accountId)
+export async function ensureExtensionsLoadedForAccount(
+  accountId?: string | null
+): Promise<void> {
+  const enabledExtensions = getEnabledExtensions()
+  for (const extension of enabledExtensions) {
+    await loadExtensionIntoAccount(accountId, extension)
+  }
 }
 
 /**
- * 根据 partition 和扩展 ID 获取扩展信息
+ * 将扩展加载到所有 partition。
  */
-export function getExtensionInfo(partition: string, extensionId: string): { name: string; icon?: string } | undefined {
+export async function loadExtensionForAllAccounts(extension: Extension): Promise<void> {
+  console.log('[loadExtensionForAllAccounts] Starting...', {
+    extensionId: extension.id,
+    extensionPath: extension.path,
+    license: extensionRuntimeLicense
+  })
+
+  const targets = getAllTargetAccountIds()
+  for (const accountId of targets) {
+    await loadExtensionIntoAccount(accountId, extension)
+  }
+}
+
+async function unloadExtensionFromAccount(
+  accountId: string | null | undefined,
+  extensionId: string
+): Promise<void> {
+  const partitionKey = getPartitionKey(accountId)
+  const browserSession = getSessionForAccount(accountId)
+  const loadedMap = getLoadedMap(partitionKey)
+  const electronExtensionId = loadedMap.get(extensionId)
+
+  if (!electronExtensionId) {
+    return
+  }
+
+  await browserSession.unloadExtension(electronExtensionId)
+  loadedMap.delete(extensionId)
+  extensionInfoMap.delete(`${partitionKey}:${electronExtensionId}`)
+}
+
+/**
+ * 从所有 partition 卸载扩展。
+ */
+export async function unloadExtensionFromAllAccounts(extensionId: string): Promise<void> {
+  const targets = getAllTargetAccountIds()
+  for (const accountId of targets) {
+    await unloadExtensionFromAccount(accountId, extensionId)
+  }
+}
+
+/**
+ * 获取当前全局生效的扩展 ID 列表。
+ */
+export function getLoadedExtensionIds(): string[] {
+  return getEnabledExtensions().map((extension) => extension.id)
+}
+
+/**
+ * 根据 partition 和 Electron 扩展 ID 获取扩展信息。
+ */
+export function getExtensionInfo(
+  partition: string,
+  extensionId: string
+): { name: string; icon?: string } | undefined {
   return extensionInfoMap.get(`${partition}:${extensionId}`)
 }
 
 /**
- * 销毁账号的扩展管理器实例
+ * 销毁 partition 对应的扩展管理器实例。
  */
-export function destroyExtensionsForAccount(accountId: string): void {
-  const partition = `persist:account-${accountId}`
-  const ext = extensionsMap.get(partition)
-  if (ext) {
-    // 卸载所有扩展
-    const extIds = getAccountExtensions(accountId)
-    const browserSession = session.fromPartition(partition)
-    for (const id of extIds) {
-      try {
-        browserSession.unloadExtension(id)
-      } catch (e) {
-        // 忽略卸载错误
-      }
+export function destroyExtensionsForAccount(accountId?: string | null): void {
+  const partitionKey = getPartitionKey(accountId)
+  const ext = extensionsMap.get(partitionKey)
+  if (!ext) return
+
+  extensionsMap.delete(partitionKey)
+  partitionExtensionIds.delete(partitionKey)
+
+  for (const key of [...extensionInfoMap.keys()]) {
+    if (key.startsWith(`${partitionKey}:`)) {
+      extensionInfoMap.delete(key)
     }
-    extensionsMap.delete(partition)
   }
 }
 
 /**
- * 处理扩展的 browserAction popup 创建事件
+ * 处理扩展 popup 创建事件。
  */
-export function setupExtensionPopupHandler(mainWindow: Electron.BrowserWindow): void {
+export function setupExtensionPopupHandler(_mainWindow: BrowserWindow): void {
   for (const [, ext] of extensionsMap) {
-    ext.on('browser-action-popup-created', (popup) => {
+    ext.on('browser-action-popup-created', () => {
       console.log('[Extensions] Browser action popup created')
     })
   }
