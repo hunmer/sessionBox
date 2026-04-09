@@ -14,16 +14,17 @@ defineProps<{
     icon: LucideIcon
     isActive?: boolean
   }[]
+  collapsed?: boolean
 }>()
 </script>
 
 <template>
   <SidebarMenu>
     <SidebarMenuItem v-for="item in items" :key="item.title">
-      <SidebarMenuButton as-child :is-active="item.isActive">
+      <SidebarMenuButton as-child :is-active="item.isActive" :tooltip="collapsed ? item.title : undefined">
         <a :href="item.url">
           <component :is="item.icon" />
-          <span>{{ item.title }}</span>
+          <span v-if="!collapsed">{{ item.title }}</span>
         </a>
       </SidebarMenuButton>
     </SidebarMenuItem>

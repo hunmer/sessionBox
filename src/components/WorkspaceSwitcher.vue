@@ -29,6 +29,7 @@ const props = defineProps<{
     plan: string
     color?: string
   }[]
+  collapsed?: boolean
 }>()
 
 const workspaceStore = useWorkspaceStore()
@@ -57,15 +58,16 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
     <SidebarMenuItem>
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <SidebarMenuButton class="w-fit px-1.5">
+          <SidebarMenuButton class="w-fit px-1.5" :class="collapsed ? '!p-1.5' : ''">
             <div
-              class="flex aspect-square size-5 items-center justify-center rounded-md"
+              class="flex aspect-square items-center justify-center rounded-md"
+              :class="collapsed ? 'size-6' : 'size-5'"
               :style="{ backgroundColor: activeWorkspaceInfo.color || '#3b82f6' }"
             >
-              <component :is="activeWorkspaceInfo.logo" class="size-3 text-white" />
+              <component :is="activeWorkspaceInfo.logo" :class="collapsed ? 'size-4' : 'size-3'" class="text-white" />
             </div>
-            <span class="truncate font-semibold">{{ activeWorkspaceInfo.name }}</span>
-            <ChevronDown class="opacity-50" />
+            <span v-if="!collapsed" class="truncate font-semibold">{{ activeWorkspaceInfo.name }}</span>
+            <ChevronDown v-if="!collapsed" class="opacity-50" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent

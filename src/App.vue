@@ -44,7 +44,8 @@ const verticalTabAddDialog = ref(false)
 
 // ====== 侧边栏面板控制 ======
 const SIDEBAR_STORAGE_KEY = 'sessionbox-sidebar-width'
-const SIDEBAR_COLLAPSED_SIZE = 52
+const SIDEBAR_MIN_SIZE = 55 // ResizablePanel 允许的最小宽度
+const SIDEBAR_COLLAPSED_SIZE = 85 // 检测折叠状态的阈值
 const SIDEBAR_DEFAULT_SIZE = 260
 
 // ====== 垂直标签栏面板控制 ======
@@ -55,7 +56,7 @@ const sidebarPanelRef = ref<InstanceType<typeof ResizablePanel>>()
 
 // 从 localStorage 恢复侧边栏宽度
 const savedWidth = localStorage.getItem(SIDEBAR_STORAGE_KEY)
-const sidebarDefaultSize = savedWidth ? Math.max(Number(savedWidth), SIDEBAR_COLLAPSED_SIZE) : SIDEBAR_DEFAULT_SIZE
+const sidebarDefaultSize = savedWidth ? Math.max(Number(savedWidth), SIDEBAR_MIN_SIZE) : SIDEBAR_DEFAULT_SIZE
 // 如果保存的宽度等于折叠宽度，则初始化为折叠态
 const sidebarCollapsed = ref(savedWidth ? Number(savedWidth) <= SIDEBAR_COLLAPSED_SIZE : false)
 
@@ -87,20 +88,12 @@ function toggleSidebar() {
   const panel = sidebarPanelRef.value as any
   if (!panel) return
   if (sidebarCollapsed.value) {
-    const prevSize = panel.getSize?.() as number
-    panel.expand()
+    // 展开到默认宽度
+    panel.resize(SIDEBAR_DEFAULT_SIZE)
     sidebarCollapsed.value = false
-    // expand() 依赖内部记录的折叠前大小，首次启动时该记录不存在，
-    // 会回退到 minSize（52px）= collapsedSize，等于没展开。
-    // 需要在下一帧检测实际宽度是否有变化，无变化则手动 resize 到默认宽度。
-    nextTick(() => {
-      const newSize = panel.getSize?.() as number
-      if (newSize != null && Math.abs(newSize - prevSize) < 2) {
-        panel.resize(SIDEBAR_DEFAULT_SIZE)
-      }
-    })
   } else {
-    panel.collapse()
+    // 折叠到最小宽度
+    panel.resize(SIDEBAR_MIN_SIZE)
     sidebarCollapsed.value = true
   }
 }
@@ -203,16 +196,11 @@ watch(() => tabStore.favoriteBarVisible, () => {
           ref="sidebarPanelRef"
           size-unit="px"
           :default-size="sidebarDefaultSize"
-          :min-size="SIDEBAR_COLLAPSED_SIZE"
-          :collapsed-size="SIDEBAR_COLLAPSED_SIZE"
-          collapsible
-          @collapse="sidebarCollapsed = true"
-          @expand="sidebarCollapsed = false"
+          :min-size="SIDEBAR_MIN_SIZE"
         >
-          <SidebarProvider>
+          <SidebarProvider :open="!sidebarCollapsed" @update:open="sidebarCollapsed = !$event">
             <Sidebar
               :collapsed="sidebarCollapsed"
-              collapsible="none"
               @open-proxy="proxyDialogOpen = true"
               @open-settings="settingsDialogOpen = true"
             />

@@ -2,9 +2,22 @@
 import { computed } from 'vue'
 import { useAccountStore } from '@/stores/account'
 import GroupItem from './GroupItem.vue'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-vue-next'
 import type { Group, Account } from '@/types'
 
-defineProps<{
+const props = defineProps<{
   collapsed: boolean
 }>()
 
@@ -38,8 +51,52 @@ const workspaces = computed(() => {
 </script>
 
 <template>
+  <!-- 折叠状态：显示图标列表，点击弹出下拉菜单 -->
+  <template v-if="collapsed">
+    <SidebarMenu>
+      <SidebarMenuItem v-for="workspace in workspaces" :key="workspace.name">
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <SidebarMenuButton
+              :tooltip="workspace.name"
+              class="flex items-center justify-center"
+            >
+              <span>{{ workspace.emoji }}</span>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" class="w-48">
+            <DropdownMenuItem
+              v-for="page in workspace.pages"
+              :key="page.id"
+              @click="emit('selectAccount', page.id)"
+            >
+              <span class="mr-2">{{ page.emoji }}</span>
+              {{ page.name }}
+            </DropdownMenuItem>
+            <template v-if="workspace.pages.length > 0">
+              <DropdownMenuSeparator />
+            </template>
+            <DropdownMenuItem @click.stop="emit('editGroup', workspace.group)">
+              <Pencil class="w-4 h-4 mr-2" />
+              编辑分组
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              @click.stop="emit('deleteGroup', workspace.group)"
+              class="text-destructive"
+            >
+              <Trash2 class="w-4 h-4 mr-2" />
+              删除分组
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  </template>
+
+  <!-- 展开状态：显示完整列表 -->
   <GroupItem
-    v-if="accountStore.workspaceGroups.length > 0"
+    v-else-if="accountStore.workspaceGroups.length > 0"
     :workspaces="workspaces"
     @select-account="emit('selectAccount', $event)"
     @edit-group="emit('editGroup', $event)"
@@ -47,7 +104,7 @@ const workspaces = computed(() => {
     @edit-account="emit('editAccount', $event)"
     @delete-account="emit('deleteAccount', $event)"
   />
-  <div v-else-if="!collapsed" class="flex flex-col items-center justify-center py-8 text-muted-foreground">
+  <div v-else class="flex flex-col items-center justify-center py-8 text-muted-foreground">
     <p class="text-sm">暂无分组</p>
     <p class="text-xs mt-1">点击下方「新建分组」开始</p>
   </div>

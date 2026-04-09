@@ -32,7 +32,7 @@ const accountStore = useAccountStore()
 
 <template>
   <SidebarGroup>
-    <SidebarGroupLabel class="group px-2.5">
+    <SidebarGroupLabel v-if="!collapsed" class="group px-2.5">
       <span class="flex-1">分组</span>
       <button
         v-if="!collapsed"

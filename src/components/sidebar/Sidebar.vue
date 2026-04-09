@@ -9,9 +9,9 @@ import SidebarGroups from './SidebarGroups.vue'
 import GroupDialog from './GroupDialog.vue'
 import AccountDialog from './AccountDialog.vue'
 import {
-  Sidebar,
   SidebarContent,
   SidebarHeader,
+  SidebarRail,
 } from '@/components/ui/sidebar'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
@@ -119,12 +119,12 @@ const workspaceSwitcherItems = computed(() => {
 </script>
 
 <template>
-  <Sidebar class="border-r-0" v-bind="props">
-    <SidebarHeader>
-      <WorkspaceSwitcher :workspaces="workspaceSwitcherItems" />
-      <NavMain :items="navMain" />
+  <div class="flex h-full w-full flex-col border-r-0 bg-sidebar text-sidebar-foreground overflow-hidden">
+    <SidebarHeader class="shrink-0">
+      <WorkspaceSwitcher :workspaces="workspaceSwitcherItems" :collapsed="collapsed" />
+      <NavMain :items="navMain" :collapsed="collapsed" />
     </SidebarHeader>
-    <SidebarContent>
+    <SidebarContent class="flex-1 min-h-0">
       <SidebarGroups
         :collapsed="collapsed"
         @edit-group="handleEditGroup"
@@ -135,13 +135,14 @@ const workspaceSwitcherItems = computed(() => {
         @select-account="handleSelectAccount"
       />
       <NavUser
-        class="mt-auto p-1"
+        class="mt-auto p-1 shrink-0"
         :user="{ name: '用户', email: '', avatar: '' }"
         @open-settings="emit('openSettings')"
         @open-proxy="emit('openProxy')"
       />
     </SidebarContent>
-  </Sidebar>
+    <SidebarRail />
+  </div>
 
   <!-- 分组编辑对话框 -->
   <GroupDialog
