@@ -2,7 +2,7 @@ import { ipcMain, dialog, app } from 'electron'
 import { listExtensions, createExtension, deleteExtension, updateExtension, Extension } from '../services/store'
 import { loadExtensionForAccount, unloadExtensionFromAccount, getLoadedExtensionIds } from '../services/extensions'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 
 /**
  * 注册扩展相关的 IPC 处理器
@@ -38,7 +38,8 @@ export function registerExtensionHandlers(): void {
     // 从 manifest.json 读取扩展名称
     let extensionName = 'Unknown Extension'
     try {
-      const manifest = require(manifestPath)
+      const manifestContent = readFileSync(manifestPath, 'utf-8')
+      const manifest = JSON.parse(manifestContent)
       extensionName = manifest.name || manifest.short_name || extensionName
     } catch (e) {
       console.error('[Extensions] Failed to read manifest:', e)

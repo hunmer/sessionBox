@@ -27377,7 +27377,8 @@ function registerExtensionHandlers() {
     }
     let extensionName = "Unknown Extension";
     try {
-      const manifest = require(manifestPath);
+      const manifestContent = require$$1$1.readFileSync(manifestPath, "utf-8");
+      const manifest = JSON.parse(manifestContent);
       extensionName = manifest.name || manifest.short_name || extensionName;
     } catch (e) {
       console.error("[Extensions] Failed to read manifest:", e);
