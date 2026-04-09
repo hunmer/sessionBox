@@ -164,13 +164,6 @@ function getColorHoverStyle(color: string) {
         </CollapsibleContent>
       </SidebarMenuItem>
     </Collapsible>
-
-    <SidebarMenuItem>
-      <SidebarMenuButton class="text-sidebar-foreground/70">
-        <MoreHorizontal />
-        <span>More</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
   </SidebarMenu>
 </template>
 
