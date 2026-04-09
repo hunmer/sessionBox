@@ -10355,14 +10355,15 @@ function reorderWorkspaces(workspaceIds) {
 function listGroups() {
   return getCollection("groups").sort((a, b) => a.order - b.order);
 }
-function createGroup(name, color, workspaceId) {
+function createGroup(name, color, workspaceId, proxyId) {
   const groups = getCollection("groups");
   const group = {
     id: require$$0.randomUUID(),
     name,
     order: groups.length,
     ...color ? { color } : {},
-    workspaceId: workspaceId || DEFAULT_WORKSPACE_ID
+    workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
+    ...proxyId ? { proxyId } : {}
   };
   groups.push(group);
   setCollection("groups", groups);
@@ -14629,15 +14630,23 @@ function registerTabIpcHandlers() {
   require$$1.ipcMain.handle("tab:create", (_e, accountId, url) => {
     const tabs = listTabs();
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1;
+    const mainWindow2 = webviewManager.getMainWindow();
+    const isInternalPage = url?.startsWith("sessionbox://");
+    const internalPageTitles = {
+      "bookmarks": "书签管理"
+    };
+    const pageKey = isInternalPage ? url.replace("sessionbox://", "") : null;
+    const internalPageTitle = pageKey ? internalPageTitles[pageKey] || pageKey : null;
     if (!accountId) {
       const tabUrl2 = url || "https://www.baidu.com";
       const tab2 = createTab({
         accountId: "",
-        title: "新标签页",
+        title: internalPageTitle || "新标签页",
         url: tabUrl2,
         order
       });
       webviewManager.createView(tab2.id, "", tabUrl2);
+      mainWindow2?.webContents.send("on:tab:created", tab2);
       return tab2;
     }
     const account = getAccountById(accountId);
@@ -14650,6 +14659,7 @@ function registerTabIpcHandlers() {
       order
     });
     webviewManager.createView(tab.id, accountId, tabUrl);
+    mainWindow2?.webContents.send("on:tab:created", tab);
     return tab;
   });
   require$$1.ipcMain.handle("tab:close", (_e, tabId) => {
@@ -27792,7 +27802,7 @@ function registerIpcHandlers() {
   require$$1.ipcMain.handle("workspace:delete", (_e, id2) => deleteWorkspace(id2));
   require$$1.ipcMain.handle("workspace:reorder", (_e, workspaceIds) => reorderWorkspaces(workspaceIds));
   require$$1.ipcMain.handle("group:list", () => listGroups());
-  require$$1.ipcMain.handle("group:create", (_e, name, color, workspaceId) => createGroup(name, color, workspaceId));
+  require$$1.ipcMain.handle("group:create", (_e, name, color, workspaceId, proxyId) => createGroup(name, color, workspaceId, proxyId));
   require$$1.ipcMain.handle(
     "group:update",
     (_e, id2, data) => updateGroup(id2, data)
@@ -27922,10 +27932,6 @@ $img.Dispose()`;
   });
   require$$1.ipcMain.handle("window:isMaximized", () => {
     return require$$1.BrowserWindow.getFocusedWindow()?.isMaximized() ?? false;
-  });
-  require$$1.ipcMain.handle("sidebar:toggle", () => {
-    const win = require$$1.BrowserWindow.getFocusedWindow();
-    win?.webContents.send("sidebar:toggle");
   });
   require$$1.ipcMain.handle("openExternal", (_e, url) => require$$1.shell.openExternal(url));
 }

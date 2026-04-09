@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import type { Tab, NavState } from '../types'
 import { useAccountStore } from './account'
 import { useWorkspaceStore } from './workspace'
@@ -101,7 +101,8 @@ export const useTabStore = defineStore('tab', () => {
         })
         .map((a) => a.id)
     )
-    return sortedTabs.value.filter((t) => accountIds.has(t.accountId))
+    // 包含账号匹配的 tab 以及无账号的内部页面 tab
+    return sortedTabs.value.filter((t) => accountIds.has(t.accountId) || t.accountId === '')
   })
 
   /** 工作区内带分组标记的标签列表 */
@@ -110,9 +111,15 @@ export const useTabStore = defineStore('tab', () => {
 
     const accountStore = useAccountStore()
     const groupMap = new Map<string, { name: string; color?: string; tabs: Tab[] }>()
+    const internalTabs: (Tab & { groupName: string; groupColor?: string; isGroupStart: boolean })[] = []
+
     for (const tab of workspaceTabs.value) {
       const account = accountStore.getAccount(tab.accountId)
-      if (!account) continue
+      // 内部页面 tab（无账号）单独收集，不显示分组标识
+      if (!account) {
+        internalTabs.push({ ...tab, groupName: '', groupColor: undefined, isGroupStart: false })
+        continue
+      }
       const group = accountStore.getGroup(account.groupId)
       const key = group?.id ?? '__ungrouped__'
       const name = group?.name ?? '未分组'
@@ -133,6 +140,8 @@ export const useTabStore = defineStore('tab', () => {
         result.push({ ...tab, groupName: group.name, groupColor: group.color, isGroupStart: i === 0 })
       })
     }
+    // 内部页面 tab 放在最后
+    result.push(...internalTabs)
     return result
   })
 
@@ -168,7 +177,7 @@ export const useTabStore = defineStore('tab', () => {
 
   async function createTab(accountId: string) {
     const tab = await api.tab.create(accountId)
-    tabs.value.push(tab)
+    // tab 由主进程 tab:created 事件添加
     await switchTab(tab.id)
     return tab
   }
@@ -176,7 +185,8 @@ export const useTabStore = defineStore('tab', () => {
   /** 使用指定 URL 创建新 tab（用于快捷网站 / 新窗口拦截） */
   async function createTabForSite(url: string, accountId?: string) {
     const tab = await api.tab.create(accountId || null, url)
-    tabs.value.push(tab)
+    // tab 由主进程 tab:created 事件添加，或 tab:activated 事件激活已有 tab
+    await nextTick() // 确保 tab 先添加到列表再切换
     await switchTab(tab.id)
     return tab
   }
@@ -184,7 +194,7 @@ export const useTabStore = defineStore('tab', () => {
   /** 使用指定 URL 创建新 tab（用于新窗口拦截） */
   async function createTabWithUrl(accountId: string, url: string) {
     const tab = await api.tab.create(accountId, url)
-    tabs.value.push(tab)
+    // tab 由主进程 tab:created 事件添加
     await switchTab(tab.id)
     return tab
   }
@@ -343,6 +353,10 @@ export const useTabStore = defineStore('tab', () => {
     const workspaceStore = useWorkspaceStore()
     return workspaceStore.activeWorkspaceId
   }, () => {
+    // 如果当前是内部页面 tab，不自动切换
+    const currentTab = tabs.value.find((t) => t.id === activeTabId.value)
+    if (currentTab?.url.startsWith('sessionbox://')) return
+
     const inWorkspace = workspaceTabs.value.some((t) => t.id === activeTabId.value)
     if (inWorkspace) return
     if (workspaceTabs.value.length > 0) {

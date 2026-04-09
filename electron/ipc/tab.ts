@@ -25,17 +25,37 @@ export function registerTabIpcHandlers(): void {
   ipcMain.handle('tab:create', (_e, accountId: string | null, url?: string) => {
     const tabs = listTabs()
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
+    const mainWindow = webviewManager.getMainWindow()
+
+    // 内部页面：检查是否已存在相同 URL 的 tab
+    if (url?.startsWith('sessionbox://')) {
+      const existingTab = tabs.find((t) => t.url === url)
+      if (existingTab) {
+        mainWindow?.webContents.send('on:tab:activated', existingTab.id)
+        return existingTab
+      }
+    }
+
+    // 根据 URL 判断是否为内部页面，并设置标题
+    const isInternalPage = url?.startsWith('sessionbox://')
+    // 内部页面标题映射
+    const internalPageTitles: Record<string, string> = {
+      'bookmarks': '书签管理',
+    }
+    const pageKey = isInternalPage ? url!.replace('sessionbox://', '') : null
+    const internalPageTitle = pageKey ? (internalPageTitles[pageKey] || pageKey) : null
 
     if (!accountId) {
       // 无账号模式：使用默认 partition
       const tabUrl = url || 'https://www.baidu.com'
       const tab = createTab({
         accountId: '',
-        title: '新标签页',
+        title: internalPageTitle || '新标签页',
         url: tabUrl,
         order
       })
       webviewManager.createView(tab.id, '', tabUrl)
+      mainWindow?.webContents.send('on:tab:created', tab)
       return tab
     }
 
@@ -50,6 +70,7 @@ export function registerTabIpcHandlers(): void {
       order
     })
     webviewManager.createView(tab.id, accountId, tabUrl)
+    mainWindow?.webContents.send('on:tab:created', tab)
     return tab
   })
 

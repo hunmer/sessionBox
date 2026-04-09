@@ -88,7 +88,7 @@ const api = {
   },
   group: {
     list: () => electron.ipcRenderer.invoke("group:list"),
-    create: (name, color, workspaceId) => electron.ipcRenderer.invoke("group:create", name, color, workspaceId),
+    create: (name, color, workspaceId, proxyId) => electron.ipcRenderer.invoke("group:create", name, color, workspaceId, proxyId),
     update: (id, data) => electron.ipcRenderer.invoke("group:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("group:delete", id),
     reorder: (groupIds) => electron.ipcRenderer.invoke("group:reorder", groupIds)
@@ -164,9 +164,6 @@ const api = {
     maximize: () => electron.ipcRenderer.invoke("window:maximize"),
     close: () => electron.ipcRenderer.invoke("window:close"),
     isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized")
-  },
-  sidebar: {
-    toggle: () => electron.ipcRenderer.invoke("sidebar:toggle")
   },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   // 自动更新
