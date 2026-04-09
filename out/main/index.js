@@ -10301,7 +10301,8 @@ const defaults = {
     { id: "default-wechat", title: "微信视频号助手", url: "https://channels.weixin.qq.com/platform/post/create" }
   ],
   extensions: [],
-  accountExtensions: {}
+  accountExtensions: {},
+  windowState: { width: 1280, height: 800, isMaximized: false }
 };
 const store = new Store({ defaults });
 function getCollection(key) {
@@ -10533,6 +10534,12 @@ function deleteExtension(id2) {
     accountExtensions[accountId] = accountExtensions[accountId].filter((eid) => eid !== id2);
   }
   setCollection("accountExtensions", accountExtensions);
+}
+function getWindowState$1() {
+  return store.get("windowState", defaults.windowState);
+}
+function setWindowState(state) {
+  store.set("windowState", state);
 }
 var src = { exports: {} };
 var browser = { exports: {} };
@@ -27663,6 +27670,17 @@ function registerExtensionHandlers() {
   require$$1.ipcMain.handle(
     "extension:update",
     async (_event, id2, data) => {
+      const extension = listExtensions().find((item) => item.id === id2);
+      if (!extension) {
+        throw new Error(`扩展 ${id2} 不存在`);
+      }
+      if ("enabled" in data && data.enabled !== extension.enabled) {
+        if (data.enabled) {
+          await loadExtensionForAllAccounts(extension);
+        } else {
+          await unloadExtensionFromAllAccounts(id2);
+        }
+      }
       updateExtension(id2, data);
     }
   );
@@ -27808,6 +27826,16 @@ $img.Dispose()`;
   });
   require$$1.ipcMain.handle("openExternal", (_e, url) => require$$1.shell.openExternal(url));
 }
+function throttle(fn, delay) {
+  let timer = null;
+  return ((...args) => {
+    if (timer) return;
+    timer = setTimeout(() => {
+      fn(...args);
+      timer = null;
+    }, delay);
+  });
+}
 setupUserAgent();
 require$$1.protocol.registerSchemesAsPrivileged([
   {
@@ -27843,9 +27871,12 @@ if (!gotTheLock) {
 } else {
   let createWindow = function() {
     const iconPath = require$$1.app.isPackaged ? require$$1$2.join(process.resourcesPath, "icon.png") : require$$1$2.join(__dirname, "../../resources/icon.png");
+    const windowState = getWindowState$1();
     const mainWindow2 = new require$$1.BrowserWindow({
-      width: 1280,
-      height: 800,
+      x: windowState.x,
+      y: windowState.y,
+      width: windowState.width,
+      height: windowState.height,
       show: false,
       autoHideMenuBar: true,
       frame: false,
@@ -27856,6 +27887,9 @@ if (!gotTheLock) {
         sandbox: false
       }
     });
+    if (windowState.isMaximized) {
+      mainWindow2.maximize();
+    }
     webviewManager.setMainWindow(mainWindow2);
     getAutoUpdater().setMainWindow(mainWindow2);
     mainWindow2.on("ready-to-show", () => {
@@ -27863,11 +27897,40 @@ if (!gotTheLock) {
     });
     mainWindow2.on("maximize", () => {
       mainWindow2.webContents.send("on:window:maximized");
+      const state = getWindowState$1();
+      setWindowState({ ...state, isMaximized: true });
     });
     mainWindow2.on("unmaximize", () => {
       mainWindow2.webContents.send("on:window:unmaximized");
+      const state = getWindowState$1();
+      setWindowState({ ...state, isMaximized: false });
     });
+    const saveWindowBounds = throttle(() => {
+      if (mainWindow2.isMaximized()) return;
+      const bounds = mainWindow2.getBounds();
+      const state = getWindowState$1();
+      setWindowState({
+        ...state,
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height
+      });
+    }, 500);
+    mainWindow2.on("resize", saveWindowBounds);
+    mainWindow2.on("move", saveWindowBounds);
     mainWindow2.on("closed", () => {
+      if (!mainWindow2.isMaximized()) {
+        const bounds = mainWindow2.getBounds();
+        const state = getWindowState$1();
+        setWindowState({
+          ...state,
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height
+        });
+      }
       webviewManager.destroyAll();
     });
     const protocolUrl = process.argv.find((arg) => arg.startsWith("sessionbox://"));

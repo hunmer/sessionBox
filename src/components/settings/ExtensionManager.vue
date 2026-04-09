@@ -57,6 +57,8 @@ async function addExtension() {
 async function toggleExtension(extensionId: string, enabled: boolean) {
   try {
     await extensionStore.updateExtension(extensionId, { enabled })
+    // 同步更新 loadedExtensionIds 状态
+    await extensionStore.refreshLoadedExtensions()
   } catch (errorCause) {
     error.value = errorCause instanceof Error ? errorCause.message : '更新扩展失败'
   }
@@ -132,8 +134,8 @@ defineExpose({ open, close })
 
               <div class="flex items-center gap-2">
                 <Switch
-                  :checked="ext.enabled"
-                  @update:checked="toggleExtension(ext.id, $event)"
+                  :model-value="ext.enabled"
+                  @update:model-value="toggleExtension(ext.id, $event)"
                   :disabled="isLoading"
                 />
                 <Button

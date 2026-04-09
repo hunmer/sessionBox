@@ -65,6 +65,15 @@ export interface Extension {
   icon?: string
 }
 
+// 窗口状态
+export interface WindowState {
+  x?: number
+  y?: number
+  width: number
+  height: number
+  isMaximized: boolean
+}
+
 interface StoreSchema {
   workspaces: Workspace[]
   groups: Group[]
@@ -74,6 +83,7 @@ interface StoreSchema {
   favoriteSites: FavoriteSite[]
   extensions: Extension[]
   accountExtensions: Record<string, string[]>  // accountId -> extensionIds
+  windowState: WindowState
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -92,7 +102,8 @@ const defaults: StoreSchema = {
     { id: 'default-wechat', title: '微信视频号助手', url: 'https://channels.weixin.qq.com/platform/post/create' }
   ],
   extensions: [],
-  accountExtensions: {}
+  accountExtensions: {},
+  windowState: { width: 1280, height: 800, isMaximized: false }
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -415,4 +426,14 @@ export function removeExtensionFromAccount(accountId: string, extensionId: strin
     accountExtensions[accountId] = accountExtensions[accountId].filter((id) => id !== extensionId)
     setCollection('accountExtensions', accountExtensions)
   }
+}
+
+// ====== 窗口状态操作 ======
+
+export function getWindowState(): WindowState {
+  return store.get('windowState', defaults.windowState)
+}
+
+export function setWindowState(state: WindowState): void {
+  store.set('windowState', state)
 }

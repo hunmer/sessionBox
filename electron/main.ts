@@ -4,8 +4,20 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupUserAgent } from './utils/user-agent'
 import { registerIpcHandlers } from './ipc'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
-import { listExtensions } from './services/store'
+import { listExtensions, getWindowState, setWindowState } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
+
+// 节流函数
+function throttle<T extends (...args: any[]) => void>(fn: T, delay: number): T {
+  let timer: NodeJS.Timeout | null = null
+  return ((...args: Parameters<T>) => {
+    if (timer) return
+    timer = setTimeout(() => {
+      fn(...args)
+      timer = null
+    }, delay)
+  }) as T
+}
 
 // 在 app ready 之前设置 UA
 setupUserAgent()
@@ -59,9 +71,15 @@ if (!gotTheLock) {
     const iconPath = app.isPackaged
       ? join(process.resourcesPath, 'icon.png')
       : join(__dirname, '../../resources/icon.png')
+
+    // 加载窗口状态
+    const windowState = getWindowState()
+
     const mainWindow = new BrowserWindow({
-      width: 1280,
-      height: 800,
+      x: windowState.x,
+      y: windowState.y,
+      width: windowState.width,
+      height: windowState.height,
       show: false,
       autoHideMenuBar: true,
       frame: false,
@@ -72,6 +90,11 @@ if (!gotTheLock) {
         sandbox: false
       }
     })
+
+    // 如果保存的状态是最大化，则恢复
+    if (windowState.isMaximized) {
+      mainWindow.maximize()
+    }
 
     // 初始化 WebContentsView 管理器
     webviewManager.setMainWindow(mainWindow)
@@ -86,13 +109,47 @@ if (!gotTheLock) {
     // 通知渲染进程窗口最大化状态变化
     mainWindow.on('maximize', () => {
       mainWindow.webContents.send('on:window:maximized')
+      // 同步保存最大化状态
+      const state = getWindowState()
+      setWindowState({ ...state, isMaximized: true })
     })
     mainWindow.on('unmaximize', () => {
       mainWindow.webContents.send('on:window:unmaximized')
+      const state = getWindowState()
+      setWindowState({ ...state, isMaximized: false })
     })
 
-    // 窗口关闭时销毁所有 WebContentsView
+    // 节流保存窗口状态（位置和大小变化时）
+    const saveWindowBounds = throttle(() => {
+      if (mainWindow.isMaximized()) return
+      const bounds = mainWindow.getBounds()
+      const state = getWindowState()
+      setWindowState({
+        ...state,
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height
+      })
+    }, 500)
+
+    mainWindow.on('resize', saveWindowBounds)
+    mainWindow.on('move', saveWindowBounds)
+
+    // 窗口关闭时保存最终状态并销毁 WebContentsView
     mainWindow.on('closed', () => {
+      // 保存最终窗口状态
+      if (!mainWindow.isMaximized()) {
+        const bounds = mainWindow.getBounds()
+        const state = getWindowState()
+        setWindowState({
+          ...state,
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height
+        })
+      }
       webviewManager.destroyAll()
     })
 

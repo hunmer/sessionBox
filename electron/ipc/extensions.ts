@@ -153,6 +153,22 @@ export function registerExtensionHandlers(): void {
   ipcMain.handle(
     'extension:update',
     async (_event, id: string, data: Partial<Omit<Extension, 'id'>>): Promise<void> => {
+      const extension = listExtensions().find((item) => item.id === id)
+      if (!extension) {
+        throw new Error(`扩展 ${id} 不存在`)
+      }
+
+      // 如果 `enabled` 状态发生变化，需要同步加载或卸载扩展
+      if ('enabled' in data && data.enabled !== extension.enabled) {
+        if (data.enabled) {
+          // 启用：加载扩展
+          await loadExtensionForAllAccounts(extension)
+        } else {
+          // 禁用：卸载扩展
+          await unloadExtensionFromAllAccounts(id)
+        }
+      }
+
       updateExtension(id, data)
     }
   )
