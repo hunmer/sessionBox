@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "mcp__shadcnVue__get_add_command_for_items",
-      "mcp__shadcnVue__view_items_in_registries"
+      "mcp__shadcnVue__view_items_in_registries",
+      "mcp__fetch__fetch"
     ]
   }
 }

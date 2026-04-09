@@ -1,154 +1,108 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { ChevronRight, Plus, MoreHorizontal } from 'lucide-vue-next'
-import draggable from 'vuedraggable'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Badge } from '@/components/ui/badge'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
-import AccountItem from './AccountItem.vue'
-import { useAccountStore } from '@/stores/account'
-import { useTabStore } from '@/stores/tab'
-import type { Group, Account } from '@/types'
+import { reactive } from 'vue'
+import { ChevronRight, MoreHorizontal, Plus } from "lucide-vue-next"
+
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import {
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+} from "@/components/ui/sidebar"
 
 const props = defineProps<{
-  group: Group
-  collapsed: boolean
+  workspaces: {
+    name: string
+    emoji: string
+    color?: string
+    pages: {
+      id: string
+      name: string
+      emoji: string
+    }[]
+  }[]
 }>()
 
 const emit = defineEmits<{
-  editGroup: [group: Group]
-  deleteGroup: [group: Group]
-  addAccount: [groupId: string]
-  editAccount: [account: Account]
-  deleteAccount: [account: Account]
+  selectAccount: [accountId: string]
 }>()
 
-const accountStore = useAccountStore()
-const tabStore = useTabStore()
-const open = ref(true)
-const pickerOpen = ref(false)
+// 为每个 workspace 维护独立的折叠状态
+const openStates = reactive<Record<string, boolean>>({})
 
-/** 该分组下的账号（已排序） */
-const accounts = computed(() => {
-  const list = accountStore.accountsByGroup.get(props.group.id) || []
-  return list.sort((a, b) => a.order - b.order)
+// 初始化所有为展开状态
+props.workspaces.forEach((w) => {
+  if (openStates[w.name] === undefined) {
+    openStates[w.name] = true
+  }
 })
 
-/** 该分组是否有激活的 tab */
-const isGroupActive = computed(() =>
-  accounts.value.some((a) => tabStore.activeTab?.accountId === a.id)
-)
-
-/** 折叠态选中账号：切换或创建 tab */
-function handlePickerSelect(account: Account) {
-  const accountTabs = tabStore.sortedTabs.filter((t) => t.accountId === account.id)
-  if (accountTabs.length > 0) {
-    tabStore.switchTab(accountTabs[accountTabs.length - 1].id)
-  } else {
-    tabStore.createTab(account.id)
-  }
-}
-
-/** 拖拽过程中立即更新 order 并替换 store 数据，防止 computed 按旧 order 重排 */
-function onAccountUpdate(newList: typeof accounts.value) {
-  newList.forEach((a, i) => { a.order = i })
-  const otherAccounts = accountStore.accounts.filter(a => a.groupId !== props.group.id)
-  accountStore.accounts = [...otherAccounts, ...newList]
-}
-
-/** 拖拽结束后持久化新顺序 */
-function onAccountDragEnd() {
-  const ids = accounts.value.map((a) => a.id)
-  accountStore.reorderAccounts(ids)
+function handleAccountClick(pageId: string) {
+  emit('selectAccount', pageId)
 }
 </script>
 
 <template>
-  <!-- 折叠态：点击弹出 Dialog 展示账号列表 -->
-  <template v-if="collapsed">
-    <div
-      class="group group-handle flex items-center gap-1 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
-      :class="isGroupActive ? (group.color ? '' : 'text-primary') : 'text-muted-foreground hover:text-sidebar-foreground'"
-      :style="isGroupActive && group.color ? { color: group.color } : undefined"
-      @click="pickerOpen = true"
+  <SidebarMenu>
+    <Collapsible
+      v-for="workspace in workspaces"
+      :key="workspace.name"
+      v-model:open="openStates[workspace.name]"
     >
-      <span class="flex-1 text-xs font-medium text-center" :style="group.color ? { color: group.color } : undefined">
-        {{ group.name.charAt(0) }}
-      </span>
-    </div>
-    <AccountPickerDialog
-      :open="pickerOpen"
-      :group-id="group.id"
-      :title="group.name"
-      @update:open="pickerOpen = $event"
-      @select="handlePickerSelect"
-    />
-  </template>
-
-  <!-- 展开态：原有的 Collapsible 行为 -->
-  <Collapsible v-else v-model:open="open">
-    <!-- 分组标题 -->
-    <div
-      class="group group-handle flex items-center gap-1 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
-      :class="isGroupActive ? (group.color ? '' : 'text-primary') : 'text-muted-foreground hover:text-sidebar-foreground'"
-      :style="isGroupActive && group.color ? { color: group.color } : undefined"
-    >
-      <CollapsibleTrigger as-child>
-        <button class="flex-shrink-0 transition-transform" :class="open ? 'rotate-90' : ''">
-          <ChevronRight class="w-3.5 h-3.5" />
-        </button>
-      </CollapsibleTrigger>
-      <Badge
-        class="flex-1 truncate uppercase tracking-wider text-[10px]"
-        :variant="group.color ? 'outline' : 'outline'"
-        :style="group.color ? { borderColor: group.color, color: group.color } : undefined"
-      >
-        {{ group.name }}
-      </Badge>
-      <!-- 增加账号按钮 -->
-      <button
-        class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity"
-        @click.stop="emit('addAccount', group.id)"
-      >
-        <Plus class="w-3.5 h-3.5" />
-      </button>
-      <!-- 更多操作 -->
-      <DropdownMenu>
-        <DropdownMenuTrigger as-child>
-          <button
-            class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-sidebar-hover transition-opacity"
-            @click.stop
+      <SidebarMenuItem>
+        <SidebarMenuButton as-child>
+          <a href="#">
+            <span
+              v-if="workspace.color"
+              class="w-4 h-4 rounded-sm flex-shrink-0"
+              :style="{ backgroundColor: workspace.color }"
+            ></span>
+            <span v-else>{{ workspace.emoji }}</span>
+            <span>{{ workspace.name }}</span>
+          </a>
+        </SidebarMenuButton>
+        <CollapsibleTrigger as-child>
+          <SidebarMenuAction
+            class="left-2 bg-sidebar-accent text-sidebar-accent-foreground data-[state=open]:rotate-90"
+            show-on-hover
           >
-            <MoreHorizontal class="w-3.5 h-3.5" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" class="w-36">
-          <DropdownMenuItem @click="emit('editGroup', group)">编辑分组</DropdownMenuItem>
-          <DropdownMenuItem class="text-destructive" @click="emit('deleteGroup', group)">删除分组</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+            <ChevronRight />
+          </SidebarMenuAction>
+        </CollapsibleTrigger>
+        <SidebarMenuAction show-on-hover>
+          <Plus />
+        </SidebarMenuAction>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            <SidebarMenuSubItem v-for="page in workspace.pages" :key="page.id">
+              <SidebarMenuSubButton as-child>
+                <a
+                  href="#"
+                  class="flex items-center gap-2 w-full text-left"
+                  @click.prevent="handleAccountClick(page.id)"
+                >
+                  <span>{{ page.emoji }}</span>
+                  <span>{{ page.name }}</span>
+                </a>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
 
-    <!-- 账号列表 -->
-    <CollapsibleContent>
-      <draggable
-        :model-value="accounts"
-        :animation="150"
-        item-key="id"
-        class="space-y-0.5 pl-3"
-        @end="onAccountDragEnd"
-        @update:model-value="onAccountUpdate"
-      >
-        <template #item="{ element: account }">
-          <AccountItem
-            :account="account"
-            :collapsed="collapsed"
-            @edit="emit('editAccount', $event)"
-            @delete="emit('deleteAccount', $event)"
-          />
-        </template>
-      </draggable>
-    </CollapsibleContent>
-  </Collapsible>
+    <SidebarMenuItem>
+      <SidebarMenuButton class="text-sidebar-foreground/70">
+        <MoreHorizontal />
+        <span>More</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  </SidebarMenu>
 </template>

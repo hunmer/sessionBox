@@ -62,6 +62,10 @@
     --ring: #3b82f6;
     --sidebar: #f8f9fa;
     --sidebar-foreground: #222222;
+    --sidebar-primary: #3b82f6;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #e5e7eb;
+    --sidebar-accent-foreground: #222222;
     --sidebar-hover: #e5e7eb;
     --sidebar-border: #e5e7eb;
   }
@@ -89,6 +93,10 @@
     --ring: #3b82f6;
     --sidebar: #131920;
     --sidebar-foreground: #e8eaed;
+    --sidebar-primary: #3b82f6;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #252d38;
+    --sidebar-accent-foreground: #e8eaed;
     --sidebar-hover: #252d38;
     --sidebar-border: #2d3544;
   }
