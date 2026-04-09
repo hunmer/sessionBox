@@ -1,7 +1,16 @@
 import { session } from 'electron'
 import { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import type { BrowserWindow, Session, WebContents } from 'electron'
-import { listAccounts, listExtensions, type Extension } from './store'
+import {
+  createTab as createStoredTab,
+  deleteTab as deleteStoredTab,
+  getAccountById,
+  listAccounts,
+  listExtensions,
+  listTabs,
+  type Extension
+} from './store'
+import { webviewManager } from './webview-manager'
 
 const extensionRuntimeLicense = process.env.ELECTRON_CHROME_EXTENSIONS_LICENSE || 'GPL-3.0'
 const defaultPartitionKey = '__default__'
@@ -59,19 +68,85 @@ function getLoadedElectronExtensionId(
     .find((loadedExtension) => loadedExtension.path === extensionPath)?.id
 }
 
-function createExtensionsInstance(browserSession: Session): ElectronChromeExtensions {
+function getInitialExtensionTabTitle(
+  partitionKey: string,
+  url?: string,
+  fallbackTitle?: string
+): string {
+  if (!url) {
+    return fallbackTitle || '新标签页'
+  }
+
+  if (url.startsWith('chrome-extension://')) {
+    try {
+      const { host } = new URL(url)
+      const extensionInfo = getExtensionInfo(partitionKey, host)
+      return extensionInfo?.name || '扩展页面'
+    } catch {
+      return '扩展页面'
+    }
+  }
+
+  return fallbackTitle || url
+}
+
+function createExtensionsInstance(
+  browserSession: Session,
+  accountId?: string | null
+): ElectronChromeExtensions {
   const instance = new ElectronChromeExtensions({
     license: extensionRuntimeLicense,
     session: browserSession,
-    createTab(details) {
+    async createTab(details) {
       console.log('[Extensions] createTab requested:', details)
-      return undefined as unknown as [WebContents, BrowserWindow]
+
+      const mainWindow = webviewManager.getMainWindow()
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        throw new Error('Main window is not available')
+      }
+
+      const resolvedAccountId = accountId || null
+      const partitionKey = getPartitionKey(resolvedAccountId)
+      const account = resolvedAccountId ? getAccountById(resolvedAccountId) : undefined
+      const tabUrl = details.url || account?.defaultUrl || 'https://www.baidu.com'
+      const order = listTabs().reduce((max, tab) => Math.max(max, tab.order), -1) + 1
+
+      const tab = createStoredTab({
+        accountId: resolvedAccountId || '',
+        title: getInitialExtensionTabTitle(partitionKey, details.url, account?.name),
+        url: tabUrl,
+        order
+      })
+
+      const webContents = webviewManager.createView(tab.id, resolvedAccountId || '', tabUrl)
+      if (!webContents) {
+        deleteStoredTab(tab.id)
+        throw new Error('Failed to create extension tab webContents')
+      }
+
+      mainWindow.webContents.send('on:tab:created', tab)
+
+      if (details.active !== false) {
+        webviewManager.switchView(tab.id)
+      }
+
+      return [webContents, mainWindow]
     },
     selectTab(webContents) {
       console.log('[Extensions] selectTab:', webContents.id)
+      webviewManager.switchByWebContents(webContents)
     },
     removeTab(webContents) {
       console.log('[Extensions] removeTab:', webContents.id)
+      const tabId = webviewManager.destroyByWebContents(webContents)
+      if (!tabId) return
+
+      deleteStoredTab(tabId)
+
+      const mainWindow = webviewManager.getMainWindow()
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('on:tab:removed', tabId)
+      }
     }
   })
 
@@ -87,7 +162,7 @@ export function getExtensionsForAccount(accountId?: string | null): ElectronChro
 
   if (!extensionsMap.has(partitionKey)) {
     const browserSession = getSessionForAccount(accountId)
-    extensionsMap.set(partitionKey, createExtensionsInstance(browserSession))
+    extensionsMap.set(partitionKey, createExtensionsInstance(browserSession, accountId))
   }
 
   return extensionsMap.get(partitionKey)!

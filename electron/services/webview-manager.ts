@@ -51,11 +51,15 @@ class WebviewManager {
     this.mainWindow = win
   }
 
-  createView(tabId: string, accountId: string, url: string): void {
-    if (!this.mainWindow) return
+  getMainWindow(): BrowserWindow | null {
+    return this.mainWindow
+  }
+
+  createView(tabId: string, accountId: string, url: string) {
+    if (!this.mainWindow) return null
 
     const account = accountId ? getAccountById(accountId) : undefined
-    if (accountId && !account) return
+    if (accountId && !account) return null
 
     const proxyId =
       account?.proxyId ?? (account ? getGroupById(account.groupId)?.proxyId : undefined)
@@ -91,6 +95,8 @@ class WebviewManager {
       await ensureExtensionsLoadedForAccount(accountId || null)
       await view.webContents.loadURL(url)
     })()
+
+    return view.webContents
   }
 
   private setupEventForwarding(tabId: string, view: WebContentsView): void {
@@ -208,6 +214,7 @@ class WebviewManager {
     const extensions = getExtensionsForAccount(target.accountId || null)
     extensions.selectTab(target.view.webContents)
 
+    this.mainWindow.webContents.send('on:tab:activated', tabId)
     this.mainWindow.webContents.send('on:tab:request-bounds')
   }
 
@@ -289,6 +296,35 @@ class WebviewManager {
       url: entry.view.webContents.getURL(),
       accountId: entry.accountId
     }
+  }
+
+  getWebContents(tabId: string) {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) return null
+    return entry.view.webContents
+  }
+
+  getTabIdByWebContents(target: Electron.WebContents): string | null {
+    for (const [tabId, entry] of this.views) {
+      if (entry.view.webContents === target) {
+        return tabId
+      }
+    }
+    return null
+  }
+
+  switchByWebContents(target: Electron.WebContents): string | null {
+    const tabId = this.getTabIdByWebContents(target)
+    if (!tabId) return null
+    this.switchView(tabId)
+    return tabId
+  }
+
+  destroyByWebContents(target: Electron.WebContents): string | null {
+    const tabId = this.getTabIdByWebContents(target)
+    if (!tabId) return null
+    this.destroyView(tabId)
+    return tabId
   }
 }
 

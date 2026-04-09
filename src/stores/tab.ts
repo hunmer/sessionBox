@@ -192,6 +192,27 @@ export const useTabStore = defineStore('tab', () => {
 
   /** 注册主进程 → 渲染进程事件监听 */
   function setupListeners() {
+    api.on('tab:created', (tab: unknown) => {
+      const nextTab = tab as Tab
+      if (!tabs.value.some((item) => item.id === nextTab.id)) {
+        tabs.value.push(nextTab)
+      }
+    })
+
+    api.on('tab:removed', (tabId: unknown) => {
+      const id = tabId as string
+      tabs.value = tabs.value.filter((t) => t.id !== id)
+      navStates.value.delete(id)
+      favicons.value.delete(id)
+      if (activeTabId.value === id) {
+        activeTabId.value = null
+      }
+    })
+
+    api.on('tab:activated', (tabId: unknown) => {
+      activeTabId.value = tabId as string
+    })
+
     api.on('tab:title-updated', (tabId: unknown, title: unknown) => {
       const t = tabs.value.find((t) => t.id === tabId)
       if (t) t.title = title as string

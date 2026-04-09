@@ -14045,19 +14045,66 @@ function getLoadedElectronExtensionId(browserSession, extensionPath) {
   const sessionExtensions = browserSession.extensions || browserSession;
   return sessionExtensions.getAllExtensions().find((loadedExtension) => loadedExtension.path === extensionPath)?.id;
 }
-function createExtensionsInstance(browserSession) {
+function getInitialExtensionTabTitle(partitionKey, url, fallbackTitle) {
+  if (!url) {
+    return fallbackTitle || "新标签页";
+  }
+  if (url.startsWith("chrome-extension://")) {
+    try {
+      const { host } = new URL(url);
+      const extensionInfo = getExtensionInfo(partitionKey, host);
+      return extensionInfo?.name || "扩展页面";
+    } catch {
+      return "扩展页面";
+    }
+  }
+  return fallbackTitle || url;
+}
+function createExtensionsInstance(browserSession, accountId) {
   const instance = new ElectronChromeExtensions({
     license: extensionRuntimeLicense,
     session: browserSession,
-    createTab(details) {
+    async createTab(details) {
       console.log("[Extensions] createTab requested:", details);
-      return void 0;
+      const mainWindow2 = webviewManager.getMainWindow();
+      if (!mainWindow2 || mainWindow2.isDestroyed()) {
+        throw new Error("Main window is not available");
+      }
+      const resolvedAccountId = accountId || null;
+      const partitionKey = getPartitionKey(resolvedAccountId);
+      const account = resolvedAccountId ? getAccountById(resolvedAccountId) : void 0;
+      const tabUrl = details.url || account?.defaultUrl || "https://www.baidu.com";
+      const order = listTabs().reduce((max, tab2) => Math.max(max, tab2.order), -1) + 1;
+      const tab = createTab({
+        accountId: resolvedAccountId || "",
+        title: getInitialExtensionTabTitle(partitionKey, details.url, account?.name),
+        url: tabUrl,
+        order
+      });
+      const webContents = webviewManager.createView(tab.id, resolvedAccountId || "", tabUrl);
+      if (!webContents) {
+        deleteTab(tab.id);
+        throw new Error("Failed to create extension tab webContents");
+      }
+      mainWindow2.webContents.send("on:tab:created", tab);
+      if (details.active !== false) {
+        webviewManager.switchView(tab.id);
+      }
+      return [webContents, mainWindow2];
     },
     selectTab(webContents) {
       console.log("[Extensions] selectTab:", webContents.id);
+      webviewManager.switchByWebContents(webContents);
     },
     removeTab(webContents) {
       console.log("[Extensions] removeTab:", webContents.id);
+      const tabId = webviewManager.destroyByWebContents(webContents);
+      if (!tabId) return;
+      deleteTab(tabId);
+      const mainWindow2 = webviewManager.getMainWindow();
+      if (mainWindow2 && !mainWindow2.isDestroyed()) {
+        mainWindow2.webContents.send("on:tab:removed", tabId);
+      }
     }
   });
   ElectronChromeExtensions.handleCRXProtocol(browserSession);
@@ -14067,7 +14114,7 @@ function getExtensionsForAccount(accountId) {
   const partitionKey = getPartitionKey(accountId);
   if (!extensionsMap.has(partitionKey)) {
     const browserSession = getSessionForAccount(accountId);
-    extensionsMap.set(partitionKey, createExtensionsInstance(browserSession));
+    extensionsMap.set(partitionKey, createExtensionsInstance(browserSession, accountId));
   }
   return extensionsMap.get(partitionKey);
 }
@@ -14149,6 +14196,9 @@ async function unloadExtensionFromAllAccounts(extensionId) {
 function getLoadedExtensionIds() {
   return getEnabledExtensions().map((extension) => extension.id);
 }
+function getExtensionInfo(partition, extensionId) {
+  return extensionInfoMap.get(`${partition}:${extensionId}`);
+}
 const BLOCKED_SCHEMES = [
   "bitbrowser",
   "microsoft-edge",
@@ -14186,10 +14236,13 @@ class WebviewManager {
   setMainWindow(win) {
     this.mainWindow = win;
   }
+  getMainWindow() {
+    return this.mainWindow;
+  }
   createView(tabId, accountId, url) {
-    if (!this.mainWindow) return;
+    if (!this.mainWindow) return null;
     const account = accountId ? getAccountById(accountId) : void 0;
-    if (accountId && !account) return;
+    if (accountId && !account) return null;
     const proxyId = account?.proxyId ?? (account ? getGroupById(account.groupId)?.proxyId : void 0);
     const proxy = proxyId ? getProxyById(proxyId) : void 0;
     const view = new require$$1.WebContentsView({
@@ -14216,6 +14269,7 @@ class WebviewManager {
       await ensureExtensionsLoadedForAccount(accountId || null);
       await view.webContents.loadURL(url);
     })();
+    return view.webContents;
   }
   setupEventForwarding(tabId, view) {
     const wc = view.webContents;
@@ -14305,6 +14359,7 @@ class WebviewManager {
     this.activeTabId = tabId;
     const extensions = getExtensionsForAccount(target.accountId || null);
     extensions.selectTab(target.view.webContents);
+    this.mainWindow.webContents.send("on:tab:activated", tabId);
     this.mainWindow.webContents.send("on:tab:request-bounds");
   }
   updateBounds(rect) {
@@ -14373,6 +14428,31 @@ class WebviewManager {
       url: entry.view.webContents.getURL(),
       accountId: entry.accountId
     };
+  }
+  getWebContents(tabId) {
+    const entry = this.views.get(tabId);
+    if (!entry || entry.view.webContents.isDestroyed()) return null;
+    return entry.view.webContents;
+  }
+  getTabIdByWebContents(target) {
+    for (const [tabId, entry] of this.views) {
+      if (entry.view.webContents === target) {
+        return tabId;
+      }
+    }
+    return null;
+  }
+  switchByWebContents(target) {
+    const tabId = this.getTabIdByWebContents(target);
+    if (!tabId) return null;
+    this.switchView(tabId);
+    return tabId;
+  }
+  destroyByWebContents(target) {
+    const tabId = this.getTabIdByWebContents(target);
+    if (!tabId) return null;
+    this.destroyView(tabId);
+    return tabId;
   }
 }
 const webviewManager = new WebviewManager();
