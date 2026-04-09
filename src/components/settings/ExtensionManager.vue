@@ -70,7 +70,12 @@ async function addExtension() {
 /**
  * 为账号加载扩展
  */
-async function loadExtensionToAccount(accountId: string, extensionId: string) {
+async function loadExtensionToAccount(accountId: string | null, extensionId: string) {
+  if (!accountId) {
+    error.value = '请先选择一个账号'
+    return
+  }
+
   isLoading.value = true
   error.value = null
   try {

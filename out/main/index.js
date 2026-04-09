@@ -27320,11 +27320,16 @@ function getExtensionsForAccount(accountId) {
   return extensionsMap.get(partition);
 }
 async function loadExtensionForAccount(accountId, extension) {
+  console.log("[loadExtensionForAccount] Starting...", { accountId, extensionPath: extension.path });
   const extInstance = getExtensionsForAccount(accountId);
-  if (!extInstance) return;
+  if (!extInstance) {
+    console.error("[loadExtensionForAccount] Failed to get extensions instance for account:", accountId);
+    throw new Error(`账号 ${accountId} 不存在`);
+  }
   const partition = `persist:account-${accountId}`;
   const browserSession = require$$1.session.fromPartition(partition);
   try {
+    console.log("[loadExtensionForAccount] Calling browserSession.loadExtension...");
     const loadedExt = await browserSession.loadExtension(extension.path);
     console.log("[Extensions] Loaded extension:", loadedExt.id, extension.name);
     extensionInfoMap.set(`${partition}:${loadedExt.id}`, {
@@ -27391,12 +27396,16 @@ function registerExtensionHandlers() {
     return extension;
   });
   require$$1.ipcMain.handle("extension:load", async (_event, accountId, extensionId) => {
+    console.log("[Extension:load] accountId:", accountId, "extensionId:", extensionId);
     const extensions = listExtensions();
     const extension = extensions.find((e) => e.id === extensionId);
     if (!extension) {
+      console.error("[Extension:load] Extension not found:", extensionId);
       throw new Error(`扩展 ${extensionId} 不存在`);
     }
+    console.log("[Extension:load] Loading extension:", extension.name, "from:", extension.path);
     await loadExtensionForAccount(accountId, extension);
+    console.log("[Extension:load] Extension loaded successfully");
   });
   require$$1.ipcMain.handle("extension:unload", async (_event, accountId, extensionId) => {
     await unloadExtensionFromAccount(accountId, extensionId);

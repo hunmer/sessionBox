@@ -57,13 +57,18 @@ export function registerExtensionHandlers(): void {
 
   // 为指定账号加载扩展
   ipcMain.handle('extension:load', async (_event, accountId: string, extensionId: string): Promise<void> => {
+    console.log('[Extension:load] accountId:', accountId, 'extensionId:', extensionId)
+
     const extensions = listExtensions()
     const extension = extensions.find((e) => e.id === extensionId)
     if (!extension) {
+      console.error('[Extension:load] Extension not found:', extensionId)
       throw new Error(`扩展 ${extensionId} 不存在`)
     }
 
+    console.log('[Extension:load] Loading extension:', extension.name, 'from:', extension.path)
     await loadExtensionForAccount(accountId, extension)
+    console.log('[Extension:load] Extension loaded successfully')
   })
 
   // 从指定账号卸载扩展

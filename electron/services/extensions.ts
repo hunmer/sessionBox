@@ -52,14 +52,20 @@ export function getExtensionsForAccount(accountId: string): ElectronChromeExtens
  * 为账号加载扩展
  */
 export async function loadExtensionForAccount(accountId: string, extension: Extension): Promise<void> {
+  console.log('[loadExtensionForAccount] Starting...', { accountId, extensionPath: extension.path })
+
   const extInstance = getExtensionsForAccount(accountId)
-  if (!extInstance) return
+  if (!extInstance) {
+    console.error('[loadExtensionForAccount] Failed to get extensions instance for account:', accountId)
+    throw new Error(`账号 ${accountId} 不存在`)
+  }
 
   const partition = `persist:account-${accountId}`
   const browserSession = session.fromPartition(partition)
 
   try {
     // 加载扩展到 session
+    console.log('[loadExtensionForAccount] Calling browserSession.loadExtension...')
     const loadedExt = await browserSession.loadExtension(extension.path)
     console.log('[Extensions] Loaded extension:', loadedExt.id, extension.name)
 
