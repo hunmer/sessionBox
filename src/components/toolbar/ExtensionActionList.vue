@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { Loader2, Puzzle } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { ensureBrowserActionInjected } from '@/lib/browser-action'
 import { useExtensionStore } from '@/stores/extension'
 import { useTabStore } from '@/stores/tab'
 
@@ -49,13 +50,8 @@ watch(
 )
 
 async function injectBrowserActionIfNeeded() {
-  if (customElements.get('browser-action-list')) {
-    return
-  }
-
   try {
-    const { injectBrowserAction } = await import('electron-chrome-extensions/browser-action')
-    injectBrowserAction()
+    ensureBrowserActionInjected()
     console.log('[ExtensionActionList] Browser action API injected')
   } catch (error) {
     console.warn('[ExtensionActionList] Failed to inject browser action:', error)

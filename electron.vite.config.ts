@@ -69,16 +69,15 @@ export default defineConfig({
     root: '.',
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src'),
-        'electron-chrome-extensions/browser-action': resolve(
-          __dirname,
-          'node_modules/electron-chrome-extensions/dist/esm/browser-action.mjs'
-        ),
-        'electron-chrome-extensions/dist/browser-action': resolve(
-          __dirname,
-          'node_modules/electron-chrome-extensions/dist/esm/browser-action.mjs'
-        )
+        '@': resolve(__dirname, 'src')
       }
+    },
+    optimizeDeps: {
+      exclude: [
+        'electron-chrome-extensions',
+        'electron-chrome-extensions/browser-action',
+        'electron-chrome-extensions/dist/browser-action'
+      ]
     },
     plugins: [
       vue(),
