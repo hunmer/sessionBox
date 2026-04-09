@@ -14242,32 +14242,21 @@ function getExtensionInfo(partition, extensionId) {
   return extensionInfoMap.get(`${partition}:${extensionId}`);
 }
 function openExtensionBrowserActionPopup(accountId, extensionAppId, anchorRect) {
-  console.log("[Extensions] openBrowserActionPopup called:", { accountId, extensionAppId, anchorRect });
   const partitionKey = getPartitionKey(accountId);
-  console.log("[Extensions] partitionKey:", partitionKey);
   const ext = extensionsMap.get(partitionKey);
   if (!ext) {
     console.warn("[Extensions] No ElectronChromeExtensions instance for partition:", partitionKey);
     return;
   }
   const extension = listExtensions().find((e) => e.id === extensionAppId);
-  if (!extension) {
-    console.warn("[Extensions] Extension not found in store:", extensionAppId);
-    return;
-  }
-  console.log("[Extensions] Found extension in store:", extension.name, extension.path);
+  if (!extension) return;
   const browserSession = getSessionForAccount(accountId);
   const sessionExtensions = browserSession.extensions || browserSession;
-  const allExts = sessionExtensions.getAllExtensions();
-  console.log("[Extensions] Loaded extensions in session:", allExts.map((e) => ({ id: e.id, path: e.path })));
-  const electronExt = allExts.find((e) => e.path === extension.path);
-  if (!electronExt) {
-    console.warn("[Extensions] Extension not loaded in session, path:", extension.path);
-    return;
-  }
-  console.log("[Extensions] Electron extension ID:", electronExt.id);
+  const electronExt = sessionExtensions.getAllExtensions().find(
+    (e) => e.path === extension.path
+  );
+  if (!electronExt) return;
   const tabId = webviewManager.getActiveTabIdByAccount(accountId);
-  console.log("[Extensions] tabId for partition:", tabId);
   ext.api.browserAction.openPopup(
     { extension: { id: electronExt.id } },
     { anchorRect, tabId: tabId ?? void 0 }

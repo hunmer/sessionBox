@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { Loader2, Plus, Puzzle, Trash2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { useExtensionStore } from '@/stores/extension'
 import {
   Dialog,
@@ -50,6 +51,14 @@ async function addExtension() {
     error.value = errorCause instanceof Error ? errorCause.message : '添加扩展失败'
   } finally {
     isLoading.value = false
+  }
+}
+
+async function toggleExtension(extensionId: string, enabled: boolean) {
+  try {
+    await extensionStore.updateExtension(extensionId, { enabled })
+  } catch (errorCause) {
+    error.value = errorCause instanceof Error ? errorCause.message : '更新扩展失败'
   }
 }
 
@@ -114,22 +123,29 @@ defineExpose({ open, close })
                 </div>
                 <div class="min-w-0">
                   <div class="text-sm font-medium">{{ ext.name }}</div>
-                  <div class="text-xs text-muted-foreground">全局生效</div>
+                  <div class="text-xs text-muted-foreground">{{ ext.enabled ? '已启用' : '已禁用' }}</div>
                   <div class="text-xs text-muted-foreground truncate max-w-[260px]">
                     {{ ext.path }}
                   </div>
                 </div>
               </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8 text-muted-foreground hover:text-red-500"
-                @click="deleteExtensionItem(ext.id)"
-                :disabled="isLoading"
-              >
-                <Trash2 class="w-4 h-4" />
-              </Button>
+              <div class="flex items-center gap-2">
+                <Switch
+                  :checked="ext.enabled"
+                  @update:checked="toggleExtension(ext.id, $event)"
+                  :disabled="isLoading"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 text-muted-foreground hover:text-red-500"
+                  @click="deleteExtensionItem(ext.id)"
+                  :disabled="isLoading"
+                >
+                  <Trash2 class="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>

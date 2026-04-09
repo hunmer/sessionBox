@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { Plus, X, MoreHorizontal } from 'lucide-vue-next'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import WorkspaceDialog from './WorkspaceDialog.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
@@ -200,21 +200,21 @@ async function handleDelete(ws: Workspace) {
             <X class="w-2.5 h-2.5" />
           </span>
           <!-- 右键菜单 -->
-          <DropdownMenu>
-            <DropdownMenuTrigger as-child>
-              <span class="absolute inset-0" @contextmenu.prevent.stop />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" class="w-28">
-              <DropdownMenuItem @click="openEdit(ws)">编辑</DropdownMenuItem>
-              <DropdownMenuItem
+          <ContextMenu>
+            <ContextMenuTrigger as-child>
+              <span class="absolute inset-0 cursor-default" />
+            </ContextMenuTrigger>
+            <ContextMenuContent align="start" class="w-28">
+              <ContextMenuItem @click="openEdit(ws)">编辑</ContextMenuItem>
+              <ContextMenuItem
                 v-if="!workspaceStore.isDefaultWorkspace(ws.id)"
                 class="text-destructive"
                 @click="handleDelete(ws)"
               >
                 删除
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         </button>
         <button
           class="flex-shrink-0 w-10 h-10 rounded-lg border border-dashed border-sidebar-border flex items-center justify-center text-muted-foreground hover:text-sidebar-foreground hover:border-sidebar-foreground/30"
