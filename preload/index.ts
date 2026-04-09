@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import { injectBrowserAction } from 'electron-chrome-extensions/browser-action'
 
 // 类型定义（与主进程 store.ts 保持一致）
 export interface Proxy {
@@ -205,6 +206,8 @@ const api = {
 }
 
 export type IpcAPI = typeof api
+
+injectBrowserAction()
 
 if (process.contextIsolated) {
   try {

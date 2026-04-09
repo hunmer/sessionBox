@@ -80,7 +80,13 @@ export default defineConfig({
       ]
     },
     plugins: [
-      vue(),
+      vue({
+        template: {
+          compilerOptions: {
+            isCustomElement: (tag) => tag === 'browser-action-list'
+          }
+        }
+      }),
       tailwindcss(),
       // 仅开发环境启用 Vue DevTools
       ...(isProduction ? [] : [vueDevTools({ launchEditor: getEditor() })])

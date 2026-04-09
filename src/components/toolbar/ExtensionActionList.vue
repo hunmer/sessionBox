@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Loader2, Puzzle } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { ensureBrowserActionInjected } from '@/lib/browser-action'
 import { useExtensionStore } from '@/stores/extension'
 import { useTabStore } from '@/stores/tab'
 
@@ -25,38 +24,7 @@ onMounted(async () => {
   } else {
     await extensionStore.refreshLoadedExtensions()
   }
-
-  setTimeout(() => {
-    void injectBrowserActionIfNeeded()
-  }, 100)
 })
-
-watch(
-  () => tabStore.activeTabId,
-  () => {
-    setTimeout(() => {
-      void injectBrowserActionIfNeeded()
-    }, 100)
-  }
-)
-
-watch(
-  () => extensionStore.loadedExtensionIds.slice(),
-  () => {
-    setTimeout(() => {
-      void injectBrowserActionIfNeeded()
-    }, 100)
-  }
-)
-
-async function injectBrowserActionIfNeeded() {
-  try {
-    await ensureBrowserActionInjected()
-    console.log('[ExtensionActionList] Browser action API injected')
-  } catch (error) {
-    console.warn('[ExtensionActionList] Failed to inject browser action:', error)
-  }
-}
 </script>
 
 <template>
