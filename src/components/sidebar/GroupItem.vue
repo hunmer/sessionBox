@@ -69,7 +69,8 @@ function onAccountDragEnd() {
   <template v-if="collapsed">
     <div
       class="group group-handle flex items-center gap-1 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
-      :class="isGroupActive ? 'text-primary' : 'text-muted-foreground hover:text-sidebar-foreground'"
+      :class="isGroupActive ? (group.color ? '' : 'text-primary') : 'text-muted-foreground hover:text-sidebar-foreground'"
+      :style="isGroupActive && group.color ? { color: group.color } : undefined"
       @click="pickerOpen = true"
     >
       <span class="flex-1 text-xs font-medium text-center" :style="group.color ? { color: group.color } : undefined">
@@ -90,7 +91,8 @@ function onAccountDragEnd() {
     <!-- 分组标题 -->
     <div
       class="group group-handle flex items-center gap-1 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
-      :class="isGroupActive ? 'text-primary' : 'text-muted-foreground hover:text-sidebar-foreground'"
+      :class="isGroupActive ? (group.color ? '' : 'text-primary') : 'text-muted-foreground hover:text-sidebar-foreground'"
+      :style="isGroupActive && group.color ? { color: group.color } : undefined"
     >
       <CollapsibleTrigger as-child>
         <button class="flex-shrink-0 transition-transform" :class="open ? 'rotate-90' : ''">

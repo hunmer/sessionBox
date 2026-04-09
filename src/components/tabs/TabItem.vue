@@ -14,6 +14,7 @@ import { useAccountStore } from '@/stores/account'
 const props = defineProps<{
   tab: Tab
   vertical?: boolean
+  groupColor?: string
 }>()
 
 const tabStore = useTabStore()
@@ -30,6 +31,17 @@ const isActive = computed(() => tabStore.activeTabId === props.tab.id)
 const isLoading = computed(() => tabStore.navStates.get(props.tab.id)?.isLoading ?? false)
 const faviconUrl = computed(() => tabStore.favicons.get(props.tab.id))
 
+// 激活态样式：分组模式下使用分组颜色，否则使用默认主题色
+const activeStyle = computed(() => {
+  if (!isActive.value || !props.groupColor) return {}
+  const c = props.groupColor
+  return {
+    backgroundColor: c + '22',
+    color: c,
+    borderColor: c + '55'
+  }
+})
+
 function handleClose(e: MouseEvent) {
   e.stopPropagation()
   tabStore.closeTab(props.tab.id)
@@ -40,16 +52,19 @@ function handleClose(e: MouseEvent) {
   <ContextMenu>
     <ContextMenuTrigger as-child>
       <div
-        class="group flex items-center gap-2 h-[30px] px-3 cursor-pointer transition-all select-none"
+        class="group flex items-center gap-2 h-[30px] px-3 cursor-pointer transition-all select-none border rounded-xl"
         :class="[
           vertical ? 'w-full' : '',
-          isActive
-            ? 'bg-primary/15 text-primary border border-primary/30 shadow-sm font-medium rounded-xl'
-            : 'text-muted-foreground hover:bg-background/60 hover:text-foreground/80 rounded-xl'
+          isActive && groupColor
+            ? 'shadow-sm font-medium'
+            : isActive
+              ? 'bg-primary/15 text-primary border-primary/30 shadow-sm font-medium'
+              : 'border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground'
         ]"
+        :style="activeStyle"
         @click="tabStore.switchTab(tab.id)"
       >
-        <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin text-primary/50" />
+        <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin" :class="isActive && groupColor ? '' : 'text-primary/50'" :style="isActive && groupColor ? { color: groupColor + '80' } : {}" />
         <img v-else-if="faviconUrl" :src="faviconUrl" class="w-3.5 h-3.5 flex-shrink-0 rounded-sm" />
         <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
         <span class="truncate text-xs" :class="vertical ? 'flex-1 min-w-0' : 'max-w-[120px]'">{{ tabLabel }}</span>

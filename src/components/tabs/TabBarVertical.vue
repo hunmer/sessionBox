@@ -42,7 +42,9 @@ function handleAddAccount(account: Account) {
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <TabItem :tab="tab" vertical />
+        <div>
+          <TabItem :tab="tab" vertical />
+        </div>
       </template>
     </draggable>
 

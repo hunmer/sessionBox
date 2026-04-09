@@ -74,7 +74,7 @@ function handleAddAccount(account: Account) {
           >
             {{ tab.groupName }}
           </span>
-          <TabItem :tab="tab" />
+          <TabItem :tab="tab" :group-color="tab.groupColor" />
         </div>
       </template>
     </draggable>
@@ -89,7 +89,9 @@ function handleAddAccount(account: Account) {
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <TabItem :tab="tab" />
+        <div>
+          <TabItem :tab="tab" />
+        </div>
       </template>
     </draggable>
 

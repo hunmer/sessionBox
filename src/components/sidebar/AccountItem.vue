@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { MoreHorizontal, ExternalLink, Pencil, Trash2 } from 'lucide-vue-next'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTabStore } from '@/stores/tab'
+import { useAccountStore } from '@/stores/account'
 import type { Account } from '@/types'
 
 const props = defineProps<{
@@ -16,6 +17,7 @@ const emit = defineEmits<{
 }>()
 
 const tabStore = useTabStore()
+const accountStore = useAccountStore()
 const api = window.api
 
 /** 创建桌面快捷方式 */
@@ -31,6 +33,18 @@ async function createDesktopShortcut() {
 const isActive = computed(() =>
   tabStore.activeTab?.accountId === props.account.id
 )
+
+/** 账号所属分组的颜色 */
+const groupColor = computed(() => {
+  const group = accountStore.getGroup(props.account.groupId)
+  return group?.color || ''
+})
+
+/** 激活态的内联样式（分组颜色） */
+const activeStyle = computed(() => {
+  if (!isActive.value || !groupColor.value) return undefined
+  return { color: groupColor.value, backgroundColor: groupColor.value + '1a' }
+})
 
 /** 图标是否为自定义图片 */
 const isImageIcon = computed(() => props.account.icon?.startsWith('img:'))
@@ -64,7 +78,8 @@ function handleClick() {
 <template>
   <div
     class="group flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
-    :class="isActive ? 'bg-primary/10 text-primary' : 'hover:bg-sidebar-hover text-sidebar-foreground'"
+    :class="isActive ? (groupColor ? '' : 'bg-primary/10 text-primary') : 'hover:bg-sidebar-hover text-sidebar-foreground'"
+    :style="activeStyle"
     @click="handleClick"
   >
     <!-- 图标 -->

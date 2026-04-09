@@ -60,21 +60,27 @@ function handleSave() {
         <DialogTitle>{{ group ? '编辑分组' : '新建分组' }}</DialogTitle>
       </DialogHeader>
       <div class="py-2 flex flex-col gap-3">
-        <Input v-model="name" placeholder="分组名称" autofocus @keydown.enter="handleSave" />
-        <Select v-model="proxyId">
-          <SelectTrigger>
-            <SelectValue placeholder="不绑定代理" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem :value="NO_PROXY">不绑定代理</SelectItem>
-            <SelectItem v-for="p in proxyOptions" :key="p.id" :value="p.id">
-              {{ p.name }} ({{ p.type }}://{{ p.host }}:{{ p.port }})
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-muted-foreground">分组名称</label>
+          <Input v-model="name" placeholder="请输入分组名称" autofocus @keydown.enter="handleSave" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-muted-foreground">绑定代理</label>
+          <Select v-model="proxyId">
+            <SelectTrigger>
+              <SelectValue placeholder="不绑定代理" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem :value="NO_PROXY">不绑定代理</SelectItem>
+              <SelectItem v-for="p in proxyOptions" :key="p.id" :value="p.id">
+                {{ p.name }} ({{ p.type }}://{{ p.host }}:{{ p.port }})
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <!-- 颜色选择 -->
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-muted-foreground shrink-0">颜色</span>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-muted-foreground">颜色</label>
           <div class="flex items-center gap-1.5 flex-wrap">
             <button
               v-for="c in PRESET_COLORS"
