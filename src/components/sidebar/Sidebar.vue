@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Home, Tag, Settings2, Command } from 'lucide-vue-next'
+import { Home, Tag, Command } from 'lucide-vue-next'
 
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher.vue'
 import NavMain from '@/components/NavMain.vue'
-import NavSecondary from '@/components/NavSecondary.vue'
+import NavUser from '@/components/NavUser.vue'
 import SidebarGroups from './SidebarGroups.vue'
 import {
   Sidebar,
@@ -53,15 +53,6 @@ const navMain = [
   },
 ]
 
-// navSecondary: 仅保留 Settings
-const navSecondary = [
-  {
-    title: '设置',
-    url: '#',
-    icon: Settings2,
-  },
-]
-
 // WorkspaceSwitcher 使用当前工作区数据（确保至少有一个工作区）
 const workspaceSwitcherItems = computed(() => {
   const workspaceList = workspaceStore.sortedWorkspaces
@@ -92,7 +83,12 @@ const workspaceSwitcherItems = computed(() => {
         @delete-account="emit('openSettings')"
         @select-account="handleSelectAccount"
       />
-      <NavSecondary :items="navSecondary" class="mt-auto" />
+      <NavUser
+        class="mt-auto p-1"
+        :user="{ name: '用户', email: '', avatar: '' }"
+        @open-settings="emit('openSettings')"
+        @open-proxy="emit('openProxy')"
+      />
     </SidebarContent>
     <SidebarRail />
   </Sidebar>
