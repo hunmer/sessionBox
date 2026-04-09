@@ -13,6 +13,8 @@ const emit = defineEmits<{ 'open-manager': [] }>()
 
 const enabledExtensions = computed(() => extensionStore.extensions.filter((e) => e.enabled))
 
+const currentAccountId = computed(() => tabStore.activeTab?.accountId ?? null)
+
 onMounted(async () => {
   if (extensionStore.extensions.length === 0) {
     await extensionStore.init()
@@ -20,6 +22,17 @@ onMounted(async () => {
     await extensionStore.refreshLoadedExtensions()
   }
 })
+
+async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  await window.api.extension.openBrowserActionPopup(currentAccountId.value, extensionId, {
+    x: rect.left,
+    y: rect.top,
+    width: rect.width,
+    height: rect.height
+  })
+}
 </script>
 
 <template>
@@ -31,6 +44,7 @@ onMounted(async () => {
       size="icon"
       class="h-7 w-7"
       :title="ext.name"
+      @click="openBrowserActionPopup(ext.id, $event)"
     >
       <img
         v-if="ext.icon"

@@ -5,6 +5,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import WorkspaceDialog from './WorkspaceDialog.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { useTabStore } from '@/stores/tab'
+import { useAccountStore } from '@/stores/account'
 import type { Workspace } from '@/types'
 
 const props = defineProps<{
@@ -12,8 +14,25 @@ const props = defineProps<{
 }>()
 
 const workspaceStore = useWorkspaceStore()
+const tabStore = useTabStore()
+const accountStore = useAccountStore()
 const dialogOpen = ref(false)
 const editingWorkspace = ref<Workspace | null>(null)
+
+// 计算每个工作区的标签数量
+function getWorkspaceTabCount(workspaceId: string): number {
+  const accountIds = new Set(
+    accountStore.accounts
+      .filter((a) => {
+        const group = accountStore.getGroup(a.groupId)
+        const gWorkspaceId = group?.workspaceId
+        // workspaceId 为 undefined 时属于默认工作区
+        return (gWorkspaceId || '__default__') === workspaceId
+      })
+      .map((a) => a.id)
+  )
+  return tabStore.tabs.filter((t) => accountIds.has(t.accountId)).length
+}
 
 function openNew() {
   editingWorkspace.value = null
@@ -42,30 +61,41 @@ async function handleDelete(ws: Workspace) {
 </script>
 
 <template>
-  <div class="border-b border-sidebar-border">
-    <!-- 折叠态：图标模式水平滚动 -->
-    <div v-if="collapsed" class="flex items-center gap-1 px-1 py-1.5 overflow-x-auto">
-      <button
+  <div class="border-b border-sidebar-border p-1">
+    <!-- 折叠态：垂直图标排列 -->
+    <div v-if="collapsed" class="flex flex-col items-center gap-1 py-3 px-0">
+      <div
         v-for="ws in workspaceStore.sortedWorkspaces"
         :key="ws.id"
-        class="relative flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white transition-all"
-        :class="workspaceStore.activeWorkspaceId === ws.id ? 'ring-2 ring-foreground/50 scale-105' : 'opacity-60 hover:opacity-90'"
-        :style="{ backgroundColor: ws.color }"
-        @click="workspaceStore.activate(ws.id)"
-        @contextmenu.prevent="!workspaceStore.isDefaultWorkspace(ws.id) && openEdit(ws)"
+        class="relative"
       >
-        {{ ws.title.charAt(0) }}
+        <button
+          class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white transition-all"
+          :class="workspaceStore.activeWorkspaceId === ws.id ? 'ring-2 ring-foreground/50 scale-105' : 'opacity-60 hover:opacity-90'"
+          :style="{ backgroundColor: ws.color }"
+          @click="workspaceStore.activate(ws.id)"
+          @contextmenu.prevent="!workspaceStore.isDefaultWorkspace(ws.id) && openEdit(ws)"
+        >
+          {{ ws.title.charAt(0) }}
+        </button>
+        <!-- 标签数量 badge -->
+        <span
+          v-if="getWorkspaceTabCount(ws.id) > 0"
+          class="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center"
+        >
+          {{ getWorkspaceTabCount(ws.id) > 99 ? '99+' : getWorkspaceTabCount(ws.id) }}
+        </span>
         <!-- 关闭按钮（非默认工作区且激活时显示） -->
         <span
           v-if="workspaceStore.activeWorkspaceId === ws.id && !workspaceStore.isDefaultWorkspace(ws.id)"
-          class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-white flex items-center justify-center cursor-pointer hover:bg-destructive/80"
+          class="absolute -top-1 -left-1 w-3.5 h-3.5 rounded-full bg-destructive text-white flex items-center justify-center cursor-pointer hover:bg-destructive/80"
           @click.stop="handleDelete(ws)"
         >
           <X class="w-2 h-2" />
         </span>
-      </button>
+      </div>
       <button
-        class="flex-shrink-0 w-8 h-8 rounded-lg border border-dashed border-sidebar-border flex items-center justify-center text-muted-foreground hover:text-sidebar-foreground hover:border-sidebar-foreground/30"
+        class="w-8 h-8 rounded-lg border border-dashed border-sidebar-border flex items-center justify-center text-muted-foreground hover:text-sidebar-foreground hover:border-sidebar-foreground/30 mt-1"
         @click="openNew"
       >
         <Plus class="w-3 h-3" />
@@ -75,25 +105,29 @@ async function handleDelete(ws: Workspace) {
     <!-- 展开态：根据视图模式 -->
     <template v-else>
       <!-- 网格模式 -->
-      <div v-if="workspaceStore.viewMode === 'grid'" class="px-2 py-2">
+      <div v-if="workspaceStore.viewMode === 'grid'" class="p-1">
         <div
-          class="grid gap-1.5 max-h-[162px] overflow-y-auto"
+          class="grid gap-1.5 max-h-[162px]"
           style="grid-template-columns: repeat(auto-fill, minmax(80px, 1fr))"
         >
           <button
             v-for="ws in workspaceStore.sortedWorkspaces"
             :key="ws.id"
-            class="relative group/ws flex flex-col items-center justify-center rounded-lg p-2 transition-all min-h-[44px]"
+            class="relative group/ws flex flex-col items-center justify-center rounded-lg p-2 transition-all min-h-[44px] overflow-visible"
             :class="workspaceStore.activeWorkspaceId === ws.id
-              ? 'ring-2 ring-foreground/30 bg-sidebar-hover'
+              ? 'ring-2 ring-foreground/30 ring-offset-1 bg-sidebar-hover'
               : 'hover:bg-sidebar-hover opacity-70 hover:opacity-100'"
             @click="workspaceStore.activate(ws.id)"
           >
-            <div
-              class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-white mb-1"
-              :style="{ backgroundColor: ws.color }"
-            >
+            <div class="relative w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-white mb-1" :style="{ backgroundColor: ws.color }">
               {{ ws.title.charAt(0) }}
+              <!-- 标签数量 badge -->
+              <span
+                v-if="getWorkspaceTabCount(ws.id) > 0"
+                class="absolute -top-1 -right-1 min-w-3.5 h-3.5 px-0.5 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center"
+              >
+                {{ getWorkspaceTabCount(ws.id) > 99 ? '99+' : getWorkspaceTabCount(ws.id) }}
+              </span>
             </div>
             <span class="text-[10px] truncate w-full text-center text-sidebar-foreground">
               {{ ws.title }}
@@ -150,6 +184,13 @@ async function handleDelete(ws: Workspace) {
           @click="workspaceStore.activate(ws.id)"
         >
           {{ ws.title.charAt(0) }}
+          <!-- 标签数量 badge -->
+          <span
+            v-if="getWorkspaceTabCount(ws.id) > 0"
+            class="absolute -top-1 -left-1 min-w-4 h-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center"
+          >
+            {{ getWorkspaceTabCount(ws.id) > 99 ? '99+' : getWorkspaceTabCount(ws.id) }}
+          </span>
           <!-- 关闭按钮 -->
           <span
             v-if="workspaceStore.activeWorkspaceId === ws.id && !workspaceStore.isDefaultWorkspace(ws.id)"

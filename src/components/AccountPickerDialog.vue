@@ -4,15 +4,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAccountStore } from '@/stores/account'
 import { useTabStore } from '@/stores/tab'
-import { useWorkspaceStore } from '@/stores/workspace'
 import type { Account } from '@/types'
 
 const props = defineProps<{
   open: boolean
   /** 可选：限制只显示某个分组的账号 */
   groupId?: string
-  /** 是否按当前工作区过滤账号，默认 true */
-  filterByWorkspace?: boolean
   /** 对话框标题，默认"选择账号" */
   title?: string
 }>()
@@ -24,21 +21,16 @@ const emit = defineEmits<{
 
 const accountStore = useAccountStore()
 const tabStore = useTabStore()
-const workspaceStore = useWorkspaceStore()
 
-/** 展示的账号列表，支持按分组和工作区过滤 */
+/** 展示的账号列表，直接使用 workspaceGroups 确保与 Sidebar 一致 */
 const accounts = computed(() => {
-  let list = accountStore.accounts
-  // 按工作区过滤：直接匹配 group.workspaceId
-  if (props.filterByWorkspace !== false) {
-    const activeId = workspaceStore.activeWorkspaceId
-    list = list.filter((a) => {
-      const group = accountStore.groups.find((g) => g.id === a.groupId)
-      if (!group) return false
-      return (group.workspaceId || '__default__') === activeId
-    })
-  }
-  // 按分组过滤
+  // 直接从 workspaceGroups 获取分组，再取其账号列表，保证与 Sidebar 完全一致
+  const groups = accountStore.workspaceGroups
+  const groupIds = new Set(groups.map((g) => g.id))
+
+  let list = accountStore.accounts.filter((a) => groupIds.has(a.groupId))
+
+  // 按分组过滤（优先级更高）
   if (props.groupId) {
     list = list.filter((a) => a.groupId === props.groupId)
   }

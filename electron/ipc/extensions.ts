@@ -11,6 +11,7 @@ import {
 import {
   getLoadedExtensionIds,
   loadExtensionForAllAccounts,
+  openExtensionBrowserActionPopup,
   unloadExtensionFromAllAccounts
 } from '../services/extensions'
 
@@ -159,4 +160,16 @@ export function registerExtensionHandlers(): void {
   ipcMain.handle('extension:getLoaded', async (): Promise<string[]> => {
     return getLoadedExtensionIds()
   })
+
+  ipcMain.handle(
+    'extension:openBrowserActionPopup',
+    async (
+      _event,
+      accountId: string | null,
+      extensionId: string,
+      anchorRect: { x: number; y: number; width: number; height: number }
+    ): Promise<void> => {
+      openExtensionBrowserActionPopup(accountId, extensionId, anchorRect)
+    }
+  )
 }

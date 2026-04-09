@@ -32,6 +32,7 @@ function onDragEnd() {
 
 <template>
   <draggable
+    v-if="accountStore.workspaceGroups.length > 0"
     :model-value="accountStore.workspaceGroups"
     :animation="150"
     handle=".group-handle"
@@ -52,4 +53,8 @@ function onDragEnd() {
       />
     </template>
   </draggable>
+  <div v-else-if="!collapsed" class="flex flex-col items-center justify-center py-8 text-muted-foreground">
+    <p class="text-sm">暂无分组</p>
+    <p class="text-xs mt-1">点击下方「新建分组」开始</p>
+  </div>
 </template>

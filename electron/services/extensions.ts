@@ -295,6 +295,42 @@ export function getExtensionInfo(
 }
 
 /**
+ * 打开扩展的 browser action popup。
+ * @param accountId partition 对应的账号 ID，null 为默认 session
+ * @param extensionAppId 应用级扩展 ID（Extension.id）
+ * @param anchorRect 弹出窗口的锚点位置
+ */
+export function openExtensionBrowserActionPopup(
+  accountId: string | null,
+  extensionAppId: string,
+  anchorRect: { x: number; y: number; width: number; height: number }
+): void {
+  const partitionKey = getPartitionKey(accountId)
+  const ext = extensionsMap.get(partitionKey)
+  if (!ext) {
+    console.warn('[Extensions] No ElectronChromeExtensions instance for partition:', partitionKey)
+    return
+  }
+
+  // 从 store 中通过 path 在 session 里找到 electron 级别 ID
+  const extension = listExtensions().find((e) => e.id === extensionAppId)
+  if (!extension) return
+
+  const browserSession = getSessionForAccount(accountId)
+  const sessionExtensions = browserSession.extensions || browserSession
+  const electronExt = sessionExtensions.getAllExtensions().find(
+    (e) => e.path === extension.path
+  )
+  if (!electronExt) return
+
+  const tabId = webviewManager.getActiveTabIdByAccount(accountId)
+  ext.api.browserAction.openPopup(
+    { extension: { id: electronExt.id } } as any,
+    { anchorRect, tabId: tabId ?? undefined }
+  )
+}
+
+/**
  * 销毁 partition 对应的扩展管理器实例。
  */
 export function destroyExtensionsForAccount(accountId?: string | null): void {

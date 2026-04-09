@@ -14241,6 +14241,38 @@ function getLoadedExtensionIds() {
 function getExtensionInfo(partition, extensionId) {
   return extensionInfoMap.get(`${partition}:${extensionId}`);
 }
+function openExtensionBrowserActionPopup(accountId, extensionAppId, anchorRect) {
+  console.log("[Extensions] openBrowserActionPopup called:", { accountId, extensionAppId, anchorRect });
+  const partitionKey = getPartitionKey(accountId);
+  console.log("[Extensions] partitionKey:", partitionKey);
+  const ext = extensionsMap.get(partitionKey);
+  if (!ext) {
+    console.warn("[Extensions] No ElectronChromeExtensions instance for partition:", partitionKey);
+    return;
+  }
+  const extension = listExtensions().find((e) => e.id === extensionAppId);
+  if (!extension) {
+    console.warn("[Extensions] Extension not found in store:", extensionAppId);
+    return;
+  }
+  console.log("[Extensions] Found extension in store:", extension.name, extension.path);
+  const browserSession = getSessionForAccount(accountId);
+  const sessionExtensions = browserSession.extensions || browserSession;
+  const allExts = sessionExtensions.getAllExtensions();
+  console.log("[Extensions] Loaded extensions in session:", allExts.map((e) => ({ id: e.id, path: e.path })));
+  const electronExt = allExts.find((e) => e.path === extension.path);
+  if (!electronExt) {
+    console.warn("[Extensions] Extension not loaded in session, path:", extension.path);
+    return;
+  }
+  console.log("[Extensions] Electron extension ID:", electronExt.id);
+  const tabId = webviewManager.getActiveTabIdByAccount(accountId);
+  console.log("[Extensions] tabId for partition:", tabId);
+  ext.api.browserAction.openPopup(
+    { extension: { id: electronExt.id } },
+    { anchorRect, tabId: tabId ?? void 0 }
+  );
+}
 const BLOCKED_SCHEMES = [
   "bitbrowser",
   "microsoft-edge",
@@ -14495,6 +14527,18 @@ class WebviewManager {
     if (!tabId) return null;
     this.destroyView(tabId);
     return tabId;
+  }
+  /**
+   * 获取指定账号 partition 下当前活动 tab 的 ID。
+   * accountId 为 null 时返回默认 session 的活动 tab ID。
+   */
+  getActiveTabIdByAccount(accountId) {
+    for (const [tabId, entry] of this.views) {
+      if (entry.accountId === (accountId ?? "")) {
+        return tabId;
+      }
+    }
+    return null;
   }
 }
 const webviewManager = new WebviewManager();
@@ -27636,6 +27680,12 @@ function registerExtensionHandlers() {
   require$$1.ipcMain.handle("extension:getLoaded", async () => {
     return getLoadedExtensionIds();
   });
+  require$$1.ipcMain.handle(
+    "extension:openBrowserActionPopup",
+    async (_event, accountId, extensionId, anchorRect) => {
+      openExtensionBrowserActionPopup(accountId, extensionId, anchorRect);
+    }
+  );
 }
 const iconDir = require$$1$2.join(require$$1.app.getPath("userData"), "account-icons");
 function registerIpcHandlers() {

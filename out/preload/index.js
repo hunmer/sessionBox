@@ -142,7 +142,8 @@ const api = {
     unload: (extensionId) => electron.ipcRenderer.invoke("extension:unload", extensionId),
     delete: (extensionId) => electron.ipcRenderer.invoke("extension:delete", extensionId),
     update: (id, data) => electron.ipcRenderer.invoke("extension:update", id, data),
-    getLoaded: () => electron.ipcRenderer.invoke("extension:getLoaded")
+    getLoaded: () => electron.ipcRenderer.invoke("extension:getLoaded"),
+    openBrowserActionPopup: (accountId, extensionId, anchorRect) => electron.ipcRenderer.invoke("extension:openBrowserActionPopup", accountId, extensionId, anchorRect)
   },
   window: {
     minimize: () => electron.ipcRenderer.invoke("window:minimize"),

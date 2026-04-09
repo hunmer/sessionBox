@@ -165,7 +165,12 @@ const api = {
     delete: (extensionId: string): Promise<void> => ipcRenderer.invoke('extension:delete', extensionId),
     update: (id: string, data: Partial<Omit<Extension, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('extension:update', id, data),
-    getLoaded: (): Promise<string[]> => ipcRenderer.invoke('extension:getLoaded')
+    getLoaded: (): Promise<string[]> => ipcRenderer.invoke('extension:getLoaded'),
+    openBrowserActionPopup: (
+      accountId: string | null,
+      extensionId: string,
+      anchorRect: { x: number; y: number; width: number; height: number }
+    ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', accountId, extensionId, anchorRect)
   },
 
   window: {

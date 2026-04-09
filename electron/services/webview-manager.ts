@@ -326,6 +326,19 @@ class WebviewManager {
     this.destroyView(tabId)
     return tabId
   }
+
+  /**
+   * 获取指定账号 partition 下当前活动 tab 的 ID。
+   * accountId 为 null 时返回默认 session 的活动 tab ID。
+   */
+  getActiveTabIdByAccount(accountId: string | null): string | null {
+    for (const [tabId, entry] of this.views) {
+      if (entry.accountId === (accountId ?? '')) {
+        return tabId
+      }
+    }
+    return null
+  }
 }
 
 export const webviewManager = new WebviewManager()
