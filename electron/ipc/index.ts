@@ -1,6 +1,6 @@
 import { ipcMain, BrowserWindow, dialog, app, shell } from 'electron'
 import { join } from 'path'
-import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { execSync } from 'child_process'
 import { randomUUID } from 'node:crypto'
 import {
@@ -62,6 +62,9 @@ export function registerIpcHandlers(): void {
       const filePath = join(iconDir, account.icon.slice(4))
       if (existsSync(filePath)) unlinkSync(filePath)
     }
+    // 清理该账号的 partition 目录（Session/Cookie 数据）
+    const partitionPath = join(app.getPath('userData'), 'Partitions', `persist:account-${id}`)
+    if (existsSync(partitionPath)) rmSync(partitionPath, { recursive: true })
     deleteAccount(id)
   })
 
