@@ -19,9 +19,9 @@ defineProps<{
 </script>
 
 <template>
-  <SidebarMenu>
+  <SidebarMenu :class="collapsed ? 'w-full justify-center' : ''">
     <SidebarMenuItem v-for="item in items" :key="item.title">
-      <SidebarMenuButton as-child :is-active="item.isActive" :tooltip="collapsed ? item.title : undefined">
+      <SidebarMenuButton as-child :is-active="item.isActive" :tooltip="collapsed ? item.title : undefined" :class="collapsed ? '!w-full justify-center' : ''">
         <a :href="item.url">
           <component :is="item.icon" />
           <span v-if="!collapsed">{{ item.title }}</span>

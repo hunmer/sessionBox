@@ -137,6 +137,7 @@ const workspaceSwitcherItems = computed(() => {
       <NavUser
         class="mt-auto p-1 shrink-0"
         :user="{ name: '用户', email: '', avatar: '' }"
+        :collapsed="collapsed"
         @open-settings="emit('openSettings')"
         @open-proxy="emit('openProxy')"
       />

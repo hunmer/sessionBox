@@ -54,11 +54,11 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
 </script>
 
 <template>
-  <SidebarMenu v-if="activeWorkspaceInfo">
-    <SidebarMenuItem>
+  <SidebarMenu v-if="activeWorkspaceInfo" :class="collapsed ? 'w-full justify-center' : ''">
+    <SidebarMenuItem :class="collapsed ? 'flex justify-center' : ''">
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <SidebarMenuButton class="w-fit px-1.5" :class="collapsed ? '!p-1.5' : ''">
+          <SidebarMenuButton class="w-fit px-1.5 flex items-center justify-center" :class="collapsed ? '!p-1.5' : ''">
             <div
               class="flex aspect-square items-center justify-center rounded-md"
               :class="collapsed ? 'size-6' : 'size-5'"

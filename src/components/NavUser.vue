@@ -26,6 +26,7 @@ const props = defineProps<{
     email: string
     avatar: string
   }
+  collapsed?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -37,13 +38,13 @@ const { isMobile } = useSidebar()
 </script>
 
 <template>
-  <SidebarMenu>
-    <SidebarMenuItem>
+  <SidebarMenu :class="collapsed ? 'w-full justify-center' : ''">
+    <SidebarMenuItem :class="collapsed ? 'flex justify-center' : ''">
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton
             size="lg"
-            class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            :class="['data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground', collapsed ? '!w-full justify-center' : '']"
           >
             <Avatar class="h-8 w-8 rounded-lg">
               <AvatarImage :src="user.avatar" :alt="user.name" />
@@ -51,11 +52,13 @@ const { isMobile } = useSidebar()
                 CN
               </AvatarFallback>
             </Avatar>
-            <div class="grid flex-1 text-left text-sm leading-tight">
-              <span class="truncate font-medium">{{ user.name }}</span>
-              <span class="truncate text-xs">{{ user.email }}</span>
-            </div>
-            <ChevronsUpDown class="ml-auto size-4" />
+            <template v-if="!collapsed">
+              <div class="grid flex-1 text-left text-sm leading-tight">
+                <span class="truncate font-medium">{{ user.name }}</span>
+                <span class="truncate text-xs">{{ user.email }}</span>
+              </div>
+              <ChevronsUpDown class="ml-auto size-4" />
+            </template>
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent
