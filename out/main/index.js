@@ -27923,6 +27923,10 @@ $img.Dispose()`;
   require$$1.ipcMain.handle("window:isMaximized", () => {
     return require$$1.BrowserWindow.getFocusedWindow()?.isMaximized() ?? false;
   });
+  require$$1.ipcMain.handle("sidebar:toggle", () => {
+    const win = require$$1.BrowserWindow.getFocusedWindow();
+    win?.webContents.send("sidebar:toggle");
+  });
   require$$1.ipcMain.handle("openExternal", (_e, url) => require$$1.shell.openExternal(url));
 }
 function throttle(fn, delay) {

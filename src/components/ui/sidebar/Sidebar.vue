@@ -14,7 +14,7 @@ defineOptions({
 const props = withDefaults(defineProps<SidebarProps>(), {
   side: "left",
   variant: "sidebar",
-  collapsible: "offcanvas",
+  collapsible: "none",
 })
 
 const { isMobile, state, openMobile, setOpenMobile } = useSidebar()

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeft, Bookmark, FolderOpen, MoreHorizontal, Check } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeft, PanelLeftClose, Bookmark, FolderOpen, MoreHorizontal, Check } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -17,6 +17,10 @@ import type { Account } from '@/types'
 
 defineProps<{
   isMaximized: boolean
+}>()
+
+defineEmits<{
+  'toggle-sidebar': []
 }>()
 
 const tabStore = useTabStore()
@@ -52,6 +56,17 @@ function handleAddAccount(account: Account) {
 
 <template>
   <div class="flex items-center h-[42px] px-2 gap-1 bg-card/30 border-b border-border">
+    <!-- 切换侧边栏按钮 -->
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      class="h-7 w-7 flex-shrink-0 rounded-full"
+      style="-webkit-app-region: no-drag"
+      @click="$emit('toggle-sidebar')"
+    >
+      <PanelLeftClose class="w-3.5 h-3.5" />
+    </Button>
+
     <!-- 标签列表 - 分组模式（每个 tab 独立可拖拽） -->
     <draggable
       v-if="tabStore.tabGroupEnabled"

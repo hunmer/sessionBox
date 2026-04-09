@@ -12,7 +12,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
-  SidebarRail,
 } from '@/components/ui/sidebar'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
@@ -30,7 +29,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   openProxy: []
   openSettings: []
-  toggleCollapse: []
 }>()
 
 // 对话框状态
@@ -143,7 +141,6 @@ const workspaceSwitcherItems = computed(() => {
         @open-proxy="emit('openProxy')"
       />
     </SidebarContent>
-    <SidebarRail />
   </Sidebar>
 
   <!-- 分组编辑对话框 -->

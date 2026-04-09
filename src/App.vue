@@ -55,7 +55,7 @@ const sidebarPanelRef = ref<InstanceType<typeof ResizablePanel>>()
 
 // 从 localStorage 恢复侧边栏宽度
 const savedWidth = localStorage.getItem(SIDEBAR_STORAGE_KEY)
-const sidebarDefaultSize = savedWidth ? Number(savedWidth) : SIDEBAR_DEFAULT_SIZE
+const sidebarDefaultSize = savedWidth ? Math.max(Number(savedWidth), SIDEBAR_COLLAPSED_SIZE) : SIDEBAR_DEFAULT_SIZE
 // 如果保存的宽度等于折叠宽度，则初始化为折叠态
 const sidebarCollapsed = ref(savedWidth ? Number(savedWidth) <= SIDEBAR_COLLAPSED_SIZE : false)
 
@@ -109,6 +109,7 @@ function toggleSidebar() {
 window.api.on('window:maximized', () => { isMaximized.value = true })
 window.api.on('window:unmaximized', () => { isMaximized.value = false })
 window.api.window.isMaximized().then((m: boolean) => { isMaximized.value = m })
+
 
 /** 向主进程同步 webview 容器的位置和大小 */
 function sendBounds() {
@@ -211,9 +212,9 @@ watch(() => tabStore.favoriteBarVisible, () => {
           <SidebarProvider>
             <Sidebar
               :collapsed="sidebarCollapsed"
+              collapsible="none"
               @open-proxy="proxyDialogOpen = true"
               @open-settings="settingsDialogOpen = true"
-              @toggle-collapse="toggleSidebar"
             />
           </SidebarProvider>
         </ResizablePanel>
@@ -233,7 +234,7 @@ watch(() => tabStore.favoriteBarVisible, () => {
           <div class="flex flex-col h-full min-w-0">
             <template v-if="ready">
               <!-- 水平标签栏（仅水平模式） -->
-              <TabBar v-if="tabStore.tabLayout === 'horizontal'" :is-maximized="isMaximized" />
+              <TabBar v-if="tabStore.tabLayout === 'horizontal'" :is-maximized="isMaximized" @toggle-sidebar="toggleSidebar" />
 
               <!-- 快捷网站栏 -->
               <FavoriteBar v-if="tabStore.favoriteBarVisible" />

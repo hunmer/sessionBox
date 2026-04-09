@@ -165,6 +165,9 @@ const api = {
     close: () => electron.ipcRenderer.invoke("window:close"),
     isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized")
   },
+  sidebar: {
+    toggle: () => electron.ipcRenderer.invoke("sidebar:toggle")
+  },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   // 自动更新
   updater: {
