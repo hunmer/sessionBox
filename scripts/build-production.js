@@ -68,9 +68,12 @@ function getVersion() {
 ;(async () => {
   try {
     const version = getVersion()
+    const nodeModulesPath = path.join(projectRoot, 'node_modules')
+    const backupPath = path.join(projectRoot, 'node_modules.dev')
+    const distAppPath = path.join(projectRoot, 'dist-app')
 
     // 1. 使用 electron-vite 构建（同时编译 main + preload + renderer）
-    console.log('📦 步骤 1/5: 使用 electron-vite 构建...')
+    console.log('\n📦 步骤 1/5: 使用 electron-vite 构建...')
     execSync('npx electron-vite build', {
       stdio: 'inherit',
       cwd: projectRoot
@@ -78,8 +81,6 @@ function getVersion() {
 
     // 2. 备份当前 node_modules
     console.log('\n💾 步骤 2/5: 备份开发环境依赖...')
-    const nodeModulesPath = path.join(projectRoot, 'node_modules')
-    const backupPath = path.join(projectRoot, 'node_modules.dev')
 
     if (fs.existsSync(backupPath)) {
       console.log('  清理旧备份...')
@@ -99,9 +100,15 @@ function getVersion() {
       cwd: projectRoot
     })
 
-    // 4. 清理并执行 electron-builder 打包
-    console.log('\n🧹 步骤 4/5: 清理旧构建产物...')
-    const distAppPath = path.join(projectRoot, 'dist-app')
+    // 4. 安装 electron 和 electron-builder（electron-builder 需要）
+    console.log('\n📦 步骤 4/5: 安装 electron & electron-builder...')
+    execSync('pnpm add electron electron-builder -D', {
+      stdio: 'inherit',
+      cwd: projectRoot
+    })
+
+    // 5. 清理旧构建产物并打包
+    console.log('\n🧹 步骤 5/5: 清理并打包 Electron 应用...')
     if (fs.existsSync(distAppPath)) {
       await forceRemove(distAppPath)
     }
@@ -109,7 +116,7 @@ function getVersion() {
     // 根据模式选择配置文件
     const builderConfig = mode === 'local' ? 'electron-builder-local.json' : 'electron-builder.json'
 
-    console.log(`\n🔨 步骤 5/5: 打包 Electron 应用 (配置: ${builderConfig})...`)
+    console.log(`\n🔨 打包 Electron 应用 (配置: ${builderConfig})...`)
     execSync(`npx electron-builder --config ${builderConfig}`, {
       stdio: 'inherit',
       cwd: projectRoot

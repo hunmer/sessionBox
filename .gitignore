@@ -1,3 +1,4 @@
 node_modules/
 out/
 dist-app/
+node_modules.dev/
