@@ -8,7 +8,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "pack": "node scripts/build-production.js",
+    "pack": "node scripts/build-production.js local",
+    "pack:release": "node scripts/build-production.js release",
     "pack:dir": "npx electron-vite build && npx electron-builder --config electron-builder.json --dir"
   },
   "dependencies": {

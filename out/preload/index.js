@@ -135,6 +135,44 @@ const api = {
     isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized")
   },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
+  // 自动更新
+  updater: {
+    check: () => electron.ipcRenderer.invoke("updater:check"),
+    download: () => electron.ipcRenderer.invoke("updater:download"),
+    install: (isSilent = false) => electron.ipcRenderer.invoke("updater:install", isSilent),
+    getVersion: () => electron.ipcRenderer.invoke("updater:get-version"),
+    getInfo: () => electron.ipcRenderer.invoke("updater:get-info"),
+    onChecking: (callback) => {
+      const handler = () => callback();
+      electron.ipcRenderer.on("update:checking", handler);
+      return () => electron.ipcRenderer.removeListener("update:checking", handler);
+    },
+    onAvailable: (callback) => {
+      const handler = (_e, info) => callback(info);
+      electron.ipcRenderer.on("update:available", handler);
+      return () => electron.ipcRenderer.removeListener("update:available", handler);
+    },
+    onNotAvailable: (callback) => {
+      const handler = (_e, info) => callback(info);
+      electron.ipcRenderer.on("update:not-available", handler);
+      return () => electron.ipcRenderer.removeListener("update:not-available", handler);
+    },
+    onDownloadProgress: (callback) => {
+      const handler = (_e, progress) => callback(progress);
+      electron.ipcRenderer.on("update:download-progress", handler);
+      return () => electron.ipcRenderer.removeListener("update:download-progress", handler);
+    },
+    onDownloaded: (callback) => {
+      const handler = (_e, info) => callback(info);
+      electron.ipcRenderer.on("update:downloaded", handler);
+      return () => electron.ipcRenderer.removeListener("update:downloaded", handler);
+    },
+    onError: (callback) => {
+      const handler = (_e, error) => callback(error);
+      electron.ipcRenderer.on("update:error", handler);
+      return () => electron.ipcRenderer.removeListener("update:error", handler);
+    }
+  },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
     const channel = `on:${event}`;

@@ -37,11 +37,12 @@ const VERTICAL_TAB_STORAGE_KEY = 'sessionbox-vertical-tab-width'
 const VERTICAL_TAB_DEFAULT_SIZE = 180
 
 const sidebarPanelRef = ref<InstanceType<typeof ResizablePanel>>()
-const sidebarCollapsed = ref(false)
 
 // 从 localStorage 恢复侧边栏宽度
 const savedWidth = localStorage.getItem(SIDEBAR_STORAGE_KEY)
 const sidebarDefaultSize = savedWidth ? Number(savedWidth) : SIDEBAR_DEFAULT_SIZE
+// 如果保存的宽度等于折叠宽度，则初始化为折叠态
+const sidebarCollapsed = ref(savedWidth ? Number(savedWidth) <= SIDEBAR_COLLAPSED_SIZE : false)
 
 // 从 localStorage 恢复垂直标签栏宽度
 const savedVerticalTabWidth = localStorage.getItem(VERTICAL_TAB_STORAGE_KEY)
@@ -72,6 +73,7 @@ function toggleSidebar() {
   if (!panel) return
   if (sidebarCollapsed.value) {
     panel.expand()
+    sidebarCollapsed.value = false
     // expand() 依赖内部记录的折叠前大小，首次启动时该记录不存在，
     // 会回退到 minSize（52px）= collapsedSize，等于没展开。
     // 需要在下一帧检测是否仍然折叠，手动 resize 到默认宽度。
@@ -82,6 +84,7 @@ function toggleSidebar() {
     })
   } else {
     panel.collapse()
+    sidebarCollapsed.value = true
   }
 }
 
@@ -124,6 +127,21 @@ onMounted(async () => {
 
   // 主进程请求同步 bounds（switchView 后触发）
   window.api.on('tab:request-bounds', () => sendBounds())
+
+  // reka-ui 初始化时 layout 计算可能因 groupSizeInPixels 未就绪而跳过，
+  // 导致 handleLayout 不被调用。主动同步一次侧边栏折叠状态。
+  nextTick(() => {
+    setTimeout(() => {
+      const panel = sidebarPanelRef.value as any
+      if (panel) {
+        const size = panel.getSize?.()
+        if (size != null) {
+          sidebarCollapsed.value = Math.round(size) <= SIDEBAR_COLLAPSED_SIZE
+        }
+      }
+      sendBounds()
+    }, 100)
+  })
 })
 
 onUnmounted(() => {

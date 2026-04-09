@@ -7,7 +7,17 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const projectRoot = path.join(__dirname, '..')
 
-console.log('🚀 开始构建 SessionBox 生产版本...\n')
+// 解析命令行参数
+const args = process.argv.slice(2)
+const mode = args[0] || 'local' // 默认 local
+
+if (mode !== 'local' && mode !== 'release') {
+  console.error(`❌ 无效的构建模式: ${mode}`)
+  console.error('使用方式: node scripts/build-production.js [local|release]')
+  process.exit(1)
+}
+
+console.log(`🚀 开始构建 SessionBox 生产版本 (模式: ${mode})...\n`)
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -49,8 +59,16 @@ async function safeRename(oldPath, newPath, retries = 3) {
   }
 }
 
+// 获取版本号
+function getVersion() {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf-8'))
+  return packageJson.version
+}
+
 ;(async () => {
   try {
+    const version = getVersion()
+
     // 1. 使用 electron-vite 构建（同时编译 main + preload + renderer）
     console.log('📦 步骤 1/5: 使用 electron-vite 构建...')
     execSync('npx electron-vite build', {
@@ -88,47 +106,51 @@ async function safeRename(oldPath, newPath, retries = 3) {
       await forceRemove(distAppPath)
     }
 
-    console.log('\n🔨 步骤 5/5: 打包 Electron 应用...')
-    execSync('npx electron-builder --config electron-builder.json', {
+    // 根据模式选择配置文件
+    const builderConfig = mode === 'local' ? 'electron-builder-local.json' : 'electron-builder.json'
+
+    console.log(`\n🔨 步骤 5/5: 打包 Electron 应用 (配置: ${builderConfig})...`)
+    execSync(`npx electron-builder --config ${builderConfig}`, {
       stdio: 'inherit',
       cwd: projectRoot
     })
 
-    // 复制更新文件到 SMB 目录
-    console.log('\n📂 复制更新文件到 SMB 目录...')
-    const smbPath = '\\\\192.168.1.200\\web\\sessionbox_updates'
-    const distAppPath = path.join(projectRoot, 'dist-app')
+    // local 模式: 复制更新文件到 SMB 目录
+    if (mode === 'local') {
+      console.log('\n📂 复制更新文件到 SMB 目录...')
+      const smbPath = '\\\\192.168.1.200\\web\\sessionbox_updates'
 
-    try {
-      // 确保 SMB 目录存在
-      if (!fs.existsSync(smbPath)) {
-        fs.mkdirSync(smbPath, { recursive: true })
-      }
-
-      // 清理旧文件
-      const oldFiles = ['SessionBox-0.0.2.exe', 'SessionBox-0.0.2.zip', 'latest.yml']
-      for (const file of oldFiles) {
-        const oldFilePath = path.join(smbPath, file)
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath)
-          console.log(`  已删除旧文件: ${file}`)
+      try {
+        // 确保 SMB 目录存在
+        if (!fs.existsSync(smbPath)) {
+          fs.mkdirSync(smbPath, { recursive: true })
         }
-      }
 
-      // 复制新文件
-      const newFiles = fs.readdirSync(distAppPath)
-      for (const file of newFiles) {
-        if (file.endsWith('.exe') || file.endsWith('.zip') || file === 'latest.yml') {
-          const srcFile = path.join(distAppPath, file)
-          const destFile = path.join(smbPath, file)
-          fs.copyFileSync(srcFile, destFile)
-          console.log(`  已复制: ${file}`)
+        // 清理旧文件
+        const oldFiles = fs.readdirSync(smbPath)
+        for (const file of oldFiles) {
+          if (file.endsWith('.exe') || file.endsWith('.zip') || file === 'latest.yml') {
+            const oldFilePath = path.join(smbPath, file)
+            fs.unlinkSync(oldFilePath)
+            console.log(`  已删除旧文件: ${file}`)
+          }
         }
+
+        // 复制新文件
+        const newFiles = fs.readdirSync(distAppPath)
+        for (const file of newFiles) {
+          if (file.endsWith('.exe') || file.endsWith('.zip') || file === 'latest.yml') {
+            const srcFile = path.join(distAppPath, file)
+            const destFile = path.join(smbPath, file)
+            fs.copyFileSync(srcFile, destFile)
+            console.log(`  已复制: ${file}`)
+          }
+        }
+        console.log('  ✓ 更新文件复制完成')
+      } catch (error) {
+        console.log(`  ⚠️  无法访问 SMB 目录: ${smbPath}`)
+        console.log('  跳过文件复制，构建仍然成功')
       }
-      console.log('  ✓ 更新文件复制完成')
-    } catch (error) {
-      console.log(`  ⚠️  无法访问 SMB 目录: ${smbPath}`)
-      console.log('  跳过文件复制，构建仍然成功')
     }
 
     // 恢复开发环境依赖
@@ -142,6 +164,17 @@ async function safeRename(oldPath, newPath, retries = 3) {
     }
 
     console.log('\n✅ 构建完成! 输出目录: dist-app/')
+
+    if (mode === 'release') {
+      console.log('\n📢 Release 模式构建完成!')
+      console.log('   请手动创建 GitHub Release 并上传以下文件:')
+      const files = fs.readdirSync(distAppPath)
+      for (const file of files) {
+        if (file.endsWith('.exe') || file.endsWith('.zip') || file === 'latest.yml') {
+          console.log(`   - ${file}`)
+        }
+      }
+    }
 
   } catch (error) {
     console.error('\n❌ 构建失败:', error.message)
