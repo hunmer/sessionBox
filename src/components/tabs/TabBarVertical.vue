@@ -17,17 +17,12 @@ import type { Account } from '@/types'
 const tabStore = useTabStore()
 const showAddDialog = defineModel<boolean>('showAddDialog')
 
-function onDragEnd(evt: { oldIndex: number; newIndex: number }) {
-  const sorted = [...tabStore.sortedTabs]
-  const [moved] = sorted.splice(evt.oldIndex, 1)
-  sorted.splice(evt.newIndex, 0, moved)
-
-  const ids = sorted.map((t) => t.id)
+function onListUpdate(newList: { id: string }[]) {
+  const ids = newList.map((t) => t.id)
   ids.forEach((id, order) => {
     const t = tabStore.tabs.find((t) => t.id === id)
     if (t) t.order = order
   })
-
   tabStore.reorderTabs(ids)
 }
 
@@ -44,7 +39,7 @@ function handleAddAccount(account: Account) {
       :animation="150"
       item-key="id"
       class="flex flex-col gap-0.5 p-1 flex-1 min-h-0 overflow-y-auto"
-      @end="onDragEnd"
+      @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
         <TabItem :tab="tab" vertical />

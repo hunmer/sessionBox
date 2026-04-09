@@ -13,6 +13,7 @@ import { useAccountStore } from '@/stores/account'
 import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
 import { useFavoriteSiteStore } from '@/stores/favoriteSite'
+import { isOverlayActive } from '@/lib/webview-overlay'
 
 const accountStore = useAccountStore()
 const tabStore = useTabStore()
@@ -144,7 +145,7 @@ watch(() => tabStore.favoriteBarVisible, () => {
   <TooltipProvider :delay-duration="300">
     <div
       class="h-screen w-screen overflow-hidden bg-background text-foreground transition-all duration-150"
-      :class="isMaximized ? '' : 'rounded-lg'"
+      :class="isMaximized ? '' : 'rounded-lg border border-border/60 shadow-2xl dark:shadow-black/50'"
     >
       <ResizablePanelGroup :key="tabStore.tabLayout" direction="horizontal" @layout="handleLayout">
         <!-- 侧边栏面板 -->
@@ -191,6 +192,7 @@ watch(() => tabStore.favoriteBarVisible, () => {
 
               <!-- WebContentsView 占位区域 -->
               <div class="flex-1 relative bg-background">
+                <!-- 无标签页时的空状态 -->
                 <div
                   v-if="!tabStore.activeTab"
                   class="flex flex-col items-center justify-center h-full gap-4"
@@ -203,6 +205,13 @@ watch(() => tabStore.favoriteBarVisible, () => {
                   <div class="text-center">
                     <p class="text-sm text-muted-foreground">点击左侧账号或使用标签栏 + 按钮打开新标签页</p>
                   </div>
+                </div>
+                <!-- WebContentsView 被覆盖层（dialog/dropdown）隐藏时的兜底 -->
+                <div
+                  v-else-if="isOverlayActive"
+                  class="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center"
+                >
+                  <p class="text-sm text-muted-foreground/60">页面已暂停</p>
                 </div>
                 <!-- 主进程在此区域叠加 WebContentsView -->
                 <div id="webview-container" class="absolute inset-0" />

@@ -36,18 +36,12 @@ function closeWindow() {
   windowApi()?.window.close()
 }
 
-function onDragEnd(evt: { oldIndex: number; newIndex: number }) {
-  const source = tabStore.tabGroupEnabled ? tabStore.groupedSortedTabs : tabStore.sortedTabs
-  const sorted = [...source]
-  const [moved] = sorted.splice(evt.oldIndex, 1)
-  sorted.splice(evt.newIndex, 0, moved)
-
-  const ids = sorted.map((t) => t.id)
+function onListUpdate(newList: { id: string }[]) {
+  const ids = newList.map((t) => t.id)
   ids.forEach((id, order) => {
     const t = tabStore.tabs.find((t) => t.id === id)
     if (t) t.order = order
   })
-
   tabStore.reorderTabs(ids)
 }
 
@@ -65,7 +59,7 @@ function handleAddAccount(account: Account) {
       :animation="150"
       item-key="id"
       class="flex items-center gap-1 min-w-0 h-full"
-      @end="onDragEnd"
+      @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
         <div class="flex items-center gap-0.5">
@@ -92,7 +86,7 @@ function handleAddAccount(account: Account) {
       :animation="150"
       item-key="id"
       class="flex items-center gap-1 min-w-0 h-full"
-      @end="onDragEnd"
+      @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
         <TabItem :tab="tab" />
