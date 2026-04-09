@@ -57,16 +57,6 @@ async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
     </Button>
 
     <Button
-      v-if="enabledExtensions.length === 0"
-      variant="ghost"
-      size="icon"
-      class="h-7 w-7 text-muted-foreground cursor-default"
-      disabled
-    >
-      <Puzzle class="w-4 h-4" />
-    </Button>
-
-    <Button
       variant="ghost"
       size="icon"
       class="h-7 w-7"
