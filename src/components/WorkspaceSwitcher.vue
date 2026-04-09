@@ -19,26 +19,26 @@ import {
 } from '@/components/ui/sidebar'
 
 const props = defineProps<{
-  teams: {
+  workspaces: {
     name: string
     logo: Component
     plan: string
   }[]
 }>()
 
-const activeTeam = ref(props.teams[0]!)
+const activeWorkspace = ref(props.workspaces[0])
 </script>
 
 <template>
-  <SidebarMenu>
+  <SidebarMenu v-if="activeWorkspace">
     <SidebarMenuItem>
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton class="w-fit px-1.5">
             <div class="flex aspect-square size-5 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-              <component :is="activeTeam.logo" class="size-3" />
+              <component :is="activeWorkspace.logo" class="size-3" />
             </div>
-            <span class="truncate font-semibold">{{ activeTeam.name }}</span>
+            <span class="truncate font-semibold">{{ activeWorkspace.name }}</span>
             <ChevronDown class="opacity-50" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
@@ -49,18 +49,18 @@ const activeTeam = ref(props.teams[0]!)
           :side-offset="4"
         >
           <DropdownMenuLabel class="text-xs text-muted-foreground">
-            Teams
+            工作区
           </DropdownMenuLabel>
           <DropdownMenuItem
-            v-for="(team, index) in teams"
-            :key="team.name"
+            v-for="(workspace, index) in workspaces"
+            :key="workspace.name"
             class="gap-2 p-2"
-            @click="activeTeam = team"
+            @click="activeWorkspace = workspace"
           >
             <div class="flex size-6 items-center justify-center rounded-xs border">
-              <component :is="team.logo" class="size-4 shrink-0" />
+              <component :is="workspace.logo" class="size-4 shrink-0" />
             </div>
-            {{ team.name }}
+            {{ workspace.name }}
             <DropdownMenuShortcut>⌘{{ index + 1 }}</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -69,7 +69,7 @@ const activeTeam = ref(props.teams[0]!)
               <Plus class="size-4" />
             </div>
             <div class="font-medium text-muted-foreground">
-              Add team
+              添加工作区
             </div>
           </DropdownMenuItem>
         </DropdownMenuContent>

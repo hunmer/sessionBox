@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, nextTick, ref, watch, computed } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
+import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
 import TabBar from '@/components/tabs/TabBar.vue'
 import TabBarVertical from '@/components/tabs/TabBarVertical.vue'
@@ -207,12 +208,14 @@ watch(() => tabStore.favoriteBarVisible, () => {
           @collapse="sidebarCollapsed = true"
           @expand="sidebarCollapsed = false"
         >
-          <Sidebar
-            :collapsed="sidebarCollapsed"
-            @open-proxy="proxyDialogOpen = true"
-            @open-settings="settingsDialogOpen = true"
-            @toggle-collapse="toggleSidebar"
-          />
+          <SidebarProvider>
+            <Sidebar
+              :collapsed="sidebarCollapsed"
+              @open-proxy="proxyDialogOpen = true"
+              @open-settings="settingsDialogOpen = true"
+              @toggle-collapse="toggleSidebar"
+            />
+          </SidebarProvider>
         </ResizablePanel>
 
         <ResizableHandle />
