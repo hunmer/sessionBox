@@ -51,7 +51,7 @@ watch(
 
 async function injectBrowserActionIfNeeded() {
   try {
-    ensureBrowserActionInjected()
+    await ensureBrowserActionInjected()
     console.log('[ExtensionActionList] Browser action API injected')
   } catch (error) {
     console.warn('[ExtensionActionList] Failed to inject browser action:', error)
@@ -92,7 +92,7 @@ async function injectBrowserActionIfNeeded() {
 </template>
 
 <style scoped>
-extension-browser-action-list::part(action) {
+.extension-browser-action-list::part(action) {
   width: 20px;
   height: 20px;
 }
