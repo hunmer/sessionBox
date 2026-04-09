@@ -79,11 +79,18 @@ export const useExtensionStore = defineStore('extension', () => {
    * 选择并添加扩展
    */
   async function selectExtension(): Promise<Extension | null> {
-    const extension = await window.api.extension.select()
-    if (extension) {
-      extensions.value.push(extension)
+    console.log('[ExtensionStore] Calling window.api.extension.select()')
+    try {
+      const extension = await window.api.extension.select()
+      console.log('[ExtensionStore] select result:', extension)
+      if (extension) {
+        extensions.value.push(extension)
+      }
+      return extension
+    } catch (e) {
+      console.error('[ExtensionStore] select error:', e)
+      throw e
     }
-    return extension
   }
 
   /**

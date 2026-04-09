@@ -27365,6 +27365,7 @@ function registerExtensionHandlers() {
     return listExtensions();
   });
   require$$1.ipcMain.handle("extension:select", async () => {
+    console.log("[Extension IPC] extension:select called, showing dialog...");
     const result = await require$$1.dialog.showOpenDialog({
       title: "选择 Chrome 扩展",
       properties: ["openDirectory"],
@@ -27372,6 +27373,7 @@ function registerExtensionHandlers() {
         { name: "Chrome Extensions", extensions: [] }
       ]
     });
+    console.log("[Extension IPC] dialog result:", result);
     if (result.canceled || result.filePaths.length === 0) {
       return null;
     }

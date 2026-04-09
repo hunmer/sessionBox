@@ -15,6 +15,7 @@ export function registerExtensionHandlers(): void {
 
   // 选择并添加扩展（弹出文件选择框）
   ipcMain.handle('extension:select', async (): Promise<Extension | null> => {
+    console.log('[Extension IPC] extension:select called, showing dialog...')
     const result = await dialog.showOpenDialog({
       title: '选择 Chrome 扩展',
       properties: ['openDirectory'],
@@ -22,6 +23,7 @@ export function registerExtensionHandlers(): void {
         { name: 'Chrome Extensions', extensions: [] }
       ]
     })
+    console.log('[Extension IPC] dialog result:', result)
 
     if (result.canceled || result.filePaths.length === 0) {
       return null

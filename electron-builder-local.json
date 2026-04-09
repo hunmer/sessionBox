@@ -1,6 +1,7 @@
 {
   "appId": "com.session-box.app",
   "productName": "SessionBox",
+  "electronDist": "node_modules/electron/dist",
   "directories": {
     "output": "dist-app"
   },
@@ -37,8 +38,7 @@
       }
     ],
     "icon": "resources/icon.png",
-    "requestedExecutionLevel": "asInvoker",
-    "locales": ["en-US", "zh-CN"]
+    "requestedExecutionLevel": "asInvoker"
   },
   "nsis": {
     "oneClick": false,

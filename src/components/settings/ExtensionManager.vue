@@ -55,12 +55,24 @@ async function addExtension() {
   isLoading.value = true
   error.value = null
   try {
+    console.log('[ExtensionManager] Calling selectExtension...')
     const extension = await extensionStore.selectExtension()
-    if (extension && currentAccountId.value) {
-      // 自动加载到当前账号
+    console.log('[ExtensionManager] selectExtension returned:', extension)
+
+    if (!extension) {
+      console.log('[ExtensionManager] No extension selected (user cancelled or error)')
+      error.value = '未选择扩展或选择失败'
+      return
+    }
+
+    if (currentAccountId.value) {
+      console.log('[ExtensionManager] Auto-loading extension to account:', currentAccountId.value)
       await extensionStore.loadExtension(currentAccountId.value, extension.id)
+    } else {
+      console.log('[ExtensionManager] No account selected, extension added but not loaded')
     }
   } catch (e) {
+    console.error('[ExtensionManager] Error:', e)
     error.value = e instanceof Error ? e.message : '添加扩展失败'
   } finally {
     isLoading.value = false
@@ -76,11 +88,19 @@ async function loadExtensionToAccount(accountId: string | null, extensionId: str
     return
   }
 
+  if (!extensionId) {
+    error.value = '扩展无效'
+    return
+  }
+
   isLoading.value = true
   error.value = null
   try {
+    console.log('[ExtensionManager] loadExtensionToAccount:', { accountId, extensionId })
     await extensionStore.loadExtension(accountId, extensionId)
+    console.log('[ExtensionManager] loadExtensionToAccount success')
   } catch (e) {
+    console.error('[ExtensionManager] loadExtensionToAccount error:', e)
     error.value = e instanceof Error ? e.message : '加载扩展失败'
   } finally {
     isLoading.value = false
@@ -199,17 +219,16 @@ defineExpose({ open, close })
                   <span>{{ isLoaded(currentAccountId, ext.id) ? '已加载' : '未加载' }}</span>
                 </div>
 
-                <!-- 加载/卸载按钮 -->
+                <!-- 加载/卸载按钮 (点击加载打开文件选择对话框) -->
                 <Button
                   v-if="currentAccountId"
                   variant="ghost"
                   size="sm"
-                  @click="isLoaded(currentAccountId, ext.id)
-                    ? unloadExtensionFromAccount(currentAccountId!, ext.id)
-                    : loadExtensionToAccount(currentAccountId!, ext.id)"
+                  @click="addExtension()"
                   :disabled="isLoading"
                 >
-                  {{ isLoaded(currentAccountId, ext.id) ? '卸载' : '加载' }}
+                  <Plus class="w-3 h-3 mr-1" />
+                  {{ isLoaded(currentAccountId, ext.id) ? '重新加载' : '加载' }}
                 </Button>
 
                 <!-- 删除按钮 -->
