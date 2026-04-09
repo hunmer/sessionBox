@@ -14094,6 +14094,18 @@ function getLoadedElectronExtensionId(browserSession, extensionPath) {
   const sessionExtensions = browserSession.extensions || browserSession;
   return sessionExtensions.getAllExtensions().find((loadedExtension) => loadedExtension.path === extensionPath)?.id;
 }
+async function unloadElectronExtension(browserSession, electronExtensionId) {
+  const sessionExtensions = browserSession.extensions;
+  if (sessionExtensions && typeof sessionExtensions.unloadExtension === "function") {
+    await sessionExtensions.unloadExtension(electronExtensionId);
+    return;
+  }
+  if (typeof browserSession.removeExtension === "function") {
+    browserSession.removeExtension(electronExtensionId);
+    return;
+  }
+  throw new Error("Current Electron session does not support unloading extensions");
+}
 function getInitialExtensionTabTitle(partitionKey, url, fallbackTitle) {
   if (!url) {
     return fallbackTitle || "新标签页";
@@ -14228,11 +14240,12 @@ async function unloadExtensionFromAccount(accountId, extensionId) {
   const partitionKey = getPartitionKey(accountId);
   const browserSession = getSessionForAccount(accountId);
   const loadedMap = getLoadedMap(partitionKey);
-  const electronExtensionId = loadedMap.get(extensionId);
+  const extension = listExtensions().find((item) => item.id === extensionId);
+  const electronExtensionId = loadedMap.get(extensionId) || (extension ? getLoadedElectronExtensionId(browserSession, extension.path) : void 0);
   if (!electronExtensionId) {
     return;
   }
-  await browserSession.unloadExtension(electronExtensionId);
+  await unloadElectronExtension(browserSession, electronExtensionId);
   loadedMap.delete(extensionId);
   extensionInfoMap.delete(`${partitionKey}:${electronExtensionId}`);
 }
