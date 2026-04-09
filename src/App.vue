@@ -16,7 +16,7 @@ import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useWorkspaceStore } from '@/stores/workspace'
-import { isOverlayActive } from '@/lib/webview-overlay'
+import { isOverlayActive, setOverlayRestoreGuard } from '@/lib/webview-overlay'
 import { markRaw, type Component } from 'vue'
 import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
 
@@ -120,6 +120,9 @@ function sendBounds() {
 let resizeObserver: ResizeObserver | null = null
 
 onMounted(async () => {
+  // 内部页面时，关闭覆盖层后不恢复 webview 可见性
+  setOverlayRestoreGuard(() => !tabStore.isInternalPage)
+
   await Promise.all([
     workspaceStore.init(),
     accountStore.init(),

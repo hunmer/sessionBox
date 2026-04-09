@@ -37,12 +37,12 @@ watch(() => props.open, (open) => {
         title.value = bookmark.title
         url.value = bookmark.url
         selectedFolderId.value = bookmark.folderId
-        selectedAccountId.value = bookmark.accountId ?? ''
+        selectedAccountId.value = bookmark.accountId || '__none__'
       }
     } else {
       title.value = ''
       url.value = ''
-      selectedAccountId.value = ''
+      selectedAccountId.value = '__none__'
     }
   }
 })
@@ -57,7 +57,7 @@ async function handleSubmit() {
   const data = {
     title: title.value.trim() || finalUrl,
     url: finalUrl,
-    accountId: selectedAccountId.value || undefined,
+    accountId: selectedAccountId.value === '__none__' ? undefined : selectedAccountId.value,
     folderId: selectedFolderId.value,
     order: 0
   }
@@ -113,7 +113,7 @@ async function handleSubmit() {
               <SelectValue placeholder="不绑定" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">不绑定</SelectItem>
+              <SelectItem value="__none__">不绑定</SelectItem>
               <SelectItem
                 v-for="account in accountStore.accounts"
                 :key="account.id"

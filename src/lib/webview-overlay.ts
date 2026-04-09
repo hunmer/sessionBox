@@ -9,11 +9,22 @@ let count = 0
 /** 当前是否有覆盖层（dialog/dropdown/context-menu）遮挡了 webview */
 export const isOverlayActive = ref(false)
 
+/** 恢复 webview 可见性前的判断回调，返回 false 则跳过恢复 */
+let beforeRestore: (() => boolean) | null = null
+
+/** 设置恢复 webview 前的判断回调（由 App.vue 注入） */
+export function setOverlayRestoreGuard(guard: () => boolean): void {
+  beforeRestore = guard
+}
+
 export function webviewOverlayShow(): void {
   count = Math.max(0, count - 1)
   if (count === 0) {
     isOverlayActive.value = false
-    window.api.tab.setOverlayVisible(true)
+    const shouldShow = beforeRestore?.() ?? true
+    if (shouldShow) {
+      window.api.tab.setOverlayVisible(true)
+    }
   }
 }
 
