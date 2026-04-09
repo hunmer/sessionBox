@@ -54,13 +54,23 @@ export interface Tab {
   order: number
 }
 
-// 常用网站
+// 书签文件夹
+export interface BookmarkFolder {
+  id: string
+  name: string
+  parentId: string | null // null = 根级
+  order: number
+}
+
+// 书签（扩展自 FavoriteSite）
 export interface FavoriteSite {
   id: string
   title: string
   url: string
   accountId?: string // 可选绑定账号，使用其 partition
   favicon?: string   // 图标 URL
+  folderId: string   // 所属文件夹
+  order: number      // 排序
 }
 
 // 导航状态（运行时，不持久化）

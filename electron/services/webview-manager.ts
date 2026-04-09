@@ -58,6 +58,9 @@ class WebviewManager {
   createView(tabId: string, accountId: string, url: string) {
     if (!this.mainWindow) return null
 
+    // 内部页面不创建 WebContentsView
+    if (url.startsWith('sessionbox://')) return null
+
     const account = accountId ? getAccountById(accountId) : undefined
     if (accountId && !account) return null
 
@@ -228,6 +231,8 @@ class WebviewManager {
   }
 
   navigate(tabId: string, url: string): void {
+    // 内部页面不加载到 WebContentsView
+    if (url.startsWith('sessionbox://')) return
     const entry = this.views.get(tabId)
     if (entry) {
       void entry.view.webContents.loadURL(url)

@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/select'
 import { useAccountStore } from '@/stores/account'
 import { useProxyStore } from '@/stores/proxy'
-import { useFavoriteSiteStore } from '@/stores/favoriteSite'
+import { useBookmarkStore } from '@/stores/bookmark'
 import type { Account } from '@/types'
 
 const props = defineProps<{
@@ -25,7 +25,7 @@ const emit = defineEmits<{
 
 const accountStore = useAccountStore()
 const proxyStore = useProxyStore()
-const favoriteSiteStore = useFavoriteSiteStore()
+const bookmarkStore = useBookmarkStore()
 
 const name = ref('')
 const icon = ref('👤')
@@ -140,7 +140,7 @@ function handleSave() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem
-                  v-for="site in favoriteSiteStore.sites"
+                  v-for="site in bookmarkStore.bookmarks"
                   :key="site.id"
                   :value="site.url"
                 >

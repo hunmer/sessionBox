@@ -19,13 +19,20 @@ import {
   createFavoriteSite,
   updateFavoriteSite,
   deleteFavoriteSite,
+  reorderBookmarks,
+  listBookmarkFolders,
+  createBookmarkFolder,
+  updateBookmarkFolder,
+  deleteBookmarkFolder,
+  reorderBookmarkFolders,
+  migrateBookmarks,
   listWorkspaces,
   createWorkspace,
   updateWorkspace,
   deleteWorkspace,
   reorderWorkspaces
 } from '../services/store'
-import type { Account, Group, FavoriteSite, Workspace } from '../services/store'
+import type { Account, Group, FavoriteSite, Workspace, BookmarkFolder } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
@@ -39,6 +46,9 @@ const iconDir = join(app.getPath('userData'), 'account-icons')
  * 在 app ready 后调用
  */
 export function registerIpcHandlers(): void {
+  // ====== 书签数据迁移 ======
+  migrateBookmarks()
+
   // ====== 工作区 ======
   ipcMain.handle('workspace:list', () => listWorkspaces())
 
@@ -182,7 +192,7 @@ $img.Dispose()`
   // ====== 扩展 ======
   registerExtensionHandlers()
 
-  // ====== 常用网站 ======
+  // ====== 常用网站（书签） ======
   ipcMain.handle('favoriteSite:list', () => listFavoriteSites())
 
   ipcMain.handle('favoriteSite:create', (_e, data: Omit<FavoriteSite, 'id'>) =>
@@ -194,6 +204,23 @@ $img.Dispose()`
   )
 
   ipcMain.handle('favoriteSite:delete', (_e, id: string) => deleteFavoriteSite(id))
+
+  ipcMain.handle('bookmark:reorder', (_e, ids: string[]) => reorderBookmarks(ids))
+
+  // ====== 书签文件夹 ======
+  ipcMain.handle('bookmarkFolder:list', () => listBookmarkFolders())
+
+  ipcMain.handle('bookmarkFolder:create', (_e, data: Omit<BookmarkFolder, 'id'>) =>
+    createBookmarkFolder(data)
+  )
+
+  ipcMain.handle('bookmarkFolder:update', (_e, id: string, data: Partial<Omit<BookmarkFolder, 'id'>>) =>
+    updateBookmarkFolder(id, data)
+  )
+
+  ipcMain.handle('bookmarkFolder:delete', (_e, id: string) => deleteBookmarkFolder(id))
+
+  ipcMain.handle('bookmarkFolder:reorder', (_e, ids: string[]) => reorderBookmarkFolders(ids))
 
   // ====== 窗口控制 ======
   ipcMain.handle('window:minimize', () => {

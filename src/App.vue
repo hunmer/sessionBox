@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, nextTick, ref, watch } from 'vue'
+import { onMounted, onUnmounted, nextTick, ref, watch, computed } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
@@ -13,14 +13,26 @@ import UpdateNotification from '@/components/common/UpdateNotification.vue'
 import { useAccountStore } from '@/stores/account'
 import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
-import { useFavoriteSiteStore } from '@/stores/favoriteSite'
+import { useBookmarkStore } from '@/stores/bookmark'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { isOverlayActive } from '@/lib/webview-overlay'
+import { markRaw, type Component } from 'vue'
+import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
+
+const INTERNAL_PAGES: Record<string, Component> = {
+  bookmarks: markRaw(BookmarksPage)
+}
+
+const internalPageComponent = computed(() => {
+  const path = tabStore.internalPagePath
+  if (!path) return null
+  return INTERNAL_PAGES[path] ?? null
+})
 
 const accountStore = useAccountStore()
 const tabStore = useTabStore()
 const proxyStore = useProxyStore()
-const favoriteSiteStore = useFavoriteSiteStore()
+const bookmarkStore = useBookmarkStore()
 const workspaceStore = useWorkspaceStore()
 
 const proxyDialogOpen = ref(false)
@@ -118,7 +130,7 @@ onMounted(async () => {
     accountStore.init(),
     tabStore.init(),
     proxyStore.init(),
-    favoriteSiteStore.init()
+    bookmarkStore.init()
   ])
   ready.value = true
 
@@ -220,6 +232,16 @@ watch(() => tabStore.favoriteBarVisible, () => {
 
               <!-- WebContentsView 占位区域 -->
               <div class="flex-1 relative bg-background">
+                <!-- 内部页面渲染 -->
+                <div
+                  v-if="tabStore.isInternalPage"
+                  class="absolute inset-0 z-20 overflow-auto"
+                >
+                  <component :is="internalPageComponent" v-if="internalPageComponent" />
+                  <div v-else class="flex items-center justify-center h-full">
+                    <p class="text-muted-foreground text-sm">未知页面</p>
+                  </div>
+                </div>
                 <!-- 无标签页时的空状态 -->
                 <div
                   v-if="!tabStore.activeTab"

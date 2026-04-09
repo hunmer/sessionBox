@@ -48,12 +48,21 @@ export interface Tab {
   order: number
 }
 
+export interface BookmarkFolder {
+  id: string
+  name: string
+  parentId: string | null // null = 根级
+  order: number
+}
+
 export interface FavoriteSite {
   id: string
   title: string
   url: string
   accountId?: string // 可选绑定账号，使用其 partition
   favicon?: string   // 图标 URL
+  folderId: string   // 所属文件夹
+  order: number      // 排序
 }
 
 // 扩展配置
@@ -80,6 +89,7 @@ interface StoreSchema {
   accounts: Account[]
   proxies: Proxy[]
   tabs: Tab[]
+  bookmarkFolders: BookmarkFolder[]
   favoriteSites: FavoriteSite[]
   extensions: Extension[]
   accountExtensions: Record<string, string[]>  // accountId -> extensionIds
@@ -87,6 +97,7 @@ interface StoreSchema {
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
+export const BOOKMARK_BAR_FOLDER_ID = '__bookmark_bar__'
 
 const defaults: StoreSchema = {
   workspaces: [{ id: DEFAULT_WORKSPACE_ID, title: '默认工作区', color: '#3b82f6', order: 0, isDefault: true }],
@@ -94,12 +105,13 @@ const defaults: StoreSchema = {
   accounts: [],
   proxies: [],
   tabs: [],
+  bookmarkFolders: [{ id: BOOKMARK_BAR_FOLDER_ID, name: '书签栏', parentId: null, order: 0 }],
   favoriteSites: [
-    { id: 'default-douyin', title: '抖音', url: 'https://www.douyin.com' },
-    { id: 'default-iqiyi', title: '爱奇艺', url: 'https://www.iqiyi.com' },
-    { id: 'default-qq', title: '腾讯', url: 'https://www.qq.com' },
-    { id: 'default-douyin-creator', title: '抖音创作者中心', url: 'https://creator.douyin.com/creator-micro/home' },
-    { id: 'default-wechat', title: '微信视频号助手', url: 'https://channels.weixin.qq.com/platform/post/create' }
+    { id: 'default-douyin', title: '抖音', url: 'https://www.douyin.com', folderId: BOOKMARK_BAR_FOLDER_ID, order: 0 },
+    { id: 'default-iqiyi', title: '爱奇艺', url: 'https://www.iqiyi.com', folderId: BOOKMARK_BAR_FOLDER_ID, order: 1 },
+    { id: 'default-qq', title: '腾讯', url: 'https://www.qq.com', folderId: BOOKMARK_BAR_FOLDER_ID, order: 2 },
+    { id: 'default-douyin-creator', title: '抖音创作者中心', url: 'https://creator.douyin.com/creator-micro/home', folderId: BOOKMARK_BAR_FOLDER_ID, order: 3 },
+    { id: 'default-wechat', title: '微信视频号助手', url: 'https://channels.weixin.qq.com/platform/post/create', folderId: BOOKMARK_BAR_FOLDER_ID, order: 4 }
   ],
   extensions: [],
   accountExtensions: {},
@@ -340,8 +352,10 @@ export function saveTabs(tabs: Tab[]): void {
 
 // ====== 常用网站操作 ======
 
-export function listFavoriteSites(): FavoriteSite[] {
-  return getCollection('favoriteSites')
+export function listFavoriteSites(folderId?: string): FavoriteSite[] {
+  const sites = getCollection('favoriteSites').sort((a, b) => a.order - b.order)
+  if (folderId) return sites.filter((s) => s.folderId === folderId)
+  return sites
 }
 
 export function createFavoriteSite(data: Omit<FavoriteSite, 'id'>): FavoriteSite {
@@ -363,6 +377,96 @@ export function updateFavoriteSite(id: string, data: Partial<Omit<FavoriteSite, 
 export function deleteFavoriteSite(id: string): void {
   const sites = getCollection('favoriteSites').filter((s) => s.id !== id)
   setCollection('favoriteSites', sites)
+}
+
+export function reorderBookmarks(ids: string[]): void {
+  const sites = getCollection('favoriteSites')
+  ids.forEach((id, order) => {
+    const s = sites.find((s) => s.id === id)
+    if (s) s.order = order
+  })
+  setCollection('favoriteSites', sites)
+}
+
+// ====== 书签文件夹操作 ======
+
+export function listBookmarkFolders(): BookmarkFolder[] {
+  return getCollection('bookmarkFolders').sort((a, b) => a.order - b.order)
+}
+
+export function createBookmarkFolder(data: Omit<BookmarkFolder, 'id'>): BookmarkFolder {
+  const folders = getCollection('bookmarkFolders')
+  const folder: BookmarkFolder = { ...data, id: randomUUID() }
+  folders.push(folder)
+  setCollection('bookmarkFolders', folders)
+  return folder
+}
+
+export function updateBookmarkFolder(id: string, data: Partial<Omit<BookmarkFolder, 'id'>>): void {
+  const folders = getCollection('bookmarkFolders')
+  const idx = folders.findIndex((f) => f.id === id)
+  if (idx === -1) throw new Error(`文件夹 ${id} 不存在`)
+  folders[idx] = { ...folders[idx], ...data }
+  setCollection('bookmarkFolders', folders)
+}
+
+export function deleteBookmarkFolder(id: string): void {
+  if (id === BOOKMARK_BAR_FOLDER_ID) throw new Error('书签栏文件夹不可删除')
+  // 级联删除子文件夹
+  const folders = getCollection('bookmarkFolders')
+  const childIds = collectChildFolderIds(folders, id)
+  const idsToDelete = [id, ...childIds]
+  setCollection('bookmarkFolders', folders.filter((f) => !idsToDelete.includes(f.id)))
+  // 级联删除文件夹内的书签
+  const sites = getCollection('favoriteSites').filter((s) => !idsToDelete.includes(s.folderId))
+  setCollection('favoriteSites', sites)
+}
+
+export function reorderBookmarkFolders(ids: string[]): void {
+  const folders = getCollection('bookmarkFolders')
+  ids.forEach((id, order) => {
+    const f = folders.find((f) => f.id === id)
+    if (f) f.order = order
+  })
+  setCollection('bookmarkFolders', folders)
+}
+
+/** 递归收集所有子文件夹 ID */
+function collectChildFolderIds(folders: BookmarkFolder[], parentId: string): string[] {
+  const children = folders.filter((f) => f.parentId === parentId)
+  const ids: string[] = []
+  for (const child of children) {
+    ids.push(child.id)
+    ids.push(...collectChildFolderIds(folders, child.id))
+  }
+  return ids
+}
+
+// ====== 书签数据迁移 ======
+
+/** 检测旧数据（无 folderId 字段）并自动迁移 */
+export function migrateBookmarks(): void {
+  const sites = getCollection('favoriteSites')
+  if (sites.length === 0) return
+
+  // 检查是否需要迁移（旧数据没有 folderId 字段）
+  const needsMigration = sites.some((s) => !('folderId' in s) || s.folderId === undefined)
+  if (!needsMigration) return
+
+  // 确保书签栏文件夹存在
+  const folders = getCollection('bookmarkFolders')
+  if (!folders.some((f) => f.id === BOOKMARK_BAR_FOLDER_ID)) {
+    folders.push({ id: BOOKMARK_BAR_FOLDER_ID, name: '书签栏', parentId: null, order: 0 })
+    setCollection('bookmarkFolders', folders)
+  }
+
+  // 迁移旧书签：赋予 folderId 和 order
+  const migrated = sites.map((s, index) => ({
+    ...s,
+    folderId: s.folderId || BOOKMARK_BAR_FOLDER_ID,
+    order: s.order ?? index
+  }))
+  setCollection('favoriteSites', migrated)
 }
 
 // ====== 扩展操作 ======

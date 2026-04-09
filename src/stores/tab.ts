@@ -147,6 +147,19 @@ export const useTabStore = defineStore('tab', () => {
     return navStates.value.get(activeTabId.value) ?? { canGoBack: false, canGoForward: false, isLoading: false }
   })
 
+  /** 当前激活标签是否为内部页面 */
+  const isInternalPage = computed(() => {
+    const url = activeTab.value?.url
+    return !!url?.startsWith('sessionbox://')
+  })
+
+  /** 内部页面的路径（如 'bookmarks'） */
+  const internalPagePath = computed(() => {
+    const url = activeTab.value?.url
+    if (!url?.startsWith('sessionbox://')) return null
+    return url.replace('sessionbox://', '')
+  })
+
   // ====== 操作 ======
 
   async function loadTabs() {
@@ -213,7 +226,20 @@ export const useTabStore = defineStore('tab', () => {
   }
 
   async function navigate(tabId: string, url: string) {
+    // 内部页面只更新元数据，不走 WebContentsView
+    if (url.startsWith('sessionbox://')) {
+      await updateTab(tabId, { url })
+      return
+    }
     await api.tab.navigate(tabId, url)
+  }
+
+  /** 打开内部页面（如书签管理） */
+  async function openInternalPage(path: string) {
+    const url = `sessionbox://${path}`
+    if (activeTab.value) {
+      await navigate(activeTab.value.id, url)
+    }
   }
 
   async function goBack(tabId: string) {
@@ -343,6 +369,8 @@ export const useTabStore = defineStore('tab', () => {
     groupedWorkspaceTabs,
     activeTab,
     activeNavState,
+    isInternalPage,
+    internalPagePath,
     tabLayout,
     toggleLayout,
     favoriteBarVisible,
@@ -358,6 +386,7 @@ export const useTabStore = defineStore('tab', () => {
     updateTab,
     reorderTabs,
     navigate,
+    openInternalPage,
     goBack,
     goForward,
     reload,

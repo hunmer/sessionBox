@@ -10287,18 +10287,20 @@ function requireElectronStore() {
 var electronStoreExports = /* @__PURE__ */ requireElectronStore();
 const Store = /* @__PURE__ */ getDefaultExportFromCjs(electronStoreExports);
 const DEFAULT_WORKSPACE_ID = "__default__";
+const BOOKMARK_BAR_FOLDER_ID = "__bookmark_bar__";
 const defaults = {
   workspaces: [{ id: DEFAULT_WORKSPACE_ID, title: "默认工作区", color: "#3b82f6", order: 0, isDefault: true }],
   groups: [],
   accounts: [],
   proxies: [],
   tabs: [],
+  bookmarkFolders: [{ id: BOOKMARK_BAR_FOLDER_ID, name: "书签栏", parentId: null, order: 0 }],
   favoriteSites: [
-    { id: "default-douyin", title: "抖音", url: "https://www.douyin.com" },
-    { id: "default-iqiyi", title: "爱奇艺", url: "https://www.iqiyi.com" },
-    { id: "default-qq", title: "腾讯", url: "https://www.qq.com" },
-    { id: "default-douyin-creator", title: "抖音创作者中心", url: "https://creator.douyin.com/creator-micro/home" },
-    { id: "default-wechat", title: "微信视频号助手", url: "https://channels.weixin.qq.com/platform/post/create" }
+    { id: "default-douyin", title: "抖音", url: "https://www.douyin.com", folderId: BOOKMARK_BAR_FOLDER_ID, order: 0 },
+    { id: "default-iqiyi", title: "爱奇艺", url: "https://www.iqiyi.com", folderId: BOOKMARK_BAR_FOLDER_ID, order: 1 },
+    { id: "default-qq", title: "腾讯", url: "https://www.qq.com", folderId: BOOKMARK_BAR_FOLDER_ID, order: 2 },
+    { id: "default-douyin-creator", title: "抖音创作者中心", url: "https://creator.douyin.com/creator-micro/home", folderId: BOOKMARK_BAR_FOLDER_ID, order: 3 },
+    { id: "default-wechat", title: "微信视频号助手", url: "https://channels.weixin.qq.com/platform/post/create", folderId: BOOKMARK_BAR_FOLDER_ID, order: 4 }
   ],
   extensions: [],
   accountExtensions: {},
@@ -10488,8 +10490,9 @@ function reorderTabs(tabIds) {
 function saveTabs(tabs) {
   setCollection("tabs", tabs);
 }
-function listFavoriteSites() {
-  return getCollection("favoriteSites");
+function listFavoriteSites(folderId) {
+  const sites = getCollection("favoriteSites").sort((a, b) => a.order - b.order);
+  return sites;
 }
 function createFavoriteSite(data) {
   const sites = getCollection("favoriteSites");
@@ -10508,6 +10511,74 @@ function updateFavoriteSite(id2, data) {
 function deleteFavoriteSite(id2) {
   const sites = getCollection("favoriteSites").filter((s) => s.id !== id2);
   setCollection("favoriteSites", sites);
+}
+function reorderBookmarks(ids) {
+  const sites = getCollection("favoriteSites");
+  ids.forEach((id2, order) => {
+    const s = sites.find((s2) => s2.id === id2);
+    if (s) s.order = order;
+  });
+  setCollection("favoriteSites", sites);
+}
+function listBookmarkFolders() {
+  return getCollection("bookmarkFolders").sort((a, b) => a.order - b.order);
+}
+function createBookmarkFolder(data) {
+  const folders = getCollection("bookmarkFolders");
+  const folder = { ...data, id: require$$0.randomUUID() };
+  folders.push(folder);
+  setCollection("bookmarkFolders", folders);
+  return folder;
+}
+function updateBookmarkFolder(id2, data) {
+  const folders = getCollection("bookmarkFolders");
+  const idx = folders.findIndex((f) => f.id === id2);
+  if (idx === -1) throw new Error(`文件夹 ${id2} 不存在`);
+  folders[idx] = { ...folders[idx], ...data };
+  setCollection("bookmarkFolders", folders);
+}
+function deleteBookmarkFolder(id2) {
+  if (id2 === BOOKMARK_BAR_FOLDER_ID) throw new Error("书签栏文件夹不可删除");
+  const folders = getCollection("bookmarkFolders");
+  const childIds = collectChildFolderIds(folders, id2);
+  const idsToDelete = [id2, ...childIds];
+  setCollection("bookmarkFolders", folders.filter((f) => !idsToDelete.includes(f.id)));
+  const sites = getCollection("favoriteSites").filter((s) => !idsToDelete.includes(s.folderId));
+  setCollection("favoriteSites", sites);
+}
+function reorderBookmarkFolders(ids) {
+  const folders = getCollection("bookmarkFolders");
+  ids.forEach((id2, order) => {
+    const f = folders.find((f2) => f2.id === id2);
+    if (f) f.order = order;
+  });
+  setCollection("bookmarkFolders", folders);
+}
+function collectChildFolderIds(folders, parentId) {
+  const children = folders.filter((f) => f.parentId === parentId);
+  const ids = [];
+  for (const child of children) {
+    ids.push(child.id);
+    ids.push(...collectChildFolderIds(folders, child.id));
+  }
+  return ids;
+}
+function migrateBookmarks() {
+  const sites = getCollection("favoriteSites");
+  if (sites.length === 0) return;
+  const needsMigration = sites.some((s) => !("folderId" in s) || s.folderId === void 0);
+  if (!needsMigration) return;
+  const folders = getCollection("bookmarkFolders");
+  if (!folders.some((f) => f.id === BOOKMARK_BAR_FOLDER_ID)) {
+    folders.push({ id: BOOKMARK_BAR_FOLDER_ID, name: "书签栏", parentId: null, order: 0 });
+    setCollection("bookmarkFolders", folders);
+  }
+  const migrated = sites.map((s, index) => ({
+    ...s,
+    folderId: s.folderId || BOOKMARK_BAR_FOLDER_ID,
+    order: s.order ?? index
+  }));
+  setCollection("favoriteSites", migrated);
 }
 function listExtensions() {
   return getCollection("extensions");
@@ -14324,6 +14395,7 @@ class WebviewManager {
   }
   createView(tabId, accountId, url) {
     if (!this.mainWindow) return null;
+    if (url.startsWith("sessionbox://")) return null;
     const account = accountId ? getAccountById(accountId) : void 0;
     if (accountId && !account) return null;
     const proxyId = account?.proxyId ?? (account ? getGroupById(account.groupId)?.proxyId : void 0);
@@ -14453,6 +14525,7 @@ class WebviewManager {
     }
   }
   navigate(tabId, url) {
+    if (url.startsWith("sessionbox://")) return;
     const entry = this.views.get(tabId);
     if (entry) {
       void entry.view.webContents.loadURL(url);
@@ -27709,6 +27782,7 @@ function registerExtensionHandlers() {
 }
 const iconDir = require$$1$2.join(require$$1.app.getPath("userData"), "account-icons");
 function registerIpcHandlers() {
+  migrateBookmarks();
   require$$1.ipcMain.handle("workspace:list", () => listWorkspaces());
   require$$1.ipcMain.handle("workspace:create", (_e, title2, color) => createWorkspace(title2, color));
   require$$1.ipcMain.handle(
@@ -27817,6 +27891,18 @@ $img.Dispose()`;
     (_e, id2, data) => updateFavoriteSite(id2, data)
   );
   require$$1.ipcMain.handle("favoriteSite:delete", (_e, id2) => deleteFavoriteSite(id2));
+  require$$1.ipcMain.handle("bookmark:reorder", (_e, ids) => reorderBookmarks(ids));
+  require$$1.ipcMain.handle("bookmarkFolder:list", () => listBookmarkFolders());
+  require$$1.ipcMain.handle(
+    "bookmarkFolder:create",
+    (_e, data) => createBookmarkFolder(data)
+  );
+  require$$1.ipcMain.handle(
+    "bookmarkFolder:update",
+    (_e, id2, data) => updateBookmarkFolder(id2, data)
+  );
+  require$$1.ipcMain.handle("bookmarkFolder:delete", (_e, id2) => deleteBookmarkFolder(id2));
+  require$$1.ipcMain.handle("bookmarkFolder:reorder", (_e, ids) => reorderBookmarkFolders(ids));
   require$$1.ipcMain.handle("window:minimize", () => {
     const win = require$$1.BrowserWindow.getFocusedWindow();
     win?.minimize();

@@ -54,12 +54,21 @@ export interface NavState {
   isLoading: boolean
 }
 
+export interface BookmarkFolder {
+  id: string
+  name: string
+  parentId: string | null
+  order: number
+}
+
 export interface FavoriteSite {
   id: string
   title: string
   url: string
   accountId?: string
   favicon?: string
+  folderId: string
+  order: number
 }
 
 // 扩展配置
@@ -153,6 +162,27 @@ const api = {
     update: (id: string, data: Partial<Omit<FavoriteSite, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('favoriteSite:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('favoriteSite:delete', id)
+  },
+
+  bookmark: {
+    list: (folderId?: string): Promise<FavoriteSite[]> =>
+      ipcRenderer.invoke('favoriteSite:list', folderId),
+    create: (data: Omit<FavoriteSite, 'id'>): Promise<FavoriteSite> =>
+      ipcRenderer.invoke('favoriteSite:create', data),
+    update: (id: string, data: Partial<Omit<FavoriteSite, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('favoriteSite:update', id, data),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('favoriteSite:delete', id),
+    reorder: (ids: string[]): Promise<void> => ipcRenderer.invoke('bookmark:reorder', ids)
+  },
+
+  bookmarkFolder: {
+    list: (): Promise<BookmarkFolder[]> => ipcRenderer.invoke('bookmarkFolder:list'),
+    create: (data: Omit<BookmarkFolder, 'id'>): Promise<BookmarkFolder> =>
+      ipcRenderer.invoke('bookmarkFolder:create', data),
+    update: (id: string, data: Partial<Omit<BookmarkFolder, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('bookmarkFolder:update', id, data),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('bookmarkFolder:delete', id),
+    reorder: (ids: string[]): Promise<void> => ipcRenderer.invoke('bookmarkFolder:reorder', ids)
   },
 
   extension: {

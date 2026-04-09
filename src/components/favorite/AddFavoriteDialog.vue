@@ -11,7 +11,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { useAccountStore } from '@/stores/account'
-import { useFavoriteSiteStore } from '@/stores/favoriteSite'
+import { useBookmarkStore } from '@/stores/bookmark'
 
 const props = defineProps<{
   open: boolean
@@ -24,11 +24,12 @@ const emit = defineEmits<{
 }>()
 
 const accountStore = useAccountStore()
-const favoriteSiteStore = useFavoriteSiteStore()
+const bookmarkStore = useBookmarkStore()
 
 const title = ref('')
 const url = ref('')
 const accountId = ref<string>('__none__')
+const folderId = ref<string>('__bookmark_bar__')
 
 const isEdit = computed(() => !!props.editSite)
 const dialogTitle = computed(() => isEdit.value ? '编辑快捷网站' : '添加快捷网站')
@@ -44,10 +45,14 @@ function onOpenChange(open: boolean) {
     title.value = props.editSite.title
     url.value = props.editSite.url
     accountId.value = props.editSite.accountId || '__none__'
+    // 查找编辑书签的 folderId
+    const bookmark = bookmarkStore.bookmarks.find((b) => b.id === props.editSite?.id)
+    folderId.value = bookmark?.folderId || '__bookmark_bar__'
   } else if (open) {
     title.value = ''
     url.value = ''
     accountId.value = '__none__'
+    folderId.value = '__bookmark_bar__'
   }
   emit('update:open', open)
 }
@@ -61,16 +66,20 @@ async function handleSubmit() {
   const finalTitle = title.value.trim() || normalizedUrl
 
   if (isEdit.value && props.editSite) {
-    await favoriteSiteStore.updateSite(props.editSite.id, {
+    await bookmarkStore.updateBookmark(props.editSite.id, {
       title: finalTitle,
       url: normalizedUrl,
-      accountId: finalAccountId
+      accountId: finalAccountId,
+      folderId: folderId.value
     })
   } else {
-    await favoriteSiteStore.createSite({
+    const siblings = bookmarkStore.getBookmarksByFolder(folderId.value)
+    await bookmarkStore.createBookmark({
       title: finalTitle,
       url: normalizedUrl,
-      accountId: finalAccountId
+      accountId: finalAccountId,
+      folderId: folderId.value,
+      order: siblings.length
     })
   }
 
@@ -100,6 +109,25 @@ function isValid() {
         <div class="flex flex-col gap-1.5">
           <label class="text-xs text-muted-foreground">网址</label>
           <Input v-model="url" placeholder="https://example.com" class="h-8 text-sm" />
+        </div>
+
+        <!-- 文件夹选择 -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs text-muted-foreground">文件夹</label>
+          <Select v-model="folderId">
+            <SelectTrigger class="h-8 text-sm">
+              <SelectValue placeholder="选择文件夹" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="folder in bookmarkStore.folders"
+                :key="folder.id"
+                :value="folder.id"
+              >
+                {{ folder.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <!-- 选择账号 -->

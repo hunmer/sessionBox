@@ -4,12 +4,12 @@ import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star } from 'lucide-vu
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTabStore } from '@/stores/tab'
-import { useFavoriteSiteStore } from '@/stores/favoriteSite'
+import { useBookmarkStore } from '@/stores/bookmark'
 import ExtensionActionList from './ExtensionActionList.vue'
 import ExtensionManager from '@/components/settings/ExtensionManager.vue'
 
 const tabStore = useTabStore()
-const favoriteSiteStore = useFavoriteSiteStore()
+const bookmarkStore = useBookmarkStore()
 const urlInput = ref('')
 const isFocused = ref(false)
 
@@ -44,6 +44,11 @@ function openDevTools() {
 function navigate() {
   const url = urlInput.value.trim()
   if (!url || !tabStore.activeTabId) return
+  // 内部页面直接导航，不补全协议
+  if (url.startsWith('sessionbox://')) {
+    tabStore.navigate(tabStore.activeTabId, url)
+    return
+  }
   // 自动补全协议
   const finalUrl = url.match(/^https?:\/\//) ? url : `https://${url}`
   tabStore.navigate(tabStore.activeTabId, finalUrl)
@@ -65,7 +70,7 @@ function onBlur() {
 const isFavorited = computed(() => {
   const url = tabStore.activeTab?.url
   if (!url) return false
-  return favoriteSiteStore.sites.some(s => s.url === url)
+  return bookmarkStore.isBookmarked(url)
 })
 
 /** 切换收藏状态 */
@@ -74,11 +79,11 @@ async function toggleFavorite() {
   if (!url) return
 
   if (isFavorited.value) {
-    const site = favoriteSiteStore.sites.find(s => s.url === url)
-    if (site) await favoriteSiteStore.deleteSite(site.id)
+    const bookmark = bookmarkStore.findBookmarkByUrl(url)
+    if (bookmark) await bookmarkStore.deleteBookmark(bookmark.id)
   } else {
     const title = tabStore.activeTab?.title || url
-    await favoriteSiteStore.createSite({ title, url })
+    await bookmarkStore.createBookmark({ title, url, folderId: '__bookmark_bar__', order: bookmarkStore.toolbarBookmarks.length })
   }
 }
 </script>

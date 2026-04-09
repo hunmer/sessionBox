@@ -135,6 +135,20 @@ const api = {
     update: (id, data) => electron.ipcRenderer.invoke("favoriteSite:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("favoriteSite:delete", id)
   },
+  bookmark: {
+    list: (folderId) => electron.ipcRenderer.invoke("favoriteSite:list", folderId),
+    create: (data) => electron.ipcRenderer.invoke("favoriteSite:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("favoriteSite:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("favoriteSite:delete", id),
+    reorder: (ids) => electron.ipcRenderer.invoke("bookmark:reorder", ids)
+  },
+  bookmarkFolder: {
+    list: () => electron.ipcRenderer.invoke("bookmarkFolder:list"),
+    create: (data) => electron.ipcRenderer.invoke("bookmarkFolder:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("bookmarkFolder:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("bookmarkFolder:delete", id),
+    reorder: (ids) => electron.ipcRenderer.invoke("bookmarkFolder:reorder", ids)
+  },
   extension: {
     list: () => electron.ipcRenderer.invoke("extension:list"),
     select: () => electron.ipcRenderer.invoke("extension:select"),
