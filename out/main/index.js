@@ -10286,7 +10286,9 @@ function requireElectronStore() {
 }
 var electronStoreExports = /* @__PURE__ */ requireElectronStore();
 const Store = /* @__PURE__ */ getDefaultExportFromCjs(electronStoreExports);
+const DEFAULT_WORKSPACE_ID = "__default__";
 const defaults = {
+  workspaces: [{ id: DEFAULT_WORKSPACE_ID, title: "默认工作区", color: "#3b82f6", order: 0, isDefault: true }],
   groups: [],
   accounts: [],
   proxies: [],
@@ -10308,16 +10310,56 @@ function getCollection(key) {
 function setCollection(key, value) {
   store.set(key, value);
 }
+function listWorkspaces() {
+  return getCollection("workspaces").sort((a, b) => a.order - b.order);
+}
+function createWorkspace(title2, color) {
+  const workspaces = getCollection("workspaces");
+  const workspace = {
+    id: require$$0.randomUUID(),
+    title: title2,
+    color,
+    order: workspaces.length
+  };
+  workspaces.push(workspace);
+  setCollection("workspaces", workspaces);
+  return workspace;
+}
+function updateWorkspace(id2, data) {
+  const workspaces = getCollection("workspaces");
+  const idx = workspaces.findIndex((w) => w.id === id2);
+  if (idx === -1) throw new Error(`工作区 ${id2} 不存在`);
+  workspaces[idx] = { ...workspaces[idx], ...data };
+  setCollection("workspaces", workspaces);
+}
+function deleteWorkspace(id2) {
+  if (id2 === DEFAULT_WORKSPACE_ID) throw new Error("默认工作区不可删除");
+  const groups = getCollection("groups").map(
+    (g) => g.workspaceId === id2 ? { ...g, workspaceId: DEFAULT_WORKSPACE_ID } : g
+  );
+  setCollection("groups", groups);
+  const workspaces = getCollection("workspaces").filter((w) => w.id !== id2);
+  setCollection("workspaces", workspaces);
+}
+function reorderWorkspaces(workspaceIds) {
+  const workspaces = getCollection("workspaces");
+  workspaceIds.forEach((id2, order) => {
+    const w = workspaces.find((w2) => w2.id === id2);
+    if (w) w.order = order;
+  });
+  setCollection("workspaces", workspaces);
+}
 function listGroups() {
   return getCollection("groups").sort((a, b) => a.order - b.order);
 }
-function createGroup(name, color) {
+function createGroup(name, color, workspaceId) {
   const groups = getCollection("groups");
   const group = {
     id: require$$0.randomUUID(),
     name,
     order: groups.length,
-    ...color ? { color } : {}
+    ...color ? { color } : {},
+    workspaceId: workspaceId || DEFAULT_WORKSPACE_ID
   };
   groups.push(group);
   setCollection("groups", groups);
@@ -27597,8 +27639,16 @@ function registerExtensionHandlers() {
 }
 const iconDir = require$$1$2.join(require$$1.app.getPath("userData"), "account-icons");
 function registerIpcHandlers() {
+  require$$1.ipcMain.handle("workspace:list", () => listWorkspaces());
+  require$$1.ipcMain.handle("workspace:create", (_e, title2, color) => createWorkspace(title2, color));
+  require$$1.ipcMain.handle(
+    "workspace:update",
+    (_e, id2, data) => updateWorkspace(id2, data)
+  );
+  require$$1.ipcMain.handle("workspace:delete", (_e, id2) => deleteWorkspace(id2));
+  require$$1.ipcMain.handle("workspace:reorder", (_e, workspaceIds) => reorderWorkspaces(workspaceIds));
   require$$1.ipcMain.handle("group:list", () => listGroups());
-  require$$1.ipcMain.handle("group:create", (_e, name, color) => createGroup(name, color));
+  require$$1.ipcMain.handle("group:create", (_e, name, color, workspaceId) => createGroup(name, color, workspaceId));
   require$$1.ipcMain.handle(
     "group:update",
     (_e, id2, data) => updateGroup(id2, data)

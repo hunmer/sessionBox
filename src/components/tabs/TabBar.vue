@@ -55,7 +55,7 @@ function handleAddAccount(account: Account) {
     <!-- 标签列表 - 分组模式（每个 tab 独立可拖拽） -->
     <draggable
       v-if="tabStore.tabGroupEnabled"
-      :model-value="tabStore.groupedSortedTabs"
+      :model-value="tabStore.groupedWorkspaceTabs"
       :animation="150"
       item-key="id"
       class="flex items-center gap-1 min-w-0 h-full"
@@ -82,7 +82,7 @@ function handleAddAccount(account: Account) {
     <!-- 标签列表 - 扁平模式（可拖拽排序） -->
     <draggable
       v-else
-      :model-value="tabStore.sortedTabs"
+      :model-value="tabStore.workspaceTabs"
       :animation="150"
       item-key="id"
       class="flex items-center gap-1 min-w-0 h-full"

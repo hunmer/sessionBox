@@ -14,6 +14,15 @@ export interface Proxy {
   password?: string
 }
 
+// 工作区
+export interface Workspace {
+  id: string
+  title: string
+  color: string
+  order: number
+  isDefault?: boolean // 默认工作区标记
+}
+
 // 分组
 export interface Group {
   id: string
@@ -21,6 +30,7 @@ export interface Group {
   order: number
   proxyId?: string // 分组级代理绑定
   color?: string // 分组颜色
+  workspaceId?: string // 所属工作区
 }
 
 // 账号

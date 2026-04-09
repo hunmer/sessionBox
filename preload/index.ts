@@ -12,12 +12,21 @@ export interface Proxy {
   password?: string
 }
 
+export interface Workspace {
+  id: string
+  title: string
+  color: string
+  order: number
+  isDefault?: boolean
+}
+
 export interface Group {
   id: string
   name: string
   order: number
   proxyId?: string
   color?: string
+  workspaceId?: string
 }
 
 export interface Account {
@@ -64,9 +73,21 @@ export interface Extension {
 
 // IPC API 定义
 const api = {
+  workspace: {
+    list: (): Promise<Workspace[]> => ipcRenderer.invoke('workspace:list'),
+    create: (title: string, color: string): Promise<Workspace> =>
+      ipcRenderer.invoke('workspace:create', title, color),
+    update: (id: string, data: Partial<Omit<Workspace, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('workspace:update', id, data),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('workspace:delete', id),
+    reorder: (workspaceIds: string[]): Promise<void> =>
+      ipcRenderer.invoke('workspace:reorder', workspaceIds)
+  },
+
   group: {
     list: (): Promise<Group[]> => ipcRenderer.invoke('group:list'),
-    create: (name: string, color?: string): Promise<Group> => ipcRenderer.invoke('group:create', name, color),
+    create: (name: string, color?: string, workspaceId?: string): Promise<Group> =>
+      ipcRenderer.invoke('group:create', name, color, workspaceId),
     update: (id: string, data: Partial<Omit<Group, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('group:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('group:delete', id),

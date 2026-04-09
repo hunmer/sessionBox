@@ -14,12 +14,14 @@ import { useAccountStore } from '@/stores/account'
 import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
 import { useFavoriteSiteStore } from '@/stores/favoriteSite'
+import { useWorkspaceStore } from '@/stores/workspace'
 import { isOverlayActive } from '@/lib/webview-overlay'
 
 const accountStore = useAccountStore()
 const tabStore = useTabStore()
 const proxyStore = useProxyStore()
 const favoriteSiteStore = useFavoriteSiteStore()
+const workspaceStore = useWorkspaceStore()
 
 const proxyDialogOpen = ref(false)
 const settingsDialogOpen = ref(false)
@@ -110,6 +112,7 @@ let resizeObserver: ResizeObserver | null = null
 
 onMounted(async () => {
   await Promise.all([
+    workspaceStore.init(),
     accountStore.init(),
     tabStore.init(),
     proxyStore.init(),

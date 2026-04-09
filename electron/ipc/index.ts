@@ -18,9 +18,14 @@ import {
   listFavoriteSites,
   createFavoriteSite,
   updateFavoriteSite,
-  deleteFavoriteSite
+  deleteFavoriteSite,
+  listWorkspaces,
+  createWorkspace,
+  updateWorkspace,
+  deleteWorkspace,
+  reorderWorkspaces
 } from '../services/store'
-import type { Account, Group, FavoriteSite } from '../services/store'
+import type { Account, Group, FavoriteSite, Workspace } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
@@ -34,10 +39,23 @@ const iconDir = join(app.getPath('userData'), 'account-icons')
  * 在 app ready 后调用
  */
 export function registerIpcHandlers(): void {
+  // ====== 工作区 ======
+  ipcMain.handle('workspace:list', () => listWorkspaces())
+
+  ipcMain.handle('workspace:create', (_e, title: string, color: string) => createWorkspace(title, color))
+
+  ipcMain.handle('workspace:update', (_e, id: string, data: Partial<Omit<Workspace, 'id'>>) =>
+    updateWorkspace(id, data)
+  )
+
+  ipcMain.handle('workspace:delete', (_e, id: string) => deleteWorkspace(id))
+
+  ipcMain.handle('workspace:reorder', (_e, workspaceIds: string[]) => reorderWorkspaces(workspaceIds))
+
   // ====== 分组 ======
   ipcMain.handle('group:list', () => listGroups())
 
-  ipcMain.handle('group:create', (_e, name: string, color?: string) => createGroup(name, color))
+  ipcMain.handle('group:create', (_e, name: string, color?: string, workspaceId?: string) => createGroup(name, color, workspaceId))
 
   ipcMain.handle('group:update', (_e, id: string, data: Partial<Omit<Group, 'id'>>) =>
     updateGroup(id, data)

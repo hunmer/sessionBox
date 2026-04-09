@@ -12,12 +12,21 @@ export interface Proxy {
   password?: string
 }
 
+export interface Workspace {
+  id: string
+  title: string
+  color: string
+  order: number
+  isDefault?: boolean
+}
+
 export interface Group {
   id: string
   name: string
   order: number
   proxyId?: string
   color?: string
+  workspaceId?: string
 }
 
 export interface Account {
@@ -57,6 +66,7 @@ export interface Extension {
 }
 
 interface StoreSchema {
+  workspaces: Workspace[]
   groups: Group[]
   accounts: Account[]
   proxies: Proxy[]
@@ -66,7 +76,10 @@ interface StoreSchema {
   accountExtensions: Record<string, string[]>  // accountId -> extensionIds
 }
 
+const DEFAULT_WORKSPACE_ID = '__default__'
+
 const defaults: StoreSchema = {
+  workspaces: [{ id: DEFAULT_WORKSPACE_ID, title: '默认工作区', color: '#3b82f6', order: 0, isDefault: true }],
   groups: [],
   accounts: [],
   proxies: [],
@@ -93,19 +106,67 @@ function setCollection<K extends keyof StoreSchema>(key: K, value: StoreSchema[K
   store.set(key, value)
 }
 
+// ====== 工作区操作 ======
+
+export function listWorkspaces(): Workspace[] {
+  return getCollection('workspaces').sort((a, b) => a.order - b.order)
+}
+
+export function createWorkspace(title: string, color: string): Workspace {
+  const workspaces = getCollection('workspaces')
+  const workspace: Workspace = {
+    id: randomUUID(),
+    title,
+    color,
+    order: workspaces.length
+  }
+  workspaces.push(workspace)
+  setCollection('workspaces', workspaces)
+  return workspace
+}
+
+export function updateWorkspace(id: string, data: Partial<Omit<Workspace, 'id'>>): void {
+  const workspaces = getCollection('workspaces')
+  const idx = workspaces.findIndex((w) => w.id === id)
+  if (idx === -1) throw new Error(`工作区 ${id} 不存在`)
+  workspaces[idx] = { ...workspaces[idx], ...data }
+  setCollection('workspaces', workspaces)
+}
+
+export function deleteWorkspace(id: string): void {
+  if (id === DEFAULT_WORKSPACE_ID) throw new Error('默认工作区不可删除')
+  // 将该工作区下的分组移回默认工作区
+  const groups = getCollection('groups').map((g) =>
+    g.workspaceId === id ? { ...g, workspaceId: DEFAULT_WORKSPACE_ID } : g
+  )
+  setCollection('groups', groups)
+  const workspaces = getCollection('workspaces').filter((w) => w.id !== id)
+  setCollection('workspaces', workspaces)
+}
+
+export function reorderWorkspaces(workspaceIds: string[]): void {
+  const workspaces = getCollection('workspaces')
+  workspaceIds.forEach((id, order) => {
+    const w = workspaces.find((w) => w.id === id)
+    if (w) w.order = order
+  })
+  setCollection('workspaces', workspaces)
+}
+
 // ====== 分组操作 ======
 
 export function listGroups(): Group[] {
   return getCollection('groups').sort((a, b) => a.order - b.order)
 }
 
-export function createGroup(name: string, color?: string): Group {
+export function createGroup(name: string, color?: string, workspaceId?: string): Group {
   const groups = getCollection('groups')
   const group: Group = {
     id: randomUUID(),
     name,
     order: groups.length,
-    ...(color ? { color } : {})
+    ...(color ? { color } : {}),
+    workspaceId: workspaceId || DEFAULT_WORKSPACE_ID
   }
   groups.push(group)
   setCollection('groups', groups)

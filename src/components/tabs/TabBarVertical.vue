@@ -35,7 +35,7 @@ function handleAddAccount(account: Account) {
   <div class="flex flex-col h-full bg-card/30 border-r border-border">
     <!-- 标签列表（垂直可拖拽排序） -->
     <draggable
-      :model-value="tabStore.sortedTabs"
+      :model-value="tabStore.workspaceTabs"
       :animation="150"
       item-key="id"
       class="flex flex-col gap-0.5 p-1 flex-1 min-h-0 overflow-y-auto"

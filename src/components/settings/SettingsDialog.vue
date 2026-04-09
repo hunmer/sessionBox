@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Settings, Sun, Moon, Plus, Trash2, ExternalLink } from 'lucide-vue-next'
+import { Settings, Sun, Moon, Plus, Trash2, ExternalLink, Grid3x3, Rows3 } from 'lucide-vue-next'
 import appIcon from '../../../resources/icon.png'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useThemeStore, type Theme } from '@/stores/theme'
 import { useFavoriteSiteStore } from '@/stores/favoriteSite'
+import { useWorkspaceStore, type WorkspaceViewMode } from '@/stores/workspace'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const themeStore = useThemeStore()
 const favoriteSiteStore = useFavoriteSiteStore()
+const workspaceStore = useWorkspaceStore()
 
 // 左侧 tab 列表
 const tabs = [
@@ -99,6 +101,28 @@ function openExternal(url: string) {
               >
                 <component :is="opt.icon" class="w-3.5 h-3.5" />
                 {{ opt.label }}
+              </Button>
+            </div>
+
+            <h3 class="text-sm font-medium mt-6 mb-3">工作区视图</h3>
+            <div class="flex gap-2">
+              <Button
+                :variant="workspaceStore.viewMode === 'grid' ? 'default' : 'outline'"
+                size="sm"
+                class="gap-1.5"
+                @click="workspaceStore.setViewMode('grid')"
+              >
+                <Grid3x3 class="w-3.5 h-3.5" />
+                网格
+              </Button>
+              <Button
+                :variant="workspaceStore.viewMode === 'icon' ? 'default' : 'outline'"
+                size="sm"
+                class="gap-1.5"
+                @click="workspaceStore.setViewMode('icon')"
+              >
+                <Rows3 class="w-3.5 h-3.5" />
+                图标
               </Button>
             </div>
           </div>

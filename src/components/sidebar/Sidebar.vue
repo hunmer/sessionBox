@@ -13,12 +13,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import GroupList from './GroupList.vue'
 import GroupDialog from './GroupDialog.vue'
 import AccountDialog from './AccountDialog.vue'
+import WorkspaceBar from './WorkspaceBar.vue'
 import { useAccountStore } from '@/stores/account'
 import { useTabStore } from '@/stores/tab'
+import { useWorkspaceStore } from '@/stores/workspace'
 import type { Group, Account } from '@/types'
 
 const accountStore = useAccountStore()
 const tabStore = useTabStore()
+const workspaceStore = useWorkspaceStore()
 
 const props = defineProps<{
   collapsed?: boolean
@@ -62,11 +65,11 @@ function openEditGroup(group: Group) {
   groupDialogOpen.value = true
 }
 
-async function handleGroupSave(data: { name: string; proxyId?: string; color?: string }) {
+async function handleGroupSave(data: { name: string; proxyId?: string; color?: string; workspaceId?: string }) {
   if (editingGroup.value) {
     await accountStore.updateGroup(editingGroup.value.id, data)
   } else {
-    await accountStore.createGroup(data.name, data.color)
+    await accountStore.createGroup(data.name, data.color, data.workspaceId)
   }
 }
 
@@ -124,7 +127,9 @@ async function handleDelete() {
     <!-- 顶部：折叠按钮（可拖拽区域） -->
     <div class="flex items-center justify-between px-3 h-11 border-b border-sidebar-border" style="-webkit-app-region: drag">
       <img v-if="!collapsed" :src="appIcon" alt="" class="w-5 h-5 flex-shrink-0 rounded-sm" />
-      <span v-if="!collapsed" class="text-sm font-medium text-sidebar-foreground">SessionBox</span>
+      <span v-if="!collapsed" class="text-sm font-medium text-sidebar-foreground truncate">
+        {{ workspaceStore.activeWorkspace?.title ?? 'SessionBox' }}
+      </span>
       <Tooltip>
         <TooltipTrigger as-child>
           <Button variant="ghost" size="icon" class="h-7 w-7" style="-webkit-app-region: no-drag" @click="emit('toggleCollapse')">
@@ -135,6 +140,9 @@ async function handleDelete() {
         <TooltipContent side="right">{{ collapsed ? '展开侧边栏' : '折叠侧边栏' }}</TooltipContent>
       </Tooltip>
     </div>
+
+    <!-- 工作区栏 -->
+    <WorkspaceBar :collapsed="collapsed" />
 
     <!-- 分组列表 -->
     <ScrollArea class="flex-1 px-1 py-1">

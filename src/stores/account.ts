@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Group, Account } from '../types'
+import { useWorkspaceStore } from './workspace'
 
 const api = window.api
 
@@ -27,6 +28,17 @@ export const useAccountStore = defineStore('account', () => {
     [...groups.value].sort((a, b) => a.order - b.order)
   )
 
+  /** 根据当前激活工作区过滤的分组列表 */
+  const workspaceGroups = computed(() => {
+    const workspaceStore = useWorkspaceStore()
+    const activeId = workspaceStore.activeWorkspaceId
+    return sortedGroups.value.filter((g) => {
+      // workspaceId 为空时视为属于默认工作区
+      const gWorkspaceId = g.workspaceId || '__default__'
+      return gWorkspaceId === activeId
+    })
+  })
+
   /** 根据 ID 获取账号 */
   function getAccount(id: string): Account | undefined {
     return accounts.value.find((a) => a.id === id)
@@ -43,8 +55,8 @@ export const useAccountStore = defineStore('account', () => {
     groups.value = await api.group.list()
   }
 
-  async function createGroup(name: string, color?: string) {
-    const group = await api.group.create(name, color)
+  async function createGroup(name: string, color?: string, workspaceId?: string) {
+    const group = await api.group.create(name, color, workspaceId)
     groups.value.push(group)
     return group
   }
@@ -110,6 +122,7 @@ export const useAccountStore = defineStore('account', () => {
     accounts,
     accountsByGroup,
     sortedGroups,
+    workspaceGroups,
     getAccount,
     getGroup,
     loadGroups,

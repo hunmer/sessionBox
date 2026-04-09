@@ -7,6 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
 import { useProxyStore } from '@/stores/proxy'
+import { useWorkspaceStore } from '@/stores/workspace'
 import type { Group } from '@/types'
 
 const PRESET_COLORS = [
@@ -22,22 +23,26 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  save: [data: { name: string; proxyId?: string; color?: string }]
+  save: [data: { name: string; proxyId?: string; color?: string; workspaceId?: string }]
 }>()
 
 const proxyStore = useProxyStore()
+const workspaceStore = useWorkspaceStore()
 const name = ref('')
 const NO_PROXY = '__none__'
 const proxyId = ref(NO_PROXY)
 const color = ref('')
+const workspaceId = ref('')
 
 const proxyOptions = computed(() => proxyStore.proxies)
+const workspaceOptions = computed(() => workspaceStore.sortedWorkspaces)
 
 watch(() => props.open, (val) => {
   if (val) {
     name.value = props.group?.name ?? ''
     proxyId.value = props.group?.proxyId || NO_PROXY
     color.value = props.group?.color ?? ''
+    workspaceId.value = props.group?.workspaceId || workspaceStore.activeWorkspaceId
   }
 })
 
@@ -47,7 +52,8 @@ function handleSave() {
   emit('save', {
     name: trimmed,
     proxyId: proxyId.value === NO_PROXY ? undefined : proxyId.value,
-    color: color.value || undefined
+    color: color.value || undefined,
+    workspaceId: workspaceId.value || undefined
   })
   emit('update:open', false)
 }
@@ -63,6 +69,19 @@ function handleSave() {
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">分组名称</label>
           <Input v-model="name" placeholder="请输入分组名称" autofocus @keydown.enter="handleSave" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-muted-foreground">所属工作区</label>
+          <Select v-model="workspaceId">
+            <SelectTrigger>
+              <SelectValue placeholder="选择工作区" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="ws in workspaceOptions" :key="ws.id" :value="ws.id">
+                {{ ws.title }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">绑定代理</label>

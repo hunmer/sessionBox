@@ -32,7 +32,7 @@ function onDragEnd() {
 
 <template>
   <draggable
-    :model-value="accountStore.sortedGroups"
+    :model-value="accountStore.workspaceGroups"
     :animation="150"
     handle=".group-handle"
     item-key="id"
