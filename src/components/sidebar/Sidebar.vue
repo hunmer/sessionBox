@@ -46,6 +46,8 @@ function handleEditGroup(group: Group) {
 async function handleSaveGroup(data: { name: string; proxyId?: string; color?: string; workspaceId?: string }) {
   if (editingGroup.value) {
     await accountStore.updateGroup(editingGroup.value.id, data)
+  } else {
+    await accountStore.createGroup(data.name, data.color, data.workspaceId, data.proxyId)
   }
   groupDialogOpen.value = false
   editingGroup.value = null
@@ -57,7 +59,22 @@ async function handleDeleteGroup(group: Group) {
   }
 }
 
-// 账号操作
+// 添加分组
+function handleAddGroup() {
+  editingGroup.value = null
+  groupDialogOpen.value = true
+}
+
+// 添加账号（groupId 为空时是新建分组按钮，否则是分组菜单中的新建账号）
+function handleAddAccount(groupId: string) {
+  if (!groupId) {
+    handleAddGroup()
+    return
+  }
+  editingAccount.value = null
+  accountDialogOpen.value = true
+}
+
 function handleEditAccount(account: Account) {
   editingAccount.value = account
   accountDialogOpen.value = true
@@ -66,6 +83,8 @@ function handleEditAccount(account: Account) {
 async function handleSaveAccount(data: Partial<Account> & { groupId: string; name: string; icon: string; defaultUrl: string; order: number }) {
   if (editingAccount.value) {
     await accountStore.updateAccount(editingAccount.value.id, data)
+  } else {
+    await accountStore.createAccount(data)
   }
   accountDialogOpen.value = false
   editingAccount.value = null
@@ -129,7 +148,7 @@ const workspaceSwitcherItems = computed(() => {
         :collapsed="collapsed"
         @edit-group="handleEditGroup"
         @delete-group="handleDeleteGroup"
-        @add-account="emit('openSettings')"
+        @add-account="handleAddAccount"
         @edit-account="handleEditAccount"
         @delete-account="handleDeleteAccount"
         @select-account="handleSelectAccount"

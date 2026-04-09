@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-vue-next'
+import { MoreHorizontal, Pencil, Trash2, Plus } from 'lucide-vue-next'
 import type { Group, Account } from '@/types'
 
 const props = defineProps<{
@@ -25,6 +25,7 @@ const emit = defineEmits<{
   selectAccount: [accountName: string]
   editGroup: [group: Group]
   deleteGroup: [group: Group]
+  addAccount: [groupId: string]
   editAccount: [account: Account]
   deleteAccount: [account: Account]
 }>()
@@ -76,6 +77,11 @@ const workspaces = computed(() => {
             <template v-if="workspace.pages.length > 0">
               <DropdownMenuSeparator />
             </template>
+            <DropdownMenuItem @click.stop="emit('addAccount', workspace.group.id)">
+              <Plus class="w-4 h-4 mr-2" />
+              新建账号
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem @click.stop="emit('editGroup', workspace.group)">
               <Pencil class="w-4 h-4 mr-2" />
               编辑分组
@@ -101,6 +107,7 @@ const workspaces = computed(() => {
     @select-account="emit('selectAccount', $event)"
     @edit-group="emit('editGroup', $event)"
     @delete-group="emit('deleteGroup', $event)"
+    @add-account="emit('addAccount', $event)"
     @edit-account="emit('editAccount', $event)"
     @delete-account="emit('deleteAccount', $event)"
   />

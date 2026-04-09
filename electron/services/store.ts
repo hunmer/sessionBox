@@ -182,14 +182,15 @@ export function listGroups(): Group[] {
   return getCollection('groups').sort((a, b) => a.order - b.order)
 }
 
-export function createGroup(name: string, color?: string, workspaceId?: string): Group {
+export function createGroup(name: string, color?: string, workspaceId?: string, proxyId?: string): Group {
   const groups = getCollection('groups')
   const group: Group = {
     id: randomUUID(),
     name,
     order: groups.length,
     ...(color ? { color } : {}),
-    workspaceId: workspaceId || DEFAULT_WORKSPACE_ID
+    workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
+    ...(proxyId ? { proxyId } : {})
   }
   groups.push(group)
   setCollection('groups', groups)

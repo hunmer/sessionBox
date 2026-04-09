@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Pencil, Trash2 } from "lucide-vue-next"
+import { Pencil, Trash2, Plus } from "lucide-vue-next"
 import type { Group, Account } from '@/types'
 
 const props = defineProps<{
@@ -43,6 +43,7 @@ const emit = defineEmits<{
   selectAccount: [accountId: string]
   editGroup: [group: Group]
   deleteGroup: [group: Group]
+  addAccount: [groupId: string]
   editAccount: [account: Account]
   deleteAccount: [account: Account]
 }>()
@@ -106,6 +107,10 @@ function getColorHoverStyle(color: string) {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
+              <DropdownMenuItem @click="emit('addAccount', workspace.group.id)">
+                <Plus class="w-4 h-4 mr-2" />
+                新建账号
+              </DropdownMenuItem>
               <DropdownMenuItem @click="emit('editGroup', workspace.group)">
                 <Pencil class="w-4 h-4 mr-2" />
                 编辑
