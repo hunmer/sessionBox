@@ -4,6 +4,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupUserAgent } from './utils/user-agent'
 import { registerIpcHandlers } from './ipc'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
+import { getAutoUpdater } from './composables/useAutoUpdater'
 
 // 在 app ready 之前设置 UA
 setupUserAgent()
@@ -70,6 +71,9 @@ if (!gotTheLock) {
     // 初始化 WebContentsView 管理器
     webviewManager.setMainWindow(mainWindow)
 
+    // 初始化自动更新器主窗口引用
+    getAutoUpdater().setMainWindow(mainWindow)
+
     mainWindow.on('ready-to-show', () => {
       mainWindow.show()
     })
@@ -125,6 +129,13 @@ if (!gotTheLock) {
     }
 
     createWindow()
+
+    // 启动 3 秒后自动检查更新
+    setTimeout(() => {
+      const autoUpdater = getAutoUpdater()
+      console.log('[Main] 开始检查更新...')
+      autoUpdater.checkForUpdates()
+    }, 3000)
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

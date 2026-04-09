@@ -134,6 +134,45 @@ const api = {
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),
 
+  // 自动更新
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    download: () => ipcRenderer.invoke('updater:download'),
+    install: (isSilent = false) => ipcRenderer.invoke('updater:install', isSilent),
+    getVersion: () => ipcRenderer.invoke('updater:get-version'),
+    getInfo: () => ipcRenderer.invoke('updater:get-info'),
+    onChecking: (callback: () => void) => {
+      const handler = () => callback()
+      ipcRenderer.on('update:checking', handler)
+      return () => ipcRenderer.removeListener('update:checking', handler)
+    },
+    onAvailable: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, info: { version: string; releaseDate?: string; releaseNotes?: string }) => callback(info)
+      ipcRenderer.on('update:available', handler)
+      return () => ipcRenderer.removeListener('update:available', handler)
+    },
+    onNotAvailable: (callback: (info: { version: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, info: { version: string }) => callback(info)
+      ipcRenderer.on('update:not-available', handler)
+      return () => ipcRenderer.removeListener('update:not-available', handler)
+    },
+    onDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, progress: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => callback(progress)
+      ipcRenderer.on('update:download-progress', handler)
+      return () => ipcRenderer.removeListener('update:download-progress', handler)
+    },
+    onDownloaded: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, info: { version: string; releaseDate?: string; releaseNotes?: string }) => callback(info)
+      ipcRenderer.on('update:downloaded', handler)
+      return () => ipcRenderer.removeListener('update:downloaded', handler)
+    },
+    onError: (callback: (error: { message: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, error: { message: string }) => callback(error)
+      ipcRenderer.on('update:error', handler)
+      return () => ipcRenderer.removeListener('update:error', handler)
+    }
+  },
+
   // 主进程 → 渲染进程事件监听
   on: (event: string, callback: (...args: unknown[]) => void): (() => void) => {
     const channel = `on:${event}`

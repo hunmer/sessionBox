@@ -53,5 +53,9 @@
     }
   ],
   "compression": "store",
-  "asar": true
+  "asar": true,
+  "publish": {
+    "provider": "generic",
+    "url": "http://192.168.1.200/sessionbox_updates/"
+  }
 }

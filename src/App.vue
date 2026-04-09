@@ -9,6 +9,7 @@ import BrowserToolbar from '@/components/toolbar/BrowserToolbar.vue'
 import FavoriteBar from '@/components/favorite/FavoriteBar.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
+import UpdateNotification from '@/components/common/UpdateNotification.vue'
 import { useAccountStore } from '@/stores/account'
 import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
@@ -49,6 +50,10 @@ const verticalTabDefaultSize = savedVerticalTabWidth ? Number(savedVerticalTabWi
 /** 节流保存面板宽度 + 同步 webview bounds */
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 function handleLayout(sizes: number[]) {
+  // 从布局尺寸变化同步侧边栏折叠状态（比依赖 collapse/expand 事件更可靠）
+  if (sizes.length > 0) {
+    sidebarCollapsed.value = Math.round(sizes[0]) <= SIDEBAR_COLLAPSED_SIZE
+  }
   nextTick(() => sendBounds())
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
@@ -232,5 +237,8 @@ watch(() => tabStore.favoriteBarVisible, () => {
 
     <!-- 设置弹窗 -->
     <SettingsDialog :open="settingsDialogOpen" @update:open="settingsDialogOpen = $event" />
+
+    <!-- 更新提示弹窗 -->
+    <UpdateNotification />
   </TooltipProvider>
 </template>

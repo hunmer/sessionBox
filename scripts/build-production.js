@@ -94,6 +94,43 @@ async function safeRename(oldPath, newPath, retries = 3) {
       cwd: projectRoot
     })
 
+    // 复制更新文件到 SMB 目录
+    console.log('\n📂 复制更新文件到 SMB 目录...')
+    const smbPath = '\\\\192.168.1.200\\web\\sessionbox_updates'
+    const distAppPath = path.join(projectRoot, 'dist-app')
+
+    try {
+      // 确保 SMB 目录存在
+      if (!fs.existsSync(smbPath)) {
+        fs.mkdirSync(smbPath, { recursive: true })
+      }
+
+      // 清理旧文件
+      const oldFiles = ['SessionBox-0.0.2.exe', 'SessionBox-0.0.2.zip', 'latest.yml']
+      for (const file of oldFiles) {
+        const oldFilePath = path.join(smbPath, file)
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath)
+          console.log(`  已删除旧文件: ${file}`)
+        }
+      }
+
+      // 复制新文件
+      const newFiles = fs.readdirSync(distAppPath)
+      for (const file of newFiles) {
+        if (file.endsWith('.exe') || file.endsWith('.zip') || file === 'latest.yml') {
+          const srcFile = path.join(distAppPath, file)
+          const destFile = path.join(smbPath, file)
+          fs.copyFileSync(srcFile, destFile)
+          console.log(`  已复制: ${file}`)
+        }
+      }
+      console.log('  ✓ 更新文件复制完成')
+    } catch (error) {
+      console.log(`  ⚠️  无法访问 SMB 目录: ${smbPath}`)
+      console.log('  跳过文件复制，构建仍然成功')
+    }
+
     // 恢复开发环境依赖
     console.log('\n🔄 恢复开发环境依赖...')
     if (fs.existsSync(nodeModulesPath)) {
