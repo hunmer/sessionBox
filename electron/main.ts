@@ -121,7 +121,7 @@ if (!gotTheLock) {
 
     // 节流保存窗口状态（位置和大小变化时）
     const saveWindowBounds = throttle(() => {
-      if (mainWindow.isMaximized()) return
+      if (mainWindow.isDestroyed() || mainWindow.isMaximized()) return
       const bounds = mainWindow.getBounds()
       const state = getWindowState()
       setWindowState({
@@ -136,9 +136,8 @@ if (!gotTheLock) {
     mainWindow.on('resize', saveWindowBounds)
     mainWindow.on('move', saveWindowBounds)
 
-    // 窗口关闭时保存最终状态并销毁 WebContentsView
-    mainWindow.on('closed', () => {
-      // 保存最终窗口状态
+    // 窗口即将关闭时保存最终状态（此时窗口仍可访问）
+    mainWindow.on('close', () => {
       if (!mainWindow.isMaximized()) {
         const bounds = mainWindow.getBounds()
         const state = getWindowState()
@@ -150,6 +149,10 @@ if (!gotTheLock) {
           height: bounds.height
         })
       }
+    })
+
+    // 窗口已销毁后清理 WebContentsView
+    mainWindow.on('closed', () => {
       webviewManager.destroyAll()
     })
 

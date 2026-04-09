@@ -108,12 +108,13 @@ class WebviewManager {
     if (!win) return
 
     const isWebUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://')
+    const canSend = () => !win.isDestroyed()
 
     wc.setWindowOpenHandler(({ url }) => {
       if (!isWebUrl(url)) return { action: 'deny' }
 
       const entry = this.views.get(tabId)
-      if (entry) {
+      if (entry && canSend()) {
         win.webContents.send('on:tab:open-url', entry.accountId, url)
       }
 
@@ -129,16 +130,16 @@ class WebviewManager {
     })
 
     wc.on('page-title-updated', (_event, title) => {
-      win.webContents.send('on:tab:title-updated', tabId, title)
+      if (canSend()) win.webContents.send('on:tab:title-updated', tabId, title)
     })
 
     wc.on('did-navigate', (_event, url) => {
-      win.webContents.send('on:tab:url-updated', tabId, url)
+      if (canSend()) win.webContents.send('on:tab:url-updated', tabId, url)
       this.sendNavState(tabId)
     })
 
     wc.on('did-navigate-in-page', (_event, url) => {
-      win.webContents.send('on:tab:url-updated', tabId, url)
+      if (canSend()) win.webContents.send('on:tab:url-updated', tabId, url)
       this.sendNavState(tabId)
     })
 
@@ -151,7 +152,7 @@ class WebviewManager {
     })
 
     wc.on('page-favicon-updated', (_event, favicons) => {
-      if (favicons.length > 0) {
+      if (favicons.length > 0 && canSend()) {
         win.webContents.send('on:tab:favicon-updated', tabId, favicons[0])
       }
     })
@@ -159,7 +160,7 @@ class WebviewManager {
 
   private sendNavState(tabId: string): void {
     const entry = this.views.get(tabId)
-    if (!entry || !this.mainWindow) return
+    if (!entry || !this.mainWindow || this.mainWindow.isDestroyed()) return
 
     const wc = entry.view.webContents
     this.mainWindow.webContents.send('on:tab:nav-state', tabId, {

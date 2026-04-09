@@ -14432,10 +14432,11 @@ class WebviewManager {
     const win = this.mainWindow;
     if (!win) return;
     const isWebUrl = (url) => url.startsWith("http://") || url.startsWith("https://");
+    const canSend = () => !win.isDestroyed();
     wc.setWindowOpenHandler(({ url }) => {
       if (!isWebUrl(url)) return { action: "deny" };
       const entry = this.views.get(tabId);
-      if (entry) {
+      if (entry && canSend()) {
         win.webContents.send("on:tab:open-url", entry.accountId, url);
       }
       return { action: "deny" };
@@ -14447,14 +14448,14 @@ class WebviewManager {
       if (!isWebUrl(url)) event.preventDefault();
     });
     wc.on("page-title-updated", (_event, title2) => {
-      win.webContents.send("on:tab:title-updated", tabId, title2);
+      if (canSend()) win.webContents.send("on:tab:title-updated", tabId, title2);
     });
     wc.on("did-navigate", (_event, url) => {
-      win.webContents.send("on:tab:url-updated", tabId, url);
+      if (canSend()) win.webContents.send("on:tab:url-updated", tabId, url);
       this.sendNavState(tabId);
     });
     wc.on("did-navigate-in-page", (_event, url) => {
-      win.webContents.send("on:tab:url-updated", tabId, url);
+      if (canSend()) win.webContents.send("on:tab:url-updated", tabId, url);
       this.sendNavState(tabId);
     });
     wc.on("did-start-loading", () => {
@@ -14464,14 +14465,14 @@ class WebviewManager {
       this.sendNavState(tabId);
     });
     wc.on("page-favicon-updated", (_event, favicons) => {
-      if (favicons.length > 0) {
+      if (favicons.length > 0 && canSend()) {
         win.webContents.send("on:tab:favicon-updated", tabId, favicons[0]);
       }
     });
   }
   sendNavState(tabId) {
     const entry = this.views.get(tabId);
-    if (!entry || !this.mainWindow) return;
+    if (!entry || !this.mainWindow || this.mainWindow.isDestroyed()) return;
     const wc = entry.view.webContents;
     this.mainWindow.webContents.send("on:tab:nav-state", tabId, {
       canGoBack: wc.navigationHistory.canGoBack(),
@@ -14631,6 +14632,13 @@ function registerTabIpcHandlers() {
     const tabs = listTabs();
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1;
     const mainWindow2 = webviewManager.getMainWindow();
+    if (url?.startsWith("sessionbox://")) {
+      const existingTab = tabs.find((t) => t.url === url);
+      if (existingTab) {
+        mainWindow2?.webContents.send("on:tab:activated", existingTab.id);
+        return existingTab;
+      }
+    }
     const isInternalPage = url?.startsWith("sessionbox://");
     const internalPageTitles = {
       "bookmarks": "书签管理"
@@ -28015,7 +28023,7 @@ if (!gotTheLock) {
       setWindowState({ ...state, isMaximized: false });
     });
     const saveWindowBounds = throttle(() => {
-      if (mainWindow2.isMaximized()) return;
+      if (mainWindow2.isDestroyed() || mainWindow2.isMaximized()) return;
       const bounds = mainWindow2.getBounds();
       const state = getWindowState$1();
       setWindowState({
@@ -28028,7 +28036,7 @@ if (!gotTheLock) {
     }, 500);
     mainWindow2.on("resize", saveWindowBounds);
     mainWindow2.on("move", saveWindowBounds);
-    mainWindow2.on("closed", () => {
+    mainWindow2.on("close", () => {
       if (!mainWindow2.isMaximized()) {
         const bounds = mainWindow2.getBounds();
         const state = getWindowState$1();
@@ -28040,6 +28048,8 @@ if (!gotTheLock) {
           height: bounds.height
         });
       }
+    });
+    mainWindow2.on("closed", () => {
       webviewManager.destroyAll();
     });
     const protocolUrl = process.argv.find((arg) => arg.startsWith("sessionbox://"));
