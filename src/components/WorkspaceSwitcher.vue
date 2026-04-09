@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Component } from "vue"
 import { ChevronDown, Plus } from "lucide-vue-next"
-import { ref } from "vue"
+import { computed, ref } from "vue"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +23,7 @@ import { useWorkspaceStore } from '@/stores/workspace'
 
 const props = defineProps<{
   workspaces: {
+    id: string
     name: string
     logo: Component
     plan: string
@@ -31,8 +32,12 @@ const props = defineProps<{
 }>()
 
 const workspaceStore = useWorkspaceStore()
-const activeWorkspace = ref(props.workspaces[0])
 const dialogOpen = ref(false)
+
+/** 当前激活工作区的完整信息（包含 logo） */
+const activeWorkspaceInfo = computed(() =>
+  props.workspaces.find((w) => w.id === workspaceStore.activeWorkspaceId) ?? props.workspaces[0]
+)
 
 function handleAddWorkspace() {
   dialogOpen.value = true
@@ -41,21 +46,25 @@ function handleAddWorkspace() {
 async function handleSave(data: { title: string; color: string }) {
   await workspaceStore.createWorkspace(data.title, data.color)
 }
+
+function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
+  workspaceStore.activate(workspace.id)
+}
 </script>
 
 <template>
-  <SidebarMenu v-if="activeWorkspace">
+  <SidebarMenu v-if="activeWorkspaceInfo">
     <SidebarMenuItem>
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton class="w-fit px-1.5">
             <div
               class="flex aspect-square size-5 items-center justify-center rounded-md"
-              :style="{ backgroundColor: activeWorkspace.color || '#3b82f6' }"
+              :style="{ backgroundColor: activeWorkspaceInfo.color || '#3b82f6' }"
             >
-              <component :is="activeWorkspace.logo" class="size-3 text-white" />
+              <component :is="activeWorkspaceInfo.logo" class="size-3 text-white" />
             </div>
-            <span class="truncate font-semibold">{{ activeWorkspace.name }}</span>
+            <span class="truncate font-semibold">{{ activeWorkspaceInfo.name }}</span>
             <ChevronDown class="opacity-50" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
@@ -70,9 +79,9 @@ async function handleSave(data: { title: string; color: string }) {
           </DropdownMenuLabel>
           <DropdownMenuItem
             v-for="(workspace, index) in workspaces"
-            :key="workspace.name"
+            :key="workspace.id"
             class="gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-            @click="activeWorkspace = workspace"
+            @click="handleSelectWorkspace(workspace)"
           >
             <div
               class="flex size-6 items-center justify-center rounded-md"

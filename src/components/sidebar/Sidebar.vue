@@ -108,9 +108,10 @@ const navMain = [
 const workspaceSwitcherItems = computed(() => {
   const workspaceList = workspaceStore.sortedWorkspaces
   if (workspaceList.length === 0) {
-    return [{ name: '默认工作区', logo: Command, plan: '', color: '#3b82f6' }]
+    return [{ id: '__default__', name: '默认工作区', logo: Command, plan: '', color: '#3b82f6' }]
   }
   return workspaceList.map((w) => ({
+    id: w.id,
     name: w.title,
     logo: Tag,
     plan: '',
