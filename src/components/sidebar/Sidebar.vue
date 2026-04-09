@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Home, Tag, Command } from 'lucide-vue-next'
+import { Home, Tag, Command, Bookmark } from 'lucide-vue-next'
 
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher.vue'
 import NavMain from '@/components/NavMain.vue'
@@ -36,6 +36,7 @@ const groupDialogOpen = ref(false)
 const editingGroup = ref<Group | null>(null)
 const accountDialogOpen = ref(false)
 const editingAccount = ref<Account | null>(null)
+const newAccountGroupId = ref<string | undefined>(undefined)
 
 // 分组操作
 function handleEditGroup(group: Group) {
@@ -72,6 +73,7 @@ function handleAddAccount(groupId: string) {
     return
   }
   editingAccount.value = null
+  newAccountGroupId.value = groupId
   accountDialogOpen.value = true
 }
 
@@ -88,6 +90,7 @@ async function handleSaveAccount(data: Partial<Account> & { groupId: string; nam
   }
   accountDialogOpen.value = false
   editingAccount.value = null
+  newAccountGroupId.value = undefined
 }
 
 async function handleDeleteAccount(account: Account) {
@@ -106,7 +109,7 @@ function handleSelectAccount(accountId: string) {
   }
 }
 
-// navMain: 【主页】【标签】（占位）
+// navMain: 【主页】【标签】【书签管理】
 const navMain = [
   {
     title: '主页',
@@ -118,6 +121,12 @@ const navMain = [
     title: '标签',
     url: '#',
     icon: Tag,
+  },
+  {
+    title: '书签管理',
+    url: '#',
+    icon: Bookmark,
+    onClick: () => tabStore.createTabForSite('sessionbox://bookmarks'),
   },
 ]
 
@@ -175,6 +184,7 @@ const workspaceSwitcherItems = computed(() => {
   <AccountDialog
     v-model:open="accountDialogOpen"
     :account="editingAccount"
+    :group-id="newAccountGroupId"
     @save="handleSaveAccount"
   />
 </template>
