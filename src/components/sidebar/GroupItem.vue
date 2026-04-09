@@ -5,17 +5,23 @@ import { ChevronRight, MoreHorizontal } from "lucide-vue-next"
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import {
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Pencil, Trash2 } from "lucide-vue-next"
 
 const props = defineProps<{
   workspaces: {
@@ -65,27 +71,23 @@ function getColorHoverStyle(color: string) {
         <SidebarMenuButton as-child>
           <a
             href="#"
-            class="group/menu-button"
+            class="group/menu-button flex items-center gap-2"
             :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
+            @click.prevent="openStates[workspace.name] = !openStates[workspace.name]"
           >
+            <ChevronRight
+              class="w-4 h-4 transition-transform group-data-[collapsible=icon]:hidden shrink-0"
+              :class="openStates[workspace.name] ? 'rotate-90' : ''"
+            />
+            <span v-if="workspace.emoji">{{ workspace.emoji }}</span>
+            <span class="flex-1">{{ workspace.name }}</span>
             <span
               v-if="workspace.color"
-              class="w-4 h-4 rounded-sm flex-shrink-0"
+              class="w-2 h-2 rounded-full flex-shrink-0"
               :style="{ backgroundColor: workspace.color }"
             ></span>
-            <span v-else>{{ workspace.emoji }}</span>
-            <span>{{ workspace.name }}</span>
           </a>
         </SidebarMenuButton>
-        <CollapsibleTrigger as-child>
-          <SidebarMenuAction
-            class="left-2 group-data-[collapsible=icon]:hidden hover:!bg-sidebar-accent"
-            :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
-            show-on-hover
-          >
-            <ChevronRight class="group-hover/menu-item:!text-sidebar-accent-foreground transition-colors" />
-          </SidebarMenuAction>
-        </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub>
             <SidebarMenuSubItem

@@ -17,7 +17,7 @@ const accountStore = useAccountStore()
 const workspaces = computed(() => {
   return accountStore.workspaceGroups.map((g) => ({
     name: g.name,
-    emoji: g.color ? '●' : '📁', // 使用实心圆点配合颜色，或默认 emoji
+    emoji: '📁',
     color: g.color, // 保留颜色信息
     pages: (accountStore.accountsByGroup.get(g.id) || [])
       .sort((a, b) => a.order - b.order)
