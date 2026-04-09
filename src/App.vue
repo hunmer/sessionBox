@@ -175,6 +175,11 @@ watch(() => tabStore.activeTabId, () => {
   nextTick(() => sendBounds())
 })
 
+// 内部页面切换时隐藏/显示 WebContentsView
+watch(() => tabStore.isInternalPage, (isInternal) => {
+  window.api.tab.setOverlayVisible(!isInternal)
+})
+
 // 快捷网站栏显隐时同步 bounds
 watch(() => tabStore.favoriteBarVisible, () => {
   nextTick(() => sendBounds())

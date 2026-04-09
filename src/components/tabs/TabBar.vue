@@ -138,6 +138,10 @@ function handleAddAccount(account: Account) {
           <span class="flex-1">快捷网站栏</span>
           <Check v-if="tabStore.favoriteBarVisible" class="size-4 text-primary" />
         </DropdownMenuItem>
+        <DropdownMenuItem class="cursor-pointer" @click="tabStore.activeTab ? tabStore.navigate(tabStore.activeTab.id, 'sessionbox://bookmarks') : tabStore.createTabForSite('sessionbox://bookmarks')">
+          <Bookmark class="size-4 mr-2" />
+          <span class="flex-1">书签管理</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
 
