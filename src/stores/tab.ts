@@ -317,10 +317,14 @@ export const useTabStore = defineStore('tab', () => {
     const workspaceStore = useWorkspaceStore()
     return workspaceStore.activeWorkspaceId
   }, () => {
-    // 当前激活的 tab 是否还在工作区内
     const inWorkspace = workspaceTabs.value.some((t) => t.id === activeTabId.value)
-    if (!inWorkspace && workspaceTabs.value.length > 0) {
+    if (inWorkspace) return
+    if (workspaceTabs.value.length > 0) {
       switchTab(workspaceTabs.value[0].id)
+    } else {
+      // 新工作区无 tab，隐藏当前 browserview
+      activeTabId.value = null
+      api.tab.switch('')
     }
   })
 
