@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
-import { ChevronRight, MoreHorizontal, Plus } from "lucide-vue-next"
+import { computed, reactive } from 'vue'
+import { ChevronRight, MoreHorizontal } from "lucide-vue-next"
 
 import {
   Collapsible,
@@ -47,6 +47,11 @@ props.workspaces.forEach((w) => {
 function handleAccountClick(pageId: string) {
   emit('selectAccount', pageId)
 }
+
+// 生成分组颜色的 hover 样式（只在 hover 时显示背景）
+function getColorHoverStyle(color: string) {
+  return { '--hover-bg': color + '20' } as Record<string, string>
+}
 </script>
 
 <template>
@@ -58,7 +63,11 @@ function handleAccountClick(pageId: string) {
     >
       <SidebarMenuItem>
         <SidebarMenuButton as-child>
-          <a href="#">
+          <a
+            href="#"
+            class="group/menu-button"
+            :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
+          >
             <span
               v-if="workspace.color"
               class="w-4 h-4 rounded-sm flex-shrink-0"
@@ -70,18 +79,21 @@ function handleAccountClick(pageId: string) {
         </SidebarMenuButton>
         <CollapsibleTrigger as-child>
           <SidebarMenuAction
-            class="left-2 bg-sidebar-accent text-sidebar-accent-foreground data-[state=open]:rotate-90"
+            class="left-2 group-data-[collapsible=icon]:hidden hover:!bg-sidebar-accent"
+            :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
             show-on-hover
           >
-            <ChevronRight />
+            <ChevronRight class="group-hover/menu-item:!text-sidebar-accent-foreground transition-colors" />
           </SidebarMenuAction>
         </CollapsibleTrigger>
-        <SidebarMenuAction show-on-hover>
-          <Plus />
-        </SidebarMenuAction>
         <CollapsibleContent>
           <SidebarMenuSub>
-            <SidebarMenuSubItem v-for="page in workspace.pages" :key="page.id">
+            <SidebarMenuSubItem
+              v-for="page in workspace.pages"
+              :key="page.id"
+              :style="workspace.color ? { '--item-hover': workspace.color + '20' } : undefined"
+              class="group/menu-sub-item"
+            >
               <SidebarMenuSubButton as-child>
                 <a
                   href="#"
@@ -106,3 +118,15 @@ function handleAccountClick(pageId: string) {
     </SidebarMenuItem>
   </SidebarMenu>
 </template>
+
+<style scoped>
+/* 分组名称 hover 效果 */
+.group\/menu-button:hover {
+  background-color: var(--hover-bg, transparent);
+}
+
+/* 账号项 hover 效果 - 覆盖 SidebarMenuSubButton 默认的 hover 样式 */
+.group\/menu-sub-item:hover :deep([data-slot="sidebar-menu-sub-button"]) {
+  background-color: var(--item-hover, transparent) !important;
+}
+</style>
