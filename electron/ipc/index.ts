@@ -24,6 +24,7 @@ import type { Account, Group, FavoriteSite } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
+import { registerExtensionHandlers } from './extensions'
 
 /** 账号图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'account-icons')
@@ -159,6 +160,9 @@ $img.Dispose()`
 
   // ====== 自动更新 ======
   registerUpdaterIpc()
+
+  // ====== 扩展 ======
+  registerExtensionHandlers()
 
   // ====== 常用网站 ======
   ipcMain.handle('favoriteSite:list', () => listFavoriteSites())

@@ -53,6 +53,15 @@ export interface FavoriteSite {
   favicon?: string
 }
 
+// 扩展配置
+export interface Extension {
+  id: string
+  name: string
+  path: string
+  enabled: boolean
+  icon?: string
+}
+
 // IPC API 定义
 const api = {
   group: {
@@ -123,6 +132,19 @@ const api = {
     update: (id: string, data: Partial<Omit<FavoriteSite, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('favoriteSite:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('favoriteSite:delete', id)
+  },
+
+  extension: {
+    list: (): Promise<Extension[]> => ipcRenderer.invoke('extension:list'),
+    select: (): Promise<Extension | null> => ipcRenderer.invoke('extension:select'),
+    load: (accountId: string, extensionId: string): Promise<void> =>
+      ipcRenderer.invoke('extension:load', accountId, extensionId),
+    unload: (accountId: string, extensionId: string): Promise<void> =>
+      ipcRenderer.invoke('extension:unload', accountId, extensionId),
+    delete: (extensionId: string): Promise<void> => ipcRenderer.invoke('extension:delete', extensionId),
+    update: (id: string, data: Partial<Omit<Extension, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('extension:update', id, data),
+    getLoaded: (accountId: string): Promise<string[]> => ipcRenderer.invoke('extension:getLoaded', accountId)
   },
 
   window: {

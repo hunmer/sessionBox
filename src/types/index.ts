@@ -59,3 +59,12 @@ export interface NavState {
   canGoForward: boolean
   isLoading: boolean
 }
+
+// 扩展配置
+export interface Extension {
+  id: string
+  name: string
+  path: string
+  enabled: boolean
+  icon?: string
+}

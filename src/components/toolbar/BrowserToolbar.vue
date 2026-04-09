@@ -5,11 +5,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTabStore } from '@/stores/tab'
 import { useFavoriteSiteStore } from '@/stores/favoriteSite'
+import ExtensionActionList from './ExtensionActionList.vue'
+import ExtensionManager from '@/components/settings/ExtensionManager.vue'
 
 const tabStore = useTabStore()
 const favoriteSiteStore = useFavoriteSiteStore()
 const urlInput = ref('')
 const isFocused = ref(false)
+
+// 扩展管理对话框
+const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
 
 /** 同步当前 tab URL 到输入框 */
 watch(() => tabStore.activeTab?.url, (url) => {
@@ -135,5 +140,11 @@ async function toggleFavorite() {
     >
       <Code2 class="w-4 h-4" />
     </Button>
+
+    <!-- 扩展图标列表 -->
+    <ExtensionActionList @open-manager="extensionManagerRef?.open()" />
   </div>
+
+  <!-- 扩展管理对话框 -->
+  <ExtensionManager ref="extensionManagerRef" />
 </template>

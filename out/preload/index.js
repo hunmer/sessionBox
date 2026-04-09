@@ -128,6 +128,15 @@ const api = {
     update: (id, data) => electron.ipcRenderer.invoke("favoriteSite:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("favoriteSite:delete", id)
   },
+  extension: {
+    list: () => electron.ipcRenderer.invoke("extension:list"),
+    select: () => electron.ipcRenderer.invoke("extension:select"),
+    load: (accountId, extensionId) => electron.ipcRenderer.invoke("extension:load", accountId, extensionId),
+    unload: (accountId, extensionId) => electron.ipcRenderer.invoke("extension:unload", accountId, extensionId),
+    delete: (extensionId) => electron.ipcRenderer.invoke("extension:delete", extensionId),
+    update: (id, data) => electron.ipcRenderer.invoke("extension:update", id, data),
+    getLoaded: (accountId) => electron.ipcRenderer.invoke("extension:getLoaded", accountId)
+  },
   window: {
     minimize: () => electron.ipcRenderer.invoke("window:minimize"),
     maximize: () => electron.ipcRenderer.invoke("window:maximize"),

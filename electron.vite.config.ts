@@ -1,5 +1,5 @@
 import { resolve } from 'path'
-import { existsSync } from 'node:fs'
+import { existsSync, copyFileSync, mkdirSync } from 'node:fs'
 import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
@@ -23,6 +23,28 @@ function getEditor() {
 
 const isProduction = process.env.NODE_ENV === 'production'
 
+// 自定义插件：在构建后复制 chrome-extension-api.preload.js
+function copyChromeExtensionPreload() {
+  return {
+    name: 'copy-chrome-extension-preload',
+    closeBundle() {
+      const src = resolve(__dirname, 'node_modules/electron-chrome-extensions/dist/chrome-extension-api.preload.js')
+      const destDir = resolve(__dirname, 'out/preload')
+      const dest = resolve(destDir, 'chrome-extension-api.preload.js')
+
+      if (existsSync(src)) {
+        if (!existsSync(destDir)) {
+          mkdirSync(destDir, { recursive: true })
+        }
+        copyFileSync(src, dest)
+        console.log('[copy-chrome-extension-preload] Copied to out/preload/')
+      } else {
+        console.warn('[copy-chrome-extension-preload] Source not found:', src)
+      }
+    }
+  }
+}
+
 export default defineConfig({
   main: {
     build: {
@@ -34,6 +56,7 @@ export default defineConfig({
     }
   },
   preload: {
+    plugins: [copyChromeExtensionPreload()],
     build: {
       rollupOptions: {
         input: {

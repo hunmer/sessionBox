@@ -47,12 +47,23 @@ export interface FavoriteSite {
   favicon?: string   // 图标 URL
 }
 
+// 扩展配置
+export interface Extension {
+  id: string
+  name: string
+  path: string  // 扩展目录路径
+  enabled: boolean
+  icon?: string
+}
+
 interface StoreSchema {
   groups: Group[]
   accounts: Account[]
   proxies: Proxy[]
   tabs: Tab[]
   favoriteSites: FavoriteSite[]
+  extensions: Extension[]
+  accountExtensions: Record<string, string[]>  // accountId -> extensionIds
 }
 
 const defaults: StoreSchema = {
@@ -66,7 +77,9 @@ const defaults: StoreSchema = {
     { id: 'default-qq', title: '腾讯', url: 'https://www.qq.com' },
     { id: 'default-douyin-creator', title: '抖音创作者中心', url: 'https://creator.douyin.com/creator-micro/home' },
     { id: 'default-wechat', title: '微信视频号助手', url: 'https://channels.weixin.qq.com/platform/post/create' }
-  ]
+  ],
+  extensions: [],
+  accountExtensions: {}
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -278,4 +291,67 @@ export function updateFavoriteSite(id: string, data: Partial<Omit<FavoriteSite, 
 export function deleteFavoriteSite(id: string): void {
   const sites = getCollection('favoriteSites').filter((s) => s.id !== id)
   setCollection('favoriteSites', sites)
+}
+
+// ====== 扩展操作 ======
+
+export function listExtensions(): Extension[] {
+  return getCollection('extensions')
+}
+
+export function createExtension(data: Omit<Extension, 'id'>): Extension {
+  const extensions = getCollection('extensions')
+  const extension: Extension = { ...data, id: randomUUID() }
+  extensions.push(extension)
+  setCollection('extensions', extensions)
+  return extension
+}
+
+export function updateExtension(id: string, data: Partial<Omit<Extension, 'id'>>): void {
+  const extensions = getCollection('extensions')
+  const idx = extensions.findIndex((e) => e.id === id)
+  if (idx === -1) throw new Error(`扩展 ${id} 不存在`)
+  extensions[idx] = { ...extensions[idx], ...data }
+  setCollection('extensions', extensions)
+}
+
+export function deleteExtension(id: string): void {
+  const extensions = getCollection('extensions').filter((e) => e.id !== id)
+  setCollection('extensions', extensions)
+  // 从所有账号的扩展列表中移除
+  const accountExtensions = getCollection('accountExtensions')
+  for (const accountId in accountExtensions) {
+    accountExtensions[accountId] = accountExtensions[accountId].filter((eid) => eid !== id)
+  }
+  setCollection('accountExtensions', accountExtensions)
+}
+
+export function getAccountExtensions(accountId: string): string[] {
+  const accountExtensions = getCollection('accountExtensions')
+  return accountExtensions[accountId] || []
+}
+
+export function setAccountExtensions(accountId: string, extensionIds: string[]): void {
+  const accountExtensions = getCollection('accountExtensions')
+  accountExtensions[accountId] = extensionIds
+  setCollection('accountExtensions', accountExtensions)
+}
+
+export function addExtensionToAccount(accountId: string, extensionId: string): void {
+  const accountExtensions = getCollection('accountExtensions')
+  if (!accountExtensions[accountId]) {
+    accountExtensions[accountId] = []
+  }
+  if (!accountExtensions[accountId].includes(extensionId)) {
+    accountExtensions[accountId].push(extensionId)
+    setCollection('accountExtensions', accountExtensions)
+  }
+}
+
+export function removeExtensionFromAccount(accountId: string, extensionId: string): void {
+  const accountExtensions = getCollection('accountExtensions')
+  if (accountExtensions[accountId]) {
+    accountExtensions[accountId] = accountExtensions[accountId].filter((id) => id !== extensionId)
+    setCollection('accountExtensions', accountExtensions)
+  }
 }
