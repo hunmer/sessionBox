@@ -170,9 +170,12 @@ window.addEventListener('beforeunload', () => {
   tabStore.saveState()
 })
 
-// Tab 切换时同步 bounds
+// Tab 切换/关闭时同步 bounds 和 WebContentsView 可见性
 watch(() => tabStore.activeTabId, () => {
-  nextTick(() => sendBounds())
+  nextTick(() => {
+    sendBounds()
+    window.api.tab.setOverlayVisible(!tabStore.isInternalPage)
+  })
 })
 
 // 内部页面切换时隐藏/显示 WebContentsView
