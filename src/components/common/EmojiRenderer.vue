@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, markRaw } from 'vue'
-import * as lucideIcons from 'lucide-vue-next'
+import { computed } from 'vue'
+import { resolveLucideIcon } from '@/lib/lucide-resolver'
 
 const props = defineProps<{
   emoji?: string
@@ -12,9 +12,7 @@ const imgSrc = computed(() => isImage.value ? `account-icon://${props.emoji!.sli
 
 const lucideComponent = computed(() => {
   if (!isLucide.value) return null
-  const name = props.emoji!.slice(6)
-  const comp = (lucideIcons as any)[name]
-  return comp ? markRaw(comp) : null
+  return resolveLucideIcon(props.emoji!.slice(7))
 })
 </script>
 

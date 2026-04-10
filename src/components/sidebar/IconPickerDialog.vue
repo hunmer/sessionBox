@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch, markRaw } from 'vue'
-import * as lucideIcons from 'lucide-vue-next'
+import { ref, computed, watch } from 'vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { lucideIconNames, resolveLucideIcon } from '@/lib/lucide-resolver'
 
 const props = defineProps<{
   open: boolean
@@ -21,14 +21,11 @@ const selected = ref('')
 const page = ref(1)
 const PAGE_SIZE = 64 // 8 cols * 8 rows
 
-/** 所有可用的 lucide 图标名（排除 Icon 后缀的别名） */
-const allIconNames = Object.keys(lucideIcons).filter(k => !k.endsWith('Icon'))
-
 /** 按关键词过滤 */
 const filteredIcons = computed(() => {
   const q = search.value.trim().toLowerCase()
-  if (!q) return allIconNames
-  return allIconNames.filter(name => name.toLowerCase().includes(q))
+  if (!q) return lucideIconNames
+  return lucideIconNames.filter(name => name.toLowerCase().includes(q))
 })
 
 /** 总页数 */
@@ -65,7 +62,7 @@ watch(() => props.open, (val) => {
     page.value = 1
     // 从当前图标恢复选中（如果是 lucide 图标）
     if (props.currentIcon?.startsWith('lucide:')) {
-      selected.value = props.currentIcon.slice(6)
+      selected.value = props.currentIcon.slice(7)
     } else {
       selected.value = ''
     }
@@ -73,14 +70,8 @@ watch(() => props.open, (val) => {
 })
 
 /** 获取图标组件 */
-const iconCache = new Map<string, any>()
 function getIconComponent(name: string) {
-  let comp = iconCache.get(name)
-  if (comp !== undefined) return comp
-  const raw = (lucideIcons as any)[name]
-  comp = raw ? markRaw(raw) : null
-  iconCache.set(name, comp)
-  return comp
+  return resolveLucideIcon(name)
 }
 </script>
 
