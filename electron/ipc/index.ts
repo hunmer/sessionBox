@@ -69,7 +69,7 @@ export function registerIpcHandlers(): void {
   // ====== 分组 ======
   ipcMain.handle('group:list', () => listGroups())
 
-  ipcMain.handle('group:create', (_e, name: string, color?: string, workspaceId?: string, proxyId?: string) => createGroup(name, color, workspaceId, proxyId))
+  ipcMain.handle('group:create', (_e, name: string, color?: string, workspaceId?: string, proxyId?: string, icon?: string) => createGroup(name, color, workspaceId, proxyId, icon))
 
   ipcMain.handle('group:update', (_e, id: string, data: Partial<Omit<Group, 'id'>>) =>
     updateGroup(id, data)

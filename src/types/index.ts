@@ -28,6 +28,7 @@ export interface Group {
   id: string
   name: string
   order: number
+  icon?: string // 分组图标（emoji / lucide:xxx / img:xxx）
   proxyId?: string // 分组级代理绑定
   color?: string // 分组颜色
   workspaceId?: string // 所属工作区

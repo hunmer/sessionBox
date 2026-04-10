@@ -24,6 +24,7 @@ export interface Group {
   id: string
   name: string
   order: number
+  icon?: string
   proxyId?: string
   color?: string
   workspaceId?: string
@@ -195,12 +196,13 @@ export function listGroups(): Group[] {
   return getCollection('groups').sort((a, b) => a.order - b.order)
 }
 
-export function createGroup(name: string, color?: string, workspaceId?: string, proxyId?: string): Group {
+export function createGroup(name: string, color?: string, workspaceId?: string, proxyId?: string, icon?: string): Group {
   const groups = getCollection('groups')
   const group: Group = {
     id: randomUUID(),
     name,
     order: groups.length,
+    ...(icon ? { icon } : {}),
     ...(color ? { color } : {}),
     workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
     ...(proxyId ? { proxyId } : {})

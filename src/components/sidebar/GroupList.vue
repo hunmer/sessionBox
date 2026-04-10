@@ -39,7 +39,7 @@ const workspaces = computed(() => {
     id: g.id,
     group: g,
     name: g.name,
-    emoji: '📁',
+    emoji: g.icon || '📁',
     color: g.color,
     pages: (accountStore.accountsByGroup.get(g.id) || [])
       .sort((a, b) => a.order - b.order)

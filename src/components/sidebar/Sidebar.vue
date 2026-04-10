@@ -48,11 +48,11 @@ function handleEditGroup(group: Group) {
   groupDialogOpen.value = true
 }
 
-async function handleSaveGroup(data: { name: string; proxyId?: string; color?: string; workspaceId?: string }) {
+async function handleSaveGroup(data: { name: string; icon?: string; proxyId?: string; color?: string; workspaceId?: string }) {
   if (editingGroup.value) {
     await accountStore.updateGroup(editingGroup.value.id, data)
   } else {
-    await accountStore.createGroup(data.name, data.color, data.workspaceId, data.proxyId)
+    await accountStore.createGroup(data.name, data.color, data.workspaceId, data.proxyId, data.icon)
   }
   groupDialogOpen.value = false
   editingGroup.value = null
