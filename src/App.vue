@@ -270,8 +270,8 @@ watch(() => tabStore.favoriteBarVisible, () => {
         <ResizablePanel>
           <div class="flex flex-col h-full min-w-0">
             <template v-if="ready">
-              <!-- 水平标签栏（仅水平模式） -->
-              <TabBar v-if="tabStore.tabLayout === 'horizontal'" :is-maximized="isMaximized" @toggle-sidebar="toggleSidebar" />
+              <!-- 水平标签栏 -->
+              <TabBar :is-maximized="isMaximized" @toggle-sidebar="toggleSidebar" />
 
               <!-- 快捷网站栏 -->
               <FavoriteBar v-if="tabStore.favoriteBarVisible" />

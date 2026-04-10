@@ -99,7 +99,7 @@ function handleAddAccount(account: Account) {
 
     <!-- 标签列表 - 分组模式（每个 tab 独立可拖拽） -->
     <draggable
-      v-if="tabStore.tabGroupEnabled"
+      v-if="tabStore.tabLayout === 'horizontal' && tabStore.tabGroupEnabled"
       :model-value="tabStore.groupedWorkspaceTabs"
       :animation="150"
       item-key="id"
@@ -143,7 +143,7 @@ function handleAddAccount(account: Account) {
 
     <!-- 标签列表 - 扁平模式（可拖拽排序） -->
     <draggable
-      v-else
+      v-else-if="tabStore.tabLayout === 'horizontal'"
       :model-value="tabStore.workspaceTabs"
       :animation="150"
       item-key="id"
@@ -159,48 +159,53 @@ function handleAddAccount(account: Account) {
       </template>
     </draggable>
 
-    <!-- 新建标签按钮 -->
-    <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" style="-webkit-app-region: no-drag" @click="showAddDialog = true">
-      <Plus class="w-3.5 h-3.5" />
-    </Button>
-    <AccountPickerDialog
-      :open="showAddDialog"
-      title="新建标签页"
-      @update:open="showAddDialog = $event"
-      @select="handleAddAccount"
-    />
+    <!-- 弹性占位（垂直布局下撑开宽度，使控制按钮靠右） -->
+    <div v-if="tabStore.tabLayout === 'vertical'" class="flex-1" />
 
-    <!-- 更多选项 -->
-    <DropdownMenu>
-      <DropdownMenuTrigger as-child>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-7 w-7 rounded-full hover:bg-secondary flex-shrink-0"
-          style="-webkit-app-region: no-drag"
-        >
-          <MoreHorizontal class="w-3.5 h-3.5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" class="w-48">
-        <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleLayout()">
-          <PanelLeft class="size-4 mr-2" />
-          <span class="flex-1">侧边栏布局</span>
-          <Check v-if="tabStore.tabLayout === 'vertical'" class="size-4 text-primary" />
-        </DropdownMenuItem>
-        <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleTabGroup()">
-          <FolderOpen class="size-4 mr-2" />
-          <span class="flex-1">自动分组</span>
-          <Check v-if="tabStore.tabGroupEnabled" class="size-4 text-primary" />
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleFavoriteBar()">
-          <Bookmark class="size-4 mr-2" />
-          <span class="flex-1">快捷网站栏</span>
-          <Check v-if="tabStore.favoriteBarVisible" class="size-4 text-primary" />
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <template v-if="tabStore.tabLayout === 'horizontal'">
+      <!-- 新建标签按钮 -->
+      <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" style="-webkit-app-region: no-drag" @click="showAddDialog = true">
+        <Plus class="w-3.5 h-3.5" />
+      </Button>
+      <AccountPickerDialog
+        :open="showAddDialog"
+        title="新建标签页"
+        @update:open="showAddDialog = $event"
+        @select="handleAddAccount"
+      />
+
+      <!-- 更多选项 -->
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-7 w-7 rounded-full hover:bg-secondary flex-shrink-0"
+            style="-webkit-app-region: no-drag"
+          >
+            <MoreHorizontal class="w-3.5 h-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" class="w-48">
+          <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleLayout()">
+            <PanelLeft class="size-4 mr-2" />
+            <span class="flex-1">侧边栏布局</span>
+            <Check v-if="tabStore.tabLayout === 'vertical'" class="size-4 text-primary" />
+          </DropdownMenuItem>
+          <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleTabGroup()">
+            <FolderOpen class="size-4 mr-2" />
+            <span class="flex-1">自动分组</span>
+            <Check v-if="tabStore.tabGroupEnabled" class="size-4 text-primary" />
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleFavoriteBar()">
+            <Bookmark class="size-4 mr-2" />
+            <span class="flex-1">快捷网站栏</span>
+            <Check v-if="tabStore.favoriteBarVisible" class="size-4 text-primary" />
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </template>
 
     <!-- 窗口控制按钮 -->
     <div class="flex items-center gap-1.5 flex-shrink-0" style="-webkit-app-region: no-drag">
