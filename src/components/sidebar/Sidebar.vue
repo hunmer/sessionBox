@@ -118,11 +118,6 @@ const navMain = [
     isActive: true,
   },
   {
-    title: '标签',
-    url: '#',
-    icon: Tag,
-  },
-  {
     title: '书签管理',
     url: '#',
     icon: Bookmark,
