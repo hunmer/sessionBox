@@ -16,11 +16,13 @@ import {
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
 import { useAccountStore } from '@/stores/account'
+import { useHomepageStore } from '@/stores/homepage'
 import type { Group, Account } from '@/types'
 
 const workspaceStore = useWorkspaceStore()
 const tabStore = useTabStore()
 const accountStore = useAccountStore()
+const homepageStore = useHomepageStore()
 
 const props = defineProps<{
   collapsed?: boolean
@@ -109,13 +111,25 @@ function handleSelectAccount(accountId: string) {
   }
 }
 
-// navMain: 【主页】【标签】【书签管理】
+/** 打开主页 */
+function openHomepage() {
+  const { url, openMethod } = homepageStore.settings
+  if (!url?.trim()) return
+  if (openMethod === 'newTab' || !tabStore.activeTab) {
+    tabStore.createTabForSite(url)
+  } else {
+    tabStore.navigate(tabStore.activeTab.id, url)
+  }
+}
+
+// navMain: 【主页】【书签管理】
 const navMain = [
   {
     title: '主页',
     url: '#',
     icon: Home,
     isActive: true,
+    onClick: openHomepage,
   },
   {
     title: '书签管理',

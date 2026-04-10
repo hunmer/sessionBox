@@ -16,6 +16,7 @@ import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { useHomepageStore } from '@/stores/homepage'
 import { isOverlayActive, setOverlayRestoreGuard } from '@/lib/webview-overlay'
 import { markRaw, type Component } from 'vue'
 import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
@@ -35,6 +36,7 @@ const tabStore = useTabStore()
 const proxyStore = useProxyStore()
 const bookmarkStore = useBookmarkStore()
 const workspaceStore = useWorkspaceStore()
+const homepageStore = useHomepageStore()
 
 const proxyDialogOpen = ref(false)
 const settingsDialogOpen = ref(false)
@@ -131,6 +133,16 @@ onMounted(async () => {
     bookmarkStore.init()
   ])
   ready.value = true
+
+  // 启动时自动打开主页
+  if (homepageStore.settings.autoOpen && homepageStore.hasHomepage()) {
+    const url = homepageStore.settings.url
+    if (homepageStore.settings.openMethod === 'currentTab' && tabStore.activeTab) {
+      tabStore.navigate(tabStore.activeTab.id, url)
+    } else {
+      tabStore.createTabForSite(url)
+    }
+  }
 
   // 监听 webview 容器尺寸变化
   await nextTick()
