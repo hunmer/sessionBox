@@ -84,6 +84,7 @@ async function hotUpdateProxy(proxyId: string, isDelete = false): Promise<void> 
 
     const tabIds = webviewManager.getTabIdsByAccount(account.id)
     for (const tabId of tabIds) {
+      void webviewManager.refreshProxyInfo(tabId)
       webviewManager.reload(tabId)
     }
   }

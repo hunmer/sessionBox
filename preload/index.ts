@@ -160,6 +160,8 @@ const api = {
     goBack: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:goBack', tabId),
     goForward: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:goForward', tabId),
     reload: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:reload', tabId),
+    detectProxy: (tabId: string): Promise<{ ok: boolean; ip?: string; error?: string }> =>
+      ipcRenderer.invoke('tab:detect-proxy', tabId),
     openDevTools: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:openDevTools', tabId),
     setMuted: (tabId: string, muted: boolean): Promise<void> =>
       ipcRenderer.invoke('tab:set-muted', tabId, muted),

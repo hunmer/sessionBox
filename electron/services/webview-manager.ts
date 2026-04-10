@@ -1,7 +1,7 @@
 import { BrowserWindow, Session, WebContentsView } from 'electron'
 import { ensureExtensionsLoadedForAccount, getExtensionsForAccount } from './extensions'
-import { getAccountById, getGroupById, getProxyById } from './store'
-import { applyProxyToSession } from './proxy'
+import { getAccountById, getGroupById, getProxyById, type Proxy } from './store'
+import { applyProxyToSession, fetchSessionExitIp } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
 
@@ -59,6 +59,100 @@ class WebviewManager {
 
   getMainWindow(): BrowserWindow | null {
     return this.mainWindow
+  }
+
+  private getEffectiveProxy(accountId: string): Proxy | undefined {
+    const account = accountId ? getAccountById(accountId) : undefined
+    if (!account) return undefined
+
+    const proxyId = account.proxyId ?? getGroupById(account.groupId)?.proxyId
+    return proxyId ? getProxyById(proxyId) : undefined
+  }
+
+  private sendProxyInfo(tabId: string, payload: Record<string, unknown> | null): void {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return
+    this.mainWindow.webContents.send('on:tab:proxy-info', tabId, payload)
+  }
+
+  private getProxyBindingText(proxy: Proxy): string {
+    if (proxy.proxyMode === 'pac_url') {
+      return proxy.pacUrl?.trim() || proxy.name
+    }
+
+    if (proxy.proxyMode === 'custom') {
+      return proxy.name
+    }
+
+    return proxy.host?.trim() || proxy.name
+  }
+
+  async refreshProxyInfo(tabId: string): Promise<void> {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) {
+      this.sendProxyInfo(tabId, null)
+      return
+    }
+
+    const proxy = this.getEffectiveProxy(entry.accountId)
+    if (!proxy) {
+      this.sendProxyInfo(tabId, null)
+      return
+    }
+
+    this.sendProxyInfo(tabId, {
+      enabled: true,
+      name: proxy.name,
+      text: this.getProxyBindingText(proxy),
+      status: 'idle',
+      proxyMode: proxy.proxyMode ?? 'global'
+    })
+  }
+
+  async detectProxyInfo(tabId: string): Promise<{ ok: boolean; ip?: string; error?: string }> {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) {
+      this.sendProxyInfo(tabId, null)
+      return { ok: false, error: '标签页不存在' }
+    }
+
+    const proxy = this.getEffectiveProxy(entry.accountId)
+    if (!proxy) {
+      this.sendProxyInfo(tabId, null)
+      return { ok: false, error: '当前标签页未绑定代理' }
+    }
+
+    const bindingText = this.getProxyBindingText(proxy)
+    this.sendProxyInfo(tabId, {
+      enabled: true,
+      name: proxy.name,
+      text: bindingText,
+      status: 'checking',
+      proxyMode: proxy.proxyMode ?? 'global'
+    })
+
+    try {
+      const ip = await fetchSessionExitIp(entry.view.webContents.session)
+      this.sendProxyInfo(tabId, {
+        enabled: true,
+        name: proxy.name,
+        text: bindingText,
+        ip,
+        status: 'success',
+        proxyMode: proxy.proxyMode ?? 'global'
+      })
+      return { ok: true, ip }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.sendProxyInfo(tabId, {
+        enabled: true,
+        name: proxy.name,
+        text: bindingText,
+        error: message,
+        status: 'error',
+        proxyMode: proxy.proxyMode ?? 'global'
+      })
+      return { ok: false, error: message }
+    }
   }
 
   createView(tabId: string, accountId: string, url: string) {
@@ -128,6 +222,7 @@ class WebviewManager {
         partition: partition || 'default',
         url
       })
+      this.sendProxyInfo(tabId, null)
     }
 
     view.setVisible(false)
@@ -142,6 +237,9 @@ class WebviewManager {
       try {
         if (applyProxyPromise) {
           await applyProxyPromise
+          await this.refreshProxyInfo(tabId)
+        } else {
+          this.sendProxyInfo(tabId, null)
         }
         await ensureExtensionsLoadedForAccount(accountId || null)
         await view.webContents.loadURL(url)
@@ -330,6 +428,8 @@ class WebviewManager {
     if (this.activeTabId === tabId) {
       this.activeTabId = null
     }
+
+    this.sendProxyInfo(tabId, null)
   }
 
   switchView(tabId: string): void {
@@ -365,6 +465,7 @@ class WebviewManager {
 
     this.mainWindow.webContents.send('on:tab:activated', tabId)
     this.mainWindow.webContents.send('on:tab:request-bounds')
+    void this.refreshProxyInfo(tabId)
   }
 
   updateBounds(rect: { x: number; y: number; width: number; height: number }): void {

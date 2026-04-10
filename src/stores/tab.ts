@@ -14,12 +14,22 @@ const FAVORITE_BAR_KEY = 'sessionbox-favorite-bar-visible'
 const TAB_GROUP_KEY = 'sessionbox-tab-group-enabled'
 
 export const useTabStore = defineStore('tab', () => {
+  interface TabProxyInfo {
+    enabled: boolean
+    name?: string
+    ip?: string
+    text?: string
+    error?: string
+    status?: 'idle' | 'checking' | 'success' | 'error'
+    proxyMode?: 'global' | 'custom' | 'pac_url'
+  }
   // ====== 状态 ======
   const tabs = ref<Tab[]>([])
   const activeTabId = ref<string | null>(null)
   const navStates = ref<Map<string, NavState>>(new Map())
   const favicons = ref<Map<string, string>>(new Map())
   const frozenTabIds = ref<Set<string>>(new Set())
+  const proxyInfos = ref<Map<string, TabProxyInfo>>(new Map())
 
   // ====== 标签栏布局 ======
   const tabLayout = ref<TabLayout>(
@@ -165,6 +175,11 @@ export const useTabStore = defineStore('tab', () => {
     return navStates.value.get(activeTabId.value) ?? { canGoBack: false, canGoForward: false, isLoading: false }
   })
 
+  const activeProxyInfo = computed((): TabProxyInfo | null => {
+    if (!activeTabId.value) return null
+    return proxyInfos.value.get(activeTabId.value) ?? null
+  })
+
   /** 当前激活标签是否为内部页面 */
   const isInternalPage = computed(() => {
     const url = activeTab.value?.url
@@ -273,6 +288,10 @@ export const useTabStore = defineStore('tab', () => {
     await api.tab.reload(tabId)
   }
 
+  async function detectProxy(tabId: string) {
+    return await api.tab.detectProxy(tabId)
+  }
+
   async function openDevTools(tabId: string) {
     await api.tab.openDevTools(tabId)
   }
@@ -321,6 +340,7 @@ export const useTabStore = defineStore('tab', () => {
       tabs.value = tabs.value.filter((t) => t.id !== id)
       navStates.value.delete(id)
       favicons.value.delete(id)
+      proxyInfos.value.delete(id)
       if (activeTabId.value === id) {
         activeTabId.value = null
       }
@@ -352,6 +372,16 @@ export const useTabStore = defineStore('tab', () => {
 
     api.on('tab:nav-state', (tabId: unknown, state: unknown) => {
       navStates.value.set(tabId as string, state as NavState)
+    })
+
+    api.on('tab:proxy-info', (tabId: unknown, info: unknown) => {
+      const id = tabId as string
+      if (!info) {
+        proxyInfos.value.delete(id)
+        return
+      }
+
+      proxyInfos.value.set(id, info as TabProxyInfo)
     })
 
     api.on('tab:favicon-updated', (tabId: unknown, url: unknown) => {
@@ -434,6 +464,7 @@ export const useTabStore = defineStore('tab', () => {
     groupedWorkspaceTabs,
     activeTab,
     activeNavState,
+    activeProxyInfo,
     isInternalPage,
     internalPagePath,
     tabLayout,
@@ -455,6 +486,7 @@ export const useTabStore = defineStore('tab', () => {
     goBack,
     goForward,
     reload,
+    detectProxy,
     openDevTools,
     openInNewWindow,
     openInBrowser,

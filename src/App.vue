@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, nextTick, ref, watch, computed, shallowRef } fr
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
@@ -49,6 +50,26 @@ const settingsDialogOpen = ref(false)
 const ready = ref(false)
 const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
+const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
+const activeProxyBadgeClass = computed(() => {
+  const status = tabStore.activeProxyInfo?.status
+  if (status === 'success') {
+    return 'cursor-pointer border-transparent bg-green-600 text-white hover:bg-green-600'
+  }
+  if (status === 'error') {
+    return 'cursor-pointer border-transparent bg-red-600 text-white hover:bg-red-600'
+  }
+  if (status === 'checking') {
+    return 'cursor-pointer border-transparent bg-amber-500 text-white hover:bg-amber-500'
+  }
+  return 'cursor-pointer'
+})
+
+async function handleDetectProxy(): Promise<void> {
+  if (!tabStore.activeTabId || !tabStore.activeProxyInfo?.enabled) return
+  if (tabStore.activeProxyInfo?.status === 'checking') return
+  await tabStore.detectProxy(tabStore.activeTabId)
+}
 
 // ====== 页面加载进度条 ======
 const loadingProgress = ref(0)
@@ -315,8 +336,25 @@ watch(() => tabStore.favoriteBarVisible, () => {
                   <p class="text-sm text-muted-foreground/60">页面已暂停</p>
                 </div>
                 <!-- 主进程在此区域叠加 WebContentsView -->
-                <div id="webview-container" class="absolute inset-x-0 top-0 bottom-2" />
+                <div id="webview-container" class="absolute inset-x-0 top-0 bottom-7" />
                 <!-- 页面加载进度条 -->
+                <div class="absolute bottom-[3px] inset-x-0 z-20">
+                  <div class="h-6 w-full border-t bg-background/95 backdrop-blur-sm px-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                    <span class="truncate">
+                      {{ tabStore.activeTab?.url || '就绪' }}
+                    </span>
+                    <Badge
+                      v-if="tabStore.activeProxyInfo?.enabled && activeProxyBadgeText"
+                      variant="outline"
+                      class="max-w-[40%] truncate select-none"
+                      :class="activeProxyBadgeClass"
+                      :title="tabStore.activeProxyInfo?.error || tabStore.activeProxyInfo?.ip || activeProxyBadgeText"
+                      @click="handleDetectProxy"
+                    >
+                      {{ activeProxyBadgeText }}
+                    </Badge>
+                  </div>
+                </div>
                 <Transition
                   enter-active-class="transition-opacity duration-200"
                   leave-active-class="transition-opacity duration-300"

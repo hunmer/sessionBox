@@ -115,6 +115,10 @@ export function registerTabIpcHandlers(): void {
     webviewManager.reload(tabId)
   })
 
+  ipcMain.handle('tab:detect-proxy', async (_e, tabId: string) => {
+    return await webviewManager.detectProxyInfo(tabId)
+  })
+
   ipcMain.handle('tab:openDevTools', (_e, tabId: string) => {
     webviewManager.openDevTools(tabId)
   })

@@ -147,6 +147,29 @@ export async function applyProxyToSession(ses: Electron.Session, proxy: Proxy | 
   await ses.setProxy(buildProxyConfig(proxy))
 }
 
+export async function fetchSessionExitIp(ses: Electron.Session): Promise<string> {
+  return await withTimeout(async () => {
+    const response = await ses.fetch(`https://${TEST_TARGET_HOST}${TEST_TARGET_PATH}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'session-box-proxy-test'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    const data = await response.json() as { origin?: string }
+    if (!data.origin || typeof data.origin !== 'string') {
+      throw new Error('Invalid IP response')
+    }
+
+    return data.origin
+  }, 'Session exit ip fetch')
+}
+
 async function testProxyThroughElectronSession(proxy: Proxy): Promise<{ ok: boolean; ip?: string; error?: string }> {
   return await withTimeout(async () => {
     const partition = `proxy-test:${Date.now()}:${Math.random().toString(36).slice(2)}`
@@ -155,22 +178,9 @@ async function testProxyThroughElectronSession(proxy: Proxy): Promise<{ ok: bool
     try {
       await applyProxyToSession(ses, proxy)
 
-      const response = await ses.fetch(`https://${TEST_TARGET_HOST}${TEST_TARGET_PATH}`, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'session-box-proxy-test'
-        }
-      })
-
-      if (!response.ok) {
-        return { ok: false, error: `HTTP ${response.status}` }
-      }
-
-      const data = await response.json() as { origin?: string }
       return {
         ok: true,
-        ip: typeof data.origin === 'string' ? data.origin : undefined
+        ip: await fetchSessionExitIp(ses)
       }
     } catch (error) {
       return {
