@@ -6,6 +6,7 @@ import {
   StarOff,
   Trash2,
 } from "lucide-vue-next"
+import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 
 import {
   DropdownMenu,
@@ -42,7 +43,7 @@ const { isMobile } = useSidebar()
       <SidebarMenuItem v-for="item in favorites" :key="item.name">
         <SidebarMenuButton as-child>
           <a :href="item.url" :title="item.name">
-            <span>{{ item.emoji }}</span>
+            <EmojiRenderer :emoji="item.emoji" />
             <span>{{ item.name }}</span>
           </a>
         </SidebarMenuButton>

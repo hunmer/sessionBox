@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useAccountStore } from '@/stores/account'
 import GroupItem from './GroupItem.vue'
+import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -62,7 +63,7 @@ const workspaces = computed(() => {
               :tooltip="workspace.name"
               class="flex items-center justify-center"
             >
-              <span>{{ workspace.emoji }}</span>
+              <EmojiRenderer :emoji="workspace.emoji" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="start" class="w-48">
@@ -71,7 +72,7 @@ const workspaces = computed(() => {
               :key="page.id"
               @click="emit('selectAccount', page.id)"
             >
-              <span class="mr-2">{{ page.emoji }}</span>
+              <EmojiRenderer :emoji="page.emoji" class="mr-2" />
               {{ page.name }}
             </DropdownMenuItem>
             <template v-if="workspace.pages.length > 0">

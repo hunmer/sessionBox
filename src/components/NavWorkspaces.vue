@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChevronRight, MoreHorizontal, Plus } from "lucide-vue-next"
+import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 
 import {
   Collapsible,
@@ -40,7 +41,7 @@ defineProps<{
           <SidebarMenuItem>
             <SidebarMenuButton as-child>
               <a href="#">
-                <span>{{ workspace.emoji }}</span>
+                <EmojiRenderer :emoji="workspace.emoji" />
                 <span>{{ workspace.name }}</span>
               </a>
             </SidebarMenuButton>
@@ -60,7 +61,7 @@ defineProps<{
                 <SidebarMenuSubItem v-for="page in workspace.pages" :key="page.name">
                   <SidebarMenuSubButton as-child>
                     <a href="#">
-                      <span>{{ page.emoji }}</span>
+                      <EmojiRenderer :emoji="page.emoji" />
                       <span>{{ page.name }}</span>
                     </a>
                   </SidebarMenuSubButton>

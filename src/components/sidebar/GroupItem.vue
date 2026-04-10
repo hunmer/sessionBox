@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 import { ChevronRight, MoreHorizontal } from "lucide-vue-next"
+import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 
 import {
   Collapsible,
@@ -88,7 +89,7 @@ function getColorHoverStyle(color: string) {
                 class="w-4 h-4 transition-transform group-data-[collapsible=icon]:hidden shrink-0"
                 :class="openStates[workspace.name] ? 'rotate-90' : ''"
               />
-              <span v-if="workspace.emoji">{{ workspace.emoji }}</span>
+              <EmojiRenderer v-if="workspace.emoji" :emoji="workspace.emoji" />
               <span class="flex-1">{{ workspace.name }}</span>
               <span
                 v-if="workspace.color"
@@ -138,7 +139,7 @@ function getColorHoverStyle(color: string) {
                     class="flex items-center gap-2 w-full text-left"
                     @click.prevent="handleAccountClick(page.id)"
                   >
-                    <span>{{ page.emoji }}</span>
+                    <EmojiRenderer :emoji="page.emoji" />
                     <span>{{ page.name }}</span>
                   </a>
                 </SidebarMenuSubButton>
