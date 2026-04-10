@@ -105,6 +105,206 @@ export const useBookmarkStore = defineStore('bookmark', () => {
     return bookmarks.value.find((b) => b.url === url)
   }
 
+  // ====== 导入导出 ======
+
+  /** 解析 Chrome/Netscape 书签 HTML，返回待创建的文件夹和书签 */
+  function parseBookmarkHTML(html: string): {
+    folders: Omit<BookmarkFolder, 'id'>[]
+    bookmarks: Omit<Bookmark, 'id'>[]
+  } {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    const rootDL = doc.querySelector('DL')
+    if (!rootDL) return { folders: [], bookmarks: [] }
+
+    const pendingFolders: Omit<BookmarkFolder, 'id'>[] = []
+    const pendingBookmarks: Omit<Bookmark, 'id'>[] = []
+    // Chrome 文件夹名 → SessionBox folderId 的映射
+    const chromeFolderMap = new Map<string, string>()
+
+    function walk(dl: Element, parentFolderId: string | null, folderOrder: { value: number }) {
+      const dts = dl.querySelectorAll(':scope > DT')
+      for (const dt of dts) {
+        const h3 = dt.querySelector(':scope > H3')
+        if (h3) {
+          // 这是一个文件夹
+          const folderName = h3.textContent?.trim() || '未命名文件夹'
+          const existingFolder = folders.value.find(
+            (f) => f.name === folderName && f.parentId === parentFolderId
+          )
+          if (existingFolder) {
+            chromeFolderMap.set(h3.textContent ?? folderName, existingFolder.id)
+          } else {
+            const folderData: Omit<BookmarkFolder, 'id'> = {
+              name: folderName,
+              parentId: parentFolderId,
+              order: folderOrder.value++
+            }
+            pendingFolders.push(folderData)
+            // 用临时 key 映射，后续 batchCreate 后更新
+            chromeFolderMap.set(h3.textContent ?? folderName, `__pending_${pendingFolders.length}`)
+          }
+
+          // 处理子 DL
+          const childDL = dt.querySelector(':scope > DL')
+          if (childDL) {
+            walk(childDL, chromeFolderMap.get(h3.textContent ?? folderName)!, { value: 0 })
+          }
+          continue
+        }
+
+        const a = dt.querySelector(':scope > A')
+        if (a) {
+          const url = a.getAttribute('HREF') || ''
+          const title = a.textContent?.trim() || url
+          if (!url || url.startsWith('javascript:') || url.startsWith('place:')) continue
+          // 同文件夹下 URL 去重
+          if (bookmarks.value.some((b) => b.url === url && b.folderId === parentFolderId)) continue
+          if (pendingBookmarks.some((b) => b.url === url && b.folderId === parentFolderId)) continue
+
+          pendingBookmarks.push({
+            title,
+            url,
+            folderId: parentFolderId,
+            order: pendingBookmarks.filter((b) => b.folderId === parentFolderId).length
+          })
+        }
+      }
+    }
+
+    walk(rootDL, null, { value: 0 })
+    return { folders: pendingFolders, bookmarks: pendingBookmarks }
+  }
+
+  /** 导入 Chrome 书签 HTML 文件 */
+  async function importBookmarks(): Promise<{ folderCount: number; bookmarkCount: number }> {
+    const result = await api.bookmark.importOpenFile()
+    if (!result) return { folderCount: 0, bookmarkCount: 0 }
+
+    const { folders: pendingFolders, bookmarks: pendingBookmarks } = parseBookmarkHTML(result.html)
+    if (pendingFolders.length === 0 && pendingBookmarks.length === 0) {
+      return { folderCount: 0, bookmarkCount: 0 }
+    }
+
+    // 先批量创建文件夹，建立 ID 映射
+    let folderIndex = 0
+    const pendingFolderOldMap = new Map<number, string>()
+    for (const f of pendingFolders) {
+      folderIndex++
+      pendingFolderOldMap.set(folderIndex, f.parentId || '__root__')
+    }
+
+    const created = await api.bookmark.batchCreate({ folders: pendingFolders, bookmarks: [] })
+
+    // 建立新文件夹 ID 映射，处理父子关系
+    // pendingFolderOldMap 存储了 __pending_N → 父 ID 的关系
+    // 但 batchCreate 时 parentId 可能是 __pending_N 需要替换
+    const pendingIdMap = new Map<string, string>()
+    for (let i = 0; i < created.folders.length; i++) {
+      pendingIdMap.set(`__pending_${i + 1}`, created.folders[i].id)
+    }
+
+    // 更新待创建书签的 folderId（将 __pending_ 替换为真实 ID）
+    const fixedBookmarks: Omit<Bookmark, 'id'>[] = pendingBookmarks.map((b) => ({
+      ...b,
+      folderId: pendingIdMap.get(b.folderId) || b.folderId
+    }))
+
+    // 更新文件夹的父子关系（batchCreate 创建的文件夹 parentId 可能仍是 __pending_）
+    for (const createdFolder of created.folders) {
+      if (createdFolder.parentId?.startsWith('__pending_')) {
+        const realParentId = pendingIdMap.get(createdFolder.parentId)
+        if (realParentId) {
+          await api.bookmarkFolder.update(createdFolder.id, { parentId: realParentId })
+          createdFolder.parentId = realParentId
+        }
+      }
+    }
+
+    // 再批量创建书签
+    const bookmarkResult = await api.bookmark.batchCreate({ folders: [], bookmarks: fixedBookmarks })
+
+    // 更新本地状态
+    folders.value.push(...created.folders)
+    bookmarks.value.push(...bookmarkResult.bookmarks)
+
+    return { folderCount: created.folders.length, bookmarkCount: bookmarkResult.bookmarks.length }
+  }
+
+  /** 生成 Netscape 书签 HTML */
+  function generateBookmarkHTML(): string {
+    const lines: string[] = [
+      '<!DOCTYPE NETSCAPE-Bookmark-file-1>',
+      '<!-- This is an automatically generated file.',
+      '     It will be read and overwritten.',
+      '     DO NOT EDIT! -->',
+      '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
+      '<TITLE>Bookmarks</TITLE>',
+      '<H1>Bookmarks</H1>',
+      '<DL><p>'
+    ]
+
+    const rootItems = folders.value
+      .filter((f) => f.parentId === null)
+      .sort((a, b) => a.order - b.order)
+
+    for (const rootFolder of rootItems) {
+      renderFolder(rootFolder, lines, 1)
+    }
+
+    // 根级无文件夹的书签（理论上不存在，但兜底）
+    const rootBookmarks = bookmarks.value
+      .filter((b) => !folders.value.some((f) => f.id === b.folderId))
+      .sort((a, b) => a.order - b.order)
+    for (const bm of rootBookmarks) {
+      lines.push(`        <DT><A HREF="${escapeAttr(bm.url)}">${escapeText(bm.title)}</A>`)
+    }
+
+    lines.push('</DL><p>')
+    return lines.join('\n')
+  }
+
+  function renderFolder(folder: BookmarkFolder, lines: string[], depth: number) {
+    const indent = '    '.repeat(depth)
+    lines.push(`${indent}<DT><H3>${escapeText(folder.name)}</H3>`)
+    lines.push(`${indent}<DL><p>`)
+
+    const childFolders = folders.value
+      .filter((f) => f.parentId === folder.id)
+      .sort((a, b) => a.order - b.order)
+
+    const childBookmarks = bookmarks.value
+      .filter((b) => b.folderId === folder.id)
+      .sort((a, b) => a.order - b.order)
+
+    for (const child of childFolders) {
+      renderFolder(child, lines, depth + 1)
+    }
+
+    for (const bm of childBookmarks) {
+      lines.push(
+        `${indent}    <DT><A HREF="${escapeAttr(bm.url)}">${escapeText(bm.title)}</A>`
+      )
+    }
+
+    lines.push(`${indent}</DL><p>`)
+  }
+
+  function escapeAttr(str: string): string {
+    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+
+  function escapeText(str: string): string {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+
+  /** 导出所有书签到 HTML 文件 */
+  async function exportBookmarks(): Promise<boolean> {
+    const html = generateBookmarkHTML()
+    const result = await api.bookmark.exportSaveFile(html)
+    return result.success
+  }
+
   // ====== 初始化 ======
 
   async function init() {
@@ -130,6 +330,8 @@ export const useBookmarkStore = defineStore('bookmark', () => {
     getBookmarksByFolder,
     isBookmarked,
     findBookmarkByUrl,
+    importBookmarks,
+    exportBookmarks,
     init
   }
 })

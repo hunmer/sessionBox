@@ -137,7 +137,10 @@ const api = {
     create: (data) => electron.ipcRenderer.invoke("bookmark:create", data),
     update: (id, data) => electron.ipcRenderer.invoke("bookmark:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("bookmark:delete", id),
-    reorder: (ids) => electron.ipcRenderer.invoke("bookmark:reorder", ids)
+    reorder: (ids) => electron.ipcRenderer.invoke("bookmark:reorder", ids),
+    importOpenFile: () => electron.ipcRenderer.invoke("bookmark:importOpenFile"),
+    exportSaveFile: (html) => electron.ipcRenderer.invoke("bookmark:exportSaveFile", html),
+    batchCreate: (data) => electron.ipcRenderer.invoke("bookmark:batchCreate", data)
   },
   bookmarkFolder: {
     list: () => electron.ipcRenderer.invoke("bookmarkFolder:list"),

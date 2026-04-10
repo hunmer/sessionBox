@@ -469,6 +469,32 @@ export function reorderBookmarkFolders(ids: string[]): void {
   setCollection('bookmarkFolders', folders)
 }
 
+export function batchCreateBookmarkFolders(
+  items: Omit<BookmarkFolder, 'id'>[]
+): BookmarkFolder[] {
+  const folders = getCollection('bookmarkFolders')
+  const created: BookmarkFolder[] = []
+  for (const data of items) {
+    const folder: BookmarkFolder = { ...data, id: randomUUID() }
+    folders.push(folder)
+    created.push(folder)
+  }
+  setCollection('bookmarkFolders', folders)
+  return created
+}
+
+export function batchCreateBookmarks(items: Omit<Bookmark, 'id'>[]): Bookmark[] {
+  const sites = getCollection('bookmarks')
+  const created: Bookmark[] = []
+  for (const data of items) {
+    const bookmark: Bookmark = { ...data, id: randomUUID() }
+    sites.push(bookmark)
+    created.push(bookmark)
+  }
+  setCollection('bookmarks', sites)
+  return created
+}
+
 /** 递归收集所有子文件夹 ID */
 function collectChildFolderIds(folders: BookmarkFolder[], parentId: string): string[] {
   const children = folders.filter((f) => f.parentId === parentId)

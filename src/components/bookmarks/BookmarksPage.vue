@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, FolderPlus, Search } from 'lucide-vue-next'
+import { Plus, FolderPlus, Search, Import, Download } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -53,6 +53,32 @@ function handleBookmarkDialogClose() {
   bookmarkDialogOpen.value = false
   editingBookmarkId.value = null
 }
+
+const isImporting = ref(false)
+const isExporting = ref(false)
+
+async function handleImport() {
+  if (isImporting.value) return
+  isImporting.value = true
+  try {
+    const result = await bookmarkStore.importBookmarks()
+    if (result.folderCount > 0 || result.bookmarkCount > 0) {
+      // 导入成功，可选提示
+    }
+  } finally {
+    isImporting.value = false
+  }
+}
+
+async function handleExport() {
+  if (isExporting.value) return
+  isExporting.value = true
+  try {
+    await bookmarkStore.exportBookmarks()
+  } finally {
+    isExporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -76,6 +102,14 @@ function handleBookmarkDialogClose() {
       <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleAddBookmark()">
         <Plus class="w-3.5 h-3.5" />
         添加书签
+      </Button>
+      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" :disabled="isImporting" @click="handleImport">
+        <Import class="w-3.5 h-3.5" />
+        导入
+      </Button>
+      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" :disabled="isExporting" @click="handleExport">
+        <Download class="w-3.5 h-3.5" />
+        导出
       </Button>
     </div>
 

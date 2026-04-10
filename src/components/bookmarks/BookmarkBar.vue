@@ -2,11 +2,12 @@
 import { ref } from 'vue'
 import { Plus, ChevronDown, Folder } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import BookmarkFolderMenu from './BookmarkFolderMenu.vue'
 import AddBookmarkDialog from './AddBookmarkDialog.vue'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useTabStore } from '@/stores/tab'
-import type { Bookmark, BookmarkFolder } from '@/types'
+import type { Bookmark } from '@/types'
 
 const bookmarkStore = useBookmarkStore()
 const tabStore = useTabStore()
@@ -59,14 +60,6 @@ function onDialogClose(open: boolean) {
   showAddDialog.value = open
   if (!open) editSite.value = null
 }
-
-/** 获取书签栏内所有文件夹（非书签栏本身的子文件夹，而是根级非书签栏的文件夹） */
-const toolbarItems = ref<(Bookmark | BookmarkFolder)[]>([])
-
-/** 区分：是书签还是文件夹 */
-function isBookmarkItem(item: Bookmark | BookmarkFolder): item is Bookmark {
-  return 'url' in item
-}
 </script>
 
 <template>
@@ -111,18 +104,7 @@ function isBookmarkItem(item: Bookmark | BookmarkFolder): item is Bookmark {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" class="min-w-[160px]">
-            <DropdownMenuItem
-              v-for="bookmark in bookmarkStore.getBookmarksByFolder(folder.id)"
-              :key="bookmark.id"
-              class="text-xs"
-              @click="openSite(bookmark)"
-            >
-              <img :src="getFaviconUrl(bookmark.url)" alt="" class="w-3.5 h-3.5 rounded-sm mr-1.5" @error="($event.target as HTMLImageElement).style.display = 'none'" />
-              <span class="truncate">{{ bookmark.title }}</span>
-            </DropdownMenuItem>
-            <div v-if="bookmarkStore.getBookmarksByFolder(folder.id).length === 0" class="px-2 py-1.5 text-xs text-muted-foreground">
-              暂无书签
-            </div>
+            <BookmarkFolderMenu :folder-id="folder.id" />
           </DropdownMenuContent>
         </DropdownMenu>
       </template>
