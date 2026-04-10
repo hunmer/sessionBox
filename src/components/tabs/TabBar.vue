@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeft, PanelLeftClose, Bookmark, FolderOpen, MoreHorizontal, Check, ChevronRight } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeftClose, ChevronRight } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import draggable from 'vuedraggable'
+import TabLayoutMenu from './TabLayoutMenu.vue'
 import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
 import TabItem from './TabItem.vue'
 import { useTabStore } from '@/stores/tab'
@@ -172,35 +166,7 @@ function handleAddAccount(account: Account) {
       />
 
       <!-- 更多选项 -->
-      <DropdownMenu>
-        <DropdownMenuTrigger as-child>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-7 w-7 rounded-full hover:bg-secondary flex-shrink-0"
-          >
-            <MoreHorizontal class="w-3.5 h-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" class="w-48">
-          <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleLayout()">
-            <PanelLeft class="size-4 mr-2" />
-            <span class="flex-1">侧边栏布局</span>
-            <Check v-if="tabStore.tabLayout === 'vertical'" class="size-4 text-primary" />
-          </DropdownMenuItem>
-          <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleTabGroup()">
-            <FolderOpen class="size-4 mr-2" />
-            <span class="flex-1">自动分组</span>
-            <Check v-if="tabStore.tabGroupEnabled" class="size-4 text-primary" />
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleFavoriteBar()">
-            <Bookmark class="size-4 mr-2" />
-            <span class="flex-1">快捷网站栏</span>
-            <Check v-if="tabStore.favoriteBarVisible" class="size-4 text-primary" />
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <TabLayoutMenu direction="horizontal" />
     </template>
 
     <!-- 窗口控制按钮 -->
