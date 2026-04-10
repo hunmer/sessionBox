@@ -88,7 +88,7 @@ const api = {
   },
   group: {
     list: () => electron.ipcRenderer.invoke("group:list"),
-    create: (name, color, workspaceId, proxyId) => electron.ipcRenderer.invoke("group:create", name, color, workspaceId, proxyId),
+    create: (name, color, workspaceId, proxyId, icon) => electron.ipcRenderer.invoke("group:create", name, color, workspaceId, proxyId, icon),
     update: (id, data) => electron.ipcRenderer.invoke("group:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("group:delete", id),
     reorder: (groupIds) => electron.ipcRenderer.invoke("group:reorder", groupIds)

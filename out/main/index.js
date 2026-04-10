@@ -10358,12 +10358,13 @@ function reorderWorkspaces(workspaceIds) {
 function listGroups() {
   return getCollection("groups").sort((a, b) => a.order - b.order);
 }
-function createGroup(name, color, workspaceId, proxyId) {
+function createGroup(name, color, workspaceId, proxyId, icon) {
   const groups = getCollection("groups");
   const group = {
     id: require$$0.randomUUID(),
     name,
     order: groups.length,
+    ...icon ? { icon } : {},
     ...color ? { color } : {},
     workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
     ...proxyId ? { proxyId } : {}
@@ -28259,7 +28260,7 @@ function registerIpcHandlers() {
   require$$1.ipcMain.handle("workspace:delete", (_e, id2) => deleteWorkspace(id2));
   require$$1.ipcMain.handle("workspace:reorder", (_e, workspaceIds) => reorderWorkspaces(workspaceIds));
   require$$1.ipcMain.handle("group:list", () => listGroups());
-  require$$1.ipcMain.handle("group:create", (_e, name, color, workspaceId, proxyId) => createGroup(name, color, workspaceId, proxyId));
+  require$$1.ipcMain.handle("group:create", (_e, name, color, workspaceId, proxyId, icon) => createGroup(name, color, workspaceId, proxyId, icon));
   require$$1.ipcMain.handle(
     "group:update",
     (_e, id2, data) => updateGroup(id2, data)
