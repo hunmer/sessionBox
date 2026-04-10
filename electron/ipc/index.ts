@@ -230,13 +230,12 @@ $img.Dispose()`
   ipcMain.handle('bookmarkFolder:reorder', (_e, ids: string[]) => reorderBookmarkFolders(ids))
 
   // ====== 窗口控制 ======
-  ipcMain.handle('window:minimize', () => {
-    const win = BrowserWindow.getFocusedWindow()
-    win?.minimize()
+  ipcMain.handle('window:minimize', (e) => {
+    BrowserWindow.fromWebContents(e.sender)?.minimize()
   })
 
-  ipcMain.handle('window:maximize', () => {
-    const win = BrowserWindow.getFocusedWindow()
+  ipcMain.handle('window:maximize', (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
     if (!win) return false
     if (win.isMaximized()) {
       win.unmaximize()
@@ -246,12 +245,12 @@ $img.Dispose()`
     return true
   })
 
-  ipcMain.handle('window:close', () => {
-    BrowserWindow.getFocusedWindow()?.close()
+  ipcMain.handle('window:close', (e) => {
+    BrowserWindow.fromWebContents(e.sender)?.close()
   })
 
-  ipcMain.handle('window:isMaximized', () => {
-    return BrowserWindow.getFocusedWindow()?.isMaximized() ?? false
+  ipcMain.handle('window:isMaximized', (e) => {
+    return BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false
   })
 
   // ====== 外部链接 ======

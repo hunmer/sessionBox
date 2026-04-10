@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Plus, MoreVertical, PanelTop, FolderOpen, Bookmark, Check } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { Plus, MoreVertical, PanelTop, FolderOpen, Bookmark, Check, ChevronRight } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,6 +17,37 @@ import type { Account } from '@/types'
 
 const tabStore = useTabStore()
 const showAddDialog = defineModel<boolean>('showAddDialog')
+
+// 分组折叠状态
+const collapsedGroups = ref(new Set<string>())
+
+function getGroupKey(tab: { groupName: string; groupColor?: string }) {
+  return `${tab.groupName}::${tab.groupColor ?? ''}`
+}
+
+function isGroupCollapsed(tab: { groupName: string; groupColor?: string }) {
+  return collapsedGroups.value.has(getGroupKey(tab))
+}
+
+function toggleGroupCollapse(tab: { groupName: string; groupColor?: string }) {
+  const key = getGroupKey(tab)
+  const s = new Set(collapsedGroups.value)
+  if (s.has(key)) s.delete(key)
+  else s.add(key)
+  collapsedGroups.value = s
+}
+
+// 各分组的标签数量
+const groupTabCounts = computed(() => {
+  const counts = new Map<string, number>()
+  for (const tab of tabStore.groupedWorkspaceTabs) {
+    if (tab.groupName) {
+      const key = getGroupKey(tab)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+  }
+  return counts
+})
 
 function onListUpdate(newList: { id: string }[]) {
   const ids = newList.map((t) => t.id)
@@ -44,12 +76,21 @@ function handleAddAccount(account: Account) {
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <div class="w-full" :class="{ 'tab-pinned': tab.pinned }">
+        <div
+          v-show="tab.isGroupStart || !isGroupCollapsed(tab)"
+          class="w-full"
+          :class="{ 'tab-pinned': tab.pinned }"
+        >
           <!-- 分组标题：仅在该组第一个 tab 前显示 -->
           <div
             v-if="tab.isGroupStart"
-            class="flex items-center gap-1.5 px-2 pt-1.5 pb-0.5 select-none"
+            class="flex items-center gap-1.5 px-2 pt-1.5 pb-0.5 select-none cursor-pointer"
+            @click.stop="toggleGroupCollapse(tab)"
           >
+            <ChevronRight
+              class="w-3 h-3 flex-shrink-0 transition-transform text-muted-foreground"
+              :class="!isGroupCollapsed(tab) && 'rotate-90'"
+            />
             <span
               class="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
               :style="tab.groupColor
@@ -59,8 +100,14 @@ function handleAddAccount(account: Account) {
             >
               {{ tab.groupName }}
             </span>
+            <span
+              v-if="isGroupCollapsed(tab)"
+              class="text-[9px] px-1.5 rounded-full bg-muted text-muted-foreground"
+            >
+              {{ groupTabCounts.get(getGroupKey(tab)) ?? 0 }}
+            </span>
           </div>
-          <TabItem :tab="tab" vertical :group-color="tab.groupColor" />
+          <TabItem v-if="!isGroupCollapsed(tab)" :tab="tab" vertical :group-color="tab.groupColor" />
         </div>
       </template>
     </draggable>

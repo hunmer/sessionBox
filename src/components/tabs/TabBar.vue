@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeft, PanelLeftClose, Bookmark, FolderOpen, MoreHorizontal, Check } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { Plus, Minus, Square, X, Copy, PanelLeft, PanelLeftClose, Bookmark, FolderOpen, MoreHorizontal, Check, ChevronRight } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -25,6 +25,36 @@ defineEmits<{
 
 const tabStore = useTabStore()
 const showAddDialog = ref(false)
+
+// 分组折叠状态
+const collapsedGroups = ref(new Set<string>())
+
+function getGroupKey(tab: { groupName: string; groupColor?: string }) {
+  return `${tab.groupName}::${tab.groupColor ?? ''}`
+}
+
+function isGroupCollapsed(tab: { groupName: string; groupColor?: string }) {
+  return collapsedGroups.value.has(getGroupKey(tab))
+}
+
+function toggleGroupCollapse(tab: { groupName: string; groupColor?: string }) {
+  const key = getGroupKey(tab)
+  const s = new Set(collapsedGroups.value)
+  if (s.has(key)) s.delete(key)
+  else s.add(key)
+  collapsedGroups.value = s
+}
+
+const groupTabCounts = computed(() => {
+  const counts = new Map<string, number>()
+  for (const tab of tabStore.groupedWorkspaceTabs) {
+    if (tab.groupName) {
+      const key = getGroupKey(tab)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+  }
+  return counts
+})
 
 const windowApi = () => window.api
 
@@ -78,19 +108,34 @@ function handleAddAccount(account: Account) {
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <div class="flex items-center gap-0.5" :class="{ 'tab-pinned': tab.pinned }">
-          <!-- 分组 badge：仅在该组第一个 tab 前显示 -->
+        <div
+          v-show="tab.isGroupStart || !isGroupCollapsed(tab)"
+          class="flex items-center gap-0.5"
+          :class="{ 'tab-pinned': tab.pinned }"
+        >
+          <!-- 分组 badge：仅在该组第一个 tab 前显示，可点击折叠 -->
           <span
             v-if="tab.isGroupStart"
-            class="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded-md select-none"
+            class="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded-md select-none cursor-pointer"
             :style="tab.groupColor
               ? { backgroundColor: tab.groupColor + '22', color: tab.groupColor, borderBottom: `2px solid ${tab.groupColor}` }
               : {}"
             :class="!tab.groupColor && 'bg-muted text-muted-foreground'"
+            @click.stop="toggleGroupCollapse(tab)"
           >
+            <ChevronRight
+              class="w-2.5 h-2.5 transition-transform"
+              :class="!isGroupCollapsed(tab) && 'rotate-90'"
+            />
             {{ tab.groupName }}
+            <span
+              v-if="isGroupCollapsed(tab)"
+              class="text-[8px] opacity-60"
+            >
+              {{ groupTabCounts.get(getGroupKey(tab)) ?? 0 }}
+            </span>
           </span>
-          <TabItem :tab="tab" :group-color="tab.groupColor" />
+          <TabItem v-if="!isGroupCollapsed(tab)" :tab="tab" :group-color="tab.groupColor" />
         </div>
       </template>
     </draggable>

@@ -10381,12 +10381,21 @@ function updateGroup(id2, data) {
   setCollection("groups", groups);
 }
 function deleteGroup(id2) {
+  const groups = getCollection("groups");
   const accounts = getCollection("accounts");
-  if (accounts.some((a) => a.groupId === id2)) {
-    throw new Error("分组内仍有账号，请先删除或移出所有账号");
+  const affected = accounts.filter((a) => a.groupId === id2);
+  if (affected.length > 0) {
+    const group = groups.find((g) => g.id === id2);
+    const targetGroup = groups.find(
+      (g) => g.id !== id2 && (g.workspaceId || DEFAULT_WORKSPACE_ID) === (group?.workspaceId || DEFAULT_WORKSPACE_ID)
+    ) ?? groups.find((g) => g.id !== id2);
+    if (!targetGroup) throw new Error("无法删除唯一分组");
+    setCollection(
+      "accounts",
+      accounts.map((a) => a.groupId === id2 ? { ...a, groupId: targetGroup.id } : a)
+    );
   }
-  const groups = getCollection("groups").filter((g) => g.id !== id2);
-  setCollection("groups", groups);
+  setCollection("groups", groups.filter((g) => g.id !== id2));
 }
 function reorderGroups(groupIds) {
   const groups = getCollection("groups");
@@ -28372,12 +28381,11 @@ $img.Dispose()`;
   );
   require$$1.ipcMain.handle("bookmarkFolder:delete", (_e, id2) => deleteBookmarkFolder(id2));
   require$$1.ipcMain.handle("bookmarkFolder:reorder", (_e, ids) => reorderBookmarkFolders(ids));
-  require$$1.ipcMain.handle("window:minimize", () => {
-    const win = require$$1.BrowserWindow.getFocusedWindow();
-    win?.minimize();
+  require$$1.ipcMain.handle("window:minimize", (e) => {
+    require$$1.BrowserWindow.fromWebContents(e.sender)?.minimize();
   });
-  require$$1.ipcMain.handle("window:maximize", () => {
-    const win = require$$1.BrowserWindow.getFocusedWindow();
+  require$$1.ipcMain.handle("window:maximize", (e) => {
+    const win = require$$1.BrowserWindow.fromWebContents(e.sender);
     if (!win) return false;
     if (win.isMaximized()) {
       win.unmaximize();
@@ -28386,11 +28394,11 @@ $img.Dispose()`;
     win.maximize();
     return true;
   });
-  require$$1.ipcMain.handle("window:close", () => {
-    require$$1.BrowserWindow.getFocusedWindow()?.close();
+  require$$1.ipcMain.handle("window:close", (e) => {
+    require$$1.BrowserWindow.fromWebContents(e.sender)?.close();
   });
-  require$$1.ipcMain.handle("window:isMaximized", () => {
-    return require$$1.BrowserWindow.getFocusedWindow()?.isMaximized() ?? false;
+  require$$1.ipcMain.handle("window:isMaximized", (e) => {
+    return require$$1.BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false;
   });
   require$$1.ipcMain.handle("openExternal", (_e, url) => require$$1.shell.openExternal(url));
   require$$1.ipcMain.handle("settings:getTabFreezeMinutes", () => getTabFreezeMinutes());
