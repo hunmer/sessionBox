@@ -1,17 +1,9 @@
 <script setup lang="ts">
-import { Sun, Moon } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useThemeStore, type Theme } from '@/stores/theme'
 import { useHomepageStore, type HomepageOpenMethod } from '@/stores/homepage'
 
-const themeStore = useThemeStore()
 const homepageStore = useHomepageStore()
-
-const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: '亮色', icon: Sun },
-  { value: 'dark', label: '暗色', icon: Moon }
-]
 
 const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
   { value: 'newTab', label: '新标签页' },
@@ -20,21 +12,6 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
 </script>
 
 <template>
-  <h3 class="text-sm font-medium mb-3">主题设置</h3>
-  <div class="flex gap-2 mb-6">
-    <Button
-      v-for="opt in themeOptions"
-      :key="opt.value"
-      :variant="themeStore.theme === opt.value ? 'default' : 'outline'"
-      size="sm"
-      class="gap-1.5"
-      @click="themeStore.setTheme(opt.value)"
-    >
-      <component :is="opt.icon" class="w-3.5 h-3.5" />
-      {{ opt.label }}
-    </Button>
-  </div>
-
   <h3 class="text-sm font-medium mb-3">主页设置</h3>
   <div class="space-y-3">
     <!-- 主页 URL -->

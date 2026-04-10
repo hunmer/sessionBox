@@ -14956,6 +14956,13 @@ class WebviewManager {
   isFrozen(tabId) {
     return this.frozenTabUrls.has(tabId);
   }
+  /** 设置标签音频静音状态 */
+  setAudioMuted(tabId, muted) {
+    const entry = this.views.get(tabId);
+    if (entry && !entry.view.webContents.isDestroyed()) {
+      entry.view.webContents.setAudioMuted(muted);
+    }
+  }
 }
 const webviewManager = new WebviewManager();
 function registerTabIpcHandlers() {
@@ -15032,6 +15039,10 @@ function registerTabIpcHandlers() {
   require$$1.ipcMain.handle("tab:openDevTools", (_e, tabId) => {
     webviewManager.openDevTools(tabId);
   });
+  require$$1.ipcMain.handle("tab:set-muted", (_e, tabId, muted) => {
+    updateTab(tabId, { muted });
+    webviewManager.setAudioMuted(tabId, muted);
+  });
   require$$1.ipcMain.on("tab:set-overlay-visible", (_e, visible) => {
     webviewManager.setOverlayVisible(visible);
   });
@@ -15069,9 +15080,15 @@ function registerTabIpcHandlers() {
         const account = getAccountById(tab.accountId);
         if (account) {
           webviewManager.createView(tab.id, tab.accountId, tab.url || account.defaultUrl);
+          if (tab.muted) {
+            webviewManager.setAudioMuted(tab.id, true);
+          }
         }
       } else {
         webviewManager.createView(tab.id, "", tab.url || "https://www.baidu.com");
+        if (tab.muted) {
+          webviewManager.setAudioMuted(tab.id, true);
+        }
       }
     }
     return tabs.map((t) => t.id);

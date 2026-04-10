@@ -122,6 +122,7 @@ const api = {
     goForward: (tabId) => electron.ipcRenderer.invoke("tab:goForward", tabId),
     reload: (tabId) => electron.ipcRenderer.invoke("tab:reload", tabId),
     openDevTools: (tabId) => electron.ipcRenderer.invoke("tab:openDevTools", tabId),
+    setMuted: (tabId, muted) => electron.ipcRenderer.invoke("tab:set-muted", tabId, muted),
     openInNewWindow: (tabId) => electron.ipcRenderer.invoke("tab:open-in-new-window", tabId),
     openInBrowser: (tabId) => electron.ipcRenderer.invoke("tab:open-in-browser", tabId),
     updateBounds: (rect) => electron.ipcRenderer.send("tab:update-bounds", rect),
