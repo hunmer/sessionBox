@@ -71,16 +71,29 @@ async function hotUpdateProxy(proxyId: string, isDelete = false): Promise<void> 
     const { session } = await import('electron')
     const ses = session.fromPartition(partition)
 
+    // 代理被禁用、被删除、或账号未开启自动代理 → 移除代理
+    const shouldApply = proxy && proxy.enabled !== false && account.autoProxyEnabled === true
+
+    console.log('[ProxyIPC] hot update decision', {
+      proxyId,
+      accountId: account.id,
+      'proxy.enabled': proxy?.enabled,
+      'account.autoProxyEnabled': account.autoProxyEnabled,
+      shouldApply
+    })
+
     console.log('[ProxyIPC] hot update proxy', {
       proxyId,
       accountId: account.id,
       partition,
       isDelete,
       hasProxy: !!proxy,
-      proxyMode: proxy?.proxyMode ?? 'global'
+      proxyEnabled: proxy?.enabled !== false,
+      autoProxyEnabled: account.autoProxyEnabled ?? false,
+      shouldApply
     })
 
-    await applyProxyToSession(ses, isDelete ? null : proxy)
+    await applyProxyToSession(ses, shouldApply ? proxy : null)
 
     const tabIds = webviewManager.getTabIdsByAccount(account.id)
     for (const tabId of tabIds) {

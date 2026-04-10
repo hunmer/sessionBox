@@ -53,9 +53,10 @@ const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
 const proxyApplied = computed(() => {
-  const tab = tabStore.activeTab
-  if (!tab) return false
-  return accountStore.getAccount(tab.accountId)?.autoProxyEnabled ?? false
+  const info = tabStore.activeProxyInfo
+  if (!info) return false
+  // 代理配置启用 且 账号自动开启 → Switch 显示 ON
+  return info.enabled && info.applied
 })
 const activeProxyBadgeClass = computed(() => {
   const status = tabStore.activeProxyInfo?.status
@@ -364,6 +365,7 @@ watch(() => tabStore.favoriteBarVisible, () => {
                     <div v-if="tabStore.activeProxyInfo" class="flex items-center gap-2 shrink-0 max-w-[45%]">
                       <Switch
                         :model-value="proxyApplied"
+                        :disabled="!tabStore.activeProxyInfo?.enabled"
                         @update:model-value="handleToggleProxy"
                       />
                       <Badge

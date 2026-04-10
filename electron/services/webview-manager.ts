@@ -203,6 +203,17 @@ class WebviewManager {
       && proxy.enabled !== false
       && account?.autoProxyEnabled === true
 
+    console.log('[WebviewManager] createView proxy decision', {
+      tabId,
+      accountId,
+      hasProxy: !!proxy,
+      proxyId: proxy?.id,
+      'proxy.enabled': proxy?.enabled,
+      'proxy.enabled !== false': proxy ? proxy.enabled !== false : 'N/A',
+      'account.autoProxyEnabled': account?.autoProxyEnabled,
+      shouldAutoApplyProxy
+    })
+
     if (shouldAutoApplyProxy) {
       console.log('[WebviewManager] applying proxy', {
         tabId,
@@ -330,59 +341,24 @@ class WebviewManager {
 
     wc.on('did-start-loading', () => {
       const currentEntry = this.views.get(tabId)
-      console.log('[WebviewManager] did-start-loading', {
-        tabId,
-        accountId: currentEntry?.accountId,
-        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
-        currentUrl: wc.getURL()
-      })
       this.sendNavState(tabId)
     })
 
     wc.on('did-stop-loading', () => {
       const currentEntry = this.views.get(tabId)
-      console.log('[WebviewManager] did-stop-loading', {
-        tabId,
-        accountId: currentEntry?.accountId,
-        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
-        currentUrl: wc.getURL()
-      })
       this.sendNavState(tabId)
     })
 
     wc.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
       const currentEntry = this.views.get(tabId)
-      console.error('[WebviewManager] did-fail-load', {
-        tabId,
-        accountId: currentEntry?.accountId,
-        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
-        errorCode,
-        errorDescription,
-        validatedURL,
-        isMainFrame
-      })
     })
 
     wc.on('render-process-gone', (_event, details) => {
       const currentEntry = this.views.get(tabId)
-      console.error('[WebviewManager] render-process-gone', {
-        tabId,
-        accountId: currentEntry?.accountId,
-        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
-        reason: details.reason,
-        exitCode: details.exitCode
-      })
     })
 
     wc.on('did-finish-load', () => {
       const currentEntry = this.views.get(tabId)
-      console.log('[WebviewManager] did-finish-load', {
-        tabId,
-        accountId: currentEntry?.accountId,
-        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
-        currentUrl: wc.getURL(),
-        title: wc.getTitle()
-      })
     })
 
     wc.on('page-favicon-updated', (_event, favicons) => {
@@ -553,6 +529,17 @@ class WebviewManager {
     if (!proxy) {
       this.sendProxyInfo(tabId, null)
       return { ok: false, enabled: false, error: '当前标签页未绑定代理' }
+    }
+
+    // 代理配置被禁用时，不允许开启
+    console.log('[WebviewManager] setProxyEnabledForTab', {
+      tabId,
+      enabled,
+      'proxy.enabled': proxy.enabled,
+      willBlock: enabled && proxy.enabled === false
+    })
+    if (enabled && proxy.enabled === false) {
+      return { ok: false, enabled: false, error: '代理配置已被禁用' }
     }
 
     const relatedTabIds = this.getTabIdsByAccount(entry.accountId)
