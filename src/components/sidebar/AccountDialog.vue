@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, watch, computed, markRaw } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { Camera, SmilePlus } from 'lucide-vue-next'
-import * as lucideIcons from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
+import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import { useAccountStore } from '@/stores/account'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
@@ -38,25 +38,8 @@ const defaultUrl = ref('about:blank')
 /** 当前图标是否为自定义图片 */
 const isImageIcon = computed(() => icon.value.startsWith('img:'))
 
-/** 当前图标是否为 lucide 图标 */
-const isLucideIcon = computed(() => icon.value.startsWith('lucide:'))
-
-/** lucide 图标组件 */
-const lucideComponent = computed(() => {
-  if (!isLucideIcon.value) return null
-  const name = icon.value.slice(6)
-  const comp = (lucideIcons as any)[name]
-  return comp ? markRaw(comp) : null
-})
-
 /** 图标选择器打开状态 */
 const iconPickerOpen = ref(false)
-
-/** 图片图标的本地路径（用于预览） */
-const iconImagePath = computed(() => {
-  if (!isImageIcon.value) return ''
-  return `account-icon://${icon.value.slice(4)}`
-})
 
 watch(() => props.open, (val) => {
   if (val) {
@@ -109,9 +92,8 @@ function handleSave() {
           <div class="relative group/icon">
             <!-- 圆形头像 -->
             <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-border flex items-center justify-center bg-muted">
-              <img v-if="isImageIcon" :src="iconImagePath" alt="头像" class="w-full h-full object-cover" />
-              <component v-else-if="isLucideIcon && lucideComponent" :is="lucideComponent" class="w-8 h-8 text-muted-foreground" />
-              <span v-else class="text-3xl">{{ icon }}</span>
+              <img v-if="isImageIcon" :src="`account-icon://${icon.slice(4)}`" alt="头像" class="w-full h-full object-cover" />
+              <EmojiRenderer v-else :emoji="icon" class="text-4xl [&_img]:w-10 [&_img]:h-10 [&_*:not(img)]:text-4xl" />
             </div>
             <!-- 图片 hover 清除按钮 -->
             <button
