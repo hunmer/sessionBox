@@ -53,9 +53,9 @@ const invalidCount = computed(() => invalidResults.value.length)
 
 // ====== 结果阶段 - 批量选择 ======
 const selectedInvalidIds = ref<Set<string>>(new Set())
-const allInvalidSelected = computed({
+const allInvalidSelected = computed<boolean>({
   get: () => invalidResults.value.length > 0 && selectedInvalidIds.value.size === invalidResults.value.length,
-  set: (val: boolean) => {
+  set: (val) => {
     if (val) {
       selectedInvalidIds.value = new Set(invalidResults.value.map((r) => r.bookmarkId))
     } else {
@@ -229,7 +229,7 @@ watch(() => props.open, (val) => {
             <Input v-model.number="timeout" type="number" min="3000" max="60000" step="1000" class="h-8 text-sm" />
           </div>
           <div class="flex items-end gap-2 pb-0.5">
-            <Checkbox v-model:checked="useProxy" id="useProxy" />
+            <Checkbox v-model="useProxy" id="useProxy" />
             <label for="useProxy" class="text-xs text-muted-foreground cursor-pointer">使用系统代理</label>
           </div>
         </div>
@@ -288,7 +288,7 @@ watch(() => props.open, (val) => {
 
         <div v-if="invalidResults.length > 0">
           <div class="flex items-center gap-2 mb-2">
-            <Checkbox v-model:checked="allInvalidSelected" id="selectAll" />
+            <Checkbox v-model="allInvalidSelected" id="selectAll" />
             <label for="selectAll" class="text-xs text-muted-foreground cursor-pointer">全选</label>
             <span class="text-xs text-muted-foreground ml-auto">
               已选 {{ selectedInvalidIds.size }} / {{ invalidResults.length }}
@@ -303,8 +303,8 @@ watch(() => props.open, (val) => {
                 class="flex items-start gap-2 px-2 py-1.5 rounded text-xs hover:bg-muted/50"
               >
                 <Checkbox
-                  :checked="selectedInvalidIds.has(item.bookmarkId)"
-                  @update:checked="toggleInvalidItem(item.bookmarkId)"
+                  :model-value="selectedInvalidIds.has(item.bookmarkId)"
+                  @update:model-value="toggleInvalidItem(item.bookmarkId)"
                   class="mt-0.5"
                 />
                 <div class="min-w-0 flex-1">
