@@ -80,6 +80,16 @@ export interface Extension {
   icon?: string
 }
 
+// 快捷键条目
+export interface ShortcutItem {
+  id: string
+  label: string
+  accelerator: string
+  global: boolean
+  supportsGlobal: boolean
+  defaultAccelerator: string
+}
+
 // IPC API 定义
 const api = {
   workspace: {
@@ -210,7 +220,20 @@ const api = {
     isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized')
   },
 
+  settings: {
+    getTabFreezeMinutes: (): Promise<number> => ipcRenderer.invoke('settings:getTabFreezeMinutes'),
+    setTabFreezeMinutes: (minutes: number): Promise<void> => ipcRenderer.invoke('settings:setTabFreezeMinutes', minutes)
+  },
+
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),
+
+  shortcut: {
+    list: (): Promise<ShortcutItem[]> => ipcRenderer.invoke('shortcut:list'),
+    update: (id: string, accelerator: string, isGlobal: boolean): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('shortcut:update', id, accelerator, isGlobal),
+    clear: (id: string): Promise<{ success: boolean }> => ipcRenderer.invoke('shortcut:clear', id),
+    reset: (): Promise<{ success: boolean }> => ipcRenderer.invoke('shortcut:reset')
+  },
 
   download: {
     checkConnection: (): Promise<boolean> => ipcRenderer.invoke('download:checkConnection'),

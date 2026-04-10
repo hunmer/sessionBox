@@ -165,7 +165,17 @@ const api = {
     close: () => electron.ipcRenderer.invoke("window:close"),
     isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized")
   },
+  settings: {
+    getTabFreezeMinutes: () => electron.ipcRenderer.invoke("settings:getTabFreezeMinutes"),
+    setTabFreezeMinutes: (minutes) => electron.ipcRenderer.invoke("settings:setTabFreezeMinutes", minutes)
+  },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
+  shortcut: {
+    list: () => electron.ipcRenderer.invoke("shortcut:list"),
+    update: (id, accelerator, isGlobal) => electron.ipcRenderer.invoke("shortcut:update", id, accelerator, isGlobal),
+    clear: (id) => electron.ipcRenderer.invoke("shortcut:clear", id),
+    reset: () => electron.ipcRenderer.invoke("shortcut:reset")
+  },
   download: {
     checkConnection: () => electron.ipcRenderer.invoke("download:checkConnection"),
     getConfig: () => electron.ipcRenderer.invoke("download:getConfig"),

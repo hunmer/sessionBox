@@ -10304,7 +10304,10 @@ const defaults = {
   ],
   extensions: [],
   accountExtensions: {},
-  windowState: { width: 1280, height: 800, isMaximized: false }
+  windowState: { width: 1280, height: 800, isMaximized: false },
+  tabFreezeMinutes: 0,
+  // 0 = 禁用冻结
+  shortcuts: []
 };
 const store = new Store({ defaults });
 function getCollection(key) {
@@ -10612,6 +10615,18 @@ function getWindowState$1() {
 }
 function setWindowState(state) {
   store.set("windowState", state);
+}
+function getTabFreezeMinutes() {
+  return store.get("tabFreezeMinutes", 0);
+}
+function setTabFreezeMinutes(minutes) {
+  store.set("tabFreezeMinutes", minutes);
+}
+function getShortcutBindings() {
+  return store.get("shortcuts", []);
+}
+function setShortcutBindings(bindings) {
+  store.set("shortcuts", bindings);
 }
 var src = { exports: {} };
 var browser = { exports: {} };
@@ -14615,6 +14630,10 @@ class WebviewManager {
   views = /* @__PURE__ */ new Map();
   mainWindow = null;
   activeTabId = null;
+  freezeTimer = null;
+  frozenTabUrls = /* @__PURE__ */ new Map();
+  // 冻结的 tab 信息
+  _freezeMinutes = 0;
   setMainWindow(win) {
     this.mainWindow = win;
   }
@@ -14644,7 +14663,7 @@ class WebviewManager {
     }
     view.setVisible(false);
     this.mainWindow.contentView.addChildView(view);
-    this.views.set(tabId, { view, tabId, accountId });
+    this.views.set(tabId, { view, tabId, accountId, lastActiveAt: Date.now() });
     this.setupEventForwarding(tabId, view);
     const extensions = getExtensionsForAccount(accountId || null);
     extensions.addTab(view.webContents, this.mainWindow);
@@ -14729,7 +14748,10 @@ class WebviewManager {
   }
   destroyView(tabId) {
     const entry = this.views.get(tabId);
-    if (!entry) return;
+    if (!entry) {
+      this.frozenTabUrls.delete(tabId);
+      return;
+    }
     this.views.delete(tabId);
     try {
       const extensions = getExtensionsForAccount(entry.accountId || null);
@@ -14754,12 +14776,22 @@ class WebviewManager {
     if (!this.mainWindow) return;
     if (this.activeTabId) {
       const current = this.views.get(this.activeTabId);
-      if (current) current.view.setVisible(false);
+      if (current) {
+        current.view.setVisible(false);
+        current.lastActiveAt = Date.now();
+      }
+    }
+    if (this.frozenTabUrls.has(tabId)) {
+      const frozen = this.frozenTabUrls.get(tabId);
+      this.frozenTabUrls.delete(tabId);
+      this.createView(tabId, frozen.accountId, frozen.url);
+      this.mainWindow.webContents.send("on:tab:frozen", tabId, false);
     }
     const target = this.views.get(tabId);
     if (!target) return;
     target.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
     target.view.setVisible(true);
+    target.lastActiveAt = Date.now();
     this.activeTabId = tabId;
     const extensions = getExtensionsForAccount(target.accountId || null);
     extensions.selectTab(target.view.webContents);
@@ -14870,6 +14902,59 @@ class WebviewManager {
       }
     }
     return null;
+  }
+  // ====== 标签冻结机制 ======
+  /** 设置冻结超时分钟数，0 表示禁用 */
+  setFreezeMinutes(minutes) {
+    this._freezeMinutes = minutes;
+    this.stopFreezeTimer();
+    if (minutes > 0) {
+      this.startFreezeTimer();
+    }
+  }
+  /** 启动冻结定时器（每 30 秒检查一次） */
+  startFreezeTimer() {
+    if (this.freezeTimer) return;
+    this.freezeTimer = setInterval(() => this.checkFreeze(), 3e4);
+  }
+  /** 停止冻结定时器 */
+  stopFreezeTimer() {
+    if (this.freezeTimer) {
+      clearInterval(this.freezeTimer);
+      this.freezeTimer = null;
+    }
+  }
+  /** 检查并冻结超时的非激活标签 */
+  checkFreeze() {
+    if (!this._freezeMinutes || !this.mainWindow || this.mainWindow.isDestroyed()) return;
+    const threshold = this._freezeMinutes * 6e4;
+    const now = Date.now();
+    for (const [tabId, entry] of this.views) {
+      if (tabId === this.activeTabId) continue;
+      if (now - entry.lastActiveAt < threshold) continue;
+      const url = entry.view.webContents.getURL();
+      if (url.startsWith("sessionbox://")) continue;
+      this.frozenTabUrls.set(tabId, { url, accountId: entry.accountId });
+      try {
+        const extensions = getExtensionsForAccount(entry.accountId || null);
+        if (!entry.view.webContents.isDestroyed()) {
+          extensions.removeTab(entry.view.webContents);
+        }
+        entry.view.setVisible(false);
+        entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+        this.mainWindow.contentView.removeChildView(entry.view);
+        if (!entry.view.webContents.isDestroyed()) {
+          entry.view.webContents.close();
+        }
+      } catch {
+      }
+      this.views.delete(tabId);
+      this.mainWindow.webContents.send("on:tab:frozen", tabId, true);
+    }
+  }
+  /** 获取标签是否已冻结 */
+  isFrozen(tabId) {
+    return this.frozenTabUrls.has(tabId);
   }
 }
 const webviewManager = new WebviewManager();
@@ -28047,6 +28132,101 @@ function registerExtensionHandlers() {
     }
   );
 }
+const SHORTCUT_ACTIONS = [
+  { id: "new-tab", label: "新建标签页", defaultAccelerator: "CmdOrCtrl+T", supportsGlobal: true },
+  { id: "close-tab", label: "关闭当前标签页", defaultAccelerator: "CmdOrCtrl+W", supportsGlobal: true },
+  { id: "next-tab", label: "下一个标签页", defaultAccelerator: "CmdOrCtrl+Tab", supportsGlobal: false },
+  { id: "prev-tab", label: "上一个标签页", defaultAccelerator: "CmdOrCtrl+Shift+Tab", supportsGlobal: false },
+  { id: "toggle-sidebar", label: "切换侧边栏", defaultAccelerator: "CmdOrCtrl+B", supportsGlobal: true },
+  { id: "new-account", label: "新建账号", defaultAccelerator: "CmdOrCtrl+N", supportsGlobal: true },
+  { id: "reload-tab", label: "刷新当前页", defaultAccelerator: "CmdOrCtrl+R", supportsGlobal: false },
+  { id: "go-back", label: "后退", defaultAccelerator: "Alt+Left", supportsGlobal: false },
+  { id: "go-forward", label: "前进", defaultAccelerator: "Alt+Right", supportsGlobal: false },
+  { id: "focus-address", label: "聚焦地址栏", defaultAccelerator: "CmdOrCtrl+L", supportsGlobal: false }
+];
+function getMergedBindings() {
+  const bindings = getShortcutBindings();
+  return SHORTCUT_ACTIONS.map((action) => {
+    const custom = bindings.find((b) => b.id === action.id);
+    return {
+      id: action.id,
+      accelerator: custom?.accelerator ?? action.defaultAccelerator,
+      global: custom?.global ?? false
+    };
+  });
+}
+function registerGlobalShortcuts() {
+  require$$1.globalShortcut.unregisterAll();
+  const bindings = getMergedBindings();
+  for (const binding of bindings) {
+    if (!binding.global || !binding.accelerator) continue;
+    try {
+      require$$1.globalShortcut.register(binding.accelerator, () => {
+        const win = require$$1.BrowserWindow.getAllWindows()[0];
+        if (win) {
+          if (win.isMinimized()) win.restore();
+          win.focus();
+          win.webContents.send("on:shortcut", binding.id);
+        }
+      });
+    } catch {
+      console.warn(`[ShortcutManager] 注册全局快捷键失败: ${binding.accelerator} (${binding.id})`);
+    }
+  }
+}
+function updateShortcutBinding(id2, accelerator, isGlobal) {
+  const action = SHORTCUT_ACTIONS.find((a) => a.id === id2);
+  if (!action) return { success: false, error: "功能不存在" };
+  if (accelerator) {
+    const bindings2 = getMergedBindings();
+    const conflict = bindings2.find((b) => b.id !== id2 && b.accelerator === accelerator);
+    if (conflict) {
+      const conflictAction = SHORTCUT_ACTIONS.find((a) => a.id === conflict.id);
+      return { success: false, error: `快捷键已被「${conflictAction?.label}」占用` };
+    }
+  }
+  const bindings = getShortcutBindings();
+  const idx = bindings.findIndex((b) => b.id === id2);
+  const binding = { id: id2, accelerator, global: action.supportsGlobal && isGlobal };
+  if (idx >= 0) {
+    bindings[idx] = binding;
+  } else {
+    bindings.push(binding);
+  }
+  setShortcutBindings(bindings);
+  registerGlobalShortcuts();
+  return { success: true };
+}
+function clearShortcutBinding(id2) {
+  updateShortcutBinding(id2, "", false);
+}
+function registerShortcutIpcHandlers() {
+  require$$1.ipcMain.handle("shortcut:list", () => {
+    const bindings = getMergedBindings();
+    return SHORTCUT_ACTIONS.map((action) => {
+      const binding = bindings.find((b) => b.id === action.id);
+      return {
+        id: action.id,
+        label: action.label,
+        accelerator: binding?.accelerator ?? action.defaultAccelerator,
+        global: binding?.global ?? false,
+        supportsGlobal: action.supportsGlobal,
+        defaultAccelerator: action.defaultAccelerator
+      };
+    });
+  });
+  require$$1.ipcMain.handle("shortcut:update", (_e, id2, accelerator, isGlobal) => {
+    return updateShortcutBinding(id2, accelerator, isGlobal);
+  });
+  require$$1.ipcMain.handle("shortcut:clear", (_e, id2) => {
+    clearShortcutBinding(id2);
+    return { success: true };
+  });
+  require$$1.ipcMain.handle("shortcut:reset", () => {
+    registerGlobalShortcuts();
+    return { success: true };
+  });
+}
 const iconDir = require$$1$2.join(require$$1.app.getPath("userData"), "account-icons");
 function registerIpcHandlers() {
   migrateBookmarks();
@@ -28148,6 +28328,7 @@ $img.Dispose()`;
   registerTabIpcHandlers();
   registerUpdaterIpc();
   registerExtensionHandlers();
+  registerShortcutIpcHandlers();
   require$$1.ipcMain.handle("favoriteSite:list", () => listFavoriteSites());
   require$$1.ipcMain.handle(
     "favoriteSite:create",
@@ -28191,6 +28372,11 @@ $img.Dispose()`;
     return require$$1.BrowserWindow.getFocusedWindow()?.isMaximized() ?? false;
   });
   require$$1.ipcMain.handle("openExternal", (_e, url) => require$$1.shell.openExternal(url));
+  require$$1.ipcMain.handle("settings:getTabFreezeMinutes", () => getTabFreezeMinutes());
+  require$$1.ipcMain.handle("settings:setTabFreezeMinutes", (_e, minutes) => {
+    setTabFreezeMinutes(minutes);
+    webviewManager.setFreezeMinutes(minutes);
+  });
 }
 function registerDownloadIpcHandlers() {
   require$$1.ipcMain.handle("download:checkConnection", () => checkConnection());
@@ -28343,6 +28529,7 @@ if (!gotTheLock) {
     });
     registerIpcHandlers();
     registerDownloadIpcHandlers();
+    webviewManager.setFreezeMinutes(getTabFreezeMinutes());
     const iconDir2 = require$$1$2.join(require$$1.app.getPath("userData"), "account-icons");
     require$$1.protocol.handle("account-icon", (request) => {
       const fileName = decodeURIComponent(request.url.replace("account-icon://", ""));

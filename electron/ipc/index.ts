@@ -30,13 +30,17 @@ import {
   createWorkspace,
   updateWorkspace,
   deleteWorkspace,
-  reorderWorkspaces
+  reorderWorkspaces,
+  getTabFreezeMinutes,
+  setTabFreezeMinutes
 } from '../services/store'
 import type { Account, Group, FavoriteSite, Workspace, BookmarkFolder } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
 import { registerExtensionHandlers } from './extensions'
+import { registerShortcutIpcHandlers } from './shortcut'
+import { webviewManager } from '../services/webview-manager'
 
 /** 账号图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'account-icons')
@@ -192,6 +196,9 @@ $img.Dispose()`
   // ====== 扩展 ======
   registerExtensionHandlers()
 
+  // ====== 快捷键 ======
+  registerShortcutIpcHandlers()
+
   // ====== 常用网站（书签） ======
   ipcMain.handle('favoriteSite:list', () => listFavoriteSites())
 
@@ -249,4 +256,11 @@ $img.Dispose()`
 
   // ====== 外部链接 ======
   ipcMain.handle('openExternal', (_e, url: string) => shell.openExternal(url))
+
+  // ====== 应用设置 ======
+  ipcMain.handle('settings:getTabFreezeMinutes', () => getTabFreezeMinutes())
+  ipcMain.handle('settings:setTabFreezeMinutes', (_e, minutes: number) => {
+    setTabFreezeMinutes(minutes)
+    webviewManager.setFreezeMinutes(minutes)
+  })
 }

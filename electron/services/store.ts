@@ -83,6 +83,13 @@ export interface WindowState {
   isMaximized: boolean
 }
 
+// 快捷键绑定（仅存储用户自定义的）
+export interface ShortcutBindingStore {
+  id: string
+  accelerator: string
+  global: boolean
+}
+
 interface StoreSchema {
   workspaces: Workspace[]
   groups: Group[]
@@ -94,6 +101,8 @@ interface StoreSchema {
   extensions: Extension[]
   accountExtensions: Record<string, string[]>  // accountId -> extensionIds
   windowState: WindowState
+  tabFreezeMinutes: number
+  shortcuts: ShortcutBindingStore[]
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -115,7 +124,9 @@ const defaults: StoreSchema = {
   ],
   extensions: [],
   accountExtensions: {},
-  windowState: { width: 1280, height: 800, isMaximized: false }
+  windowState: { width: 1280, height: 800, isMaximized: false },
+  tabFreezeMinutes: 0, // 0 = 禁用冻结
+  shortcuts: []
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -541,4 +552,24 @@ export function getWindowState(): WindowState {
 
 export function setWindowState(state: WindowState): void {
   store.set('windowState', state)
+}
+
+// ====== 应用设置 ======
+
+export function getTabFreezeMinutes(): number {
+  return store.get('tabFreezeMinutes', 0)
+}
+
+export function setTabFreezeMinutes(minutes: number): void {
+  store.set('tabFreezeMinutes', minutes)
+}
+
+// ====== 快捷键绑定操作 ======
+
+export function getShortcutBindings(): ShortcutBindingStore[] {
+  return store.get('shortcuts', [])
+}
+
+export function setShortcutBindings(bindings: ShortcutBindingStore[]): void {
+  store.set('shortcuts', bindings)
 }

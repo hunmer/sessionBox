@@ -41,12 +41,16 @@ interface ViewEntry {
   view: WebContentsView
   tabId: string
   accountId: string
+  lastActiveAt: number // 上次激活时间戳
 }
 
 class WebviewManager {
   private views = new Map<string, ViewEntry>()
   private mainWindow: BrowserWindow | null = null
   private activeTabId: string | null = null
+  private freezeTimer: ReturnType<typeof setInterval> | null = null
+  private frozenTabUrls = new Map<string, { url: string; accountId: string }>() // 冻结的 tab 信息
+  private _freezeMinutes = 0
 
   setMainWindow(win: BrowserWindow): void {
     this.mainWindow = win
@@ -89,7 +93,7 @@ class WebviewManager {
 
     view.setVisible(false)
     this.mainWindow.contentView.addChildView(view)
-    this.views.set(tabId, { view, tabId, accountId })
+    this.views.set(tabId, { view, tabId, accountId, lastActiveAt: Date.now() })
     this.setupEventForwarding(tabId, view)
 
     const extensions = getExtensionsForAccount(accountId || null)
@@ -201,7 +205,11 @@ class WebviewManager {
 
   destroyView(tabId: string): void {
     const entry = this.views.get(tabId)
-    if (!entry) return
+    if (!entry) {
+      // 也清理冻结记录
+      this.frozenTabUrls.delete(tabId)
+      return
+    }
 
     this.views.delete(tabId)
 
@@ -232,9 +240,21 @@ class WebviewManager {
   switchView(tabId: string): void {
     if (!this.mainWindow) return
 
+    // 更新当前激活标签的 lastActiveAt
     if (this.activeTabId) {
       const current = this.views.get(this.activeTabId)
-      if (current) current.view.setVisible(false)
+      if (current) {
+        current.view.setVisible(false)
+        current.lastActiveAt = Date.now()
+      }
+    }
+
+    // 如果目标标签被冻结，先解冻（重建 view）
+    if (this.frozenTabUrls.has(tabId)) {
+      const frozen = this.frozenTabUrls.get(tabId)!
+      this.frozenTabUrls.delete(tabId)
+      this.createView(tabId, frozen.accountId, frozen.url)
+      this.mainWindow.webContents.send('on:tab:frozen', tabId, false)
     }
 
     const target = this.views.get(tabId)
@@ -242,6 +262,7 @@ class WebviewManager {
 
     target.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
     target.view.setVisible(true)
+    target.lastActiveAt = Date.now()
     this.activeTabId = tabId
 
     const extensions = getExtensionsForAccount(target.accountId || null)
@@ -373,6 +394,75 @@ class WebviewManager {
       }
     }
     return null
+  }
+
+  // ====== 标签冻结机制 ======
+
+  /** 设置冻结超时分钟数，0 表示禁用 */
+  setFreezeMinutes(minutes: number): void {
+    this._freezeMinutes = minutes
+    this.stopFreezeTimer()
+    if (minutes > 0) {
+      this.startFreezeTimer()
+    }
+  }
+
+  /** 启动冻结定时器（每 30 秒检查一次） */
+  private startFreezeTimer(): void {
+    if (this.freezeTimer) return
+    this.freezeTimer = setInterval(() => this.checkFreeze(), 30_000)
+  }
+
+  /** 停止冻结定时器 */
+  private stopFreezeTimer(): void {
+    if (this.freezeTimer) {
+      clearInterval(this.freezeTimer)
+      this.freezeTimer = null
+    }
+  }
+
+  /** 检查并冻结超时的非激活标签 */
+  private checkFreeze(): void {
+    if (!this._freezeMinutes || !this.mainWindow || this.mainWindow.isDestroyed()) return
+
+    const threshold = this._freezeMinutes * 60_000
+    const now = Date.now()
+
+    for (const [tabId, entry] of this.views) {
+      // 跳过当前激活标签和内部页面
+      if (tabId === this.activeTabId) continue
+      if (now - entry.lastActiveAt < threshold) continue
+
+      const url = entry.view.webContents.getURL()
+      if (url.startsWith('sessionbox://')) continue
+
+      // 记录冻结信息（用于后续解冻重建）
+      this.frozenTabUrls.set(tabId, { url, accountId: entry.accountId })
+
+      // 销毁 view 但保留 tab 数据
+      try {
+        const extensions = getExtensionsForAccount(entry.accountId || null)
+        if (!entry.view.webContents.isDestroyed()) {
+          extensions.removeTab(entry.view.webContents)
+        }
+        entry.view.setVisible(false)
+        entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+        this.mainWindow!.contentView.removeChildView(entry.view)
+        if (!entry.view.webContents.isDestroyed()) {
+          entry.view.webContents.close()
+        }
+      } catch {
+        // 忽略销毁异常
+      }
+
+      this.views.delete(tabId)
+      this.mainWindow!.webContents.send('on:tab:frozen', tabId, true)
+    }
+  }
+
+  /** 获取标签是否已冻结 */
+  isFrozen(tabId: string): boolean {
+    return this.frozenTabUrls.has(tabId)
   }
 }
 
