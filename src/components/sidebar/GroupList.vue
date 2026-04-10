@@ -36,10 +36,11 @@ const accountStore = useAccountStore()
 // 将 workspaceGroups 及其账号转换为 GroupItem 需要的格式
 const workspaces = computed(() => {
   return accountStore.workspaceGroups.map((g) => ({
+    id: g.id,
     group: g,
     name: g.name,
     emoji: '📁',
-    color: g.color, // 保留颜色信息
+    color: g.color,
     pages: (accountStore.accountsByGroup.get(g.id) || [])
       .sort((a, b) => a.order - b.order)
       .map((a) => ({

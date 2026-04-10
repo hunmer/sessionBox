@@ -20,11 +20,9 @@ export const useShortcutStore = defineStore('shortcut', () => {
   async function updateShortcut(id: string, accelerator: string, isGlobal: boolean) {
     const result = await api.shortcut.update(id, accelerator, isGlobal)
     if (result.success) {
-      // 更新本地状态
-      const item = shortcuts.value.find(s => s.id === id)
-      if (item) {
-        item.accelerator = accelerator
-        item.global = isGlobal
+      const idx = shortcuts.value.findIndex(s => s.id === id)
+      if (idx >= 0) {
+        shortcuts.value[idx] = { ...shortcuts.value[idx], accelerator, global: isGlobal }
       }
     }
     return result
@@ -32,10 +30,9 @@ export const useShortcutStore = defineStore('shortcut', () => {
 
   async function clearShortcut(id: string) {
     await api.shortcut.clear(id)
-    const item = shortcuts.value.find(s => s.id === id)
-    if (item) {
-      item.accelerator = ''
-      item.global = false
+    const idx = shortcuts.value.findIndex(s => s.id === id)
+    if (idx >= 0) {
+      shortcuts.value[idx] = { ...shortcuts.value[idx], accelerator: '', global: false }
     }
   }
 

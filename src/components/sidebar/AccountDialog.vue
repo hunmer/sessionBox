@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { Camera } from 'lucide-vue-next'
+import { ref, watch, computed, markRaw } from 'vue'
+import { Camera, SmilePlus } from 'lucide-vue-next'
+import * as lucideIcons from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +11,7 @@ import {
 import { useAccountStore } from '@/stores/account'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
+import IconPickerDialog from './IconPickerDialog.vue'
 import type { Account } from '@/types'
 
 const props = defineProps<{
@@ -35,6 +37,20 @@ const defaultUrl = ref('about:blank')
 
 /** 当前图标是否为自定义图片 */
 const isImageIcon = computed(() => icon.value.startsWith('img:'))
+
+/** 当前图标是否为 lucide 图标 */
+const isLucideIcon = computed(() => icon.value.startsWith('lucide:'))
+
+/** lucide 图标组件 */
+const lucideComponent = computed(() => {
+  if (!isLucideIcon.value) return null
+  const name = icon.value.slice(6)
+  const comp = (lucideIcons as any)[name]
+  return comp ? markRaw(comp) : null
+})
+
+/** 图标选择器打开状态 */
+const iconPickerOpen = ref(false)
 
 /** 图片图标的本地路径（用于预览） */
 const iconImagePath = computed(() => {
@@ -94,6 +110,7 @@ function handleSave() {
             <!-- 圆形头像 -->
             <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-border flex items-center justify-center bg-muted">
               <img v-if="isImageIcon" :src="iconImagePath" alt="头像" class="w-full h-full object-cover" />
+              <component v-else-if="isLucideIcon && lucideComponent" :is="lucideComponent" class="w-8 h-8 text-muted-foreground" />
               <span v-else class="text-3xl">{{ icon }}</span>
             </div>
             <!-- 图片 hover 清除按钮 -->
@@ -104,6 +121,14 @@ function handleSave() {
             >
               ✕
             </button>
+            <!-- 左下：选择 lucide 图标 -->
+            <button
+              class="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center hover:bg-accent transition-colors"
+              title="选择图标"
+              @click="iconPickerOpen = true"
+            >
+              <SmilePlus class="w-3.5 h-3.5" />
+            </button>
             <!-- 右下：上传图片 -->
             <button
               class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground shadow-sm flex items-center justify-center hover:bg-primary/90 transition-colors"
@@ -113,15 +138,6 @@ function handleSave() {
               <Camera class="w-3.5 h-3.5" />
             </button>
           </div>
-          <!-- 隐藏的 emoji 输入 -->
-          <input
-            ref="emojiInput"
-            v-model="icon"
-            type="text"
-            class="w-16 h-7 text-center text-sm bg-transparent border-b border-border focus:border-primary outline-none transition-colors"
-            placeholder="emoji"
-            maxlength="2"
-          />
         </div>
 
         <!-- 名称 -->
@@ -175,4 +191,12 @@ function handleSave() {
       </DialogFooter>
     </DialogContent>
   </Dialog>
+
+  <!-- 图标选择器 -->
+  <IconPickerDialog
+    :open="iconPickerOpen"
+    :current-icon="icon"
+    @update:open="iconPickerOpen = $event"
+    @confirm="icon = $event"
+  />
 </template>

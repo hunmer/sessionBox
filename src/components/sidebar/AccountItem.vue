@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, markRaw } from 'vue'
 import { MoreHorizontal, ExternalLink, Pencil, Trash2 } from 'lucide-vue-next'
+import * as lucideIcons from 'lucide-vue-next'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTabStore } from '@/stores/tab'
 import { useAccountStore } from '@/stores/account'
@@ -49,6 +50,17 @@ const activeStyle = computed(() => {
 /** 图标是否为自定义图片 */
 const isImageIcon = computed(() => props.account.icon?.startsWith('img:'))
 
+/** 图标是否为 lucide 图标 */
+const isLucideIcon = computed(() => props.account.icon?.startsWith('lucide:'))
+
+/** lucide 图标组件 */
+const lucideComponent = computed(() => {
+  if (!isLucideIcon.value) return null
+  const name = props.account.icon.slice(6)
+  const comp = (lucideIcons as any)[name]
+  return comp ? markRaw(comp) : null
+})
+
 /** 图片图标的协议路径 */
 const imageIconSrc = computed(() => {
   if (!isImageIcon.value) return ''
@@ -57,7 +69,7 @@ const imageIconSrc = computed(() => {
 
 /** 显示的文本图标 */
 const textIcon = computed(() => {
-  if (isImageIcon.value) return ''
+  if (isImageIcon.value || isLucideIcon.value) return ''
   return props.collapsed ? props.account.name.charAt(0) : props.account.icon || props.account.name.charAt(0)
 })
 
@@ -85,6 +97,7 @@ function handleClick() {
     <!-- 图标 -->
     <span class="flex-shrink-0 w-5 h-5 flex items-center justify-center text-sm overflow-hidden">
       <img v-if="isImageIcon" :src="imageIconSrc" alt="" class="w-full h-full object-cover rounded-sm" />
+      <component v-else-if="isLucideIcon && lucideComponent" :is="lucideComponent" class="w-full h-full" />
       <template v-else>{{ textIcon }}</template>
     </span>
 
