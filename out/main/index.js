@@ -14354,6 +14354,233 @@ function openExtensionBrowserActionPopup(accountId, extensionAppId, anchorRect) 
     { anchorRect, tabId: tabId ?? void 0 }
   );
 }
+function getBundledAria2Path() {
+  const devPath = require$$1$2.join(require$$1.app.getAppPath(), "win_packages", "aria2", "aria2c.exe");
+  const prodPath = require$$1$2.join(process.resourcesPath, "win_packages", "aria2", "aria2c.exe");
+  return require$$1$1.existsSync(devPath) ? devPath : prodPath;
+}
+function getDefaultDownloadDir() {
+  return require$$1.app.getPath("downloads");
+}
+const DEFAULT_CONFIG = {
+  host: "localhost",
+  port: 6800,
+  secret: "sessionbox_aria2",
+  aria2Path: "aria2c",
+  downloadDir: "",
+  maxConcurrentDownloads: 5,
+  maxConnections: 16,
+  splitConnections: 5,
+  checkCertificate: false,
+  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  autoStart: false
+};
+const configStore = new Store({
+  defaults: { aria2Config: DEFAULT_CONFIG }
+});
+function getConfig() {
+  const saved = configStore.get("aria2Config");
+  const config = { ...DEFAULT_CONFIG, ...saved };
+  if (!saved?.aria2Path || saved.aria2Path === "aria2c") {
+    const bundled = getBundledAria2Path();
+    if (require$$1$1.existsSync(bundled)) {
+      config.aria2Path = bundled;
+    }
+  }
+  if (!config.downloadDir) {
+    config.downloadDir = getDefaultDownloadDir();
+  }
+  return config;
+}
+function saveConfig(config) {
+  const current = getConfig();
+  configStore.set("aria2Config", { ...current, ...config });
+}
+let rpcId = 0;
+async function sendRPC(method, params = []) {
+  const config = getConfig();
+  const url = `http://${config.host}:${config.port}/jsonrpc`;
+  const id2 = ++rpcId;
+  const body = {
+    jsonrpc: "2.0",
+    id: id2,
+    method,
+    params: config.secret ? [`token:${config.secret}`, ...params] : params
+  };
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json();
+  if (data.error) throw new Error(`RPC Error: ${data.error.message}`);
+  return data.result;
+}
+function parseTaskInfo(raw) {
+  const totalLength = parseInt(raw.totalLength) || 0;
+  const completedLength = parseInt(raw.completedLength) || 0;
+  const downloadSpeed = parseInt(raw.downloadSpeed) || 0;
+  const progress = totalLength > 0 ? completedLength / totalLength * 100 : 0;
+  let filename = "";
+  if (raw.bittorrent?.info?.name) {
+    filename = raw.bittorrent.info.name;
+  } else if (raw.files?.length > 0) {
+    const path = raw.files[0].path;
+    if (path) {
+      filename = path.split(/[\\/]/).pop() || path;
+    } else {
+      const uri2 = raw.files[0].uris?.[0]?.uri || "";
+      try {
+        filename = decodeURIComponent(new URL(uri2).pathname.split("/").pop() || "");
+      } catch {
+        filename = uri2.split("/").pop() || "";
+      }
+    }
+  }
+  return {
+    gid: raw.gid,
+    url: raw.files?.[0]?.uris?.[0]?.uri || "",
+    filename,
+    status: raw.status,
+    totalLength,
+    completedLength,
+    downloadSpeed,
+    progress: Math.round(progress * 100) / 100,
+    connections: parseInt(raw.connections) || 0,
+    dir: raw.dir || "",
+    errorMessage: raw.errorMessage
+  };
+}
+let aria2Process = null;
+function buildArgs(config) {
+  const downloadDir = config.downloadDir || require$$1.app.getPath("downloads");
+  return [
+    "--enable-rpc",
+    "--rpc-listen-all=false",
+    `--rpc-listen-port=${config.port}`,
+    `--rpc-secret=${config.secret}`,
+    `--dir=${downloadDir}`,
+    `--max-concurrent-downloads=${config.maxConcurrentDownloads}`,
+    `--max-connection-per-server=${config.maxConnections}`,
+    `--min-split-size=1M`,
+    `--split=${config.splitConnections}`,
+    "--continue=true",
+    "--max-tries=3",
+    "--retry-wait=30",
+    "--timeout=60",
+    "--connect-timeout=30",
+    `--user-agent=${config.userAgent}`,
+    `--check-certificate=${config.checkCertificate}`,
+    "--auto-file-renaming=true",
+    "--allow-overwrite=false",
+    "--disk-cache=32M",
+    "--file-allocation=prealloc",
+    "--log-level=warn",
+    "--daemon=true"
+  ];
+}
+async function startProcess() {
+  const config = getConfig();
+  if (await checkConnection()) return true;
+  return new Promise((resolve2) => {
+    try {
+      const args = buildArgs(config);
+      aria2Process = require$$1$6.spawn(config.aria2Path, args, {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true
+      });
+      aria2Process.unref();
+      setTimeout(async () => {
+        const connected = await checkConnection();
+        resolve2(connected);
+      }, 2e3);
+    } catch (e) {
+      console.error("[Aria2] 启动失败:", e);
+      resolve2(false);
+    }
+  });
+}
+async function stopProcess() {
+  try {
+    if (await checkConnection()) {
+      await sendRPC("aria2.shutdown");
+    }
+  } catch {
+  }
+  aria2Process = null;
+}
+async function checkConnection() {
+  try {
+    await sendRPC("aria2.getVersion");
+    return true;
+  } catch {
+    return false;
+  }
+}
+function getAria2Config() {
+  return getConfig();
+}
+function updateAria2Config(config) {
+  saveConfig(config);
+  return getConfig();
+}
+async function startAria2() {
+  return startProcess();
+}
+async function stopAria2() {
+  await stopProcess();
+}
+async function addDownload(url, options = {}) {
+  const downloadOpts = {};
+  if (options.dir) downloadOpts.dir = options.dir;
+  if (options.filename) downloadOpts.out = options.filename;
+  if (options.headers?.length) downloadOpts.header = options.headers;
+  if (options.cookies) downloadOpts.cookie = options.cookies;
+  if (options.referer) downloadOpts.referer = options.referer;
+  const gid = await sendRPC("aria2.addUri", [[url], downloadOpts]);
+  return gid;
+}
+async function pauseDownload(gid) {
+  await sendRPC("aria2.pause", [gid]);
+}
+async function resumeDownload(gid) {
+  await sendRPC("aria2.unpause", [gid]);
+}
+async function removeDownload(gid) {
+  try {
+    await sendRPC("aria2.remove", [gid]);
+  } catch {
+    await sendRPC("aria2.removeDownloadResult", [gid]);
+  }
+}
+async function getActiveTasks() {
+  const results = await sendRPC("aria2.tellActive", [
+    ["gid", "status", "totalLength", "completedLength", "downloadSpeed", "connections", "dir", "errorMessage", "files", "bittorrent"]
+  ]);
+  return (results || []).map(parseTaskInfo);
+}
+async function getWaitingTasks() {
+  const results = await sendRPC("aria2.tellWaiting", [0, 100, ["gid", "status", "totalLength", "completedLength", "downloadSpeed", "connections", "dir", "errorMessage", "files", "bittorrent"]]);
+  return (results || []).map(parseTaskInfo);
+}
+async function getStoppedTasks() {
+  const results = await sendRPC("aria2.tellStopped", [0, 100, ["gid", "status", "totalLength", "completedLength", "downloadSpeed", "connections", "dir", "errorMessage", "files", "bittorrent"]]);
+  return (results || []).map(parseTaskInfo);
+}
+async function getGlobalStat() {
+  const stat2 = await sendRPC("aria2.getGlobalStat");
+  return {
+    downloadSpeed: parseInt(stat2.downloadSpeed) || 0,
+    uploadSpeed: parseInt(stat2.uploadSpeed) || 0,
+    numActive: parseInt(stat2.numActive) || 0,
+    numWaiting: parseInt(stat2.numWaiting) || 0,
+    numStopped: parseInt(stat2.numStopped) || 0
+  };
+}
+async function purgeDownloadResult() {
+  await sendRPC("aria2.purgeDownloadResult");
+}
 const BLOCKED_SCHEMES = [
   "bitbrowser",
   "microsoft-edge",
@@ -14467,6 +14694,26 @@ class WebviewManager {
     wc.on("page-favicon-updated", (_event, favicons) => {
       if (favicons.length > 0 && canSend()) {
         win.webContents.send("on:tab:favicon-updated", tabId, favicons[0]);
+      }
+    });
+    wc.session.on("will-download", async (event, item) => {
+      if (!await checkConnection()) return;
+      event.preventDefault();
+      const url = item.getURL();
+      const filename = item.getFilename();
+      const referer = wc.getURL();
+      try {
+        const cookies = await wc.session.cookies.get({ url });
+        const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+        const headers = [];
+        if (cookieStr) {
+          await addDownload(url, { filename, referer, cookies: cookieStr, headers });
+        } else {
+          await addDownload(url, { filename, referer });
+        }
+        if (canSend()) win.webContents.send("on:download:started", { url, filename, tabId });
+      } catch (e) {
+        console.error("[Aria2] 添加下载失败:", e);
       }
     });
   }
@@ -14642,7 +14889,8 @@ function registerTabIpcHandlers() {
     const isInternalPage = url?.startsWith("sessionbox://");
     const internalPageTitles = {
       "bookmarks": "书签管理",
-      "history": "历史记录"
+      "history": "历史记录",
+      "downloads": "下载管理"
     };
     const pageKey = isInternalPage ? url.replace("sessionbox://", "") : null;
     const internalPageTitle = pageKey ? internalPageTitles[pageKey] || pageKey : null;
@@ -27944,6 +28192,25 @@ $img.Dispose()`;
   });
   require$$1.ipcMain.handle("openExternal", (_e, url) => require$$1.shell.openExternal(url));
 }
+function registerDownloadIpcHandlers() {
+  require$$1.ipcMain.handle("download:checkConnection", () => checkConnection());
+  require$$1.ipcMain.handle("download:getConfig", () => getAria2Config());
+  require$$1.ipcMain.handle("download:updateConfig", (_e, config) => updateAria2Config(config));
+  require$$1.ipcMain.handle("download:start", () => startAria2());
+  require$$1.ipcMain.handle("download:stop", () => stopAria2());
+  require$$1.ipcMain.handle(
+    "download:add",
+    (_e, url, options) => addDownload(url, options)
+  );
+  require$$1.ipcMain.handle("download:pause", (_e, gid) => pauseDownload(gid));
+  require$$1.ipcMain.handle("download:resume", (_e, gid) => resumeDownload(gid));
+  require$$1.ipcMain.handle("download:remove", (_e, gid) => removeDownload(gid));
+  require$$1.ipcMain.handle("download:listActive", () => getActiveTasks());
+  require$$1.ipcMain.handle("download:listWaiting", () => getWaitingTasks());
+  require$$1.ipcMain.handle("download:listStopped", () => getStoppedTasks());
+  require$$1.ipcMain.handle("download:globalStat", () => getGlobalStat());
+  require$$1.ipcMain.handle("download:purge", () => purgeDownloadResult());
+}
 function throttle(fn, delay) {
   let timer = null;
   return ((...args) => {
@@ -28075,6 +28342,7 @@ if (!gotTheLock) {
       optimizer.watchWindowShortcuts(window2);
     });
     registerIpcHandlers();
+    registerDownloadIpcHandlers();
     const iconDir2 = require$$1$2.join(require$$1.app.getPath("userData"), "account-icons");
     require$$1.protocol.handle("account-icon", (request) => {
       const fileName = decodeURIComponent(request.url.replace("account-icon://", ""));

@@ -51,6 +51,16 @@
     {
       "from": "resources/icon.png",
       "to": "icon.png"
+    },
+    {
+      "from": "win_packages",
+      "to": "win_packages",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "mac_packages",
+      "to": "mac_packages",
+      "filter": ["**/*"]
     }
   ],
   "compression": "store",

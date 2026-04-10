@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupUserAgent } from './utils/user-agent'
 import { registerIpcHandlers } from './ipc'
+import { registerDownloadIpcHandlers } from './ipc/download'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
 import { listExtensions, getWindowState, setWindowState } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
@@ -180,6 +181,7 @@ if (!gotTheLock) {
 
     // 注册所有 IPC 处理器
     registerIpcHandlers()
+    registerDownloadIpcHandlers()
 
     // 注册 account-icon:// 协议，从 userData/account-icons/ 目录提供文件
     const iconDir = join(app.getPath('userData'), 'account-icons')

@@ -166,6 +166,22 @@ const api = {
     isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized")
   },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
+  download: {
+    checkConnection: () => electron.ipcRenderer.invoke("download:checkConnection"),
+    getConfig: () => electron.ipcRenderer.invoke("download:getConfig"),
+    updateConfig: (config) => electron.ipcRenderer.invoke("download:updateConfig", config),
+    start: () => electron.ipcRenderer.invoke("download:start"),
+    stop: () => electron.ipcRenderer.invoke("download:stop"),
+    add: (url, options) => electron.ipcRenderer.invoke("download:add", url, options),
+    pause: (gid) => electron.ipcRenderer.invoke("download:pause", gid),
+    resume: (gid) => electron.ipcRenderer.invoke("download:resume", gid),
+    remove: (gid) => electron.ipcRenderer.invoke("download:remove", gid),
+    listActive: () => electron.ipcRenderer.invoke("download:listActive"),
+    listWaiting: () => electron.ipcRenderer.invoke("download:listWaiting"),
+    listStopped: () => electron.ipcRenderer.invoke("download:listStopped"),
+    globalStat: () => electron.ipcRenderer.invoke("download:globalStat"),
+    purge: () => electron.ipcRenderer.invoke("download:purge")
+  },
   // 自动更新
   updater: {
     check: () => electron.ipcRenderer.invoke("updater:check"),

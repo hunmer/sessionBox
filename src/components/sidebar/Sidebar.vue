@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Home, Tag, Command, Bookmark, History } from 'lucide-vue-next'
+import { Home, Tag, Command, Bookmark, History, Download } from 'lucide-vue-next'
 
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher.vue'
 import NavMain from '@/components/NavMain.vue'
@@ -142,6 +142,12 @@ const navMain = [
     url: '#',
     icon: History,
     onClick: () => tabStore.createTabForSite('sessionbox://history'),
+  },
+  {
+    title: '下载管理',
+    url: '#',
+    icon: Download,
+    onClick: () => tabStore.createTabForSite('sessionbox://downloads'),
   },
 ]
 

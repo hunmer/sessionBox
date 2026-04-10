@@ -21,10 +21,12 @@ import { isOverlayActive, setOverlayRestoreGuard } from '@/lib/webview-overlay'
 import { markRaw, type Component } from 'vue'
 import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
 import HistoryPage from '@/components/history/HistoryPage.vue'
+import DownloadsPage from '@/components/download/DownloadsPage.vue'
 
 const INTERNAL_PAGES: Record<string, Component> = {
   bookmarks: markRaw(BookmarksPage),
-  history: markRaw(HistoryPage)
+  history: markRaw(HistoryPage),
+  downloads: markRaw(DownloadsPage)
 }
 
 const internalPageComponent = computed(() => {

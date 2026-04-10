@@ -6,6 +6,8 @@
 import { spawn, ChildProcess } from 'child_process'
 import Store from 'electron-store'
 import { app } from 'electron'
+import { join } from 'path'
+import { existsSync } from 'fs'
 
 // ====== 类型定义 ======
 
@@ -37,6 +39,22 @@ export interface Aria2TaskInfo {
   errorMessage?: string
 }
 
+// ====== 内置 aria2c 路径 ======
+
+/** 获取内置 aria2c 可执行文件路径 */
+function getBundledAria2Path(): string {
+  // 开发环境：项目根目录下的 packages
+  // 生产环境：resources 目录
+  const devPath = join(app.getAppPath(), 'win_packages', 'aria2', 'aria2c.exe')
+  const prodPath = join(process.resourcesPath, 'win_packages', 'aria2', 'aria2c.exe')
+  return existsSync(devPath) ? devPath : prodPath
+}
+
+/** 获取默认下载目录 */
+function getDefaultDownloadDir(): string {
+  return app.getPath('downloads')
+}
+
 // ====== 默认配置 ======
 
 const DEFAULT_CONFIG: Aria2Config = {
@@ -61,7 +79,23 @@ const configStore = new Store<{ aria2Config: Aria2Config }>({
 })
 
 function getConfig(): Aria2Config {
-  return { ...DEFAULT_CONFIG, ...configStore.get('aria2Config') }
+  const saved = configStore.get('aria2Config')
+  const config = { ...DEFAULT_CONFIG, ...saved }
+
+  // 自动设置内置 aria2c 路径（仅在用户未自定义时）
+  if (!saved?.aria2Path || saved.aria2Path === 'aria2c') {
+    const bundled = getBundledAria2Path()
+    if (existsSync(bundled)) {
+      config.aria2Path = bundled
+    }
+  }
+
+  // 默认下载目录
+  if (!config.downloadDir) {
+    config.downloadDir = getDefaultDownloadDir()
+  }
+
+  return config
 }
 
 function saveConfig(config: Partial<Aria2Config>): void {

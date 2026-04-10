@@ -212,6 +212,24 @@ const api = {
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),
 
+  download: {
+    checkConnection: (): Promise<boolean> => ipcRenderer.invoke('download:checkConnection'),
+    getConfig: (): Promise<any> => ipcRenderer.invoke('download:getConfig'),
+    updateConfig: (config: any): Promise<any> => ipcRenderer.invoke('download:updateConfig', config),
+    start: (): Promise<boolean> => ipcRenderer.invoke('download:start'),
+    stop: (): Promise<void> => ipcRenderer.invoke('download:stop'),
+    add: (url: string, options?: { filename?: string; dir?: string; headers?: string[]; cookies?: string; referer?: string }): Promise<string> =>
+      ipcRenderer.invoke('download:add', url, options),
+    pause: (gid: string): Promise<void> => ipcRenderer.invoke('download:pause', gid),
+    resume: (gid: string): Promise<void> => ipcRenderer.invoke('download:resume', gid),
+    remove: (gid: string): Promise<void> => ipcRenderer.invoke('download:remove', gid),
+    listActive: (): Promise<any[]> => ipcRenderer.invoke('download:listActive'),
+    listWaiting: (): Promise<any[]> => ipcRenderer.invoke('download:listWaiting'),
+    listStopped: (): Promise<any[]> => ipcRenderer.invoke('download:listStopped'),
+    globalStat: (): Promise<any> => ipcRenderer.invoke('download:globalStat'),
+    purge: (): Promise<void> => ipcRenderer.invoke('download:purge')
+  },
+
   // 自动更新
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),

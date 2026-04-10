@@ -157,6 +157,34 @@ class WebviewManager {
         win.webContents.send('on:tab:favicon-updated', tabId, favicons[0])
       }
     })
+
+    // 拦截下载事件，转发到 aria2
+    wc.session.on('will-download', async (event, item) => {
+      // 仅在 aria2 可用时接管下载
+      if (!(await checkConnection())) return
+
+      event.preventDefault()
+      const url = item.getURL()
+      const filename = item.getFilename()
+      const referer = wc.getURL()
+
+      try {
+        // 获取该 session 下对应 URL 的 cookies
+        const cookies = await wc.session.cookies.get({ url })
+        const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ')
+
+        const headers: string[] = []
+        if (cookieStr) {
+          await addDownload(url, { filename, referer, cookies: cookieStr, headers })
+        } else {
+          await addDownload(url, { filename, referer })
+        }
+        // 通知渲染进程有新下载
+        if (canSend()) win.webContents.send('on:download:started', { url, filename, tabId })
+      } catch (e) {
+        console.error('[Aria2] 添加下载失败:', e)
+      }
+    })
   }
 
   private sendNavState(tabId: string): void {
