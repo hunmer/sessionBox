@@ -2,7 +2,7 @@
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/lib/utils'
 
-defineProps<{
+const props = defineProps<{
   class?: HTMLAttributes['class']
 }>()
 </script>
