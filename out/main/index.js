@@ -14379,6 +14379,72 @@ function openExtensionBrowserActionPopup(accountId, extensionAppId, anchorRect) 
     { anchorRect, tabId: tabId ?? void 0 }
   );
 }
+function buildProxyRules(proxy) {
+  return `${proxy.type}://${proxy.host}:${proxy.port}`;
+}
+function registerProxyAuth(ses, proxy) {
+  if (!proxy.username) return;
+  ses.on("login", (event, authInfo, callback) => {
+    if (authInfo.isProxy) {
+      event.preventDefault();
+      callback(proxy.username, proxy.password || "");
+    }
+  });
+}
+async function testProxy(proxy) {
+  const proxyRules = buildProxyRules(proxy);
+  try {
+    const tempSession = require$$1.session.fromPartition(`__proxy_test_${Date.now()}__`);
+    await tempSession.setProxy({ mode: "fixed_servers", proxyRules });
+    let loginHandler = null;
+    if (proxy.username) {
+      loginHandler = (event, _wc, authInfo, callback) => {
+        if (authInfo.isProxy && authInfo.host === proxy.host && authInfo.port === Number(proxy.port)) {
+          event.preventDefault();
+          callback(proxy.username, proxy.password || "");
+        }
+      };
+      require$$1.app.on("login", loginHandler);
+    }
+    try {
+      return await new Promise((resolve2) => {
+        const request = require$$1.net.request({
+          url: "https://httpbin.org/ip",
+          session: tempSession
+        });
+        let body = "";
+        request.on("response", (response) => {
+          if (response.statusCode !== 200) {
+            resolve2({ ok: false, error: `HTTP ${response.statusCode}` });
+            return;
+          }
+          response.on("data", (chunk) => {
+            body += chunk.toString();
+          });
+          response.on("end", () => {
+            try {
+              const data = JSON.parse(body);
+              resolve2({ ok: true, ip: data.origin });
+            } catch {
+              resolve2({ ok: false, error: "解析响应失败" });
+            }
+          });
+        });
+        request.on("error", (error2) => {
+          resolve2({ ok: false, error: error2.message });
+        });
+        request.end();
+      });
+    } finally {
+      if (loginHandler) {
+        require$$1.app.off("login", loginHandler);
+      }
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
+  }
+}
 function getBundledAria2Path() {
   const devPath = require$$1$2.join(require$$1.app.getAppPath(), "win_packages", "aria2", "aria2c.exe");
   const prodPath = require$$1$2.join(process.resourcesPath, "win_packages", "aria2", "aria2c.exe");
@@ -14667,9 +14733,9 @@ class WebviewManager {
     }
     registerBlockedProtocolHandlers(view.webContents.session);
     if (proxy) {
-      const auth = proxy.username ? `${proxy.username}:${proxy.password}@` : "";
-      const proxyRules = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
-      void view.webContents.session.setProxy({ proxyRules });
+      const proxyRules = buildProxyRules(proxy);
+      registerProxyAuth(view.webContents.session, proxy);
+      void view.webContents.session.setProxy({ mode: "fixed_servers", proxyRules });
     }
     view.setVisible(false);
     this.mainWindow.contentView.addChildView(view);
@@ -15104,29 +15170,6 @@ function registerTabIpcHandlers() {
     return tabs.map((t) => t.id);
   });
 }
-function buildProxyRules(proxy) {
-  const auth = proxy.username ? `${proxy.username}:${proxy.password}@` : "";
-  return `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
-}
-async function testProxy(proxy) {
-  const proxyRules = buildProxyRules(proxy);
-  try {
-    const { session } = await import("electron");
-    const tempSession = session.fromPartition("persist:__proxy_test__");
-    await tempSession.setProxy({ proxyRules });
-    const response = await require$$1.net.fetch("https://httpbin.org/ip", {
-      session: tempSession
-    });
-    if (!response.ok) {
-      return { ok: false, error: `HTTP ${response.status}` };
-    }
-    const data = await response.json();
-    return { ok: true, ip: data.origin };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: message };
-  }
-}
 function registerProxyIpcHandlers() {
   require$$1.ipcMain.handle("proxy:list", () => listProxies());
   require$$1.ipcMain.handle("proxy:create", (_e, data) => createProxy(data));
@@ -15144,7 +15187,7 @@ function registerProxyIpcHandlers() {
     return testProxy(proxy);
   });
   require$$1.ipcMain.handle("proxy:test-config", async (_e, config) => {
-    return testProxy({ ...config });
+    return testProxy({ ...config, id: "__test__" });
   });
 }
 async function hotUpdateProxy(proxyId, isDelete = false) {
@@ -15160,7 +15203,8 @@ async function hotUpdateProxy(proxyId, isDelete = false) {
     if (isDelete || !proxy) {
       await ses.setProxy({ proxyRules: "" });
     } else {
-      await ses.setProxy({ proxyRules });
+      registerProxyAuth(ses, proxy);
+      await ses.setProxy({ mode: "fixed_servers", proxyRules });
     }
     const tabIds = webviewManager.getTabIdsByAccount(account.id);
     for (const tabId of tabIds) {

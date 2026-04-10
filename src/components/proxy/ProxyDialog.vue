@@ -105,19 +105,15 @@ async function handleTest() {
   testing.value = true
   testResult.value = null
 
-  // 如果正在编辑已有代理，直接测试 ID；否则用配置测试
-  if (editingId.value) {
-    testResult.value = await proxyStore.testProxy(editingId.value)
-  } else {
-    testResult.value = await window.api.proxy.testConfig({
-      name: formName.value,
-      type: formType.value,
-      host: formHost.value.trim(),
-      port: formPort.value,
-      username: formUser.value.trim() || undefined,
-      password: formPass.value.trim() || undefined
-    })
-  }
+  // 始终使用当前表单输入值测试代理连接
+  testResult.value = await window.api.proxy.testConfig({
+    name: formName.value,
+    type: formType.value,
+    host: formHost.value.trim(),
+    port: formPort.value,
+    username: formUser.value.trim() || undefined,
+    password: formPass.value.trim() || undefined
+  })
   testing.value = false
 }
 

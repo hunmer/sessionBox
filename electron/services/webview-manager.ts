@@ -1,6 +1,7 @@
 import { BrowserWindow, Session, WebContentsView } from 'electron'
 import { ensureExtensionsLoadedForAccount, getExtensionsForAccount } from './extensions'
 import { getAccountById, getGroupById, getProxyById } from './store'
+import { buildProxyRules, registerProxyAuth } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
 
@@ -86,9 +87,9 @@ class WebviewManager {
     registerBlockedProtocolHandlers(view.webContents.session)
 
     if (proxy) {
-      const auth = proxy.username ? `${proxy.username}:${proxy.password}@` : ''
-      const proxyRules = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`
-      void view.webContents.session.setProxy({ proxyRules })
+      const proxyRules = buildProxyRules(proxy)
+      registerProxyAuth(view.webContents.session, proxy)
+      void view.webContents.session.setProxy({ mode: 'fixed_servers', proxyRules })
     }
 
     view.setVisible(false)

@@ -9,7 +9,7 @@ import {
   getAccountById,
   getGroupById
 } from '../services/store'
-import { testProxy, buildProxyRules } from '../services/proxy'
+import { testProxy, buildProxyRules, registerProxyAuth } from '../services/proxy'
 import { webviewManager } from '../services/webview-manager'
 import type { Proxy } from '../services/store'
 
@@ -73,7 +73,8 @@ async function hotUpdateProxy(proxyId: string, isDelete = false): Promise<void> 
       // 清除代理
       await ses.setProxy({ proxyRules: '' })
     } else {
-      await ses.setProxy({ proxyRules })
+      registerProxyAuth(ses, proxy)
+      await ses.setProxy({ mode: 'fixed_servers', proxyRules })
     }
 
     // 刷新所有使用此账号的活跃 tab
