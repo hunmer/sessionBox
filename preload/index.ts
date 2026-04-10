@@ -5,11 +5,14 @@ import { electronAPI } from '@electron-toolkit/preload'
 export interface Proxy {
   id: string
   name: string
-  type: 'socks5' | 'http' | 'https'
-  host: string
-  port: number
+  proxyMode?: 'global' | 'custom' | 'pac_url'
+  type?: 'socks5' | 'http' | 'https'
+  host?: string
+  port?: number
   username?: string
   password?: string
+  pacScript?: string
+  pacUrl?: string
 }
 
 export interface Workspace {

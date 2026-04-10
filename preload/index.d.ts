@@ -1,14 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-
-interface IpcAPI {
-  // Phase 2 定义 IPC API 类型
-  window: {
-    minimize: () => Promise<void>
-    maximize: () => Promise<boolean>
-    close: () => Promise<void>
-    isMaximized: () => Promise<boolean>
-  }
-}
+import type { IpcAPI } from './index'
 
 declare global {
   interface Window {

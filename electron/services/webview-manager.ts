@@ -1,7 +1,7 @@
 import { BrowserWindow, Session, WebContentsView } from 'electron'
 import { ensureExtensionsLoadedForAccount, getExtensionsForAccount } from './extensions'
 import { getAccountById, getGroupById, getProxyById } from './store'
-import { buildProxyRules, registerProxyAuth } from './proxy'
+import { applyProxyToSession } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
 
@@ -73,10 +73,11 @@ class WebviewManager {
     const proxyId =
       account?.proxyId ?? (account ? getGroupById(account.groupId)?.proxyId : undefined)
     const proxy = proxyId ? getProxyById(proxyId) : undefined
+    const partition = accountId ? `persist:account-${accountId}` : ''
 
     const view = new WebContentsView({
       webPreferences: {
-        partition: accountId ? `persist:account-${accountId}` : undefined
+        partition: accountId ? partition : undefined
       }
     })
 
@@ -86,10 +87,47 @@ class WebviewManager {
 
     registerBlockedProtocolHandlers(view.webContents.session)
 
+    let applyProxyPromise: Promise<void> | null = null
+
     if (proxy) {
-      const proxyRules = buildProxyRules(proxy)
-      registerProxyAuth(view.webContents.session, proxy)
-      void view.webContents.session.setProxy({ mode: 'fixed_servers', proxyRules })
+      console.log('[WebviewManager] applying proxy', {
+        tabId,
+        accountId,
+        partition: partition || 'default',
+        url,
+        proxyId,
+        proxyMode: proxy.proxyMode ?? 'global',
+        type: proxy.type ?? '',
+        host: proxy.host ?? '',
+        port: proxy.port ?? '',
+        pacUrl: proxy.pacUrl ?? '',
+        username: proxy.username ?? '',
+        passwordLength: proxy.password?.length ?? 0,
+        pacScriptLength: proxy.pacScript?.length ?? 0
+      })
+      applyProxyPromise = applyProxyToSession(view.webContents.session, proxy)
+        .then(() => {
+          console.log('[WebviewManager] setProxy success', {
+            tabId,
+            partition: partition || 'default',
+            proxyMode: proxy.proxyMode ?? 'global'
+          })
+        })
+        .catch((error) => {
+          console.error('[WebviewManager] setProxy failed', {
+            tabId,
+            partition: partition || 'default',
+            proxyMode: proxy.proxyMode ?? 'global',
+            message: error instanceof Error ? error.message : String(error)
+          })
+        })
+    } else {
+      console.log('[WebviewManager] no proxy applied', {
+        tabId,
+        accountId,
+        partition: partition || 'default',
+        url
+      })
     }
 
     view.setVisible(false)
@@ -101,8 +139,15 @@ class WebviewManager {
     extensions.addTab(view.webContents, this.mainWindow)
 
     void (async () => {
-      await ensureExtensionsLoadedForAccount(accountId || null)
-      await view.webContents.loadURL(url)
+      try {
+        if (applyProxyPromise) {
+          await applyProxyPromise
+        }
+        await ensureExtensionsLoadedForAccount(accountId || null)
+        await view.webContents.loadURL(url)
+      } catch (error) {
+        console.error(`[WebviewManager] loadURL failed for tab ${tabId}:`, error)
+      }
     })()
 
     return view.webContents
@@ -150,11 +195,60 @@ class WebviewManager {
     })
 
     wc.on('did-start-loading', () => {
+      const currentEntry = this.views.get(tabId)
+      console.log('[WebviewManager] did-start-loading', {
+        tabId,
+        accountId: currentEntry?.accountId,
+        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
+        currentUrl: wc.getURL()
+      })
       this.sendNavState(tabId)
     })
 
     wc.on('did-stop-loading', () => {
+      const currentEntry = this.views.get(tabId)
+      console.log('[WebviewManager] did-stop-loading', {
+        tabId,
+        accountId: currentEntry?.accountId,
+        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
+        currentUrl: wc.getURL()
+      })
       this.sendNavState(tabId)
+    })
+
+    wc.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      const currentEntry = this.views.get(tabId)
+      console.error('[WebviewManager] did-fail-load', {
+        tabId,
+        accountId: currentEntry?.accountId,
+        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
+        errorCode,
+        errorDescription,
+        validatedURL,
+        isMainFrame
+      })
+    })
+
+    wc.on('render-process-gone', (_event, details) => {
+      const currentEntry = this.views.get(tabId)
+      console.error('[WebviewManager] render-process-gone', {
+        tabId,
+        accountId: currentEntry?.accountId,
+        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
+        reason: details.reason,
+        exitCode: details.exitCode
+      })
+    })
+
+    wc.on('did-finish-load', () => {
+      const currentEntry = this.views.get(tabId)
+      console.log('[WebviewManager] did-finish-load', {
+        tabId,
+        accountId: currentEntry?.accountId,
+        partition: currentEntry?.accountId ? `persist:account-${currentEntry.accountId}` : 'default',
+        currentUrl: wc.getURL(),
+        title: wc.getTitle()
+      })
     })
 
     wc.on('page-favicon-updated', (_event, favicons) => {

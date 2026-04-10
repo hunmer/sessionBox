@@ -24,6 +24,21 @@ function throttle<T extends (...args: any[]) => void>(fn: T, delay: number): T {
 // 在 app ready 之前设置 UA
 setupUserAgent()
 
+process.on('uncaughtException', (error) => {
+  console.error('[Main] uncaughtException', {
+    name: error.name,
+    message: error.message,
+    stack: error.stack
+  })
+})
+
+process.on('unhandledRejection', (reason) => {
+  const error = reason instanceof Error
+    ? { name: reason.name, message: reason.message, stack: reason.stack }
+    : { reason: String(reason) }
+  console.error('[Main] unhandledRejection', error)
+})
+
 // 注册自定义协议，用于加载账号图标和扩展图标（必须在 app ready 前调用）
 protocol.registerSchemesAsPrivileged([
   {
