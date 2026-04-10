@@ -33,8 +33,41 @@ function handleAddAccount(account: Account) {
 
 <template>
   <div class="flex flex-col h-full bg-card/30 border-r border-border">
-    <!-- 标签列表（垂直可拖拽排序） -->
+    <!-- 标签列表 - 分组模式 -->
     <draggable
+      v-if="tabStore.tabGroupEnabled"
+      :model-value="tabStore.groupedWorkspaceTabs"
+      :animation="150"
+      item-key="id"
+      filter=".tab-pinned"
+      class="flex flex-col gap-0.5 p-1 flex-1 min-h-0 overflow-y-auto"
+      @update:model-value="onListUpdate"
+    >
+      <template #item="{ element: tab }">
+        <div class="w-full" :class="{ 'tab-pinned': tab.pinned }">
+          <!-- 分组标题：仅在该组第一个 tab 前显示 -->
+          <div
+            v-if="tab.isGroupStart"
+            class="flex items-center gap-1.5 px-2 pt-1.5 pb-0.5 select-none"
+          >
+            <span
+              class="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
+              :style="tab.groupColor
+                ? { backgroundColor: tab.groupColor + '22', color: tab.groupColor, borderBottom: `2px solid ${tab.groupColor}` }
+                : {}"
+              :class="!tab.groupColor && 'bg-muted text-muted-foreground'"
+            >
+              {{ tab.groupName }}
+            </span>
+          </div>
+          <TabItem :tab="tab" vertical :group-color="tab.groupColor" />
+        </div>
+      </template>
+    </draggable>
+
+    <!-- 标签列表 - 扁平模式（垂直可拖拽排序） -->
+    <draggable
+      v-else
       :model-value="tabStore.workspaceTabs"
       :animation="150"
       item-key="id"
@@ -43,7 +76,7 @@ function handleAddAccount(account: Account) {
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <div :class="{ 'tab-pinned': tab.pinned }">
+        <div class="w-full" :class="{ 'tab-pinned': tab.pinned }">
           <TabItem :tab="tab" vertical />
         </div>
       </template>

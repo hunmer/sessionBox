@@ -221,12 +221,29 @@ export function updateGroup(id: string, data: Partial<Omit<Group, 'id'>>): void 
 }
 
 export function deleteGroup(id: string): void {
+  const groups = getCollection('groups')
   const accounts = getCollection('accounts')
-  if (accounts.some((a) => a.groupId === id)) {
-    throw new Error('分组内仍有账号，请先删除或移出所有账号')
+
+  // 将该分组下的账号移到同工作区的其他分组
+  const affected = accounts.filter((a) => a.groupId === id)
+  if (affected.length > 0) {
+    const group = groups.find((g) => g.id === id)
+    const targetGroup =
+      groups.find(
+        (g) =>
+          g.id !== id &&
+          (g.workspaceId || DEFAULT_WORKSPACE_ID) === (group?.workspaceId || DEFAULT_WORKSPACE_ID)
+      ) ?? groups.find((g) => g.id !== id)
+
+    if (!targetGroup) throw new Error('无法删除唯一分组')
+
+    setCollection(
+      'accounts',
+      accounts.map((a) => (a.groupId === id ? { ...a, groupId: targetGroup.id } : a))
+    )
   }
-  const groups = getCollection('groups').filter((g) => g.id !== id)
-  setCollection('groups', groups)
+
+  setCollection('groups', groups.filter((g) => g.id !== id))
 }
 
 export function reorderGroups(groupIds: string[]): void {
