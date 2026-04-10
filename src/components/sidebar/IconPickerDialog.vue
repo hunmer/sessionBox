@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import EmojiPicker from 'vue3-emoji-picker'
+import 'vue3-emoji-picker/css'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { lucideIconNames, resolveLucideIcon } from '@/lib/lucide-resolver'
+import { useThemeStore } from '@/stores/theme'
 
 const props = defineProps<{
   open: boolean
@@ -16,6 +19,8 @@ const emit = defineEmits<{
   confirm: [iconName: string]
 }>()
 
+const themeStore = useThemeStore()
+const activeTab = ref<'icon' | 'emoji'>('icon')
 const search = ref('')
 const selected = ref('')
 const page = ref(1)
@@ -47,7 +52,13 @@ function selectIcon(name: string) {
   selected.value = selected.value === name ? '' : name
 }
 
-/** 确认选择 */
+/** 选择 emoji */
+function onSelectEmoji(emoji: { i: string }) {
+  emit('confirm', emoji.i)
+  emit('update:open', false)
+}
+
+/** 确认选择 lucide 图标 */
 function handleConfirm() {
   if (selected.value) {
     emit('confirm', `lucide:${selected.value}`)
@@ -60,6 +71,7 @@ watch(() => props.open, (val) => {
   if (val) {
     search.value = ''
     page.value = 1
+    activeTab.value = 'icon'
     // 从当前图标恢复选中（如果是 lucide 图标）
     if (props.currentIcon?.startsWith('lucide:')) {
       selected.value = props.currentIcon.slice(7)
@@ -73,6 +85,9 @@ watch(() => props.open, (val) => {
 function getIconComponent(name: string) {
   return resolveLucideIcon(name)
 }
+
+/** emoji picker 主题 */
+const emojiTheme = computed(() => themeStore.theme === 'dark' ? 'dark' : 'light')
 </script>
 
 <template>
@@ -82,7 +97,28 @@ function getIconComponent(name: string) {
         <DialogTitle>选择图标</DialogTitle>
       </DialogHeader>
 
-      <div class="flex flex-col gap-3">
+      <!-- Tab 切换 -->
+      <div class="flex border-b border-border mb-0">
+        <button
+          class="flex-1 py-2 text-sm font-medium transition-colors relative"
+          :class="activeTab === 'icon' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"
+          @click="activeTab = 'icon'"
+        >
+          图标
+          <span v-if="activeTab === 'icon'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+        </button>
+        <button
+          class="flex-1 py-2 text-sm font-medium transition-colors relative"
+          :class="activeTab === 'emoji' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"
+          @click="activeTab = 'emoji'"
+        >
+          Emoji
+          <span v-if="activeTab === 'emoji'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+        </button>
+      </div>
+
+      <!-- 图标 Tab -->
+      <div v-if="activeTab === 'icon'" class="flex flex-col gap-3">
         <!-- 搜索栏 -->
         <Input
           v-model="search"
@@ -141,7 +177,21 @@ function getIconComponent(name: string) {
         </div>
       </div>
 
-      <DialogFooter class="gap-2">
+      <!-- Emoji Tab -->
+      <div v-else>
+        <EmojiPicker
+          class="!h-[440px] !w-full"
+          :native="true"
+          :hide-search="false"
+          :disable-skin-tones="true"
+          :display-recent="true"
+          :theme="emojiTheme"
+          :static-texts="{ placeholder: '搜索 emoji...' }"
+          @select="onSelectEmoji"
+        />
+      </div>
+
+      <DialogFooter v-if="activeTab === 'icon'" class="gap-2">
         <Button variant="secondary" @click="emit('update:open', false)">取消</Button>
         <Button :disabled="!selected" @click="handleConfirm">确定</Button>
       </DialogFooter>
