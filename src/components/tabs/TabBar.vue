@@ -85,7 +85,7 @@ function handleAddAccount(account: Account) {
 </script>
 
 <template>
-  <div class="flex items-center h-[42px] px-2 gap-1 bg-card/30 border-b border-border">
+  <div class="flex items-center h-[42px] px-2 gap-1 bg-card/30 border-b border-border" style="-webkit-app-region: drag">
     <!-- 切换侧边栏按钮 -->
     <Button
       variant="ghost"
@@ -104,13 +104,14 @@ function handleAddAccount(account: Account) {
       :animation="150"
       item-key="id"
       filter=".tab-pinned"
-      class="flex items-center gap-1 min-w-0 h-full"
+      class="flex items-center gap-1 flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden"
+      style="-webkit-app-region: no-drag"
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
         <div
           v-show="tab.isGroupStart || !isGroupCollapsed(tab)"
-          class="flex items-center gap-0.5"
+          class="flex items-center gap-0.5 flex-shrink-0"
           :class="{ 'tab-pinned': tab.pinned }"
         >
           <!-- 分组 badge：仅在该组第一个 tab 前显示，可点击折叠 -->
@@ -147,18 +148,19 @@ function handleAddAccount(account: Account) {
       :animation="150"
       item-key="id"
       filter=".tab-pinned"
-      class="flex items-center gap-1 min-w-0 h-full"
+      class="flex items-center gap-1 flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden"
+      style="-webkit-app-region: no-drag"
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <div :class="{ 'tab-pinned': tab.pinned }">
+        <div class="flex-shrink-0" :class="{ 'tab-pinned': tab.pinned }">
           <TabItem :tab="tab" />
         </div>
       </template>
     </draggable>
 
     <!-- 新建标签按钮 -->
-    <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" @click="showAddDialog = true">
+    <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" style="-webkit-app-region: no-drag" @click="showAddDialog = true">
       <Plus class="w-3.5 h-3.5" />
     </Button>
     <AccountPickerDialog
@@ -167,9 +169,6 @@ function handleAddAccount(account: Account) {
       @update:open="showAddDialog = $event"
       @select="handleAddAccount"
     />
-
-    <!-- 填充可拖拽区域 -->
-    <div class="flex-1 min-w-[60px] h-full" style="-webkit-app-region: drag" />
 
     <!-- 更多选项 -->
     <DropdownMenu>

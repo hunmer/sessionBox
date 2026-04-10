@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, nextTick, ref, watch, computed } from 'vue'
+import { onMounted, onUnmounted, nextTick, ref, watch, computed, shallowRef } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
+import { Progress } from '@/components/ui/progress'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
@@ -48,6 +49,33 @@ const settingsDialogOpen = ref(false)
 const ready = ref(false)
 const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
+
+// ====== 页面加载进度条 ======
+const loadingProgress = ref(0)
+const showProgress = ref(false)
+let progressTimer: ReturnType<typeof setInterval> | null = null
+
+/** 模拟进度条：加载时递增到 ~90%，完成后跳到 100% 后淡出 */
+watch(() => tabStore.activeNavState.isLoading, (loading) => {
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
+  if (loading) {
+    showProgress.value = true
+    loadingProgress.value = 0
+    progressTimer = setInterval(() => {
+      // 快速到 30，然后逐步减速到 90
+      if (loadingProgress.value < 30) loadingProgress.value += 10
+      else if (loadingProgress.value < 70) loadingProgress.value += 4
+      else if (loadingProgress.value < 90) loadingProgress.value += 1
+      if (loadingProgress.value >= 90) {
+        clearInterval(progressTimer!)
+        progressTimer = null
+      }
+    }, 80)
+  } else {
+    loadingProgress.value = 100
+    setTimeout(() => { showProgress.value = false }, 300)
+  }
+})
 
 // ====== 侧边栏面板控制 ======
 const SIDEBAR_STORAGE_KEY = 'sessionbox-sidebar-width'
@@ -178,6 +206,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   resizeObserver?.disconnect()
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
 })
 
 // 退出前保存 tab 状态（title/url 等运行时数据回写到主进程 store）
@@ -255,7 +284,7 @@ watch(() => tabStore.favoriteBarVisible, () => {
                 <!-- 内部页面渲染 -->
                 <div
                   v-if="tabStore.isInternalPage"
-                  class="absolute inset-0 z-20 overflow-auto"
+                  class="absolute inset-x-0 top-0 bottom-2 z-20 overflow-auto"
                 >
                   <component :is="internalPageComponent" v-if="internalPageComponent" />
                   <div v-else class="flex items-center justify-center h-full">
@@ -284,7 +313,16 @@ watch(() => tabStore.favoriteBarVisible, () => {
                   <p class="text-sm text-muted-foreground/60">页面已暂停</p>
                 </div>
                 <!-- 主进程在此区域叠加 WebContentsView -->
-                <div id="webview-container" class="absolute inset-0" />
+                <div id="webview-container" class="absolute inset-x-0 top-0 bottom-2" />
+                <!-- 页面加载进度条 -->
+                <Transition
+                  enter-active-class="transition-opacity duration-200"
+                  leave-active-class="transition-opacity duration-300"
+                >
+                  <div v-if="showProgress" class="absolute bottom-0 inset-x-0 z-30">
+                    <Progress :model-value="loadingProgress" class="h-[3px] rounded-none" />
+                  </div>
+                </Transition>
               </div>
             </template>
 

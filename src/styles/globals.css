@@ -119,8 +119,8 @@
 
 /* 自定义滚动条 */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -129,7 +129,7 @@
 
 :root.light ::-webkit-scrollbar-thumb {
   background: #c5c8cc;
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 :root.light ::-webkit-scrollbar-thumb:hover {
@@ -138,7 +138,7 @@
 
 :root.dark ::-webkit-scrollbar-thumb {
   background: #3a3d4a;
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 :root.dark ::-webkit-scrollbar-thumb:hover {
