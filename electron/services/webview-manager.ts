@@ -2,6 +2,7 @@ import { BrowserWindow, Session, WebContentsView } from 'electron'
 import { ensureExtensionsLoadedForAccount, getExtensionsForAccount } from './extensions'
 import { getAccountById, getGroupById, getProxyById } from './store'
 import { getUserAgent } from '../utils/user-agent'
+import { addDownload, checkConnection } from './aria2'
 
 export const BLOCKED_SCHEMES = [
   'bitbrowser',

@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import type { Tab, NavState } from '../types'
 import { useAccountStore } from './account'
 import { useWorkspaceStore } from './workspace'
+import { useHistoryStore } from './history'
 
 const api = window.api
 
@@ -302,12 +303,22 @@ export const useTabStore = defineStore('tab', () => {
 
     api.on('tab:title-updated', (tabId: unknown, title: unknown) => {
       const t = tabs.value.find((t) => t.id === tabId)
-      if (t) t.title = title as string
+      if (t) {
+        t.title = title as string
+        // 更新历史记录中对应 URL 的标题
+        const historyStore = useHistoryStore()
+        historyStore.updateTitle(t.url, title as string)
+      }
     })
 
     api.on('tab:url-updated', (tabId: unknown, url: unknown) => {
       const t = tabs.value.find((t) => t.id === tabId)
-      if (t) t.url = url as string
+      if (t) {
+        t.url = url as string
+        // 记录浏览历史（仅 http/https）
+        const historyStore = useHistoryStore()
+        historyStore.addHistory(url as string, t.title)
+      }
     })
 
     api.on('tab:nav-state', (tabId: unknown, state: unknown) => {

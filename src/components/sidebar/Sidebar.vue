@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Home, Tag, Command, Bookmark } from 'lucide-vue-next'
+import { Home, Tag, Command, Bookmark, History } from 'lucide-vue-next'
 
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher.vue'
 import NavMain from '@/components/NavMain.vue'
@@ -122,7 +122,7 @@ function openHomepage() {
   }
 }
 
-// navMain: 【主页】【书签管理】
+// navMain: 【主页】【书签管理】【历史记录】
 const navMain = [
   {
     title: '主页',
@@ -136,6 +136,12 @@ const navMain = [
     url: '#',
     icon: Bookmark,
     onClick: () => tabStore.createTabForSite('sessionbox://bookmarks'),
+  },
+  {
+    title: '历史记录',
+    url: '#',
+    icon: History,
+    onClick: () => tabStore.createTabForSite('sessionbox://history'),
   },
 ]
 

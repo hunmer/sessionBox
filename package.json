@@ -19,6 +19,7 @@
     "@vueuse/core": "^12.8.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dexie": "^4.4.2",
     "electron-chrome-extensions": "^4.9.0",
     "electron-store": "^8.2.0",
     "lucide-vue-next": "^0.460.0",

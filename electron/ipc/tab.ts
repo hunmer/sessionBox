@@ -41,6 +41,7 @@ export function registerTabIpcHandlers(): void {
     // 内部页面标题映射
     const internalPageTitles: Record<string, string> = {
       'bookmarks': '书签管理',
+      'history': '历史记录',
     }
     const pageKey = isInternalPage ? url!.replace('sessionbox://', '') : null
     const internalPageTitle = pageKey ? (internalPageTitles[pageKey] || pageKey) : null

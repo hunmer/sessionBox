@@ -14641,7 +14641,8 @@ function registerTabIpcHandlers() {
     }
     const isInternalPage = url?.startsWith("sessionbox://");
     const internalPageTitles = {
-      "bookmarks": "书签管理"
+      "bookmarks": "书签管理",
+      "history": "历史记录"
     };
     const pageKey = isInternalPage ? url.replace("sessionbox://", "") : null;
     const internalPageTitle = pageKey ? internalPageTitles[pageKey] || pageKey : null;
