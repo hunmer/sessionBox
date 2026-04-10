@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Loader2, CheckCircle2, XCircle, Plus, Pencil, Trash2, Plug } from 'lucide-vue-next'
+import { Loader2, CheckCircle2, XCircle, Plus, Pencil, Trash2, Plug, Ban } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog'
+import { Switch } from '@/components/ui/switch'
 import { useProxyStore } from '@/stores/proxy'
 import type { Proxy } from '@/types'
 
@@ -27,6 +28,7 @@ const editing = ref(false)
 const editingId = ref<string | null>(null)
 
 const formName = ref('')
+const formEnabled = ref(true)
 const formMode = ref<ProxyMode>('global')
 const formType = ref<ProxyType>('socks5')
 const formHost = ref('')
@@ -79,6 +81,7 @@ function resetForm() {
   editing.value = false
   editingId.value = null
   formName.value = ''
+  formEnabled.value = true
   formMode.value = 'global'
   formType.value = 'socks5'
   formHost.value = ''
@@ -109,6 +112,7 @@ function startEdit(proxy: Proxy) {
   editing.value = true
   editingId.value = proxy.id
   formName.value = proxy.name
+  formEnabled.value = proxy.enabled !== false
   formMode.value = proxy.proxyMode ?? 'global'
   formType.value = proxy.type ?? 'socks5'
   formHost.value = proxy.host ?? ''
@@ -128,6 +132,7 @@ function startNew() {
 function buildPayload(): Omit<Proxy, 'id'> {
   const base: Omit<Proxy, 'id'> = {
     name: formName.value.trim(),
+    enabled: formEnabled.value,
     proxyMode: formMode.value
   }
 
@@ -219,10 +224,13 @@ async function handleDelete() {
               v-for="proxy in proxyStore.proxies"
               :key="proxy.id"
               class="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted/50 group"
-              :class="editingId === proxy.id ? 'bg-muted' : ''"
+              :class="[editingId === proxy.id ? 'bg-muted' : '', proxy.enabled === false ? 'opacity-60' : '']"
             >
               <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium truncate">{{ proxy.name }}</div>
+                <div class="text-sm font-medium truncate flex items-center gap-1.5">
+                  {{ proxy.name }}
+                  <Ban v-if="proxy.enabled === false" class="w-3 h-3 text-destructive" />
+                </div>
                 <div class="text-xs text-muted-foreground truncate">
                   {{ getProxySummary(proxy) }}
                 </div>
@@ -245,6 +253,11 @@ async function handleDelete() {
 
         <div v-if="editing" class="border rounded-md p-3 flex flex-col gap-3 bg-muted/30">
           <Input v-model="formName" placeholder="代理名称" />
+
+          <div class="flex items-center justify-between">
+            <label class="text-sm text-muted-foreground">启用代理</label>
+            <Switch v-model:model-value="formEnabled" />
+          </div>
 
           <div class="grid grid-cols-2 gap-2">
             <Select v-model="formMode">

@@ -52,7 +52,11 @@ const ready = ref(false)
 const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
-const proxyApplied = computed(() => !!tabStore.activeProxyInfo?.applied)
+const proxyApplied = computed(() => {
+  const tab = tabStore.activeTab
+  if (!tab) return false
+  return accountStore.getAccount(tab.accountId)?.autoProxyEnabled ?? false
+})
 const activeProxyBadgeClass = computed(() => {
   const status = tabStore.activeProxyInfo?.status
   if (status === 'success') {
@@ -75,6 +79,13 @@ async function handleDetectProxy(): Promise<void> {
 
 async function handleToggleProxy(enabled: boolean): Promise<void> {
   if (!tabStore.activeTabId || !tabStore.activeProxyInfo?.enabled) return
+  const tab = tabStore.activeTab
+  if (!tab) return
+  const account = accountStore.getAccount(tab.accountId)
+  if (!account) return
+  // 1. 更新账号的 autoProxyEnabled（持久化）
+  await accountStore.updateAccount(account.id, { autoProxyEnabled: enabled })
+  // 2. 立即生效：对当前 session 应用/移除代理
   await tabStore.setProxyEnabled(tabStore.activeTabId, enabled)
 }
 

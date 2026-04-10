@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import { useAccountStore } from '@/stores/account'
 import { useProxyStore } from '@/stores/proxy'
@@ -33,6 +34,7 @@ const name = ref('')
 const icon = ref('👤')
 const NO_PROXY = '__none__'
 const proxyId = ref(NO_PROXY)
+const autoProxyEnabled = ref(false)
 const defaultUrl = ref('about:blank')
 
 /** 当前图标是否为自定义图片 */
@@ -46,12 +48,16 @@ watch(() => props.open, (val) => {
     name.value = props.account?.name ?? ''
     icon.value = props.account?.icon ?? '👤'
     proxyId.value = props.account?.proxyId || NO_PROXY
+    autoProxyEnabled.value = props.account?.autoProxyEnabled ?? false
     defaultUrl.value = props.account?.defaultUrl ?? 'about:blank'
   }
 })
 
 /** 代理下拉选项 */
 const proxyOptions = computed(() => proxyStore.proxies)
+
+/** 当前是否选择了代理 */
+const hasProxy = computed(() => proxyId.value !== NO_PROXY)
 
 /** 上传自定义图标 */
 async function handleUploadIcon() {
@@ -72,6 +78,7 @@ function handleSave() {
     name: trimmed,
     icon: icon.value,
     proxyId: proxyId.value === NO_PROXY ? undefined : proxyId.value,
+    autoProxyEnabled: hasProxy.value ? autoProxyEnabled.value : false,
     defaultUrl: defaultUrl.value.trim() || 'about:blank',
     order: props.account?.order ?? accountStore.accounts.length
   })
@@ -164,6 +171,10 @@ function handleSave() {
               </SelectItem>
             </SelectContent>
           </Select>
+          <div v-if="hasProxy" class="flex items-center justify-between mt-1">
+            <label class="text-xs text-muted-foreground">自动启用代理</label>
+            <Switch v-model:model-value="autoProxyEnabled" />
+          </div>
         </div>
       </div>
 

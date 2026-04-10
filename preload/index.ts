@@ -5,6 +5,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 export interface Proxy {
   id: string
   name: string
+  enabled?: boolean // 代理是否启用（默认 true）
   proxyMode?: 'global' | 'custom' | 'pac_url'
   type?: 'socks5' | 'http' | 'https'
   host?: string
@@ -39,6 +40,7 @@ export interface Account {
   name: string
   icon: string
   proxyId?: string
+  autoProxyEnabled?: boolean // 是否自动启用代理（默认 false）
   userAgent?: string
   defaultUrl: string
   order: number

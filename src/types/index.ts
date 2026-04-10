@@ -7,6 +7,7 @@
 export interface Proxy {
   id: string
   name: string
+  enabled?: boolean // 代理是否启用（默认 true）
   proxyMode?: 'global' | 'custom' | 'pac_url'
   type?: 'socks5' | 'http' | 'https'
   host?: string
@@ -44,6 +45,7 @@ export interface Account {
   name: string
   icon: string
   proxyId?: string // 账号级代理（优先于分组代理）
+  autoProxyEnabled?: boolean // 是否自动启用代理（默认 false）
   userAgent?: string // 自定义 UA（优先于全局默认值）
   defaultUrl: string // 启动 URL
   order: number

@@ -104,9 +104,12 @@ class WebviewManager {
       return
     }
 
+    const account = entry.accountId ? getAccountById(entry.accountId) : undefined
+    const proxyEnabled = proxy.enabled !== false
+
     this.sendProxyInfo(tabId, {
-      enabled: true,
-      applied: this.isSessionProxyEnabled(entry.accountId),
+      enabled: proxyEnabled,
+      applied: account?.autoProxyEnabled === true,
       name: proxy.name,
       text: this.getProxyBindingText(proxy),
       status: 'idle',
@@ -127,10 +130,14 @@ class WebviewManager {
       return { ok: false, error: '当前标签页未绑定代理' }
     }
 
+    const account = entry.accountId ? getAccountById(entry.accountId) : undefined
+    const proxyEnabled = proxy.enabled !== false
+    const applied = account?.autoProxyEnabled === true
+
     const bindingText = this.getProxyBindingText(proxy)
     this.sendProxyInfo(tabId, {
-      enabled: true,
-      applied: this.isSessionProxyEnabled(entry.accountId),
+      enabled: proxyEnabled,
+      applied,
       name: proxy.name,
       text: bindingText,
       status: 'checking',
@@ -140,8 +147,8 @@ class WebviewManager {
     try {
       const ip = await fetchSessionExitIp(entry.view.webContents.session)
       this.sendProxyInfo(tabId, {
-        enabled: true,
-        applied: this.isSessionProxyEnabled(entry.accountId),
+        enabled: proxyEnabled,
+        applied,
         name: proxy.name,
         text: bindingText,
         ip,
@@ -152,8 +159,8 @@ class WebviewManager {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.sendProxyInfo(tabId, {
-        enabled: true,
-        applied: this.isSessionProxyEnabled(entry.accountId),
+        enabled: proxyEnabled,
+        applied,
         name: proxy.name,
         text: bindingText,
         error: message,
@@ -192,7 +199,11 @@ class WebviewManager {
 
     let applyProxyPromise: Promise<void> | null = null
 
-    if (proxy) {
+    const shouldAutoApplyProxy = proxy
+      && proxy.enabled !== false
+      && account?.autoProxyEnabled === true
+
+    if (shouldAutoApplyProxy) {
       console.log('[WebviewManager] applying proxy', {
         tabId,
         accountId,
@@ -208,10 +219,8 @@ class WebviewManager {
         passwordLength: proxy.password?.length ?? 0,
         pacScriptLength: proxy.pacScript?.length ?? 0
       })
-      applyProxyPromise = applyProxyToSession(
-        view.webContents.session,
-        this.isSessionProxyEnabled(accountId) ? proxy : null
-      )
+      this.sessionProxyEnabled.set(accountId, true)
+      applyProxyPromise = applyProxyToSession(view.webContents.session, proxy)
         .then(() => {
           console.log('[WebviewManager] setProxy success', {
             tabId,
@@ -227,6 +236,16 @@ class WebviewManager {
             message: error instanceof Error ? error.message : String(error)
           })
         })
+    } else if (proxy) {
+      // 代理配置存在但不自动应用（代理被禁用或账号未开启自动代理）
+      console.log('[WebviewManager] proxy exists but not auto-applied', {
+        tabId,
+        accountId,
+        proxyEnabled: proxy.enabled !== false,
+        autoProxyEnabled: account?.autoProxyEnabled ?? false
+      })
+      this.sessionProxyEnabled.set(accountId, false)
+      this.sendProxyInfo(tabId, null)
     } else {
       console.log('[WebviewManager] no proxy applied', {
         tabId,
