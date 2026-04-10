@@ -46,6 +46,8 @@ export interface Tab {
   title: string
   url: string
   order: number
+  pinned?: boolean
+  muted?: boolean
 }
 
 export interface NavState {
@@ -155,6 +157,8 @@ const api = {
     goForward: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:goForward', tabId),
     reload: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:reload', tabId),
     openDevTools: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:openDevTools', tabId),
+    setMuted: (tabId: string, muted: boolean): Promise<void> =>
+      ipcRenderer.invoke('tab:set-muted', tabId, muted),
     openInNewWindow: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-new-window', tabId),
     openInBrowser: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-browser', tabId),
     updateBounds: (rect: { x: number; y: number; width: number; height: number }): void =>

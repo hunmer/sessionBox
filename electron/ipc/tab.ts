@@ -119,6 +119,12 @@ export function registerTabIpcHandlers(): void {
     webviewManager.openDevTools(tabId)
   })
 
+  // 设置标签静音
+  ipcMain.handle('tab:set-muted', (_e, tabId: string, muted: boolean) => {
+    updateTab(tabId, { muted })
+    webviewManager.setAudioMuted(tabId, muted)
+  })
+
   // 控制 WebContentsView 可见性（dialog 弹出时隐藏）
   ipcMain.on('tab:set-overlay-visible', (_e, visible: boolean) => {
     webviewManager.setOverlayVisible(visible)
@@ -170,9 +176,16 @@ export function registerTabIpcHandlers(): void {
         const account = getAccountById(tab.accountId)
         if (account) {
           webviewManager.createView(tab.id, tab.accountId, tab.url || account.defaultUrl)
+          // 恢复静音状态
+          if (tab.muted) {
+            webviewManager.setAudioMuted(tab.id, true)
+          }
         }
       } else {
         webviewManager.createView(tab.id, '', tab.url || 'https://www.baidu.com')
+        if (tab.muted) {
+          webviewManager.setAudioMuted(tab.id, true)
+        }
       }
     }
     return tabs.map((t) => t.id)

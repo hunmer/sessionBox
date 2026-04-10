@@ -46,6 +46,8 @@ export interface Tab {
   title: string
   url: string
   order: number
+  pinned?: boolean
+  muted?: boolean
 }
 
 export interface BookmarkFolder {

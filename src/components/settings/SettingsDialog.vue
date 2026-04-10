@@ -7,11 +7,15 @@ import SettingsSites from './SettingsSites.vue'
 import SettingsAbout from './SettingsAbout.vue'
 import SettingsTabs from './SettingsTabs.vue'
 import SettingsShortcut from './SettingsShortcut.vue'
+import SettingsUser from './SettingsUser.vue'
+import SettingsTheme from './SettingsTheme.vue'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const tabs = [
+  { key: 'user', label: '用户' },
+  { key: 'theme', label: '主题' },
   { key: 'general', label: '常规' },
   { key: 'tabs', label: '标签页' },
   { key: 'shortcuts', label: '快捷键' },
@@ -47,7 +51,9 @@ const activeTab = ref('general')
         </nav>
 
         <div class="flex-1 p-6 overflow-y-auto">
-          <SettingsGeneral v-if="activeTab === 'general'" />
+          <SettingsUser v-if="activeTab === 'user'" />
+          <SettingsTheme v-else-if="activeTab === 'theme'" />
+          <SettingsGeneral v-else-if="activeTab === 'general'" />
           <SettingsTabs v-else-if="activeTab === 'tabs'" />
           <SettingsShortcut v-else-if="activeTab === 'shortcuts'" />
           <SettingsSites v-else-if="activeTab === 'sites'" />

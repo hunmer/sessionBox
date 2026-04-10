@@ -38,11 +38,12 @@ function handleAddAccount(account: Account) {
       :model-value="tabStore.workspaceTabs"
       :animation="150"
       item-key="id"
+      filter=".tab-pinned"
       class="flex flex-col gap-0.5 p-1 flex-1 min-h-0 overflow-y-auto"
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <div>
+        <div :class="{ 'tab-pinned': tab.pinned }">
           <TabItem :tab="tab" vertical />
         </div>
       </template>

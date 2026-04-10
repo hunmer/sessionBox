@@ -464,6 +464,14 @@ class WebviewManager {
   isFrozen(tabId: string): boolean {
     return this.frozenTabUrls.has(tabId)
   }
+
+  /** 设置标签音频静音状态 */
+  setAudioMuted(tabId: string, muted: boolean): void {
+    const entry = this.views.get(tabId)
+    if (entry && !entry.view.webContents.isDestroyed()) {
+      entry.view.webContents.setAudioMuted(muted)
+    }
+  }
 }
 
 export const webviewManager = new WebviewManager()

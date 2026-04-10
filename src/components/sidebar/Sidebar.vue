@@ -17,12 +17,14 @@ import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
 import { useAccountStore } from '@/stores/account'
 import { useHomepageStore } from '@/stores/homepage'
+import { useUserProfileStore } from '@/stores/userProfile'
 import type { Group, Account } from '@/types'
 
 const workspaceStore = useWorkspaceStore()
 const tabStore = useTabStore()
 const accountStore = useAccountStore()
 const homepageStore = useHomepageStore()
+const userProfileStore = useUserProfileStore()
 
 const props = defineProps<{
   collapsed?: boolean
@@ -185,7 +187,7 @@ const workspaceSwitcherItems = computed(() => {
       />
       <NavUser
         class="mt-auto p-1 shrink-0"
-        :user="{ name: '用户', email: '', avatar: '' }"
+        :user="{ name: userProfileStore.profile.name, email: '', avatar: userProfileStore.avatarSrc, emoji: userProfileStore.isEmojiAvatar ? userProfileStore.profile.avatar : undefined }"
         :collapsed="collapsed"
         @open-settings="emit('openSettings')"
         @open-proxy="emit('openProxy')"

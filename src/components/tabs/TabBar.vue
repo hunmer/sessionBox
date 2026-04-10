@@ -73,11 +73,12 @@ function handleAddAccount(account: Account) {
       :model-value="tabStore.groupedWorkspaceTabs"
       :animation="150"
       item-key="id"
+      filter=".tab-pinned"
       class="flex items-center gap-1 min-w-0 h-full"
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <div class="flex items-center gap-0.5">
+        <div class="flex items-center gap-0.5" :class="{ 'tab-pinned': tab.pinned }">
           <!-- 分组 badge：仅在该组第一个 tab 前显示 -->
           <span
             v-if="tab.isGroupStart"
@@ -100,11 +101,12 @@ function handleAddAccount(account: Account) {
       :model-value="tabStore.workspaceTabs"
       :animation="150"
       item-key="id"
+      filter=".tab-pinned"
       class="flex items-center gap-1 min-w-0 h-full"
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <div>
+        <div :class="{ 'tab-pinned': tab.pinned }">
           <TabItem :tab="tab" />
         </div>
       </template>

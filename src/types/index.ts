@@ -52,6 +52,8 @@ export interface Tab {
   title: string
   url: string
   order: number
+  pinned?: boolean // 固定标签
+  muted?: boolean // 静音标签
 }
 
 // 书签文件夹

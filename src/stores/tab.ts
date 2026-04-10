@@ -85,8 +85,15 @@ export const useTabStore = defineStore('tab', () => {
 
   // ====== 计算属性 ======
 
-  /** 排序后的标签列表 */
-  const sortedTabs = computed(() => [...tabs.value].sort((a, b) => a.order - b.order))
+  /** 排序后的标签列表（固定标签排在最前） */
+  const sortedTabs = computed(() =>
+    [...tabs.value].sort((a, b) => {
+      // 固定标签优先
+      if (a.pinned && !b.pinned) return -1
+      if (!a.pinned && b.pinned) return 1
+      return a.order - b.order
+    })
+  )
 
   /** 根据当前工作区过滤的标签列表 */
   const workspaceTabs = computed(() => {
@@ -279,12 +286,33 @@ export const useTabStore = defineStore('tab', () => {
     await api.tab.openInBrowser(tabId)
   }
 
+  /** 切换标签静音状态 */
+  async function toggleMute(tabId: string) {
+    const tab = tabs.value.find((t) => t.id === tabId)
+    if (!tab) return
+    const muted = !tab.muted
+    tab.muted = muted
+    await api.tab.setMuted(tabId, muted)
+  }
+
+  /** 切换标签固定状态 */
+  async function togglePin(tabId: string) {
+    const tab = tabs.value.find((t) => t.id === tabId)
+    if (!tab) return
+    const pinned = !tab.pinned
+    await updateTab(tabId, { pinned })
+  }
+
   /** 注册主进程 → 渲染进程事件监听 */
   function setupListeners() {
     api.on('tab:created', (tab: unknown) => {
       const nextTab = tab as Tab
       if (!tabs.value.some((item) => item.id === nextTab.id)) {
         tabs.value.push(nextTab)
+        // 新建标签恢复静音状态（账号被静音时新建的标签自动静音）
+        if (nextTab.muted) {
+          api.tab.setMuted(nextTab.id, true)
+        }
       }
     })
 
@@ -430,6 +458,8 @@ export const useTabStore = defineStore('tab', () => {
     openDevTools,
     openInNewWindow,
     openInBrowser,
+    toggleMute,
+    togglePin,
     init,
     saveState
   }

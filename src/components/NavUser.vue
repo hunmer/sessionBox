@@ -25,6 +25,7 @@ const props = defineProps<{
     name: string
     email: string
     avatar: string
+    emoji?: string
   }
   collapsed?: boolean
 }>()
@@ -47,9 +48,9 @@ const { isMobile } = useSidebar()
             :class="['data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground', collapsed ? '!w-full justify-center' : '']"
           >
             <Avatar class="h-8 w-8 rounded-lg">
-              <AvatarImage :src="user.avatar" :alt="user.name" />
+              <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
               <AvatarFallback class="rounded-lg">
-                CN
+                {{ user.emoji || user.name?.[0]?.toUpperCase() || 'U' }}
               </AvatarFallback>
             </Avatar>
             <template v-if="!collapsed">
