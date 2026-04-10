@@ -3,6 +3,7 @@ import {
   PanelTop,
   PanelLeft,
   FolderOpen,
+  User,
   Bookmark,
   Check,
   MoreHorizontal,
@@ -16,13 +17,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { useTabStore } from '@/stores/tab'
+import { useTabStore, type TabGroupMode } from '@/stores/tab'
 
 defineProps<{
   direction: 'horizontal' | 'vertical'
 }>()
 
 const tabStore = useTabStore()
+
+function setGroupMode(mode: TabGroupMode) {
+  tabStore.setTabGroupMode(tabStore.tabGroupMode === mode ? 'none' : mode)
+}
 </script>
 
 <template>
@@ -48,10 +53,15 @@ const tabStore = useTabStore()
           class="size-4 text-primary"
         />
       </DropdownMenuItem>
-      <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleTabGroup()">
+      <DropdownMenuItem class="cursor-pointer" @click="setGroupMode('group')">
         <FolderOpen class="size-4 mr-2" />
-        <span class="flex-1">自动分组</span>
-        <Check v-if="tabStore.tabGroupEnabled" class="size-4 text-primary" />
+        <span class="flex-1">按分组名称分组</span>
+        <Check v-if="tabStore.tabGroupMode === 'group'" class="size-4 text-primary" />
+      </DropdownMenuItem>
+      <DropdownMenuItem class="cursor-pointer" @click="setGroupMode('account')">
+        <User class="size-4 mr-2" />
+        <span class="flex-1">按账号名称分组</span>
+        <Check v-if="tabStore.tabGroupMode === 'account'" class="size-4 text-primary" />
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleFavoriteBar()">

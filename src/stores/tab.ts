@@ -8,10 +8,11 @@ import { useHistoryStore } from './history'
 const api = window.api
 
 export type TabLayout = 'horizontal' | 'vertical'
+export type TabGroupMode = 'none' | 'group' | 'account'
 
 const TAB_LAYOUT_KEY = 'sessionbox-tab-layout'
 const FAVORITE_BAR_KEY = 'sessionbox-favorite-bar-visible'
-const TAB_GROUP_KEY = 'sessionbox-tab-group-enabled'
+const TAB_GROUP_KEY = 'sessionbox-tab-group-mode'
 
 export const useTabStore = defineStore('tab', () => {
   interface TabProxyInfo {
@@ -50,29 +51,48 @@ export const useTabStore = defineStore('tab', () => {
     localStorage.setItem(FAVORITE_BAR_KEY, String(favoriteBarVisible.value))
   }
 
-  // ====== 标签页自动分组 ======
-  const tabGroupEnabled = ref(localStorage.getItem(TAB_GROUP_KEY) === 'true')
-
-  function toggleTabGroup() {
-    tabGroupEnabled.value = !tabGroupEnabled.value
-    localStorage.setItem(TAB_GROUP_KEY, String(tabGroupEnabled.value))
+  // ====== 标签页分组模式 ======
+  function loadTabGroupMode(): TabGroupMode {
+    const stored = localStorage.getItem(TAB_GROUP_KEY)
+    // 兼容旧版 boolean 值
+    if (stored === 'true') return 'group'
+    if (stored === 'group' || stored === 'account') return stored
+    return 'none'
   }
+  const tabGroupMode = ref<TabGroupMode>(loadTabGroupMode())
+
+  function setTabGroupMode(mode: TabGroupMode) {
+    tabGroupMode.value = mode
+    localStorage.setItem(TAB_GROUP_KEY, mode)
+  }
+
+  /** 是否启用了任意分组 */
+  const tabGroupEnabled = computed(() => tabGroupMode.value !== 'none')
 
   /** 按 tab 的 order 排列，同组标签聚拢在一起；拖拽 tab 改变 order 即改变位置和分组顺序 */
   const groupedSortedTabs = computed(() => {
     if (!tabGroupEnabled.value) return sortedTabs.value
 
     const accountStore = useAccountStore()
+    const groupByAccount = tabGroupMode.value === 'account'
 
     // 按 tab 原有 order 分组
     const groupMap = new Map<string, { name: string; color?: string; tabs: Tab[] }>()
     for (const tab of sortedTabs.value) {
       const account = accountStore.getAccount(tab.accountId)
       if (!account) continue
-      const group = accountStore.getGroup(account.groupId)
-      const key = group?.id ?? '__ungrouped__'
-      const name = group?.name ?? '未分组'
-      const color = group?.color
+
+      let key: string, name: string, color: string | undefined
+      if (groupByAccount) {
+        key = account.id
+        name = account.name
+        color = undefined
+      } else {
+        const group = accountStore.getGroup(account.groupId)
+        key = group?.id ?? '__ungrouped__'
+        name = group?.name ?? '未分组'
+        color = group?.color
+      }
       if (!groupMap.has(key)) groupMap.set(key, { name, color, tabs: [] })
       groupMap.get(key)!.tabs.push(tab)
     }
@@ -130,6 +150,7 @@ export const useTabStore = defineStore('tab', () => {
     if (!tabGroupEnabled.value) return workspaceTabs.value
 
     const accountStore = useAccountStore()
+    const groupByAccount = tabGroupMode.value === 'account'
     const groupMap = new Map<string, { name: string; color?: string; tabs: Tab[] }>()
     const internalTabs: (Tab & { groupName: string; groupColor?: string; isGroupStart: boolean })[] = []
 
@@ -140,10 +161,18 @@ export const useTabStore = defineStore('tab', () => {
         internalTabs.push({ ...tab, groupName: '', groupColor: undefined, isGroupStart: false })
         continue
       }
-      const group = accountStore.getGroup(account.groupId)
-      const key = group?.id ?? '__ungrouped__'
-      const name = group?.name ?? '未分组'
-      const color = group?.color
+
+      let key: string, name: string, color: string | undefined
+      if (groupByAccount) {
+        key = account.id
+        name = account.name
+        color = undefined
+      } else {
+        const group = accountStore.getGroup(account.groupId)
+        key = group?.id ?? '__ungrouped__'
+        name = group?.name ?? '未分组'
+        color = group?.color
+      }
       if (!groupMap.has(key)) groupMap.set(key, { name, color, tabs: [] })
       groupMap.get(key)!.tabs.push(tab)
     }
@@ -477,7 +506,8 @@ export const useTabStore = defineStore('tab', () => {
     favoriteBarVisible,
     toggleFavoriteBar,
     tabGroupEnabled,
-    toggleTabGroup,
+    tabGroupMode,
+    setTabGroupMode,
     groupedSortedTabs,
     loadTabs,
     createTab,
