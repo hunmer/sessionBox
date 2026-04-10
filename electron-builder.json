@@ -37,8 +37,7 @@
       }
     ],
     "icon": "resources/icon.png",
-    "requestedExecutionLevel": "asInvoker",
-    "locales": ["en-US", "zh-CN"]
+    "requestedExecutionLevel": "asInvoker"
   },
   "nsis": {
     "oneClick": false,
