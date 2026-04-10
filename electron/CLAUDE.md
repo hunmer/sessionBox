@@ -73,8 +73,8 @@ Electron 主进程，负责：
 - `proxy:test-config` -- 测试未保存的代理配置
 - 代理更新/删除时触发**热更新**：自动重新设置受影响 session 的代理并刷新标签页
 
-**常用网站 (favoriteSite:)**
-- `favoriteSite:list` / `favoriteSite:create` / `favoriteSite:update` / `favoriteSite:delete`
+**书签 (bookmark:)**
+- `bookmark:list` / `bookmark:create` / `bookmark:update` / `bookmark:delete` / `bookmark:reorder`
 
 **窗口控制 (window:)**
 - `window:minimize` / `window:maximize` / `window:close` / `window:isMaximized`
@@ -97,7 +97,7 @@ Electron 主进程，负责：
 
 ## 关键依赖与配置
 
-- `electron-store` -- JSON 文件持久化，schema 包含 groups/accounts/proxies/tabs/favoriteSites
+- `electron-store` -- JSON 文件持久化，schema 包含 groups/accounts/proxies/tabs/bookmarks
 - `@electron-toolkit/utils` -- Electron 应用工具（setAppUserModelId、watchWindowShortcuts）
 - `@electron-toolkit/preload` -- 预加载工具（electronAPI）
 - `electron-builder` -- 打包为 DMG (Mac) / NSIS (Windows)
@@ -114,7 +114,7 @@ Electron 主进程，负责：
 | **Group** | id, name, order, proxyId?, color? | 分组（可绑定代理） |
 | **Account** | id, groupId, name, icon, proxyId?, userAgent?, defaultUrl, order | 账号（Session 隔离单元） |
 | **Tab** | id, accountId, title, url, order | 标签页 |
-| **FavoriteSite** | id, title, url, accountId?, favicon? | 常用网站 |
+| **Bookmark** | id, title, url, accountId?, favicon?, folderId, order | 书签 |
 
 ---
 

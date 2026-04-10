@@ -70,7 +70,7 @@
         "src/stores/account.ts",
         "src/stores/tab.ts",
         "src/stores/proxy.ts",
-        "src/stores/favoriteSite.ts",
+        "src/stores/bookmark.ts",
         "src/stores/theme.ts"
       ],
       "utils": [

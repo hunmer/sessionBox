@@ -33,7 +33,7 @@ api.group       -- 分组 CRUD
 api.account     -- 账号 CRUD（含图标上传、桌面快捷方式）
 api.proxy       -- 代理 CRUD（含测试）
 api.tab         -- 标签页 CRUD + 导航 + bounds 管理
-api.favoriteSite -- 常用网站 CRUD
+api.bookmark -- 书签 CRUD
 api.window      -- 窗口控制（最小化/最大化/关闭）
 api.openExternal(url) -- 打开外部链接
 api.on(event, callback) -- 监听主进程事件，返回清理函数
