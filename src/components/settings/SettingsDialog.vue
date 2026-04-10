@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import SettingsGeneral from './SettingsGeneral.vue'
 import SettingsSites from './SettingsSites.vue'
 import SettingsAbout from './SettingsAbout.vue'
+import SettingsTabs from './SettingsTabs.vue'
 import SettingsShortcut from './SettingsShortcut.vue'
 
 const props = defineProps<{ open: boolean }>()
@@ -12,6 +13,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const tabs = [
   { key: 'general', label: '常规' },
+  { key: 'tabs', label: '标签页' },
   { key: 'shortcuts', label: '快捷键' },
   { key: 'sites', label: '常用网站' },
   { key: 'about', label: '关于' }
@@ -46,6 +48,7 @@ const activeTab = ref('general')
 
         <div class="flex-1 p-6 overflow-y-auto">
           <SettingsGeneral v-if="activeTab === 'general'" />
+          <SettingsTabs v-else-if="activeTab === 'tabs'" />
           <SettingsShortcut v-else-if="activeTab === 'shortcuts'" />
           <SettingsSites v-else-if="activeTab === 'sites'" />
           <SettingsAbout v-else-if="activeTab === 'about'" />

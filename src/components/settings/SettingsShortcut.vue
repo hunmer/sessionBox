@@ -4,7 +4,7 @@ import { useShortcutStore } from '@/stores/shortcut'
 import { Kbd } from '@/components/ui/kbd'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import { showToast } from '@/composables/useToast'
+import { toast } from 'vue-sonner'
 
 const store = useShortcutStore()
 
@@ -97,7 +97,7 @@ async function onKeyDown(e: KeyboardEvent) {
 
   // 必须包含修饰键
   if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-    showToast('快捷键需要包含 Ctrl、Alt 或 Shift 修饰键', 'warning')
+    toast.warning('快捷键需要包含 Ctrl、Alt 或 Shift 修饰键')
     return
   }
 
@@ -107,7 +107,7 @@ async function onKeyDown(e: KeyboardEvent) {
 
   const result = await store.updateShortcut(id, accelerator, isGlobal)
   if (!result.success) {
-    showToast(result.error || '快捷键冲突', 'error')
+    toast.error(result.error || '快捷键冲突')
   }
 
   recordingId.value = null
@@ -121,7 +121,7 @@ async function onGlobalChange(id: string, value: boolean) {
   if (accelerator) {
     const result = await store.updateShortcut(id, accelerator, value)
     if (!result.success) {
-      showToast(result.error || '更新失败', 'error')
+      toast.error(result.error || '更新失败')
     }
   } else {
     item.global = value

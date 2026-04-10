@@ -28174,6 +28174,9 @@ function registerGlobalShortcuts() {
     }
   }
 }
+function unregisterGlobalShortcuts() {
+  require$$1.globalShortcut.unregisterAll();
+}
 function updateShortcutBinding(id2, accelerator, isGlobal) {
   const action = SHORTCUT_ACTIONS.find((a) => a.id === id2);
   if (!action) return { success: false, error: "功能不存在" };
@@ -28545,6 +28548,7 @@ if (!gotTheLock) {
       require$$1.protocol.handle(scheme, () => new Response(null, { status: 204 }));
     }
     createWindow();
+    registerGlobalShortcuts();
     setTimeout(() => {
       const autoUpdater = getAutoUpdater();
       console.log("[Main] 开始检查更新...");
@@ -28555,6 +28559,7 @@ if (!gotTheLock) {
     });
   });
   require$$1.app.on("window-all-closed", () => {
+    unregisterGlobalShortcuts();
     if (process.platform !== "darwin") {
       require$$1.app.quit();
     }

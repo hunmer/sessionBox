@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { X, Globe, Loader2, ExternalLink, Monitor } from 'lucide-vue-next'
+import { X, Globe, Loader2, ExternalLink, Monitor, Snowflake } from 'lucide-vue-next'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -33,6 +33,7 @@ const tabLabel = computed(() => {
 const isActive = computed(() => tabStore.activeTabId === props.tab.id)
 const isLoading = computed(() => tabStore.navStates.get(props.tab.id)?.isLoading ?? false)
 const faviconUrl = computed(() => tabStore.favicons.get(props.tab.id))
+const isFrozen = computed(() => tabStore.frozenTabIds.has(props.tab.id))
 
 // 激活态样式：分组模式下使用分组颜色，否则使用默认主题色
 const activeStyle = computed(() => {
@@ -68,6 +69,7 @@ function handleClose(e: MouseEvent) {
         @click="tabStore.switchTab(tab.id)"
       >
         <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin" :class="isActive && groupColor ? '' : 'text-primary/50'" :style="isActive && groupColor ? { color: groupColor + '80' } : {}" />
+        <Snowflake v-else-if="isFrozen" class="w-3.5 h-3.5 flex-shrink-0 text-blue-400" />
         <img v-else-if="faviconUrl" :src="faviconUrl" class="w-3.5 h-3.5 flex-shrink-0 rounded-sm" />
         <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
         <span class="truncate text-xs" :class="vertical ? 'flex-1 min-w-0' : 'max-w-[120px]'">{{ tabLabel }}</span>

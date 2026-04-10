@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, nextTick, ref, watch, computed } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { Toaster } from '@/components/ui/sonner'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
@@ -304,5 +305,8 @@ watch(() => tabStore.favoriteBarVisible, () => {
 
     <!-- 更新提示弹窗 -->
     <UpdateNotification />
+
+    <!-- 全局 Toast 通知 -->
+    <Toaster rich-colors position="top-center" />
   </TooltipProvider>
 </template>

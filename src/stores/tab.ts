@@ -19,6 +19,7 @@ export const useTabStore = defineStore('tab', () => {
   const activeTabId = ref<string | null>(null)
   const navStates = ref<Map<string, NavState>>(new Map())
   const favicons = ref<Map<string, string>>(new Map())
+  const frozenTabIds = ref<Set<string>>(new Set())
 
   // ====== 标签栏布局 ======
   const tabLayout = ref<TabLayout>(
@@ -334,6 +335,16 @@ export const useTabStore = defineStore('tab', () => {
       await createTabWithUrl(accountId as string, url as string)
     })
 
+    // 标签冻结/解冻状态
+    api.on('tab:frozen', (tabId: unknown, frozen: unknown) => {
+      const id = tabId as string
+      if (frozen) {
+        frozenTabIds.value.add(id)
+      } else {
+        frozenTabIds.value.delete(id)
+      }
+    })
+
     // 深度链接 → 激活或创建对应账号的 tab
     api.on('open-account', async (accountId: unknown) => {
       const id = accountId as string
@@ -389,6 +400,7 @@ export const useTabStore = defineStore('tab', () => {
     activeTabId,
     navStates,
     favicons,
+    frozenTabIds,
     sortedTabs,
     workspaceTabs,
     groupedWorkspaceTabs,

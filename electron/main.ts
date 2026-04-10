@@ -7,6 +7,7 @@ import { registerDownloadIpcHandlers } from './ipc/download'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
 import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
+import { registerGlobalShortcuts, unregisterGlobalShortcuts } from './services/shortcut-manager'
 
 // 节流函数
 function throttle<T extends (...args: any[]) => void>(fn: T, delay: number): T {
@@ -208,6 +209,9 @@ if (!gotTheLock) {
 
     createWindow()
 
+    // 注册全局快捷键
+    registerGlobalShortcuts()
+
     // 启动 3 秒后自动检查更新
     setTimeout(() => {
       const autoUpdater = getAutoUpdater()
@@ -221,6 +225,7 @@ if (!gotTheLock) {
   })
 
   app.on('window-all-closed', () => {
+    unregisterGlobalShortcuts()
     if (process.platform !== 'darwin') {
       app.quit()
     }
