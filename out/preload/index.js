@@ -132,17 +132,11 @@ const api = {
     restoreAll: () => electron.ipcRenderer.invoke("tab:restore-all"),
     saveAll: (tabs) => electron.ipcRenderer.invoke("tab:save-all", tabs)
   },
-  favoriteSite: {
-    list: () => electron.ipcRenderer.invoke("favoriteSite:list"),
-    create: (data) => electron.ipcRenderer.invoke("favoriteSite:create", data),
-    update: (id, data) => electron.ipcRenderer.invoke("favoriteSite:update", id, data),
-    delete: (id) => electron.ipcRenderer.invoke("favoriteSite:delete", id)
-  },
   bookmark: {
-    list: (folderId) => electron.ipcRenderer.invoke("favoriteSite:list", folderId),
-    create: (data) => electron.ipcRenderer.invoke("favoriteSite:create", data),
-    update: (id, data) => electron.ipcRenderer.invoke("favoriteSite:update", id, data),
-    delete: (id) => electron.ipcRenderer.invoke("favoriteSite:delete", id),
+    list: (folderId) => electron.ipcRenderer.invoke("bookmark:list", folderId),
+    create: (data) => electron.ipcRenderer.invoke("bookmark:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("bookmark:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("bookmark:delete", id),
     reorder: (ids) => electron.ipcRenderer.invoke("bookmark:reorder", ids)
   },
   bookmarkFolder: {

@@ -63,7 +63,7 @@ export interface BookmarkFolder {
   order: number
 }
 
-export interface FavoriteSite {
+export interface Bookmark {
   id: string
   title: string
   url: string
@@ -105,7 +105,7 @@ interface StoreSchema {
   proxies: Proxy[]
   tabs: Tab[]
   bookmarkFolders: BookmarkFolder[]
-  favoriteSites: FavoriteSite[]
+  bookmarks: Bookmark[]
   extensions: Extension[]
   accountExtensions: Record<string, string[]>  // accountId -> extensionIds
   windowState: WindowState
@@ -123,7 +123,7 @@ const defaults: StoreSchema = {
   proxies: [],
   tabs: [],
   bookmarkFolders: [{ id: BOOKMARK_BAR_FOLDER_ID, name: '书签栏', parentId: null, order: 0 }],
-  favoriteSites: [
+  bookmarks: [
     { id: 'default-douyin', title: '抖音', url: 'https://www.douyin.com', folderId: BOOKMARK_BAR_FOLDER_ID, order: 0 },
     { id: 'default-iqiyi', title: '爱奇艺', url: 'https://www.iqiyi.com', folderId: BOOKMARK_BAR_FOLDER_ID, order: 1 },
     { id: 'default-qq', title: '腾讯', url: 'https://www.qq.com', folderId: BOOKMARK_BAR_FOLDER_ID, order: 2 },
@@ -388,42 +388,42 @@ export function saveTabs(tabs: Tab[]): void {
   setCollection('tabs', tabs)
 }
 
-// ====== 常用网站操作 ======
+// ====== 书签操作 ======
 
-export function listFavoriteSites(folderId?: string): FavoriteSite[] {
-  const sites = getCollection('favoriteSites').sort((a, b) => a.order - b.order)
+export function listBookmarks(folderId?: string): Bookmark[] {
+  const sites = getCollection('bookmarks').sort((a, b) => a.order - b.order)
   if (folderId) return sites.filter((s) => s.folderId === folderId)
   return sites
 }
 
-export function createFavoriteSite(data: Omit<FavoriteSite, 'id'>): FavoriteSite {
-  const sites = getCollection('favoriteSites')
-  const site: FavoriteSite = { ...data, id: randomUUID() }
+export function createBookmark(data: Omit<Bookmark, 'id'>): Bookmark {
+  const sites = getCollection('bookmarks')
+  const site: Bookmark = { ...data, id: randomUUID() }
   sites.push(site)
-  setCollection('favoriteSites', sites)
+  setCollection('bookmarks', sites)
   return site
 }
 
-export function updateFavoriteSite(id: string, data: Partial<Omit<FavoriteSite, 'id'>>): void {
-  const sites = getCollection('favoriteSites')
+export function updateBookmark(id: string, data: Partial<Omit<Bookmark, 'id'>>): void {
+  const sites = getCollection('bookmarks')
   const idx = sites.findIndex((s) => s.id === id)
-  if (idx === -1) throw new Error(`常用网站 ${id} 不存在`)
+  if (idx === -1) throw new Error(`书签 ${id} 不存在`)
   sites[idx] = { ...sites[idx], ...data }
-  setCollection('favoriteSites', sites)
+  setCollection('bookmarks', sites)
 }
 
-export function deleteFavoriteSite(id: string): void {
-  const sites = getCollection('favoriteSites').filter((s) => s.id !== id)
-  setCollection('favoriteSites', sites)
+export function deleteBookmark(id: string): void {
+  const sites = getCollection('bookmarks').filter((s) => s.id !== id)
+  setCollection('bookmarks', sites)
 }
 
 export function reorderBookmarks(ids: string[]): void {
-  const sites = getCollection('favoriteSites')
+  const sites = getCollection('bookmarks')
   ids.forEach((id, order) => {
     const s = sites.find((s) => s.id === id)
     if (s) s.order = order
   })
-  setCollection('favoriteSites', sites)
+  setCollection('bookmarks', sites)
 }
 
 // ====== 书签文件夹操作 ======
@@ -456,8 +456,8 @@ export function deleteBookmarkFolder(id: string): void {
   const idsToDelete = [id, ...childIds]
   setCollection('bookmarkFolders', folders.filter((f) => !idsToDelete.includes(f.id)))
   // 级联删除文件夹内的书签
-  const sites = getCollection('favoriteSites').filter((s) => !idsToDelete.includes(s.folderId))
-  setCollection('favoriteSites', sites)
+  const sites = getCollection('bookmarks').filter((s) => !idsToDelete.includes(s.folderId))
+  setCollection('bookmarks', sites)
 }
 
 export function reorderBookmarkFolders(ids: string[]): void {
@@ -482,9 +482,18 @@ function collectChildFolderIds(folders: BookmarkFolder[], parentId: string): str
 
 // ====== 书签数据迁移 ======
 
-/** 检测旧数据（无 folderId 字段）并自动迁移 */
+/** 迁移旧存储键名 favoriteSites → bookmarks，以及检测旧数据（无 folderId 字段） */
 export function migrateBookmarks(): void {
-  const sites = getCollection('favoriteSites')
+  // 迁移存储键名
+  if (store.has('favoriteSites')) {
+    const oldData = store.get('favoriteSites', [])
+    if (oldData.length > 0 && !store.has('bookmarks')) {
+      setCollection('bookmarks', oldData)
+    }
+    store.delete('favoriteSites')
+  }
+
+  const sites = getCollection('bookmarks')
   if (sites.length === 0) return
 
   // 检查是否需要迁移（旧数据没有 folderId 字段）
@@ -504,7 +513,7 @@ export function migrateBookmarks(): void {
     folderId: s.folderId || BOOKMARK_BAR_FOLDER_ID,
     order: s.order ?? index
   }))
-  setCollection('favoriteSites', migrated)
+  setCollection('bookmarks', migrated)
 }
 
 // ====== 扩展操作 ======

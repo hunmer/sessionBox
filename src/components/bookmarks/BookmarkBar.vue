@@ -3,10 +3,10 @@ import { ref } from 'vue'
 import { Plus, ChevronDown, Folder } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import AddFavoriteDialog from './AddFavoriteDialog.vue'
+import AddBookmarkDialog from './AddBookmarkDialog.vue'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useTabStore } from '@/stores/tab'
-import type { FavoriteSite, BookmarkFolder } from '@/types'
+import type { Bookmark, BookmarkFolder } from '@/types'
 
 const bookmarkStore = useBookmarkStore()
 const tabStore = useTabStore()
@@ -35,7 +35,7 @@ function openSite(site: { url: string; accountId?: string }) {
 }
 
 /** 右键删除 */
-function handleContextMenu(e: MouseEvent, site: FavoriteSite) {
+function handleContextMenu(e: MouseEvent, site: Bookmark) {
   e.preventDefault()
   if (confirm(`删除书签「${site.title}」？`)) {
     bookmarkStore.deleteBookmark(site.id)
@@ -43,7 +43,7 @@ function handleContextMenu(e: MouseEvent, site: FavoriteSite) {
 }
 
 /** 编辑网站 */
-function handleEdit(site: FavoriteSite) {
+function handleEdit(site: Bookmark) {
   editSite.value = { id: site.id, title: site.title, url: site.url, accountId: site.accountId }
   showAddDialog.value = true
 }
@@ -61,10 +61,10 @@ function onDialogClose(open: boolean) {
 }
 
 /** 获取书签栏内所有文件夹（非书签栏本身的子文件夹，而是根级非书签栏的文件夹） */
-const toolbarItems = ref<(FavoriteSite | BookmarkFolder)[]>([])
+const toolbarItems = ref<(Bookmark | BookmarkFolder)[]>([])
 
 /** 区分：是书签还是文件夹 */
-function isBookmark(item: FavoriteSite | BookmarkFolder): item is FavoriteSite {
+function isBookmarkItem(item: Bookmark | BookmarkFolder): item is Bookmark {
   return 'url' in item
 }
 </script>
@@ -129,7 +129,7 @@ function isBookmark(item: FavoriteSite | BookmarkFolder): item is FavoriteSite {
     </div>
 
     <!-- 添加/编辑对话框 -->
-    <AddFavoriteDialog
+    <AddBookmarkDialog
       :open="showAddDialog"
       :edit-site="editSite"
       @update:open="onDialogClose"

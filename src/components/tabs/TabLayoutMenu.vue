@@ -64,10 +64,10 @@ function setGroupMode(mode: TabGroupMode) {
         <Check v-if="tabStore.tabGroupMode === 'account'" class="size-4 text-primary" />
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleFavoriteBar()">
+      <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleBookmarkBar()">
         <Bookmark class="size-4 mr-2" />
         <span class="flex-1">快捷网站栏</span>
-        <Check v-if="tabStore.favoriteBarVisible" class="size-4 text-primary" />
+        <Check v-if="tabStore.bookmarkBarVisible" class="size-4 text-primary" />
       </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>

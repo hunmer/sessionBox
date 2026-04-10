@@ -49,7 +49,7 @@ graph TD
     SC --> SC_SIDEBAR["components/sidebar"]
     SC --> SC_TABS["components/tabs"]
     SC --> SC_TOOLBAR["components/toolbar"]
-    SC --> SC_FAVORITE["components/favorite"]
+    SC --> SC_BOOKMARK["components/bookmarks"]
     SC --> SC_PROXY["components/proxy"]
     SC --> SC_SETTINGS["components/settings"]
 
@@ -107,7 +107,7 @@ pnpm pack:dir
 ### 数据存储
 
 - 使用 `electron-store` 将数据持久化为 JSON 文件，存储在用户数据目录
-- 数据模型包括：`groups`、`accounts`、`proxies`、`tabs`、`favoriteSites`
+- 数据模型包括：`groups`、`accounts`、`proxies`、`tabs`、`bookmarks`
 - 账号图标保存在 `{userData}/account-icons/` 目录
 
 ### 自定义协议

@@ -15,7 +15,7 @@ import {
   Trash2,
 } from "lucide-vue-next"
 
-import NavFavorites from '@/components/NavFavorites.vue'
+import NavBookmarks from '@/components/NavBookmarks.vue'
 import NavMain from '@/components/NavMain.vue'
 import NavSecondary from '@/components/NavSecondary.vue'
 import NavWorkspaces from '@/components/NavWorkspaces.vue'
@@ -99,7 +99,7 @@ const data = {
       icon: MessageCircleQuestion,
     },
   ],
-  favorites: [
+  bookmarks: [
     {
       name: "Project Management & Task Tracking",
       url: "#",
@@ -268,7 +268,7 @@ const data = {
       <NavMain :items="data.navMain" />
     </SidebarHeader>
     <SidebarContent>
-      <NavFavorites :favorites="data.favorites" />
+      <NavBookmarks :bookmarks="data.bookmarks" />
       <NavWorkspaces :workspaces="data.workspaces" />
       <NavSecondary :items="data.navSecondary" class="mt-auto" />
     </SidebarContent>

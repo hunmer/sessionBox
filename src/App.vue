@@ -11,7 +11,7 @@ import Sidebar from '@/components/sidebar/Sidebar.vue'
 import TabBar from '@/components/tabs/TabBar.vue'
 import TabBarVertical from '@/components/tabs/TabBarVertical.vue'
 import BrowserToolbar from '@/components/toolbar/BrowserToolbar.vue'
-import FavoriteBar from '@/components/favorite/FavoriteBar.vue'
+import BookmarkBar from '@/components/bookmarks/BookmarkBar.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import UpdateNotification from '@/components/common/UpdateNotification.vue'
@@ -268,7 +268,7 @@ watch(() => tabStore.isInternalPage, (isInternal) => {
 })
 
 // 快捷网站栏显隐时同步 bounds
-watch(() => tabStore.favoriteBarVisible, () => {
+watch(() => tabStore.bookmarkBarVisible, () => {
   nextTick(() => sendBounds())
 })
 </script>
@@ -316,7 +316,7 @@ watch(() => tabStore.favoriteBarVisible, () => {
               <TabBar :is-maximized="isMaximized" @toggle-sidebar="toggleSidebar" />
 
               <!-- 快捷网站栏 -->
-              <FavoriteBar v-if="tabStore.favoriteBarVisible" />
+              <BookmarkBar v-if="tabStore.bookmarkBarVisible" />
 
               <!-- 工具栏 -->
               <BrowserToolbar v-if="tabStore.activeTab" />

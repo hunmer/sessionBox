@@ -11,7 +11,7 @@ export type TabLayout = 'horizontal' | 'vertical'
 export type TabGroupMode = 'none' | 'group' | 'account'
 
 const TAB_LAYOUT_KEY = 'sessionbox-tab-layout'
-const FAVORITE_BAR_KEY = 'sessionbox-favorite-bar-visible'
+const BOOKMARK_BAR_KEY = 'sessionbox-bookmark-bar-visible'
 const TAB_GROUP_KEY = 'sessionbox-tab-group-mode'
 
 export const useTabStore = defineStore('tab', () => {
@@ -44,11 +44,11 @@ export const useTabStore = defineStore('tab', () => {
   }
 
   // ====== 快捷网站栏显隐 ======
-  const favoriteBarVisible = ref(localStorage.getItem(FAVORITE_BAR_KEY) !== 'false')
+  const bookmarkBarVisible = ref(localStorage.getItem(BOOKMARK_BAR_KEY) !== 'false')
 
-  function toggleFavoriteBar() {
-    favoriteBarVisible.value = !favoriteBarVisible.value
-    localStorage.setItem(FAVORITE_BAR_KEY, String(favoriteBarVisible.value))
+  function toggleBookmarkBar() {
+    bookmarkBarVisible.value = !bookmarkBarVisible.value
+    localStorage.setItem(BOOKMARK_BAR_KEY, String(bookmarkBarVisible.value))
   }
 
   // ====== 标签页分组模式 ======
@@ -503,8 +503,8 @@ export const useTabStore = defineStore('tab', () => {
     internalPagePath,
     tabLayout,
     toggleLayout,
-    favoriteBarVisible,
-    toggleFavoriteBar,
+    bookmarkBarVisible,
+    toggleBookmarkBar,
     tabGroupEnabled,
     tabGroupMode,
     setTabGroupMode,

@@ -30,7 +30,7 @@ Vue 3 渲染进程，负责：
 1. 创建 Vue 应用实例
 2. 安装 Pinia 状态管理
 3. 挂载到 `#app`
-4. `App.vue` 的 `onMounted` 中并行初始化 4 个 Store：`accountStore.init()`、`tabStore.init()`、`proxyStore.init()`、`favoriteSiteStore.init()`
+4. `App.vue` 的 `onMounted` 中并行初始化 Store：`accountStore.init()`、`tabStore.init()`、`proxyStore.init()`、`bookmarkStore.init()`
 5. 初始化 ResizeObserver 监听 WebView 容器尺寸变化
 
 ---
@@ -44,7 +44,7 @@ Vue 3 渲染进程，负责：
 | `useAccountStore` | `stores/account.ts` | 分组与账号 CRUD、排序、按组归类 |
 | `useTabStore` | `stores/tab.ts` | 标签页 CRUD、导航（前进/后退/刷新）、布局（水平/垂直）、标签分组 |
 | `useProxyStore` | `stores/proxy.ts` | 代理 CRUD、代理测试 |
-| `useFavoriteSiteStore` | `stores/favoriteSite.ts` | 常用网站 CRUD |
+| `useBookmarkStore` | `stores/bookmark.ts` | 书签 CRUD、文件夹管理、排序 |
 | `useThemeStore` | `stores/theme.ts` | 主题切换（亮色/暗色），localStorage 持久化 |
 
 ### UI 组件结构
@@ -63,8 +63,8 @@ Vue 3 渲染进程，负责：
 | `TabBarVertical` | `components/tabs/TabBarVertical.vue` | 垂直标签栏 |
 | `TabItem` | `components/tabs/TabItem.vue` | 单个标签项渲染 |
 | `BrowserToolbar` | `components/toolbar/BrowserToolbar.vue` | 浏览器工具栏（地址栏、导航按钮） |
-| `FavoriteBar` | `components/favorite/FavoriteBar.vue` | 常用网站快捷栏 |
-| `AddFavoriteDialog` | `components/favorite/AddFavoriteDialog.vue` | 添加常用网站对话框 |
+| `BookmarkBar` | `components/bookmarks/BookmarkBar.vue` | 书签栏（快捷访问） |
+| `AddBookmarkDialog` | `components/bookmarks/AddBookmarkDialog.vue` | 添加/编辑书签对话框 |
 | `ProxyDialog` | `components/proxy/ProxyDialog.vue` | 代理管理对话框 |
 | `SettingsDialog` | `components/settings/SettingsDialog.vue` | 设置对话框（主题、常用网站管理、关于） |
 | `AccountPickerDialog` | `components/AccountPickerDialog.vue` | 账号选择器对话框 |
@@ -99,7 +99,7 @@ alert-dialog, badge, button, collapsible, context-menu, dialog, dropdown-menu, i
 | `Group` | 分组（id, name, order, proxyId?, color?） |
 | `Account` | 账号（id, groupId, name, icon, proxyId?, userAgent?, defaultUrl, order） |
 | `Tab` | 标签页（id, accountId, title, url, order） |
-| `FavoriteSite` | 常用网站（id, title, url, accountId?, favicon?） |
+| `Bookmark` | 书签（id, title, url, accountId?, favicon?, folderId, order） |
 | `NavState` | 导航状态运行时数据（canGoBack, canGoForward, isLoading） |
 
 ---

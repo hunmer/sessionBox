@@ -36,7 +36,7 @@ function handleClick() {
     <Collapsible v-model:open="open">
       <div
         class="group flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors"
-        :class="isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'"
+        :class="isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary'"
         :style="{ paddingLeft: `${depth * 16 + 8}px` }"
         @click="handleClick"
       >

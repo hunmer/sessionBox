@@ -70,8 +70,8 @@ export interface BookmarkFolder {
   order: number
 }
 
-// 书签（扩展自 FavoriteSite）
-export interface FavoriteSite {
+// 书签
+export interface Bookmark {
   id: string
   title: string
   url: string

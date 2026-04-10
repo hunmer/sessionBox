@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { FavoriteSite, BookmarkFolder } from '../types'
+import type { Bookmark, BookmarkFolder } from '../types'
 
 const api = window.api
 
 export const useBookmarkStore = defineStore('bookmark', () => {
   // ====== 状态 ======
   const folders = ref<BookmarkFolder[]>([])
-  const bookmarks = ref<FavoriteSite[]>([])
+  const bookmarks = ref<Bookmark[]>([])
 
   // ====== 计算属性 ======
 
-  /** 书签栏文件夹的书签（用于 FavoriteBar） */
+  /** 书签栏文件夹的书签（用于 BookmarkBar） */
   const toolbarBookmarks = computed(() =>
     bookmarks.value.filter((b) => b.folderId === '__bookmark_bar__').sort((a, b) => a.order - b.order)
   )
@@ -62,23 +62,23 @@ export const useBookmarkStore = defineStore('bookmark', () => {
   // ====== 书签操作 ======
 
   async function loadBookmarks() {
-    bookmarks.value = await api.favoriteSite.list()
+    bookmarks.value = await api.bookmark.list()
   }
 
-  async function createBookmark(data: Omit<FavoriteSite, 'id'>) {
-    const bookmark = await api.favoriteSite.create(data)
+  async function createBookmark(data: Omit<Bookmark, 'id'>) {
+    const bookmark = await api.bookmark.create(data)
     bookmarks.value.push(bookmark)
     return bookmark
   }
 
-  async function updateBookmark(id: string, data: Partial<Omit<FavoriteSite, 'id'>>) {
-    await api.favoriteSite.update(id, data)
+  async function updateBookmark(id: string, data: Partial<Omit<Bookmark, 'id'>>) {
+    await api.bookmark.update(id, data)
     const idx = bookmarks.value.findIndex((b) => b.id === id)
     if (idx !== -1) bookmarks.value[idx] = { ...bookmarks.value[idx], ...data }
   }
 
   async function deleteBookmark(id: string) {
-    await api.favoriteSite.delete(id)
+    await api.bookmark.delete(id)
     bookmarks.value = bookmarks.value.filter((b) => b.id !== id)
   }
 
@@ -91,7 +91,7 @@ export const useBookmarkStore = defineStore('bookmark', () => {
   }
 
   /** 获取指定文件夹的书签 */
-  function getBookmarksByFolder(folderId: string): FavoriteSite[] {
+  function getBookmarksByFolder(folderId: string): Bookmark[] {
     return bookmarks.value.filter((b) => b.folderId === folderId).sort((a, b) => a.order - b.order)
   }
 
@@ -101,7 +101,7 @@ export const useBookmarkStore = defineStore('bookmark', () => {
   }
 
   /** 查找 URL 对应的书签 */
-  function findBookmarkByUrl(url: string): FavoriteSite | undefined {
+  function findBookmarkByUrl(url: string): Bookmark | undefined {
     return bookmarks.value.find((b) => b.url === url)
   }
 

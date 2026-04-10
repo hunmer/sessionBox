@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/sidebar'
 
 defineProps<{
-  favorites: {
+  bookmarks: {
     name: string
     url: string
     emoji: string
@@ -38,9 +38,9 @@ const { isMobile } = useSidebar()
 
 <template>
   <SidebarGroup class="group-data-[collapsible=icon]:hidden">
-    <SidebarGroupLabel>Favorites</SidebarGroupLabel>
+    <SidebarGroupLabel>Bookmarks</SidebarGroupLabel>
     <SidebarMenu>
-      <SidebarMenuItem v-for="item in favorites" :key="item.name">
+      <SidebarMenuItem v-for="item in bookmarks" :key="item.name">
         <SidebarMenuButton as-child>
           <a :href="item.url" :title="item.name">
             <EmojiRenderer :emoji="item.emoji" />
@@ -61,7 +61,7 @@ const { isMobile } = useSidebar()
           >
             <DropdownMenuItem>
               <StarOff class="text-muted-foreground" />
-              <span>Remove from Favorites</span>
+              <span>Remove from Bookmarks</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>

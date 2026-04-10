@@ -15,10 +15,10 @@ import {
   updateAccount,
   deleteAccount,
   getAccountById,
-  listFavoriteSites,
-  createFavoriteSite,
-  updateFavoriteSite,
-  deleteFavoriteSite,
+  listBookmarks,
+  createBookmark,
+  updateBookmark,
+  deleteBookmark,
   reorderBookmarks,
   listBookmarkFolders,
   createBookmarkFolder,
@@ -34,7 +34,7 @@ import {
   getTabFreezeMinutes,
   setTabFreezeMinutes
 } from '../services/store'
-import type { Account, Group, FavoriteSite, Workspace, BookmarkFolder } from '../services/store'
+import type { Account, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
@@ -199,18 +199,18 @@ $img.Dispose()`
   // ====== 快捷键 ======
   registerShortcutIpcHandlers()
 
-  // ====== 常用网站（书签） ======
-  ipcMain.handle('favoriteSite:list', () => listFavoriteSites())
+  // ====== 书签 ======
+  ipcMain.handle('bookmark:list', () => listBookmarks())
 
-  ipcMain.handle('favoriteSite:create', (_e, data: Omit<FavoriteSite, 'id'>) =>
-    createFavoriteSite(data)
+  ipcMain.handle('bookmark:create', (_e, data: Omit<BookmarkType, 'id'>) =>
+    createBookmark(data)
   )
 
-  ipcMain.handle('favoriteSite:update', (_e, id: string, data: Partial<Omit<FavoriteSite, 'id'>>) =>
-    updateFavoriteSite(id, data)
+  ipcMain.handle('bookmark:update', (_e, id: string, data: Partial<Omit<BookmarkType, 'id'>>) =>
+    updateBookmark(id, data)
   )
 
-  ipcMain.handle('favoriteSite:delete', (_e, id: string) => deleteFavoriteSite(id))
+  ipcMain.handle('bookmark:delete', (_e, id: string) => deleteBookmark(id))
 
   ipcMain.handle('bookmark:reorder', (_e, ids: string[]) => reorderBookmarks(ids))
 

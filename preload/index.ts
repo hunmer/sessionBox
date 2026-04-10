@@ -69,7 +69,7 @@ export interface BookmarkFolder {
   order: number
 }
 
-export interface FavoriteSite {
+export interface Bookmark {
   id: string
   title: string
   url: string
@@ -179,23 +179,14 @@ const api = {
     saveAll: (tabs: Tab[]): Promise<void> => ipcRenderer.invoke('tab:save-all', tabs)
   },
 
-  favoriteSite: {
-    list: (): Promise<FavoriteSite[]> => ipcRenderer.invoke('favoriteSite:list'),
-    create: (data: Omit<FavoriteSite, 'id'>): Promise<FavoriteSite> =>
-      ipcRenderer.invoke('favoriteSite:create', data),
-    update: (id: string, data: Partial<Omit<FavoriteSite, 'id'>>): Promise<void> =>
-      ipcRenderer.invoke('favoriteSite:update', id, data),
-    delete: (id: string): Promise<void> => ipcRenderer.invoke('favoriteSite:delete', id)
-  },
-
   bookmark: {
-    list: (folderId?: string): Promise<FavoriteSite[]> =>
-      ipcRenderer.invoke('favoriteSite:list', folderId),
-    create: (data: Omit<FavoriteSite, 'id'>): Promise<FavoriteSite> =>
-      ipcRenderer.invoke('favoriteSite:create', data),
-    update: (id: string, data: Partial<Omit<FavoriteSite, 'id'>>): Promise<void> =>
-      ipcRenderer.invoke('favoriteSite:update', id, data),
-    delete: (id: string): Promise<void> => ipcRenderer.invoke('favoriteSite:delete', id),
+    list: (folderId?: string): Promise<Bookmark[]> =>
+      ipcRenderer.invoke('bookmark:list', folderId),
+    create: (data: Omit<Bookmark, 'id'>): Promise<Bookmark> =>
+      ipcRenderer.invoke('bookmark:create', data),
+    update: (id: string, data: Partial<Omit<Bookmark, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('bookmark:update', id, data),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('bookmark:delete', id),
     reorder: (ids: string[]): Promise<void> => ipcRenderer.invoke('bookmark:reorder', ids)
   },
 

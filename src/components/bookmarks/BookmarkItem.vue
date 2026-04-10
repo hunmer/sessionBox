@@ -3,10 +3,10 @@ import { MoreHorizontal, Pencil, Trash2, ExternalLink } from 'lucide-vue-next'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useTabStore } from '@/stores/tab'
-import type { FavoriteSite } from '@/types'
+import type { Bookmark } from '@/types'
 
 const props = defineProps<{
-  bookmark: FavoriteSite
+  bookmark: Bookmark
   faviconUrl: string
 }>()
 
@@ -28,7 +28,7 @@ async function handleDelete() {
 
 <template>
   <div
-    class="group flex items-center gap-2 px-3 py-2 rounded-md hover:bg-accent/50 cursor-pointer transition-colors"
+    class="group flex items-center gap-2 px-3 py-2 rounded-md hover:bg-secondary cursor-pointer transition-colors"
     @dblclick="handleOpen"
   >
     <!-- 图标 -->

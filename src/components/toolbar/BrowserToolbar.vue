@@ -67,18 +67,18 @@ function onBlur() {
 }
 
 /** 当前 URL 是否已收藏 */
-const isFavorited = computed(() => {
+const isBookmarked = computed(() => {
   const url = tabStore.activeTab?.url
   if (!url) return false
   return bookmarkStore.isBookmarked(url)
 })
 
 /** 切换收藏状态 */
-async function toggleFavorite() {
+async function toggleBookmark() {
   const url = tabStore.activeTab?.url
   if (!url) return
 
-  if (isFavorited.value) {
+  if (isBookmarked.value) {
     const bookmark = bookmarkStore.findBookmarkByUrl(url)
     if (bookmark) await bookmarkStore.deleteBookmark(bookmark.id)
   } else {
@@ -120,11 +120,11 @@ async function toggleFavorite() {
         variant="ghost"
         size="icon"
         class="absolute left-0.5 h-6 w-6 z-10 rounded-sm"
-        :class="isFavorited ? 'text-yellow-500' : 'text-muted-foreground'"
+        :class="isBookmarked ? 'text-yellow-500' : 'text-muted-foreground'"
         :disabled="!tabStore.activeTabId"
-        @click="toggleFavorite"
+        @click="toggleBookmark"
       >
-        <Star class="w-3.5 h-3.5" :fill="isFavorited ? 'currentColor' : 'none'" />
+        <Star class="w-3.5 h-3.5" :fill="isBookmarked ? 'currentColor' : 'none'" />
       </Button>
       <Input
         v-model="urlInput"
