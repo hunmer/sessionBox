@@ -236,9 +236,11 @@ watch(() => tabStore.favoriteBarVisible, () => {
 <template>
   <TooltipProvider :delay-duration="300">
     <div
-      class="h-screen w-screen overflow-hidden bg-background text-foreground transition-all duration-150"
+      class="relative h-screen w-screen overflow-hidden bg-background text-foreground transition-all duration-150"
       :class="isMaximized ? '' : 'rounded-lg border border-border/60 shadow-2xl dark:shadow-black/50'"
     >
+      <!-- 全宽窗口悬浮拖拽条 -->
+      <div class="absolute top-0 inset-x-0 h-[12px] z-50" style="-webkit-app-region: drag" />
       <ResizablePanelGroup :key="tabStore.tabLayout" direction="horizontal" @layout="handleLayout">
         <!-- 侧边栏面板 -->
         <ResizablePanel

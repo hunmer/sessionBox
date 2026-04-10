@@ -85,13 +85,12 @@ function handleAddAccount(account: Account) {
 </script>
 
 <template>
-  <div class="flex items-center h-[42px] px-2 gap-1 bg-card/30 border-b border-border" style="-webkit-app-region: drag">
+  <div class="flex items-center h-[42px] px-2 gap-1 bg-card/30 border-b border-border">
     <!-- 切换侧边栏按钮 -->
     <Button
       variant="ghost"
       size="icon-sm"
       class="h-7 w-7 flex-shrink-0 rounded-full"
-      style="-webkit-app-region: no-drag"
       @click="$emit('toggle-sidebar')"
     >
       <PanelLeftClose class="w-3.5 h-3.5" />
@@ -105,7 +104,6 @@ function handleAddAccount(account: Account) {
       item-key="id"
       filter=".tab-pinned"
       class="flex items-center gap-1 flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden"
-      style="-webkit-app-region: no-drag"
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
@@ -149,7 +147,6 @@ function handleAddAccount(account: Account) {
       item-key="id"
       filter=".tab-pinned"
       class="flex items-center gap-1 flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden"
-      style="-webkit-app-region: no-drag"
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
@@ -164,7 +161,7 @@ function handleAddAccount(account: Account) {
 
     <template v-if="tabStore.tabLayout === 'horizontal'">
       <!-- 新建标签按钮 -->
-      <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" style="-webkit-app-region: no-drag" @click="showAddDialog = true">
+      <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" @click="showAddDialog = true">
         <Plus class="w-3.5 h-3.5" />
       </Button>
       <AccountPickerDialog
@@ -181,7 +178,6 @@ function handleAddAccount(account: Account) {
             variant="ghost"
             size="icon"
             class="h-7 w-7 rounded-full hover:bg-secondary flex-shrink-0"
-            style="-webkit-app-region: no-drag"
           >
             <MoreHorizontal class="w-3.5 h-3.5" />
           </Button>
@@ -208,7 +204,7 @@ function handleAddAccount(account: Account) {
     </template>
 
     <!-- 窗口控制按钮 -->
-    <div class="flex items-center gap-1.5 flex-shrink-0" style="-webkit-app-region: no-drag">
+    <div class="flex items-center gap-1.5 flex-shrink-0">
       <Button
         variant="ghost"
         size="icon"
