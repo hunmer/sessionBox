@@ -24,6 +24,7 @@
     "electron-store": "^8.2.0",
     "lucide-vue-next": "^0.460.0",
     "pinia": "^2.3.0",
+    "queue": "^7.0.0",
     "radix-vue": "^1.9.11",
     "reka-ui": "^2.9.5",
     "tailwind-merge": "^2.6.0",

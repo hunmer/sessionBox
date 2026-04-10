@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, FolderPlus, Search, Import, Download } from 'lucide-vue-next'
+import { Plus, FolderPlus, Search, Import, Download, ShieldCheck } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -9,6 +9,7 @@ import FolderTree from './FolderTree.vue'
 import BookmarkList from './BookmarkList.vue'
 import BookmarkFolderDialog from './BookmarkFolderDialog.vue'
 import BookmarkDialog from './BookmarkDialog.vue'
+import BookmarkCheckDialog from './BookmarkCheckDialog.vue'
 import { useBookmarkStore } from '@/stores/bookmark'
 
 const bookmarkStore = useBookmarkStore()
@@ -56,6 +57,7 @@ function handleBookmarkDialogClose() {
 
 const isImporting = ref(false)
 const isExporting = ref(false)
+const checkDialogOpen = ref(false)
 
 async function handleImport() {
   if (isImporting.value) return
@@ -111,6 +113,10 @@ async function handleExport() {
         <Download class="w-3.5 h-3.5" />
         导出
       </Button>
+      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="checkDialogOpen = true">
+        <ShieldCheck class="w-3.5 h-3.5" />
+        检查失效
+      </Button>
     </div>
 
     <!-- 左右分栏 -->
@@ -154,6 +160,12 @@ async function handleExport() {
       :bookmark-id="editingBookmarkId"
       :folder-id="selectedFolderId"
       @update:open="handleBookmarkDialogClose"
+    />
+
+    <!-- 书签健康检查对话框 -->
+    <BookmarkCheckDialog
+      :open="checkDialogOpen"
+      @update:open="checkDialogOpen = $event"
     />
   </div>
 </template>

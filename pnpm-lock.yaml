@@ -38,6 +38,9 @@ importers:
       pinia:
         specifier: ^2.3.0
         version: 2.3.1(typescript@5.7.3)(vue@3.5.32(typescript@5.7.3))
+      queue:
+        specifier: ^7.0.0
+        version: 7.0.0
       radix-vue:
         specifier: ^1.9.11
         version: 1.9.17(vue@3.5.32(typescript@5.7.3))
@@ -2118,6 +2121,9 @@ packages:
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
+
+  queue@7.0.0:
+    resolution: {integrity: sha512-sphwS7HdfQnvrJAXUNAUgpf9H/546IE3p/5Lf2jr71O4udEYlqAhkevykumas2FYuMkX/29JMOgrRdRoYZ/X9w==}
 
   quick-lru@5.1.1:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
@@ -4766,6 +4772,8 @@ snapshots:
       once: 1.4.0
 
   punycode@2.3.1: {}
+
+  queue@7.0.0: {}
 
   quick-lru@5.1.1: {}
 

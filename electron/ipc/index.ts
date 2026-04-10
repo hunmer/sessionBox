@@ -42,6 +42,7 @@ import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
 import { registerExtensionHandlers } from './extensions'
 import { registerShortcutIpcHandlers } from './shortcut'
+import { registerBookmarkCheckIpc } from './bookmark-check'
 import { webviewManager } from '../services/webview-manager'
 
 /** 账号图标存储目录 */
@@ -200,6 +201,9 @@ $img.Dispose()`
 
   // ====== 快捷键 ======
   registerShortcutIpcHandlers()
+
+  // ====== 书签健康检查 ======
+  registerBookmarkCheckIpc()
 
   // ====== 书签 ======
   ipcMain.handle('bookmark:list', () => listBookmarks())

@@ -211,6 +211,19 @@ const api = {
     reorder: (ids: string[]): Promise<void> => ipcRenderer.invoke('bookmarkFolder:reorder', ids)
   },
 
+  bookmarkCheck: {
+    start: (config: {
+      bookmarks: Array<{ id: string; url: string; title?: string }>
+      maxRetries: number
+      concurrency: number
+      useProxy: boolean
+      timeout: number
+    }): Promise<{ taskId: string }> =>
+      ipcRenderer.invoke('bookmark:checkStart', config),
+    cancel: (taskId: string): Promise<void> =>
+      ipcRenderer.invoke('bookmark:checkCancel', taskId)
+  },
+
   extension: {
     list: (): Promise<Extension[]> => ipcRenderer.invoke('extension:list'),
     select: (): Promise<Extension | null> => ipcRenderer.invoke('extension:select'),

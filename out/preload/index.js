@@ -149,6 +149,10 @@ const api = {
     delete: (id) => electron.ipcRenderer.invoke("bookmarkFolder:delete", id),
     reorder: (ids) => electron.ipcRenderer.invoke("bookmarkFolder:reorder", ids)
   },
+  bookmarkCheck: {
+    start: (config) => electron.ipcRenderer.invoke("bookmark:checkStart", config),
+    cancel: (taskId) => electron.ipcRenderer.invoke("bookmark:checkCancel", taskId)
+  },
   extension: {
     list: () => electron.ipcRenderer.invoke("extension:list"),
     select: () => electron.ipcRenderer.invoke("extension:select"),
