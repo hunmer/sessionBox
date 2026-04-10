@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
@@ -51,6 +52,7 @@ const ready = ref(false)
 const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
+const proxyApplied = computed(() => !!tabStore.activeProxyInfo?.applied)
 const activeProxyBadgeClass = computed(() => {
   const status = tabStore.activeProxyInfo?.status
   if (status === 'success') {
@@ -69,6 +71,11 @@ async function handleDetectProxy(): Promise<void> {
   if (!tabStore.activeTabId || !tabStore.activeProxyInfo?.enabled) return
   if (tabStore.activeProxyInfo?.status === 'checking') return
   await tabStore.detectProxy(tabStore.activeTabId)
+}
+
+async function handleToggleProxy(enabled: boolean): Promise<void> {
+  if (!tabStore.activeTabId || !tabStore.activeProxyInfo?.enabled) return
+  await tabStore.setProxyEnabled(tabStore.activeTabId, enabled)
 }
 
 // ====== 页面加载进度条 ======
@@ -343,16 +350,22 @@ watch(() => tabStore.favoriteBarVisible, () => {
                     <span class="truncate">
                       {{ tabStore.activeTab?.url || '就绪' }}
                     </span>
-                    <Badge
-                      v-if="tabStore.activeProxyInfo?.enabled && activeProxyBadgeText"
-                      variant="outline"
-                      class="max-w-[40%] truncate select-none"
-                      :class="activeProxyBadgeClass"
-                      :title="tabStore.activeProxyInfo?.error || tabStore.activeProxyInfo?.ip || activeProxyBadgeText"
-                      @click="handleDetectProxy"
-                    >
-                      {{ activeProxyBadgeText }}
-                    </Badge>
+                    <div v-if="tabStore.activeProxyInfo?.enabled" class="flex items-center gap-2 shrink-0 max-w-[45%]">
+                      <Switch
+                        :model-value="proxyApplied"
+                        @update:model-value="handleToggleProxy"
+                      />
+                      <Badge
+                        v-if="activeProxyBadgeText"
+                        variant="outline"
+                        class="max-w-full truncate select-none"
+                        :class="activeProxyBadgeClass"
+                        :title="tabStore.activeProxyInfo?.error || tabStore.activeProxyInfo?.ip || activeProxyBadgeText"
+                        @click="handleDetectProxy"
+                      >
+                        {{ activeProxyBadgeText }}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
                 <Transition

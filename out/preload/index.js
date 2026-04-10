@@ -122,6 +122,7 @@ const api = {
     goForward: (tabId) => electron.ipcRenderer.invoke("tab:goForward", tabId),
     reload: (tabId) => electron.ipcRenderer.invoke("tab:reload", tabId),
     detectProxy: (tabId) => electron.ipcRenderer.invoke("tab:detect-proxy", tabId),
+    setProxyEnabled: (tabId, enabled) => electron.ipcRenderer.invoke("tab:set-proxy-enabled", tabId, enabled),
     openDevTools: (tabId) => electron.ipcRenderer.invoke("tab:openDevTools", tabId),
     setMuted: (tabId, muted) => electron.ipcRenderer.invoke("tab:set-muted", tabId, muted),
     openInNewWindow: (tabId) => electron.ipcRenderer.invoke("tab:open-in-new-window", tabId),

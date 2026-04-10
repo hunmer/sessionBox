@@ -46,6 +46,7 @@ interface ViewEntry {
 }
 
 class WebviewManager {
+  private sessionProxyEnabled = new Map<string, boolean>()
   private views = new Map<string, ViewEntry>()
   private mainWindow: BrowserWindow | null = null
   private activeTabId: string | null = null
@@ -72,6 +73,10 @@ class WebviewManager {
   private sendProxyInfo(tabId: string, payload: Record<string, unknown> | null): void {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) return
     this.mainWindow.webContents.send('on:tab:proxy-info', tabId, payload)
+  }
+
+  private isSessionProxyEnabled(accountId: string): boolean {
+    return this.sessionProxyEnabled.get(accountId) ?? true
   }
 
   private getProxyBindingText(proxy: Proxy): string {
@@ -101,6 +106,7 @@ class WebviewManager {
 
     this.sendProxyInfo(tabId, {
       enabled: true,
+      applied: this.isSessionProxyEnabled(entry.accountId),
       name: proxy.name,
       text: this.getProxyBindingText(proxy),
       status: 'idle',
@@ -124,6 +130,7 @@ class WebviewManager {
     const bindingText = this.getProxyBindingText(proxy)
     this.sendProxyInfo(tabId, {
       enabled: true,
+      applied: this.isSessionProxyEnabled(entry.accountId),
       name: proxy.name,
       text: bindingText,
       status: 'checking',
@@ -134,6 +141,7 @@ class WebviewManager {
       const ip = await fetchSessionExitIp(entry.view.webContents.session)
       this.sendProxyInfo(tabId, {
         enabled: true,
+        applied: this.isSessionProxyEnabled(entry.accountId),
         name: proxy.name,
         text: bindingText,
         ip,
@@ -145,6 +153,7 @@ class WebviewManager {
       const message = error instanceof Error ? error.message : String(error)
       this.sendProxyInfo(tabId, {
         enabled: true,
+        applied: this.isSessionProxyEnabled(entry.accountId),
         name: proxy.name,
         text: bindingText,
         error: message,
@@ -199,7 +208,10 @@ class WebviewManager {
         passwordLength: proxy.password?.length ?? 0,
         pacScriptLength: proxy.pacScript?.length ?? 0
       })
-      applyProxyPromise = applyProxyToSession(view.webContents.session, proxy)
+      applyProxyPromise = applyProxyToSession(
+        view.webContents.session,
+        this.isSessionProxyEnabled(accountId) ? proxy : null
+      )
         .then(() => {
           console.log('[WebviewManager] setProxy success', {
             tabId,
@@ -504,6 +516,43 @@ class WebviewManager {
     const entry = this.views.get(tabId)
     if (entry) {
       entry.view.webContents.reload()
+    }
+  }
+
+  async setProxyEnabledForTab(tabId: string, enabled: boolean): Promise<{ ok: boolean; enabled: boolean; error?: string }> {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) {
+      return { ok: false, enabled, error: '标签页不存在' }
+    }
+
+    const proxy = this.getEffectiveProxy(entry.accountId)
+    if (!proxy) {
+      this.sendProxyInfo(tabId, null)
+      return { ok: false, enabled: false, error: '当前标签页未绑定代理' }
+    }
+
+    const relatedTabIds = this.getTabIdsByAccount(entry.accountId)
+    this.sessionProxyEnabled.set(entry.accountId, enabled)
+
+    try {
+      await applyProxyToSession(entry.view.webContents.session, enabled ? proxy : null)
+      for (const relatedTabId of relatedTabIds) {
+        await this.refreshProxyInfo(relatedTabId)
+      }
+      for (const relatedTabId of relatedTabIds) {
+        this.reload(relatedTabId)
+      }
+      return { ok: true, enabled }
+    } catch (error) {
+      this.sessionProxyEnabled.set(entry.accountId, !enabled)
+      for (const relatedTabId of relatedTabIds) {
+        await this.refreshProxyInfo(relatedTabId)
+      }
+      return {
+        ok: false,
+        enabled: !enabled,
+        error: error instanceof Error ? error.message : String(error)
+      }
     }
   }
 

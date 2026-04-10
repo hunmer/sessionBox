@@ -119,6 +119,10 @@ export function registerTabIpcHandlers(): void {
     return await webviewManager.detectProxyInfo(tabId)
   })
 
+  ipcMain.handle('tab:set-proxy-enabled', async (_e, tabId: string, enabled: boolean) => {
+    return await webviewManager.setProxyEnabledForTab(tabId, enabled)
+  })
+
   ipcMain.handle('tab:openDevTools', (_e, tabId: string) => {
     webviewManager.openDevTools(tabId)
   })

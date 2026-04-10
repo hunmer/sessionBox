@@ -16,6 +16,7 @@ const TAB_GROUP_KEY = 'sessionbox-tab-group-enabled'
 export const useTabStore = defineStore('tab', () => {
   interface TabProxyInfo {
     enabled: boolean
+    applied?: boolean
     name?: string
     ip?: string
     text?: string
@@ -292,6 +293,10 @@ export const useTabStore = defineStore('tab', () => {
     return await api.tab.detectProxy(tabId)
   }
 
+  async function setProxyEnabled(tabId: string, enabled: boolean) {
+    return await api.tab.setProxyEnabled(tabId, enabled)
+  }
+
   async function openDevTools(tabId: string) {
     await api.tab.openDevTools(tabId)
   }
@@ -487,6 +492,7 @@ export const useTabStore = defineStore('tab', () => {
     goForward,
     reload,
     detectProxy,
+    setProxyEnabled,
     openDevTools,
     openInNewWindow,
     openInBrowser,
