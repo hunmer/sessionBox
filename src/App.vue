@@ -78,7 +78,7 @@ async function handleDetectProxy(): Promise<void> {
 }
 
 async function handleToggleProxy(enabled: boolean): Promise<void> {
-  if (!tabStore.activeTabId || !tabStore.activeProxyInfo?.enabled) return
+  if (!tabStore.activeTabId) return
   const tab = tabStore.activeTab
   if (!tab) return
   const account = accountStore.getAccount(tab.accountId)
@@ -361,7 +361,7 @@ watch(() => tabStore.favoriteBarVisible, () => {
                     <span class="truncate">
                       {{ tabStore.activeTab?.url || '就绪' }}
                     </span>
-                    <div v-if="tabStore.activeProxyInfo?.enabled" class="flex items-center gap-2 shrink-0 max-w-[45%]">
+                    <div v-if="tabStore.activeProxyInfo" class="flex items-center gap-2 shrink-0 max-w-[45%]">
                       <Switch
                         :model-value="proxyApplied"
                         @update:model-value="handleToggleProxy"

@@ -245,7 +245,14 @@ class WebviewManager {
         autoProxyEnabled: account?.autoProxyEnabled ?? false
       })
       this.sessionProxyEnabled.set(accountId, false)
-      this.sendProxyInfo(tabId, null)
+      this.sendProxyInfo(tabId, {
+        enabled: proxy.enabled !== false,
+        applied: false,
+        name: proxy.name,
+        text: this.getProxyBindingText(proxy),
+        status: 'idle',
+        proxyMode: proxy.proxyMode ?? 'global'
+      })
     } else {
       console.log('[WebviewManager] no proxy applied', {
         tabId,
@@ -268,10 +275,8 @@ class WebviewManager {
       try {
         if (applyProxyPromise) {
           await applyProxyPromise
-          await this.refreshProxyInfo(tabId)
-        } else {
-          this.sendProxyInfo(tabId, null)
         }
+        await this.refreshProxyInfo(tabId)
         await ensureExtensionsLoadedForAccount(accountId || null)
         await view.webContents.loadURL(url)
       } catch (error) {
