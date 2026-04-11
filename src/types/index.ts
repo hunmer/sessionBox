@@ -38,23 +38,32 @@ export interface Group {
   workspaceId?: string // 所属工作区
 }
 
-// 账号
-export interface Account {
+// 容器
+export interface Container {
   id: string
-  groupId: string
   name: string
   icon: string
-  proxyId?: string // 账号级代理（优先于分组代理）
-  autoProxyEnabled?: boolean // 是否自动启用代理（默认 false）
-  userAgent?: string // 自定义 UA（优先于全局默认值）
-  defaultUrl: string // 启动 URL
+  proxyId?: string // 容器级代理（优先于分组代理）
   order: number
+}
+
+// 页面
+export interface Page {
+  id: string
+  groupId: string
+  containerId?: string    // 空 = 走默认容器
+  name: string
+  icon: string
+  url: string             // 默认启动 URL
+  order: number
+  proxyId?: string        // 页面级代理（覆盖容器代理）
+  userAgent?: string
 }
 
 // 标签页（持久化模型）
 export interface Tab {
   id: string
-  accountId: string
+  pageId: string
   title: string
   url: string
   order: number
@@ -75,7 +84,7 @@ export interface Bookmark {
   id: string
   title: string
   url: string
-  accountId?: string // 可选绑定账号，使用其 partition
+  pageId?: string // 可选绑定页面，使用其 partition
   favicon?: string   // 图标 URL
   folderId: string   // 所属文件夹
   order: number      // 排序

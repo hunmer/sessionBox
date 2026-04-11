@@ -3,7 +3,8 @@ import { reactive, computed } from 'vue'
 import { ChevronRight, MoreHorizontal } from "lucide-vue-next"
 import draggable from 'vuedraggable'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
-import { useAccountStore } from '@/stores/account'
+import { useContainerStore } from '@/stores/container'
+import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
 
 import {
@@ -24,10 +25,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Pencil, Trash2, Plus } from "lucide-vue-next"
-import type { Group, Account } from '@/types'
+import type { Group, Page } from '@/types'
 
-interface WorkspacePage {
-  account: Account
+interface PageItem {
+  page: Page
   id: string
   name: string
   emoji: string
@@ -39,7 +40,7 @@ interface Workspace {
   name: string
   emoji: string
   color?: string
-  pages: WorkspacePage[]
+  pages: PageItem[]
 }
 
 const props = defineProps<{
@@ -47,23 +48,24 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  selectAccount: [accountId: string]
+  selectPage: [pageId: string]
   editGroup: [group: Group]
   deleteGroup: [group: Group]
-  addAccount: [groupId: string]
-  editAccount: [account: Account]
-  deleteAccount: [account: Account]
+  addPage: [groupId: string]
+  editPage: [page: Page]
+  deletePage: [page: Page]
 }>()
 
-const accountStore = useAccountStore()
+const containerStore = useContainerStore()
+const pageStore = usePageStore()
 const tabStore = useTabStore()
 
-// 计算每个账号的标签页数量
-const accountTabCounts = computed(() => {
+// 计算每个页面的标签页数量
+const pageTabCounts = computed(() => {
   const counts: Record<string, number> = {}
   for (const tab of tabStore.tabs) {
-    if (tab.accountId) {
-      counts[tab.accountId] = (counts[tab.accountId] || 0) + 1
+    if (tab.pageId) {
+      counts[tab.pageId] = (counts[tab.pageId] || 0) + 1
     }
   }
   return counts
@@ -79,18 +81,18 @@ props.workspaces.forEach((w) => {
   }
 })
 
-function handleAccountClick(pageId: string) {
-  emit('selectAccount', pageId)
+function handlePageClick(pageId: string) {
+  emit('selectPage', pageId)
 }
 
 // 分组拖拽排序
 function onGroupReorder(reordered: Workspace[]) {
-  accountStore.reorderGroups(reordered.map(w => w.group.id))
+  containerStore.reorderGroups(reordered.map(w => w.group.id))
 }
 
-// 账号拖拽排序
-function onAccountReorder(groupId: string, reordered: WorkspacePage[]) {
-  accountStore.reorderAccounts(reordered.map(p => p.id))
+// 页面拖拽排序
+function onPageReorder(groupId: string, reordered: PageItem[]) {
+  pageStore.reorderPages(reordered.map(p => p.id))
 }
 </script>
 
@@ -140,9 +142,9 @@ function onAccountReorder(groupId: string, reordered: WorkspacePage[]) {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem @click="emit('addAccount', workspace.group.id)">
+                <DropdownMenuItem @click="emit('addPage', workspace.group.id)">
                   <Plus class="w-4 h-4 mr-2" />
-                  新建账号
+                  新建页面
                 </DropdownMenuItem>
                 <DropdownMenuItem @click="emit('editGroup', workspace.group)">
                   <Pencil class="w-4 h-4 mr-2" />
@@ -157,7 +159,7 @@ function onAccountReorder(groupId: string, reordered: WorkspacePage[]) {
             </DropdownMenu>
           </div>
           <CollapsibleContent>
-            <!-- 账号列表（可拖拽排序） -->
+            <!-- 页面列表（可拖拽排序） -->
             <draggable
               :model-value="workspace.pages"
               item-key="id"
@@ -166,9 +168,9 @@ function onAccountReorder(groupId: string, reordered: WorkspacePage[]) {
               data-slot="sidebar-menu-sub"
               data-sidebar="menu-badge"
               class="border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5 group-data-[collapsible=icon]:hidden"
-              @update:model-value="onAccountReorder(workspace.group.id, $event)"
+              @update:model-value="onPageReorder(workspace.group.id, $event)"
             >
-              <template #item="{ element: page }">
+              <template #item="{ element: pageItem }">
                 <SidebarMenuSubItem
                   :style="workspace.color ? { '--item-hover': workspace.color + '20' } : undefined"
                   class="group/menu-sub-item"
@@ -178,18 +180,18 @@ function onAccountReorder(groupId: string, reordered: WorkspacePage[]) {
                       <a
                         href="#"
                         class="flex items-center gap-2 w-full text-left"
-                        @click.prevent="handleAccountClick(page.id)"
+                        @click.prevent="handlePageClick(pageItem.id)"
                       >
-                        <EmojiRenderer :emoji="page.emoji" />
-                        <span>{{ page.name }}</span>
+                        <EmojiRenderer :emoji="pageItem.emoji" />
+                        <span>{{ pageItem.name }}</span>
                         <span
-                          v-if="accountTabCounts[page.id]"
+                          v-if="pageTabCounts[pageItem.id]"
                           class="ml-auto inline-flex items-center justify-center rounded-full text-[10px] leading-none min-w-4 h-4 px-1"
                           :style="workspace.color
                             ? { backgroundColor: workspace.color + '30', color: workspace.color }
                             : undefined"
                           :class="!workspace.color && 'bg-primary/20 text-primary'"
-                        >{{ accountTabCounts[page.id] > 1 ? accountTabCounts[page.id] : '' }}</span>
+                        >{{ pageTabCounts[pageItem.id] > 1 ? pageTabCounts[pageItem.id] : '' }}</span>
                       </a>
                     </SidebarMenuSubButton>
                     <DropdownMenu>
@@ -202,12 +204,12 @@ function onAccountReorder(groupId: string, reordered: WorkspacePage[]) {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
-                        <DropdownMenuItem @click="emit('editAccount', page.account)">
+                        <DropdownMenuItem @click="emit('editPage', pageItem.page)">
                           <Pencil class="w-4 h-4 mr-2" />
                           编辑
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem @click="emit('deleteAccount', page.account)" class="text-destructive">
+                        <DropdownMenuItem @click="emit('deletePage', pageItem.page)" class="text-destructive">
                           <Trash2 class="w-4 h-4 mr-2" />
                           删除
                         </DropdownMenuItem>
@@ -230,7 +232,7 @@ function onAccountReorder(groupId: string, reordered: WorkspacePage[]) {
   background-color: var(--hover-bg, transparent);
 }
 
-/* 账号项 hover 效果 - 覆盖 SidebarMenuSubButton 默认的 hover 样式 */
+/* 页面项 hover 效果 - 覆盖 SidebarMenuSubButton 默认的 hover 样式 */
 .group\/menu-sub-item:hover :deep([data-slot="sidebar-menu-sub-button"]) {
   background-color: var(--item-hover, transparent) !important;
 }

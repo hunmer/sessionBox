@@ -16,7 +16,7 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'next-tab', label: '下一个标签页', defaultAccelerator: 'CmdOrCtrl+Tab', supportsGlobal: true },
   { id: 'prev-tab', label: '上一个标签页', defaultAccelerator: 'CmdOrCtrl+Shift+Tab', supportsGlobal: true },
   { id: 'toggle-sidebar', label: '切换侧边栏', defaultAccelerator: 'CmdOrCtrl+B', supportsGlobal: true },
-  { id: 'new-account', label: '新建账号', defaultAccelerator: 'CmdOrCtrl+N', supportsGlobal: true },
+  { id: 'new-container', label: '新建容器', defaultAccelerator: 'CmdOrCtrl+N', supportsGlobal: true },
   { id: 'reload-tab', label: '刷新当前页', defaultAccelerator: 'CmdOrCtrl+R', supportsGlobal: true },
   { id: 'go-back', label: '后退', defaultAccelerator: 'Alt+Left', supportsGlobal: true },
   { id: 'go-forward', label: '前进', defaultAccelerator: 'Alt+Right', supportsGlobal: true },

@@ -34,21 +34,29 @@ export interface Group {
   workspaceId?: string
 }
 
-export interface Account {
+export interface Container {
   id: string
-  groupId: string
   name: string
   icon: string
   proxyId?: string
-  autoProxyEnabled?: boolean // 是否自动启用代理（默认 false）
-  userAgent?: string
-  defaultUrl: string
   order: number
+}
+
+export interface Page {
+  id: string
+  groupId: string
+  containerId?: string    // 空 = 走默认容器
+  name: string
+  icon: string
+  url: string             // 默认启动 URL
+  order: number
+  proxyId?: string        // 页面级代理（覆盖容器代理）
+  userAgent?: string
 }
 
 export interface Tab {
   id: string
-  accountId: string
+  pageId: string
   title: string
   url: string
   order: number
@@ -73,7 +81,7 @@ export interface Bookmark {
   id: string
   title: string
   url: string
-  accountId?: string
+  pageId?: string
   favicon?: string
   folderId: string
   order: number
@@ -122,18 +130,30 @@ const api = {
       ipcRenderer.invoke('group:reorder', groupIds)
   },
 
-  account: {
-    list: (): Promise<Account[]> => ipcRenderer.invoke('account:list'),
-    create: (data: Omit<Account, 'id'>): Promise<Account> =>
-      ipcRenderer.invoke('account:create', data),
-    update: (id: string, data: Partial<Omit<Account, 'id'>>): Promise<void> =>
-      ipcRenderer.invoke('account:update', id, data),
-    delete: (id: string): Promise<void> => ipcRenderer.invoke('account:delete', id),
-    reorder: (accountIds: string[]): Promise<void> =>
-      ipcRenderer.invoke('account:reorder', accountIds),
-    uploadIcon: (): Promise<string | null> => ipcRenderer.invoke('account:uploadIcon'),
-    createDesktopShortcut: (accountId: string): Promise<string> =>
-      ipcRenderer.invoke('account:createDesktopShortcut', accountId)
+  container: {
+    list: (): Promise<Container[]> => ipcRenderer.invoke('container:list'),
+    create: (data: Omit<Container, 'id'>): Promise<Container> =>
+      ipcRenderer.invoke('container:create', data),
+    update: (id: string, data: Partial<Omit<Container, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('container:update', id, data),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('container:delete', id),
+    reorder: (containerIds: string[]): Promise<void> =>
+      ipcRenderer.invoke('container:reorder', containerIds),
+    uploadIcon: (): Promise<string | null> => ipcRenderer.invoke('container:uploadIcon'),
+    createDesktopShortcut: (containerId: string): Promise<string> =>
+      ipcRenderer.invoke('container:createDesktopShortcut', containerId)
+  },
+
+  page: {
+    list: (): Promise<Page[]> => ipcRenderer.invoke('page:list'),
+    create: (data: Omit<Page, 'id'>): Promise<Page> =>
+      ipcRenderer.invoke('page:create', data),
+    update: (id: string, data: Partial<Omit<Page, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('page:update', id, data),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke('page:delete', id),
+    reorder: (pageIds: string[]): Promise<void> =>
+      ipcRenderer.invoke('page:reorder', pageIds)
   },
 
   proxy: {
@@ -151,7 +171,7 @@ const api = {
 
   tab: {
     list: (): Promise<Tab[]> => ipcRenderer.invoke('tab:list'),
-    create: (accountId: string | null, url?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', accountId, url),
+    create: (pageId: string | null, url?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', pageId, url),
     close: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:close', tabId),
     switch: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:switch', tabId),
     update: (tabId: string, data: Partial<Omit<Tab, 'id'>>): Promise<void> =>
@@ -236,10 +256,10 @@ const api = {
       ipcRenderer.invoke('extension:update', id, data),
     getLoaded: (): Promise<string[]> => ipcRenderer.invoke('extension:getLoaded'),
     openBrowserActionPopup: (
-      accountId: string | null,
+      containerId: string | null,
       extensionId: string,
       anchorRect: { x: number; y: number; width: number; height: number }
-    ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', accountId, extensionId, anchorRect)
+    ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', containerId, extensionId, anchorRect)
   },
 
   window: {

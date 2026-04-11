@@ -76,10 +76,10 @@ const isBookmarked = computed(() => {
 
 // 收藏对话框
 const bookmarkDialogOpen = ref(false)
-const editSite = ref<{ id: string; title: string; url: string; accountId?: string } | null>(null)
+const editSite = ref<{ id: string; title: string; url: string; pageId?: string } | null>(null)
 
-/** 当前 tab 关联的账号 ID */
-const activeAccountId = computed(() => tabStore.activeTab?.accountId)
+/** 当前 tab 关联的页面 ID */
+const activePageId = computed(() => tabStore.activeTab?.pageId)
 
 /** 点击收藏按钮：已收藏则编辑，否则新增 */
 function toggleBookmark() {
@@ -89,7 +89,7 @@ function toggleBookmark() {
   if (isBookmarked.value) {
     const bookmark = bookmarkStore.findBookmarkByUrl(url)
     if (bookmark) {
-      editSite.value = { id: bookmark.id, title: bookmark.title, url: bookmark.url, accountId: bookmark.accountId }
+      editSite.value = { id: bookmark.id, title: bookmark.title, url: bookmark.url, pageId: bookmark.pageId }
     }
   } else {
     editSite.value = null
@@ -167,7 +167,7 @@ function toggleBookmark() {
   <AddBookmarkDialog
     v-model:open="bookmarkDialogOpen"
     :edit-site="editSite"
-    :default-account-id="activeAccountId"
+    :default-page-id="activePageId"
     :default-url="tabStore.activeTab?.url"
     :default-title="tabStore.activeTab?.title"
   />

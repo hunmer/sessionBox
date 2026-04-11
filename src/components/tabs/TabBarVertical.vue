@@ -7,7 +7,7 @@ import TabLayoutMenu from './TabLayoutMenu.vue'
 import NewTabDialog from './NewTabDialog.vue'
 import TabItem from './TabItem.vue'
 import { useTabStore } from '@/stores/tab'
-import type { Account } from '@/types'
+import type { Page } from '@/types'
 
 const tabStore = useTabStore()
 const showAddDialog = defineModel<boolean>('showAddDialog')
@@ -52,8 +52,8 @@ function onListUpdate(newList: { id: string }[]) {
   tabStore.reorderTabs(ids)
 }
 
-function handleAddAccount(account: Account) {
-  tabStore.createTab(account.id)
+function handleAddAccount(page: Page) {
+  tabStore.createTab(page.id)
 }
 
 function handleNavigateUrl(url: string) {

@@ -7,7 +7,8 @@ import NavMain from '@/components/NavMain.vue'
 import NavUser from '@/components/NavUser.vue'
 import SidebarGroups from './SidebarGroups.vue'
 import GroupDialog from './GroupDialog.vue'
-import AccountDialog from './AccountDialog.vue'
+import PageDialog from './PageDialog.vue'
+import ContainerDialog from './ContainerDialog.vue'
 import {
   SidebarContent,
   SidebarHeader,
@@ -15,14 +16,16 @@ import {
 } from '@/components/ui/sidebar'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
-import { useAccountStore } from '@/stores/account'
+import { useContainerStore } from '@/stores/container'
+import { usePageStore } from '@/stores/page'
 import { useHomepageStore } from '@/stores/homepage'
 import { useUserProfileStore } from '@/stores/userProfile'
-import type { Group, Account } from '@/types'
+import type { Group, Page } from '@/types'
 
 const workspaceStore = useWorkspaceStore()
 const tabStore = useTabStore()
-const accountStore = useAccountStore()
+const containerStore = useContainerStore()
+const pageStore = usePageStore()
 const homepageStore = useHomepageStore()
 const userProfileStore = useUserProfileStore()
 
@@ -38,9 +41,10 @@ const emit = defineEmits<{
 // 对话框状态
 const groupDialogOpen = ref(false)
 const editingGroup = ref<Group | null>(null)
-const accountDialogOpen = ref(false)
-const editingAccount = ref<Account | null>(null)
-const newAccountGroupId = ref<string | undefined>(undefined)
+const pageDialogOpen = ref(false)
+const editingPage = ref<Page | null>(null)
+const newPageGroupId = ref<string>('')
+const containerDialogOpen = ref(false)
 
 // 分组操作
 function handleEditGroup(group: Group) {
@@ -50,28 +54,28 @@ function handleEditGroup(group: Group) {
 
 async function handleSaveGroup(data: { name: string; icon?: string; proxyId?: string; color?: string; workspaceId?: string }) {
   if (editingGroup.value) {
-    await accountStore.updateGroup(editingGroup.value.id, data)
+    await containerStore.updateGroup(editingGroup.value.id, data)
   } else {
-    await accountStore.createGroup(data.name, data.color, data.workspaceId, data.proxyId, data.icon)
+    await containerStore.createGroup(data.name, data.color, data.workspaceId, data.proxyId, data.icon)
   }
   groupDialogOpen.value = false
   editingGroup.value = null
 }
 
 async function handleDeleteGroup(group: Group) {
-  const groupAccounts = accountStore.accountsByGroup.get(group.id) || []
-  const hint = groupAccounts.length > 0
-    ? `该分组下有 ${groupAccounts.length} 个账号，将一并删除。`
+  const groupPages = pageStore.pagesByGroup.get(group.id) || []
+  const hint = groupPages.length > 0
+    ? `该分组下有 ${groupPages.length} 个页面，将一并删除。`
     : ''
   if (!confirm(`确定要删除分组「${group.name}」吗？${hint}`)) return
 
-  // 先关闭并删除该分组下所有账号的标签页，再删除账号，最后删除分组
-  for (const account of groupAccounts) {
-    const tab = tabStore.tabs.find(t => t.accountId === account.id)
+  // 先关闭并删除该分组下所有页面的标签页，再删除页面，最后删除分组
+  for (const page of groupPages) {
+    const tab = tabStore.tabs.find(t => t.pageId === page.id)
     if (tab) await tabStore.closeTab(tab.id)
-    await accountStore.deleteAccount(account.id)
+    await pageStore.deletePage(page.id)
   }
-  await accountStore.deleteGroup(group.id)
+  await containerStore.deleteGroup(group.id)
 }
 
 // 添加分组
@@ -80,46 +84,51 @@ function handleAddGroup() {
   groupDialogOpen.value = true
 }
 
-// 添加账号（groupId 为空时是新建分组按钮，否则是分组菜单中的新建账号）
-function handleAddAccount(groupId: string) {
+// 添加页面
+function handleAddPage(groupId: string) {
   if (!groupId) {
     handleAddGroup()
     return
   }
-  editingAccount.value = null
-  newAccountGroupId.value = groupId
-  accountDialogOpen.value = true
+  editingPage.value = null
+  newPageGroupId.value = groupId
+  pageDialogOpen.value = true
 }
 
-function handleEditAccount(account: Account) {
-  editingAccount.value = account
-  accountDialogOpen.value = true
+// 编辑页面
+function handleEditPage(page: Page) {
+  editingPage.value = page
+  newPageGroupId.value = page.groupId
+  pageDialogOpen.value = true
 }
 
-async function handleSaveAccount(data: Partial<Account> & { groupId: string; name: string; icon: string; defaultUrl: string; order: number }) {
-  if (editingAccount.value) {
-    await accountStore.updateAccount(editingAccount.value.id, data)
+// 删除页面
+async function handleDeletePage(page: Page) {
+  if (!confirm(`确定要删除页面「${page.name}」吗？`)) return
+  // 关闭关联的 tab
+  const tab = tabStore.tabs.find(t => t.pageId === page.id)
+  if (tab) await tabStore.closeTab(tab.id)
+  await pageStore.deletePage(page.id)
+}
+
+// 保存页面
+async function handleSavePage(data: Omit<Page, 'id'>) {
+  if (editingPage.value) {
+    await pageStore.updatePage(editingPage.value.id, data)
   } else {
-    await accountStore.createAccount(data)
+    await pageStore.createPage(data)
   }
-  accountDialogOpen.value = false
-  editingAccount.value = null
-  newAccountGroupId.value = undefined
+  pageDialogOpen.value = false
+  editingPage.value = null
 }
 
-async function handleDeleteAccount(account: Account) {
-  if (confirm(`确定要删除账号「${account.name}」吗？`)) {
-    await accountStore.deleteAccount(account.id)
-  }
-}
-
-/** 切换到或创建指定账号的标签页 */
-function handleSelectAccount(accountId: string) {
-  const accountTabs = tabStore.sortedTabs.filter((t) => t.accountId === accountId)
-  if (accountTabs.length > 0) {
-    tabStore.switchTab(accountTabs[accountTabs.length - 1].id)
+/** 切换到或创建指定页面的标签页 */
+function handleSelectPage(pageId: string) {
+  const pageTabs = tabStore.sortedTabs.filter((t) => t.pageId === pageId)
+  if (pageTabs.length > 0) {
+    tabStore.switchTab(pageTabs[pageTabs.length - 1].id)
   } else {
-    tabStore.createTab(accountId)
+    tabStore.createTab(pageId)
   }
 }
 
@@ -190,10 +199,10 @@ const workspaceSwitcherItems = computed(() => {
         :collapsed="collapsed"
         @edit-group="handleEditGroup"
         @delete-group="handleDeleteGroup"
-        @add-account="handleAddAccount"
-        @edit-account="handleEditAccount"
-        @delete-account="handleDeleteAccount"
-        @select-account="handleSelectAccount"
+        @add-page="handleAddPage"
+        @edit-page="handleEditPage"
+        @delete-page="handleDeletePage"
+        @select-page="handleSelectPage"
       />
       <NavUser
         class="mt-auto p-1 shrink-0"
@@ -213,11 +222,17 @@ const workspaceSwitcherItems = computed(() => {
     @save="handleSaveGroup"
   />
 
-  <!-- 账号编辑对话框 -->
-  <AccountDialog
-    v-model:open="accountDialogOpen"
-    :account="editingAccount"
-    :group-id="newAccountGroupId"
-    @save="handleSaveAccount"
+  <!-- 页面编辑/新建对话框 -->
+  <PageDialog
+    v-model:open="pageDialogOpen"
+    :page="editingPage"
+    :group-id="newPageGroupId"
+    @save="handleSavePage"
+    @delete="handleDeletePage"
+  />
+
+  <!-- 容器管理面板 -->
+  <ContainerDialog
+    v-model:open="containerDialogOpen"
   />
 </template>

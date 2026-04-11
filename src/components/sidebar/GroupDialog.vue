@@ -59,7 +59,7 @@ watch(() => props.open, (val) => {
 
 /** 上传自定义图标 */
 async function handleUploadIcon() {
-  const result = await window.api.account.uploadIcon()
+  const result = await window.api.container.uploadIcon()
   if (result) icon.value = result
 }
 

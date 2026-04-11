@@ -10,15 +10,15 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { useAccountStore } from '@/stores/account'
+import { usePageStore } from '@/stores/page'
 import { useBookmarkStore } from '@/stores/bookmark'
 
 const props = defineProps<{
   open: boolean
   /** 编辑模式：传入已有的站点数据 */
-  editSite?: { id: string; title: string; url: string; accountId?: string } | null
-  /** 新增模式下的默认关联账号 ID */
-  defaultAccountId?: string
+  editSite?: { id: string; title: string; url: string; pageId?: string } | null
+  /** 新增模式下的默认关联页面 ID */
+  defaultPageId?: string
   /** 新增模式下的默认 URL */
   defaultUrl?: string
   /** 新增模式下的默认标题 */
@@ -29,20 +29,20 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const accountStore = useAccountStore()
+const pageStore = usePageStore()
 const bookmarkStore = useBookmarkStore()
 
 const title = ref('')
 const url = ref('')
-const accountId = ref<string>('__none__')
+const pageId = ref<string>('__none__')
 const folderId = ref<string>('__bookmark_bar__')
 
 const isEdit = computed(() => !!props.editSite)
 const dialogTitle = computed(() => isEdit.value ? '编辑快捷网站' : '添加快捷网站')
 
-/** 所有账号列表（按分组归类，扁平化） */
-const allAccounts = computed(() =>
-  [...accountStore.accounts].sort((a, b) => a.order - b.order)
+/** 所有页面列表（扁平化） */
+const allPages = computed(() =>
+  [...pageStore.pages].sort((a, b) => a.order - b.order)
 )
 
 /** 监听对话框打开，初始化表单数据 */
@@ -51,13 +51,13 @@ watch(() => props.open, (open) => {
   if (props.editSite) {
     title.value = props.editSite.title
     url.value = props.editSite.url
-    accountId.value = props.editSite.accountId || '__none__'
+    pageId.value = props.editSite.pageId || '__none__'
     const bookmark = bookmarkStore.bookmarks.find((b) => b.id === props.editSite?.id)
     folderId.value = bookmark?.folderId || '__bookmark_bar__'
   } else {
     title.value = props.defaultTitle || ''
     url.value = props.defaultUrl || ''
-    accountId.value = props.defaultAccountId || '__none__'
+    pageId.value = props.defaultPageId || '__none__'
     folderId.value = '__bookmark_bar__'
   }
 })
@@ -72,14 +72,14 @@ async function handleSubmit() {
   if (!finalUrl) return
 
   const normalizedUrl = finalUrl.match(/^https?:\/\//) ? finalUrl : `https://${finalUrl}`
-  const finalAccountId = accountId.value === '__none__' ? undefined : accountId.value
+  const finalPageId = pageId.value === '__none__' ? undefined : pageId.value
   const finalTitle = title.value.trim() || normalizedUrl
 
   if (isEdit.value && props.editSite) {
     await bookmarkStore.updateBookmark(props.editSite.id, {
       title: finalTitle,
       url: normalizedUrl,
-      accountId: finalAccountId,
+      pageId: finalPageId,
       folderId: folderId.value
     })
   } else {
@@ -87,7 +87,7 @@ async function handleSubmit() {
     await bookmarkStore.createBookmark({
       title: finalTitle,
       url: normalizedUrl,
-      accountId: finalAccountId,
+      pageId: finalPageId,
       folderId: folderId.value,
       order: siblings.length
     })
@@ -140,21 +140,21 @@ function isValid() {
           </Select>
         </div>
 
-        <!-- 选择账号 -->
+        <!-- 选择页面 -->
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs text-muted-foreground">关联账号（可选，用于独立会话）</label>
-          <Select v-model="accountId">
+          <label class="text-xs text-muted-foreground">关联页面（可选，用于独立会话）</label>
+          <Select v-model="pageId">
             <SelectTrigger class="h-8 text-sm">
-              <SelectValue placeholder="不关联账号（默认会话）" />
+              <SelectValue placeholder="不关联页面（默认会话）" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">不关联账号（默认会话）</SelectItem>
+              <SelectItem value="__none__">不关联页面（默认会话）</SelectItem>
               <SelectItem
-                v-for="account in allAccounts"
-                :key="account.id"
-                :value="account.id"
+                v-for="page in allPages"
+                :key="page.id"
+                :value="page.id"
               >
-                {{ account.name }}
+                {{ page.name }}
               </SelectItem>
             </SelectContent>
           </Select>

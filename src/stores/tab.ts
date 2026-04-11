@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch, nextTick } from 'vue'
 import type { Tab, NavState } from '../types'
-import { useAccountStore } from './account'
+import { useContainerStore } from './container'
+import { usePageStore } from './page'
 import { useWorkspaceStore } from './workspace'
 import { useHistoryStore } from './history'
 
@@ -74,22 +75,24 @@ export const useTabStore = defineStore('tab', () => {
   const groupedSortedTabs = computed(() => {
     if (!tabGroupEnabled.value) return sortedTabs.value
 
-    const accountStore = useAccountStore()
-    const groupByAccount = tabGroupMode.value === 'account'
+    const pageStore = usePageStore()
+    const containerStore = useContainerStore()
+    const groupByContainer = tabGroupMode.value === 'account'
 
     // 按 tab 原有 order 分组
     const groupMap = new Map<string, { name: string; color?: string; tabs: Tab[] }>()
     for (const tab of sortedTabs.value) {
-      const account = accountStore.getAccount(tab.accountId)
-      if (!account) continue
+      const page = pageStore.getPage(tab.pageId)
+      if (!page) continue
 
       let key: string, name: string, color: string | undefined
-      if (groupByAccount) {
-        key = account.id
-        name = account.name
+      if (groupByContainer) {
+        key = page.containerId || '__default__'
+        const container = page.containerId ? containerStore.getContainer(page.containerId) : undefined
+        name = container?.name ?? '默认容器'
         color = undefined
       } else {
-        const group = accountStore.getGroup(account.groupId)
+        const group = containerStore.getGroup(page.groupId)
         key = group?.id ?? '__ungrouped__'
         name = group?.name ?? '未分组'
         color = group?.color
@@ -129,47 +132,50 @@ export const useTabStore = defineStore('tab', () => {
 
   /** 根据当前工作区过滤的标签列表 */
   const workspaceTabs = computed(() => {
-    const accountStore = useAccountStore()
+    const pageStore = usePageStore()
+    const containerStore = useContainerStore()
     const workspaceStore = useWorkspaceStore()
     const activeId = workspaceStore.activeWorkspaceId
-    // 获取当前工作区的所有账号 ID
-    const accountIds = new Set(
-      accountStore.accounts
-        .filter((a) => {
-          const group = accountStore.getGroup(a.groupId)
+    // 获取当前工作区的所有 page ID（通过 page 的 groupId 找到 group，再匹配 workspaceId）
+    const pageIds = new Set(
+      pageStore.pages
+        .filter((p) => {
+          const group = containerStore.getGroup(p.groupId)
           const gWorkspaceId = group?.workspaceId || '__default__'
           return gWorkspaceId === activeId
         })
-        .map((a) => a.id)
+        .map((p) => p.id)
     )
-    // 包含账号匹配的 tab 以及无账号的内部页面 tab
-    return sortedTabs.value.filter((t) => accountIds.has(t.accountId) || t.accountId === '')
+    // 包含 page 匹配的 tab 以及无 page 的内部页面 tab
+    return sortedTabs.value.filter((t) => pageIds.has(t.pageId) || !t.pageId)
   })
 
   /** 工作区内带分组标记的标签列表 */
   const groupedWorkspaceTabs = computed(() => {
     if (!tabGroupEnabled.value) return workspaceTabs.value
 
-    const accountStore = useAccountStore()
-    const groupByAccount = tabGroupMode.value === 'account'
+    const pageStore = usePageStore()
+    const containerStore = useContainerStore()
+    const groupByContainer = tabGroupMode.value === 'account'
     const groupMap = new Map<string, { name: string; color?: string; tabs: Tab[] }>()
     const internalTabs: (Tab & { groupName: string; groupColor?: string; isGroupStart: boolean })[] = []
 
     for (const tab of workspaceTabs.value) {
-      const account = accountStore.getAccount(tab.accountId)
-      // 内部页面 tab（无账号）单独收集，不显示分组标识
-      if (!account) {
+      const page = pageStore.getPage(tab.pageId)
+      // 内部页面 tab（无 page）单独收集，不显示分组标识
+      if (!page) {
         internalTabs.push({ ...tab, groupName: '', groupColor: undefined, isGroupStart: false })
         continue
       }
 
       let key: string, name: string, color: string | undefined
-      if (groupByAccount) {
-        key = account.id
-        name = account.name
+      if (groupByContainer) {
+        key = page.containerId || '__default__'
+        const container = page.containerId ? containerStore.getContainer(page.containerId) : undefined
+        name = container?.name ?? '默认容器'
         color = undefined
       } else {
-        const group = accountStore.getGroup(account.groupId)
+        const group = containerStore.getGroup(page.groupId)
         key = group?.id ?? '__ungrouped__'
         name = group?.name ?? '未分组'
         color = group?.color
@@ -230,16 +236,16 @@ export const useTabStore = defineStore('tab', () => {
     tabs.value = await api.tab.list()
   }
 
-  async function createTab(accountId: string) {
-    const tab = await api.tab.create(accountId)
+  async function createTab(pageId: string) {
+    const tab = await api.tab.create(pageId)
     // tab 由主进程 tab:created 事件添加
     await switchTab(tab.id)
     return tab
   }
 
   /** 使用指定 URL 创建新 tab（用于快捷网站 / 新窗口拦截） */
-  async function createTabForSite(url: string, accountId?: string) {
-    const tab = await api.tab.create(accountId || null, url)
+  async function createTabForSite(url: string, pageId?: string) {
+    const tab = await api.tab.create(pageId || null, url)
     // tab 由主进程 tab:created 事件添加，或 tab:activated 事件激活已有 tab
     await nextTick() // 确保 tab 先添加到列表再切换
     await switchTab(tab.id)
@@ -247,8 +253,8 @@ export const useTabStore = defineStore('tab', () => {
   }
 
   /** 使用指定 URL 创建新 tab（用于新窗口拦截） */
-  async function createTabWithUrl(accountId: string, url: string) {
-    const tab = await api.tab.create(accountId, url)
+  async function createTabWithUrl(pageId: string, url: string) {
+    const tab = await api.tab.create(pageId, url)
     // tab 由主进程 tab:created 事件添加
     await switchTab(tab.id)
     return tab
@@ -441,8 +447,8 @@ export const useTabStore = defineStore('tab', () => {
     })
 
     // 新窗口打开 → 在新 tab 中加载
-    api.on('tab:open-url', async (accountId: unknown, url: unknown) => {
-      await createTabWithUrl(accountId as string, url as string)
+    api.on('tab:open-url', async (pageId: unknown, url: unknown) => {
+      await createTabWithUrl(pageId as string, url as string)
     })
 
     // 标签冻结/解冻状态
@@ -461,12 +467,12 @@ export const useTabStore = defineStore('tab', () => {
       if (t) t.muted = true
     })
 
-    // 深度链接 → 激活或创建对应账号的 tab
-    api.on('open-account', async (accountId: unknown) => {
-      const id = accountId as string
-      const accountTabs = sortedTabs.value.filter((t) => t.accountId === id)
-      if (accountTabs.length > 0) {
-        await switchTab(accountTabs[accountTabs.length - 1].id)
+    // 深度链接 → 激活或创建对应页面的 tab
+    api.on('open-page', async (pageId: unknown) => {
+      const id = pageId as string
+      const pageTabs = sortedTabs.value.filter((t) => t.pageId === id)
+      if (pageTabs.length > 0) {
+        await switchTab(pageTabs[pageTabs.length - 1].id)
       } else {
         await createTab(id)
       }

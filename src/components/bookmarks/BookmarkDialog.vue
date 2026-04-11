@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useBookmarkStore } from '@/stores/bookmark'
-import { useAccountStore } from '@/stores/account'
+import { usePageStore } from '@/stores/page'
 
 const props = defineProps<{
   open: boolean
@@ -18,12 +18,12 @@ const emit = defineEmits<{
 }>()
 
 const bookmarkStore = useBookmarkStore()
-const accountStore = useAccountStore()
+const pageStore = usePageStore()
 
 const title = ref('')
 const url = ref('')
 const selectedFolderId = ref('')
-const selectedAccountId = ref<string>('')
+const selectedPageId = ref<string>('')
 
 const isEdit = computed(() => !!props.bookmarkId)
 const dialogTitle = computed(() => isEdit.value ? '编辑书签' : '添加书签')
@@ -37,12 +37,12 @@ watch(() => props.open, (open) => {
         title.value = bookmark.title
         url.value = bookmark.url
         selectedFolderId.value = bookmark.folderId
-        selectedAccountId.value = bookmark.accountId || '__none__'
+        selectedPageId.value = bookmark.pageId || '__none__'
       }
     } else {
       title.value = ''
       url.value = ''
-      selectedAccountId.value = '__none__'
+      selectedPageId.value = '__none__'
     }
   }
 })
@@ -57,7 +57,7 @@ async function handleSubmit() {
   const data = {
     title: title.value.trim() || finalUrl,
     url: finalUrl,
-    accountId: selectedAccountId.value === '__none__' ? undefined : selectedAccountId.value,
+    pageId: selectedPageId.value === '__none__' ? undefined : selectedPageId.value,
     folderId: selectedFolderId.value,
     order: 0
   }
@@ -107,19 +107,19 @@ async function handleSubmit() {
           </Select>
         </div>
         <div>
-          <label class="text-xs text-muted-foreground mb-1 block">绑定账号（可选）</label>
-          <Select v-model="selectedAccountId">
+          <label class="text-xs text-muted-foreground mb-1 block">绑定页面（可选）</label>
+          <Select v-model="selectedPageId">
             <SelectTrigger class="h-8 text-sm">
               <SelectValue placeholder="不绑定" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">不绑定</SelectItem>
               <SelectItem
-                v-for="account in accountStore.accounts"
-                :key="account.id"
-                :value="account.id"
+                v-for="page in pageStore.pages"
+                :key="page.id"
+                :value="page.id"
               >
-                {{ account.name }}
+                {{ page.name }}
               </SelectItem>
             </SelectContent>
           </Select>

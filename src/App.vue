@@ -15,7 +15,8 @@ import BookmarkBar from '@/components/bookmarks/BookmarkBar.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import UpdateNotification from '@/components/common/UpdateNotification.vue'
-import { useAccountStore } from '@/stores/account'
+import { useContainerStore } from '@/stores/container'
+import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
@@ -39,7 +40,8 @@ const internalPageComponent = computed(() => {
   return INTERNAL_PAGES[path] ?? null
 })
 
-const accountStore = useAccountStore()
+const containerStore = useContainerStore()
+const pageStore = usePageStore()
 const tabStore = useTabStore()
 const proxyStore = useProxyStore()
 const bookmarkStore = useBookmarkStore()
@@ -55,7 +57,7 @@ const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || ''
 const proxyApplied = computed(() => {
   const info = tabStore.activeProxyInfo
   if (!info) return false
-  // 代理配置启用 且 账号自动开启 → Switch 显示 ON
+  // 代理配置启用 且 容器自动开启 → Switch 显示 ON
   return info.enabled && info.applied
 })
 const activeProxyBadgeClass = computed(() => {
@@ -82,10 +84,11 @@ async function handleToggleProxy(enabled: boolean): Promise<void> {
   if (!tabStore.activeTabId) return
   const tab = tabStore.activeTab
   if (!tab) return
-  const account = accountStore.getAccount(tab.accountId)
-  if (!account) return
-  // 1. 更新账号的 autoProxyEnabled（持久化）
-  await accountStore.updateAccount(account.id, { autoProxyEnabled: enabled })
+  const page = pageStore.getPage(tab.pageId)
+  const container = page?.containerId ? containerStore.getContainer(page.containerId) : undefined
+  if (!container) return
+  // 1. 更新容器的 autoProxyEnabled（持久化）
+  await containerStore.updateContainer(container.id, { autoProxyEnabled: enabled })
   // 2. 立即生效：对当前 session 应用/移除代理
   await tabStore.setProxyEnabled(tabStore.activeTabId, enabled)
 }
@@ -200,7 +203,8 @@ onMounted(async () => {
 
   await Promise.all([
     workspaceStore.init(),
-    accountStore.init(),
+    containerStore.init(),
+    pageStore.loadPages(),
     tabStore.init(),
     proxyStore.init(),
     bookmarkStore.init()
@@ -234,9 +238,9 @@ onMounted(async () => {
     const tab = tabStore.activeTab
     switch (actionId) {
       case 'new-tab': {
-        // 新建标签页：用当前活动账号或第一个账号
-        const accountId = tab?.accountId || accountStore.accounts[0]?.id
-        if (accountId) tabStore.createTab(accountId)
+        // 新建标签页：用当前活动页面的 pageId 或第一个 page
+        const currentPageId = tab?.pageId || pageStore.pages[0]?.id
+        if (currentPageId) tabStore.createTab(currentPageId)
         break
       }
       case 'close-tab':
@@ -261,9 +265,9 @@ onMounted(async () => {
       case 'toggle-sidebar':
         toggleSidebar()
         break
-      case 'new-account':
+      case 'new-container':
         // 由 Sidebar 内部处理，此处通过全局事件通知
-        window.dispatchEvent(new CustomEvent('shortcut:new-account'))
+        window.dispatchEvent(new CustomEvent('shortcut:new-container'))
         break
       case 'reload-tab':
         if (tab) tabStore.reload(tab.id)
@@ -401,7 +405,7 @@ watch(() => tabStore.bookmarkBarVisible, () => {
                     </svg>
                   </div>
                   <div class="text-center">
-                    <p class="text-sm text-muted-foreground">点击左侧账号或使用标签栏 + 按钮打开新标签页</p>
+                    <p class="text-sm text-muted-foreground">点击左侧容器或使用标签栏 + 按钮打开新标签页</p>
                   </div>
                 </div>
                 <!-- WebContentsView 被覆盖层（dialog/dropdown）隐藏时的兜底 -->

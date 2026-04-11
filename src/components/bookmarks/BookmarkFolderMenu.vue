@@ -21,7 +21,7 @@ const tabStore = useTabStore()
 
 /** 点击书签，在新 tab 中打开 */
 function openSite(bookmark: Bookmark) {
-  tabStore.createTabForSite(bookmark.url, bookmark.accountId)
+  tabStore.createTabForSite(bookmark.url, bookmark.pageId)
 }
 </script>
 

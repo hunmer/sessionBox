@@ -4,8 +4,8 @@ import type { BrowserWindow, Session, WebContents } from 'electron'
 import {
   createTab as createStoredTab,
   deleteTab as deleteStoredTab,
-  getAccountById,
-  listAccounts,
+  getContainerById,
+  listContainers,
   listExtensions,
   listTabs,
   type Extension
@@ -29,12 +29,12 @@ const extensionInfoMap = new Map<string, { name: string; icon?: string }>()
 // 避免同一 partition 并发重复加载同一个扩展。
 const pendingLoads = new Map<string, Promise<string>>()
 
-function getPartitionKey(accountId?: string | null): PartitionKey {
-  return accountId ? `persist:account-${accountId}` : defaultPartitionKey
+function getPartitionKey(containerId?: string | null): PartitionKey {
+  return containerId ? `persist:container-${containerId}` : defaultPartitionKey
 }
 
-function getSessionForAccount(accountId?: string | null): Session {
-  return accountId ? session.fromPartition(getPartitionKey(accountId)) : session.defaultSession
+function getSessionForContainer(containerId?: string | null): Session {
+  return containerId ? session.fromPartition(getPartitionKey(containerId)) : session.defaultSession
 }
 
 function getLoadedMap(partitionKey: PartitionKey): Map<string, string> {
@@ -46,12 +46,12 @@ function getLoadedMap(partitionKey: PartitionKey): Map<string, string> {
   return loadedMap
 }
 
-function getAllKnownAccountIds(): string[] {
-  return listAccounts().map((account) => account.id)
+function getAllKnownContainerIds(): string[] {
+  return listContainers().map((container) => container.id)
 }
 
-function getAllTargetAccountIds(): Array<string | null> {
-  return [null, ...getAllKnownAccountIds()]
+function getAllTargetContainerIds(): Array<string | null> {
+  return [null, ...getAllKnownContainerIds()]
 }
 
 function getEnabledExtensions(): Extension[] {
@@ -110,7 +110,7 @@ function getInitialExtensionTabTitle(
 
 function createExtensionsInstance(
   browserSession: Session,
-  accountId?: string | null
+  containerId?: string | null
 ): ElectronChromeExtensions {
   const instance = new ElectronChromeExtensions({
     license: extensionRuntimeLicense,
@@ -122,20 +122,20 @@ function createExtensionsInstance(
         throw new Error('Main window is not available')
       }
 
-      const resolvedAccountId = accountId || null
-      const partitionKey = getPartitionKey(resolvedAccountId)
-      const account = resolvedAccountId ? getAccountById(resolvedAccountId) : undefined
-      const tabUrl = details.url || account?.defaultUrl || 'https://www.baidu.com'
+      const resolvedContainerId = containerId || null
+      const partitionKey = getPartitionKey(resolvedContainerId)
+      const container = resolvedContainerId ? getContainerById(resolvedContainerId) : undefined
+      const tabUrl = details.url || container?.defaultUrl || 'https://www.baidu.com'
       const order = listTabs().reduce((max, tab) => Math.max(max, tab.order), -1) + 1
 
       const tab = createStoredTab({
-        accountId: resolvedAccountId || '',
-        title: getInitialExtensionTabTitle(partitionKey, details.url, account?.name),
+        containerId: resolvedContainerId || '',
+        title: getInitialExtensionTabTitle(partitionKey, details.url, container?.name),
         url: tabUrl,
         order
       })
 
-      const webContents = webviewManager.createView(tab.id, resolvedAccountId || '', tabUrl)
+      const webContents = webviewManager.createView(tab.id, resolvedContainerId || '', tabUrl)
       if (!webContents) {
         deleteStoredTab(tab.id)
         throw new Error('Failed to create extension tab webContents')
@@ -172,23 +172,23 @@ function createExtensionsInstance(
 /**
  * 获取或创建 partition 对应的 ElectronChromeExtensions 实例。
  */
-export function getExtensionsForAccount(accountId?: string | null): ElectronChromeExtensions {
-  const partitionKey = getPartitionKey(accountId)
+export function getExtensionsForContainer(containerId?: string | null): ElectronChromeExtensions {
+  const partitionKey = getPartitionKey(containerId)
 
   if (!extensionsMap.has(partitionKey)) {
-    const browserSession = getSessionForAccount(accountId)
-    extensionsMap.set(partitionKey, createExtensionsInstance(browserSession, accountId))
+    const browserSession = getSessionForContainer(containerId)
+    extensionsMap.set(partitionKey, createExtensionsInstance(browserSession, containerId))
   }
 
   return extensionsMap.get(partitionKey)!
 }
 
-async function loadExtensionIntoAccount(
-  accountId: string | null | undefined,
+async function loadExtensionIntoContainer(
+  containerId: string | null | undefined,
   extension: Extension
 ): Promise<string> {
-  const partitionKey = getPartitionKey(accountId)
-  const browserSession = getSessionForAccount(accountId)
+  const partitionKey = getPartitionKey(containerId)
+  const browserSession = getSessionForContainer(containerId)
   const loadedMap = getLoadedMap(partitionKey)
 
   const existingLoadedId =
@@ -209,7 +209,7 @@ async function loadExtensionIntoAccount(
   }
 
   const loadTask = (async () => {
-    getExtensionsForAccount(accountId)
+    getExtensionsForContainer(containerId)
 
     const loadedExt = await browserSession.loadExtension(extension.path)
     loadedMap.set(extension.id, loadedExt.id)
@@ -233,31 +233,31 @@ async function loadExtensionIntoAccount(
 /**
  * 确保某个 partition 已加载全部全局扩展。
  */
-export async function ensureExtensionsLoadedForAccount(
-  accountId?: string | null
+export async function ensureExtensionsLoadedForContainer(
+  containerId?: string | null
 ): Promise<void> {
   const enabledExtensions = getEnabledExtensions()
   for (const extension of enabledExtensions) {
-    await loadExtensionIntoAccount(accountId, extension)
+    await loadExtensionIntoContainer(containerId, extension)
   }
 }
 
 /**
  * 将扩展加载到所有 partition。
  */
-export async function loadExtensionForAllAccounts(extension: Extension): Promise<void> {
-  const targets = getAllTargetAccountIds()
-  for (const accountId of targets) {
-    await loadExtensionIntoAccount(accountId, extension)
+export async function loadExtensionForAllContainers(extension: Extension): Promise<void> {
+  const targets = getAllTargetContainerIds()
+  for (const containerId of targets) {
+    await loadExtensionIntoContainer(containerId, extension)
   }
 }
 
-async function unloadExtensionFromAccount(
-  accountId: string | null | undefined,
+async function unloadExtensionFromContainer(
+  containerId: string | null | undefined,
   extensionId: string
 ): Promise<void> {
-  const partitionKey = getPartitionKey(accountId)
-  const browserSession = getSessionForAccount(accountId)
+  const partitionKey = getPartitionKey(containerId)
+  const browserSession = getSessionForContainer(containerId)
   const loadedMap = getLoadedMap(partitionKey)
   const extension = listExtensions().find((item) => item.id === extensionId)
   const electronExtensionId =
@@ -276,10 +276,10 @@ async function unloadExtensionFromAccount(
 /**
  * 从所有 partition 卸载扩展。
  */
-export async function unloadExtensionFromAllAccounts(extensionId: string): Promise<void> {
-  const targets = getAllTargetAccountIds()
-  for (const accountId of targets) {
-    await unloadExtensionFromAccount(accountId, extensionId)
+export async function unloadExtensionFromAllContainers(extensionId: string): Promise<void> {
+  const targets = getAllTargetContainerIds()
+  for (const containerId of targets) {
+    await unloadExtensionFromContainer(containerId, extensionId)
   }
 }
 
@@ -302,16 +302,16 @@ export function getExtensionInfo(
 
 /**
  * 打开扩展的 browser action popup。
- * @param accountId partition 对应的账号 ID，null 为默认 session
+ * @param containerId partition 对应的容器 ID，null 为默认 session
  * @param extensionAppId 应用级扩展 ID（Extension.id）
  * @param anchorRect 弹出窗口的锚点位置
  */
 export function openExtensionBrowserActionPopup(
-  accountId: string | null,
+  containerId: string | null,
   extensionAppId: string,
   anchorRect: { x: number; y: number; width: number; height: number }
 ): void {
-  const partitionKey = getPartitionKey(accountId)
+  const partitionKey = getPartitionKey(containerId)
   const ext = extensionsMap.get(partitionKey)
   if (!ext) {
     console.warn('[Extensions] No ElectronChromeExtensions instance for partition:', partitionKey)
@@ -322,14 +322,14 @@ export function openExtensionBrowserActionPopup(
   const extension = listExtensions().find((e) => e.id === extensionAppId)
   if (!extension) return
 
-  const browserSession = getSessionForAccount(accountId)
+  const browserSession = getSessionForContainer(containerId)
   const sessionExtensions = browserSession.extensions || browserSession
   const electronExt = sessionExtensions.getAllExtensions().find(
     (e) => e.path === extension.path
   )
   if (!electronExt) return
 
-  const tabId = webviewManager.getActiveTabIdByAccount(accountId)
+  const tabId = webviewManager.getActiveTabIdByContainer(containerId)
   ext.api.browserAction.openPopup(
     { extension: { id: electronExt.id } } as any,
     { anchorRect, tabId: tabId ?? undefined }
@@ -339,8 +339,8 @@ export function openExtensionBrowserActionPopup(
 /**
  * 销毁 partition 对应的扩展管理器实例。
  */
-export function destroyExtensionsForAccount(accountId?: string | null): void {
-  const partitionKey = getPartitionKey(accountId)
+export function destroyExtensionsForContainer(containerId?: string | null): void {
+  const partitionKey = getPartitionKey(containerId)
   const ext = extensionsMap.get(partitionKey)
   if (!ext) return
 

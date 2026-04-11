@@ -7,7 +7,8 @@ import {
   deleteTab,
   reorderTabs,
   saveTabs,
-  getAccountById
+  getPageById,
+  getContainerById
 } from '../services/store'
 import { webviewManager } from '../services/webview-manager'
 import type { Tab } from '../services/store'
@@ -21,8 +22,8 @@ export function registerTabIpcHandlers(): void {
   ipcMain.handle('tab:list', () => listTabs())
 
   // 创建 tab（含 WebContentsView）
-  // accountId 为空字符串时使用默认 partition（无账号关联）
-  ipcMain.handle('tab:create', (_e, accountId: string | null, url?: string) => {
+  // pageId 为空字符串时使用默认 partition（无页面关联）
+  ipcMain.handle('tab:create', (_e, pageId: string | null, url?: string) => {
     const tabs = listTabs()
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
     const mainWindow = webviewManager.getMainWindow()
@@ -47,31 +48,33 @@ export function registerTabIpcHandlers(): void {
     const pageKey = isInternalPage ? url!.replace('sessionbox://', '') : null
     const internalPageTitle = pageKey ? (internalPageTitles[pageKey] || pageKey) : null
 
-    if (!accountId) {
-      // 无账号模式：使用默认 partition
+    if (!pageId) {
+      // 无页面模式：使用默认 partition
       const tabUrl = url || 'https://www.baidu.com'
       const tab = createTab({
-        accountId: '',
+        pageId: '',
         title: internalPageTitle || '新标签页',
         url: tabUrl,
         order
       })
-      webviewManager.registerPendingView(tab.id, '', tabUrl)
+      webviewManager.registerPendingView(tab.id, '', '', tabUrl)
       mainWindow?.webContents.send('on:tab:created', tab)
       return tab
     }
 
-    const account = getAccountById(accountId)
-    if (!account) throw new Error(`账号 ${accountId} 不存在`)
+    const page = getPageById(pageId)
+    if (!page) throw new Error(`页面 ${pageId} 不存在`)
 
-    const tabUrl = url || account.defaultUrl
+    const container = page.containerId ? getContainerById(page.containerId) : undefined
+    const containerId = page.containerId || ''
+    const tabUrl = url || page.url
     const tab = createTab({
-      accountId,
-      title: account.name,
+      pageId: pageId,
+      title: page.name,
       url: tabUrl,
       order
     })
-    webviewManager.registerPendingView(tab.id, accountId, tabUrl)
+    webviewManager.registerPendingView(tab.id, pageId, containerId, tabUrl)
     mainWindow?.webContents.send('on:tab:created', tab)
     return tab
   })
@@ -148,16 +151,18 @@ export function registerTabIpcHandlers(): void {
     const info = webviewManager.getViewInfo(tabId)
     if (!info) throw new Error(`Tab ${tabId} 不存在`)
 
-    const account = getAccountById(info.accountId)
+    const page = info.pageId ? getPageById(info.pageId) : undefined
+    const container = page?.containerId ? getContainerById(page.containerId) : undefined
+    const containerId = page?.containerId || ''
 
     const newWin = new BrowserWindow({
       width: 1280,
       height: 800,
       show: false,
       autoHideMenuBar: true,
-      title: account?.name ?? '新窗口',
+      title: page?.name ?? '新窗口',
       webPreferences: {
-        partition: `persist:account-${info.accountId}`,
+        partition: containerId ? `persist:container-${containerId}` : undefined,
         sandbox: false
       }
     })
@@ -180,13 +185,14 @@ export function registerTabIpcHandlers(): void {
     webviewManager.destroyAll()
     const tabs = listTabs()
     for (const tab of tabs) {
-      if (tab.accountId) {
-        const account = getAccountById(tab.accountId)
-        if (account) {
-          webviewManager.registerPendingView(tab.id, tab.accountId, tab.url || account.defaultUrl)
+      if (tab.pageId) {
+        const page = getPageById(tab.pageId)
+        const container = page?.containerId ? getContainerById(page.containerId) : undefined
+        if (page) {
+          webviewManager.registerPendingView(tab.id, tab.pageId, page.containerId || '', tab.url || page.url)
         }
       } else {
-        webviewManager.registerPendingView(tab.id, '', tab.url || 'https://www.baidu.com')
+        webviewManager.registerPendingView(tab.id, '', '', tab.url || 'https://www.baidu.com')
       }
     }
     return tabs.map((t) => t.id)

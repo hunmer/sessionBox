@@ -2,9 +2,10 @@
 import { ref, computed, watch } from 'vue'
 import { Search } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useAccountStore } from '@/stores/account'
+import { useContainerStore } from '@/stores/container'
+import { usePageStore } from '@/stores/page'
 import { getFaviconUrl } from '@/lib/utils'
-import type { Account } from '@/types'
+import type { Page } from '@/types'
 
 /** 通过输入框提交的 URL 记录 */
 interface UrlRecord {
@@ -21,11 +22,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  select: [account: Account]
+  select: [page: Page]
   navigate: [url: string]
 }>()
 
-const accountStore = useAccountStore()
+const containerStore = useContainerStore()
+const pageStore = usePageStore()
 const urlInput = ref('')
 const urlRecords = ref<UrlRecord[]>([])
 
@@ -48,12 +50,12 @@ function saveRecord(url: string) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
 }
 
-// 获取当前工作区的账号列表
-const accounts = computed(() => {
-  const groups = accountStore.workspaceGroups
+// 获取当前工作区的页面列表
+const pages = computed(() => {
+  const groups = containerStore.workspaceGroups
   const groupIds = new Set(groups.map((g) => g.id))
-  return accountStore.accounts
-    .filter((a) => groupIds.has(a.groupId))
+  return pageStore.pages
+    .filter((p) => groupIds.has(p.groupId))
     .slice()
     .sort((a, b) => a.order - b.order)
 })
@@ -99,9 +101,9 @@ function handleUrlSubmit() {
   emit('update:open', false)
 }
 
-// 点击账号
-function handleSelectAccount(account: Account) {
-  emit('select', account)
+// 点击页面
+function handleSelectPage(page: Page) {
+  emit('select', page)
   emit('update:open', false)
 }
 
@@ -132,27 +134,27 @@ function handleSelectHistory(record: UrlRecord) {
         />
       </div>
 
-      <!-- 账号列表 -->
-      <div v-if="accounts.length > 0">
-        <div class="text-xs text-muted-foreground mb-1.5 px-1">账号</div>
+      <!-- 页面列表 -->
+      <div v-if="pages.length > 0">
+        <div class="text-xs text-muted-foreground mb-1.5 px-1">页面</div>
         <div class="flex gap-2 overflow-x-auto pb-1">
           <button
-            v-for="account in accounts"
-            :key="account.id"
+            v-for="page in pages"
+            :key="page.id"
             class="flex-shrink-0 flex flex-col items-center gap-1 w-16 p-1.5 rounded-lg hover:bg-accent transition-colors"
-            :title="account.name"
-            @click="handleSelectAccount(account)"
+            :title="page.name"
+            @click="handleSelectPage(page)"
           >
             <span class="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden text-lg">
               <img
-                v-if="isImageIcon(account.icon)"
-                :src="`account-icon://${account.icon!.slice(4)}`"
+                v-if="isImageIcon(page.icon)"
+                :src="`account-icon://${page.icon!.slice(4)}`"
                 alt=""
                 class="w-full h-full object-cover"
               />
-              <span v-else class="leading-none">{{ account.icon }}</span>
+              <span v-else class="leading-none">{{ page.icon }}</span>
             </span>
-            <span class="text-[11px] text-center leading-tight truncate w-full">{{ account.name }}</span>
+            <span class="text-[11px] text-center leading-tight truncate w-full">{{ page.name }}</span>
           </button>
         </div>
       </div>
@@ -183,7 +185,7 @@ function handleSelectHistory(record: UrlRecord) {
 
       <!-- 无结果提示 -->
       <div
-        v-if="accounts.length === 0 && filteredHistory.length === 0 && !urlInput.trim()"
+        v-if="pages.length === 0 && filteredHistory.length === 0 && !urlInput.trim()"
         class="py-4 text-center text-sm text-muted-foreground"
       >
         暂无内容

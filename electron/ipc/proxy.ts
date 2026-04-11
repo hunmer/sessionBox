@@ -5,7 +5,7 @@ import {
   updateProxy,
   deleteProxy,
   getProxyById,
-  listAccounts,
+  listContainers,
   getGroupById
 } from '../services/store'
 import { testProxy, applyProxyToSession } from '../services/proxy'
@@ -61,41 +61,41 @@ export function registerProxyIpcHandlers(): void {
 
 async function hotUpdateProxy(proxyId: string, isDelete = false): Promise<void> {
   const proxy = isDelete ? null : getProxyById(proxyId)
-  const accounts = listAccounts()
+  const containers = listContainers()
 
-  for (const account of accounts) {
-    const effectiveProxyId = account.proxyId ?? getGroupById(account.groupId)?.proxyId
+  for (const container of containers) {
+    const effectiveProxyId = container.proxyId ?? getGroupById(container.groupId)?.proxyId
     if (effectiveProxyId !== proxyId) continue
 
-    const partition = `persist:account-${account.id}`
+    const partition = `persist:container-${container.id}`
     const { session } = await import('electron')
     const ses = session.fromPartition(partition)
 
-    // 代理被禁用、被删除、或账号未开启自动代理 → 移除代理
-    const shouldApply = proxy && proxy.enabled !== false && account.autoProxyEnabled === true
+    // 代理被禁用、被删除、或容器未开启自动代理 → 移除代理
+    const shouldApply = proxy && proxy.enabled !== false && container.autoProxyEnabled === true
 
     console.log('[ProxyIPC] hot update decision', {
       proxyId,
-      accountId: account.id,
+      containerId: container.id,
       'proxy.enabled': proxy?.enabled,
-      'account.autoProxyEnabled': account.autoProxyEnabled,
+      'container.autoProxyEnabled': container.autoProxyEnabled,
       shouldApply
     })
 
     console.log('[ProxyIPC] hot update proxy', {
       proxyId,
-      accountId: account.id,
+      containerId: container.id,
       partition,
       isDelete,
       hasProxy: !!proxy,
       proxyEnabled: proxy?.enabled !== false,
-      autoProxyEnabled: account.autoProxyEnabled ?? false,
+      autoProxyEnabled: container.autoProxyEnabled ?? false,
       shouldApply
     })
 
     await applyProxyToSession(ses, shouldApply ? proxy : null)
 
-    const tabIds = webviewManager.getTabIdsByAccount(account.id)
+    const tabIds = webviewManager.getTabIdsByContainer(container.id)
     for (const tabId of tabIds) {
       void webviewManager.refreshProxyInfo(tabId)
       webviewManager.reload(tabId)

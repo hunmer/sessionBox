@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useAccountStore } from '@/stores/account'
+import { useContainerStore } from '@/stores/container'
+import { usePageStore } from '@/stores/page'
 import GroupItem from './GroupItem.vue'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import {
@@ -16,38 +17,39 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MoreHorizontal, Pencil, Trash2, Plus } from 'lucide-vue-next'
-import type { Group, Account } from '@/types'
+import type { Group, Page } from '@/types'
 
 const props = defineProps<{
   collapsed: boolean
 }>()
 
 const emit = defineEmits<{
-  selectAccount: [accountName: string]
+  selectPage: [pageId: string]
   editGroup: [group: Group]
   deleteGroup: [group: Group]
-  addAccount: [groupId: string]
-  editAccount: [account: Account]
-  deleteAccount: [account: Account]
+  addPage: [groupId: string]
+  editPage: [page: Page]
+  deletePage: [page: Page]
 }>()
 
-const accountStore = useAccountStore()
+const containerStore = useContainerStore()
+const pageStore = usePageStore()
 
-// 将 workspaceGroups 及其账号转换为 GroupItem 需要的格式
+// 将 workspaceGroups 及其页面转换为 GroupItem 需要的格式
 const workspaces = computed(() => {
-  return accountStore.workspaceGroups.map((g) => ({
+  return containerStore.workspaceGroups.map((g) => ({
     id: g.id,
     group: g,
     name: g.name,
     emoji: g.icon || '📁',
     color: g.color,
-    pages: (accountStore.accountsByGroup.get(g.id) || [])
+    pages: (pageStore.pagesByGroup.get(g.id) || [])
       .sort((a, b) => a.order - b.order)
-      .map((a) => ({
-        account: a,
-        id: a.id,
-        name: a.name,
-        emoji: a.icon || '👤', // 账号使用 icon 或默认用户 emoji
+      .map((p) => ({
+        page: p,
+        id: p.id,
+        name: p.name,
+        emoji: p.icon || '📄',
       })),
   }))
 })
@@ -69,19 +71,19 @@ const workspaces = computed(() => {
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="start" class="w-48">
             <DropdownMenuItem
-              v-for="page in workspace.pages"
-              :key="page.id"
-              @click="emit('selectAccount', page.id)"
+              v-for="pageItem in workspace.pages"
+              :key="pageItem.id"
+              @click="emit('selectPage', pageItem.id)"
             >
-              <EmojiRenderer :emoji="page.emoji" class="mr-2" />
-              {{ page.name }}
+              <EmojiRenderer :emoji="pageItem.emoji" class="mr-2" />
+              {{ pageItem.name }}
             </DropdownMenuItem>
             <template v-if="workspace.pages.length > 0">
               <DropdownMenuSeparator />
             </template>
-            <DropdownMenuItem @click.stop="emit('addAccount', workspace.group.id)">
+            <DropdownMenuItem @click.stop="emit('addPage', workspace.group.id)">
               <Plus class="w-4 h-4 mr-2" />
-              新建账号
+              新建页面
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem @click.stop="emit('editGroup', workspace.group)">
@@ -104,14 +106,14 @@ const workspaces = computed(() => {
 
   <!-- 展开状态：显示完整列表 -->
   <GroupItem
-    v-else-if="accountStore.workspaceGroups.length > 0"
+    v-else-if="containerStore.workspaceGroups.length > 0"
     :workspaces="workspaces"
-    @select-account="emit('selectAccount', $event)"
+    @select-page="emit('selectPage', $event)"
     @edit-group="emit('editGroup', $event)"
     @delete-group="emit('deleteGroup', $event)"
-    @add-account="emit('addAccount', $event)"
-    @edit-account="emit('editAccount', $event)"
-    @delete-account="emit('deleteAccount', $event)"
+    @add-page="emit('addPage', $event)"
+    @edit-page="emit('editPage', $event)"
+    @delete-page="emit('deletePage', $event)"
   />
   <div v-else class="flex flex-col items-center justify-center py-8 text-muted-foreground">
     <p class="text-sm">暂无分组</p>

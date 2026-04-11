@@ -60,7 +60,7 @@ function setGroupMode(mode: TabGroupMode) {
       </DropdownMenuItem>
       <DropdownMenuItem class="cursor-pointer" @click="setGroupMode('account')">
         <User class="size-4 mr-2" />
-        <span class="flex-1">按账号名称分组</span>
+        <span class="flex-1">按容器名称分组</span>
         <Check v-if="tabStore.tabGroupMode === 'account'" class="size-4 text-primary" />
       </DropdownMenuItem>
       <DropdownMenuSeparator />

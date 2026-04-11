@@ -6,7 +6,8 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import WorkspaceDialog from './WorkspaceDialog.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
-import { useAccountStore } from '@/stores/account'
+import { usePageStore } from '@/stores/page'
+import { useContainerStore } from '@/stores/container'
 import type { Workspace } from '@/types'
 
 const props = defineProps<{
@@ -15,23 +16,24 @@ const props = defineProps<{
 
 const workspaceStore = useWorkspaceStore()
 const tabStore = useTabStore()
-const accountStore = useAccountStore()
+const pageStore = usePageStore()
+const containerStore = useContainerStore()
 const dialogOpen = ref(false)
 const editingWorkspace = ref<Workspace | null>(null)
 
 // 计算每个工作区的标签数量
 function getWorkspaceTabCount(workspaceId: string): number {
-  const accountIds = new Set(
-    accountStore.accounts
-      .filter((a) => {
-        const group = accountStore.getGroup(a.groupId)
+  const pageIds = new Set(
+    pageStore.pages
+      .filter((p) => {
+        const group = containerStore.getGroup(p.groupId)
         const gWorkspaceId = group?.workspaceId
         // workspaceId 为 undefined 时属于默认工作区
         return (gWorkspaceId || '__default__') === workspaceId
       })
-      .map((a) => a.id)
+      .map((p) => p.id)
   )
-  return tabStore.tabs.filter((t) => accountIds.has(t.accountId)).length
+  return tabStore.tabs.filter((t) => t.pageId && pageIds.has(t.pageId)).length
 }
 
 function openNew() {

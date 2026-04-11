@@ -34,21 +34,29 @@ export interface Group {
   workspaceId?: string
 }
 
-export interface Account {
+export interface Container {
   id: string
-  groupId: string
   name: string
   icon: string
   proxyId?: string
-  autoProxyEnabled?: boolean // 是否自动启用代理（默认 false）
-  userAgent?: string
-  defaultUrl: string
   order: number
+}
+
+export interface Page {
+  id: string
+  groupId: string
+  containerId?: string    // 空 = 走默认容器
+  name: string
+  icon: string
+  url: string             // 默认启动 URL
+  order: number
+  proxyId?: string        // 页面级代理（覆盖容器代理）
+  userAgent?: string
 }
 
 export interface Tab {
   id: string
-  accountId: string
+  pageId: string
   title: string
   url: string
   order: number
@@ -67,7 +75,7 @@ export interface Bookmark {
   id: string
   title: string
   url: string
-  accountId?: string // 可选绑定账号，使用其 partition
+  pageId?: string // 可选绑定页面，使用其 partition
   favicon?: string   // 图标 URL
   folderId: string   // 所属文件夹
   order: number      // 排序
@@ -101,13 +109,14 @@ export interface ShortcutBindingStore {
 interface StoreSchema {
   workspaces: Workspace[]
   groups: Group[]
-  accounts: Account[]
+  containers: Container[]
+  pages: Page[]
   proxies: Proxy[]
   tabs: Tab[]
   bookmarkFolders: BookmarkFolder[]
   bookmarks: Bookmark[]
   extensions: Extension[]
-  accountExtensions: Record<string, string[]>  // accountId -> extensionIds
+  containerExtensions: Record<string, string[]>  // containerId -> extensionIds
   windowState: WindowState
   tabFreezeMinutes: number
   shortcuts: ShortcutBindingStore[]
@@ -120,7 +129,8 @@ export const BOOKMARK_BAR_FOLDER_ID = '__bookmark_bar__'
 const defaults: StoreSchema = {
   workspaces: [{ id: DEFAULT_WORKSPACE_ID, title: '默认工作区', color: '#3b82f6', order: 0, isDefault: true }],
   groups: [],
-  accounts: [],
+  containers: [{ id: 'default', name: '默认容器', icon: '📦', order: 0 }],
+  pages: [],
   proxies: [],
   tabs: [],
   bookmarkFolders: [{ id: BOOKMARK_BAR_FOLDER_ID, name: '书签栏', parentId: null, order: 0 }],
@@ -132,7 +142,7 @@ const defaults: StoreSchema = {
     { id: 'default-wechat', title: '微信视频号助手', url: 'https://channels.weixin.qq.com/platform/post/create', folderId: BOOKMARK_BAR_FOLDER_ID, order: 4 }
   ],
   extensions: [],
-  accountExtensions: {},
+  containerExtensions: {},
   windowState: { width: 1280, height: 800, isMaximized: false },
   tabFreezeMinutes: 0, // 0 = 禁用冻结
   shortcuts: [],
@@ -229,27 +239,7 @@ export function updateGroup(id: string, data: Partial<Omit<Group, 'id'>>): void 
 
 export function deleteGroup(id: string): void {
   const groups = getCollection('groups')
-  const accounts = getCollection('accounts')
-
-  // 将该分组下的账号移到同工作区的其他分组
-  const affected = accounts.filter((a) => a.groupId === id)
-  if (affected.length > 0) {
-    const group = groups.find((g) => g.id === id)
-    const targetGroup =
-      groups.find(
-        (g) =>
-          g.id !== id &&
-          (g.workspaceId || DEFAULT_WORKSPACE_ID) === (group?.workspaceId || DEFAULT_WORKSPACE_ID)
-      ) ?? groups.find((g) => g.id !== id)
-
-    if (!targetGroup) throw new Error('无法删除唯一分组')
-
-    setCollection(
-      'accounts',
-      accounts.map((a) => (a.groupId === id ? { ...a, groupId: targetGroup.id } : a))
-    )
-  }
-
+  if (groups.length <= 1) throw new Error('无法删除唯一分组')
   setCollection('groups', groups.filter((g) => g.id !== id))
 }
 
@@ -262,40 +252,172 @@ export function reorderGroups(groupIds: string[]): void {
   setCollection('groups', groups)
 }
 
-// ====== 账号操作 ======
+// ====== 容器操作 ======
 
-export function listAccounts(): Account[] {
-  return getCollection('accounts').sort((a, b) => a.order - b.order)
+export function listContainers(): Container[] {
+  return getCollection('containers').sort((a, b) => a.order - b.order)
 }
 
-export function createAccount(data: Omit<Account, 'id'>): Account {
-  const accounts = getCollection('accounts')
-  const account: Account = { ...data, id: randomUUID() }
-  accounts.push(account)
-  setCollection('accounts', accounts)
-  return account
+export function createContainer(data: Omit<Container, 'id'>): Container {
+  const containers = getCollection('containers')
+  const container: Container = { ...data, id: randomUUID() }
+  containers.push(container)
+  setCollection('containers', containers)
+  return container
 }
 
-export function updateAccount(id: string, data: Partial<Omit<Account, 'id'>>): void {
-  const accounts = getCollection('accounts')
-  const idx = accounts.findIndex((a) => a.id === id)
-  if (idx === -1) throw new Error(`账号 ${id} 不存在`)
-  accounts[idx] = { ...accounts[idx], ...data }
-  setCollection('accounts', accounts)
+export function updateContainer(id: string, data: Partial<Omit<Container, 'id'>>): void {
+  const containers = getCollection('containers')
+  const idx = containers.findIndex((c) => c.id === id)
+  if (idx === -1) throw new Error(`容器 ${id} 不存在`)
+  containers[idx] = { ...containers[idx], ...data }
+  setCollection('containers', containers)
 }
 
-export function deleteAccount(id: string): void {
-  const accounts = getCollection('accounts').filter((a) => a.id !== id)
-  setCollection('accounts', accounts)
+export function deleteContainer(id: string): void {
+  const containers = getCollection('containers').filter((c) => c.id !== id)
+  setCollection('containers', containers)
 }
 
-export function reorderAccounts(accountIds: string[]): void {
-  const accounts = getCollection('accounts')
-  accountIds.forEach((id, order) => {
-    const a = accounts.find((a) => a.id === id)
-    if (a) a.order = order
+export function reorderContainers(containerIds: string[]): void {
+  const containers = getCollection('containers')
+  containerIds.forEach((id, order) => {
+    const c = containers.find((c) => c.id === id)
+    if (c) c.order = order
   })
-  setCollection('accounts', accounts)
+  setCollection('containers', containers)
+}
+
+// ====== 页面操作 ======
+
+export function listPages(): Page[] {
+  return getCollection<Page>('pages')
+}
+
+export function createPage(data: Omit<Page, 'id'>): Page {
+  const pages = getCollection<Page>('pages')
+  const page: Page = { ...data, id: randomUUID() }
+  pages.push(page)
+  setCollection('pages', pages)
+  return page
+}
+
+export function updatePage(id: string, data: Partial<Omit<Page, 'id'>>): void {
+  const pages = getCollection<Page>('pages')
+  const idx = pages.findIndex(p => p.id === id)
+  if (idx !== -1) {
+    pages[idx] = { ...pages[idx], ...data }
+    setCollection('pages', pages)
+  }
+}
+
+export function deletePage(id: string): void {
+  const pages = getCollection<Page>('pages').filter(p => p.id !== id)
+  setCollection('pages', pages)
+}
+
+export function reorderPages(pageIds: string[]): void {
+  const pages = getCollection<Page>('pages')
+  pageIds.forEach((id, order) => {
+    const p = pages.find(p => p.id === id)
+    if (p) p.order = order
+  })
+  setCollection('pages', pages)
+}
+
+export function getPageById(id: string): Page | undefined {
+  return getCollection<Page>('pages').find(p => p.id === id)
+}
+
+export function getPagesByGroup(groupId: string): Page[] {
+  return getCollection<Page>('pages').filter(p => p.groupId === groupId)
+}
+
+export function getPagesByContainer(containerId: string): Page[] {
+  return getCollection<Page>('pages').filter(p => p.containerId === containerId)
+}
+
+// ====== Page 数据迁移 ======
+
+/** 将旧 Container 数据（含 groupId/defaultUrl）自动生成 Page */
+export function migrateContainersToPages(): void {
+  // 如果已有 pages 数据，跳过迁移
+  if (store.has('pages')) {
+    const existing = getCollection('pages')
+    if (existing.length > 0) return
+  }
+
+  // 读取 containers 数据（可能含旧字段）
+  const containers = getCollection<Record<string, any>>('containers')
+  const pages: Page[] = []
+
+  for (const c of containers) {
+    // 只有含 groupId 的旧格式 container 才需要迁移
+    if (c.groupId && c.defaultUrl) {
+      pages.push({
+        id: randomUUID(),
+        groupId: c.groupId,
+        containerId: c.id === 'default' ? undefined : c.id,
+        name: c.name || '未命名页面',
+        icon: c.icon || '📄',
+        url: c.defaultUrl || 'https://www.baidu.com',
+        order: c.order ?? 0,
+        proxyId: c.proxyId,
+        userAgent: c.userAgent,
+      })
+    }
+  }
+
+  if (pages.length > 0) {
+    setCollection('pages', pages)
+    console.log(`[Migration] Generated ${pages.length} pages from containers`)
+  }
+}
+
+/** 将 Tab 的 containerId 迁移为 pageId */
+export function migrateTabContainerIdToPageId(): void {
+  const tabs = getCollection<Record<string, any>>('tabs')
+  const pages = getCollection('pages')
+  let updated = false
+
+  const newTabs = tabs.map(tab => {
+    // 如果已经有 pageId，跳过
+    if (tab.pageId) return tab
+    // 如果有旧的 containerId，查找对应的 page
+    if (tab.containerId) {
+      const page = pages.find((p: Page) => p.containerId === tab.containerId)
+      updated = true
+      return { ...tab, pageId: page?.id ?? '' }
+    }
+    return tab
+  })
+
+  if (updated) {
+    setCollection('tabs', newTabs)
+    console.log('[Migration] Updated tabs with pageId')
+  }
+}
+
+/** 将 Bookmark 的 containerId 迁移为 pageId */
+export function migrateBookmarkContainerIdToPageId(): void {
+  const bookmarks = getCollection<Record<string, any>>('bookmarks')
+  const pages = getCollection('pages')
+  let updated = false
+
+  const newBookmarks = bookmarks.map(b => {
+    if (b.pageId) return b
+    if (b.containerId) {
+      const page = pages.find((p: Page) => p.containerId === b.containerId)
+      updated = true
+      return { ...b, pageId: page?.id ?? '' }
+    }
+    return b
+  })
+
+  if (updated) {
+    setCollection('bookmarks', newBookmarks)
+    console.log('[Migration] Updated bookmarks with pageId')
+  }
 }
 
 // ====== 代理操作 ======
@@ -321,11 +443,11 @@ export function updateProxy(id: string, data: Partial<Omit<Proxy, 'id'>>): void 
 }
 
 export function deleteProxy(id: string): void {
-  // 清除所有引用该代理的账号和分组
-  const accounts = getCollection('accounts').map((a) =>
-    a.proxyId === id ? { ...a, proxyId: undefined } : a
+  // 清除所有引用该代理的容器和分组
+  const containers = getCollection('containers').map((c) =>
+    c.proxyId === id ? { ...c, proxyId: undefined } : c
   )
-  setCollection('accounts', accounts)
+  setCollection('containers', containers)
 
   const groups = getCollection('groups').map((g) =>
     g.proxyId === id ? { ...g, proxyId: undefined } : g
@@ -338,8 +460,8 @@ export function deleteProxy(id: string): void {
 
 // ====== 辅助查询 ======
 
-export function getAccountById(id: string): Account | undefined {
-  return getCollection('accounts').find((a) => a.id === id)
+export function getContainerById(id: string): Container | undefined {
+  return getCollection('containers').find((c) => c.id === id)
 }
 
 export function getGroupById(id: string): Group | undefined {
@@ -569,41 +691,41 @@ export function updateExtension(id: string, data: Partial<Omit<Extension, 'id'>>
 export function deleteExtension(id: string): void {
   const extensions = getCollection('extensions').filter((e) => e.id !== id)
   setCollection('extensions', extensions)
-  // 从所有账号的扩展列表中移除
-  const accountExtensions = getCollection('accountExtensions')
-  for (const accountId in accountExtensions) {
-    accountExtensions[accountId] = accountExtensions[accountId].filter((eid) => eid !== id)
+  // 从所有容器的扩展列表中移除
+  const containerExtensions = getCollection('containerExtensions')
+  for (const containerId in containerExtensions) {
+    containerExtensions[containerId] = containerExtensions[containerId].filter((eid) => eid !== id)
   }
-  setCollection('accountExtensions', accountExtensions)
+  setCollection('containerExtensions', containerExtensions)
 }
 
-export function getAccountExtensions(accountId: string): string[] {
-  const accountExtensions = getCollection('accountExtensions')
-  return accountExtensions[accountId] || []
+export function getContainerExtensions(containerId: string): string[] {
+  const containerExtensions = getCollection('containerExtensions')
+  return containerExtensions[containerId] || []
 }
 
-export function setAccountExtensions(accountId: string, extensionIds: string[]): void {
-  const accountExtensions = getCollection('accountExtensions')
-  accountExtensions[accountId] = extensionIds
-  setCollection('accountExtensions', accountExtensions)
+export function setContainerExtensions(containerId: string, extensionIds: string[]): void {
+  const containerExtensions = getCollection('containerExtensions')
+  containerExtensions[containerId] = extensionIds
+  setCollection('containerExtensions', containerExtensions)
 }
 
-export function addExtensionToAccount(accountId: string, extensionId: string): void {
-  const accountExtensions = getCollection('accountExtensions')
-  if (!accountExtensions[accountId]) {
-    accountExtensions[accountId] = []
+export function addExtensionToContainer(containerId: string, extensionId: string): void {
+  const containerExtensions = getCollection('containerExtensions')
+  if (!containerExtensions[containerId]) {
+    containerExtensions[containerId] = []
   }
-  if (!accountExtensions[accountId].includes(extensionId)) {
-    accountExtensions[accountId].push(extensionId)
-    setCollection('accountExtensions', accountExtensions)
+  if (!containerExtensions[containerId].includes(extensionId)) {
+    containerExtensions[containerId].push(extensionId)
+    setCollection('containerExtensions', containerExtensions)
   }
 }
 
-export function removeExtensionFromAccount(accountId: string, extensionId: string): void {
-  const accountExtensions = getCollection('accountExtensions')
-  if (accountExtensions[accountId]) {
-    accountExtensions[accountId] = accountExtensions[accountId].filter((id) => id !== extensionId)
-    setCollection('accountExtensions', accountExtensions)
+export function removeExtensionFromContainer(containerId: string, extensionId: string): void {
+  const containerExtensions = getCollection('containerExtensions')
+  if (containerExtensions[containerId]) {
+    containerExtensions[containerId] = containerExtensions[containerId].filter((id) => id !== extensionId)
+    setCollection('containerExtensions', containerExtensions)
   }
 }
 

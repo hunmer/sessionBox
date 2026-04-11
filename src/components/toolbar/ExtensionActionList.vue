@@ -3,9 +3,13 @@ import { computed, onMounted, ref } from 'vue'
 import { Loader2, Puzzle } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { useExtensionStore } from '@/stores/extension'
+import { usePageStore } from '@/stores/page'
+import { useContainerStore } from '@/stores/container'
 import { useTabStore } from '@/stores/tab'
 
 const extensionStore = useExtensionStore()
+const pageStore = usePageStore()
+const containerStore = useContainerStore()
 const tabStore = useTabStore()
 
 const isLoading = ref(false)
@@ -13,7 +17,12 @@ const emit = defineEmits<{ 'open-manager': [] }>()
 
 const enabledExtensions = computed(() => extensionStore.extensions.filter((e) => e.enabled))
 
-const currentAccountId = computed(() => tabStore.activeTab?.accountId ?? null)
+const currentContainerId = computed(() => {
+  const pageId = tabStore.activeTab?.pageId
+  if (!pageId) return null
+  const page = pageStore.getPage(pageId)
+  return page?.containerId ?? null
+})
 
 onMounted(async () => {
   if (extensionStore.extensions.length === 0) {
@@ -26,7 +35,7 @@ onMounted(async () => {
 async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
-  await window.api.extension.openBrowserActionPopup(currentAccountId.value, extensionId, {
+  await window.api.extension.openBrowserActionPopup(currentContainerId.value, extensionId, {
     x: rect.left,
     y: rect.top,
     width: rect.width,

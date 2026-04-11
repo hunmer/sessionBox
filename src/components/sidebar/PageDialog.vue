@@ -1,41 +1,45 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { Camera, SmilePlus } from 'lucide-vue-next'
+import { Camera, SmilePlus, Settings } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
-import { useAccountStore } from '@/stores/account'
+import IconPickerDialog from './IconPickerDialog.vue'
+import ContainerDialog from './ContainerDialog.vue'
+import { useContainerStore } from '@/stores/container'
+import { usePageStore } from '@/stores/page'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
-import IconPickerDialog from './IconPickerDialog.vue'
-import type { Account } from '@/types'
+import type { Page } from '@/types'
 
 const props = defineProps<{
   open: boolean
-  account?: Account | null
+  page?: Page | null
   groupId?: string
 }>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  save: [data: Partial<Account> & { groupId: string; name: string; icon: string; defaultUrl: string; order: number }]
+  save: [data: Omit<Page, 'id'>]
+  delete: [id: string]
 }>()
 
-const accountStore = useAccountStore()
+const pageStore = usePageStore()
+const containerStore = useContainerStore()
 const proxyStore = useProxyStore()
 const bookmarkStore = useBookmarkStore()
 
 const name = ref('')
-const icon = ref('👤')
+const icon = ref('📄')
+const url = ref('about:blank')
+const containerId = ref('')
 const NO_PROXY = '__none__'
 const proxyId = ref(NO_PROXY)
-const autoProxyEnabled = ref(false)
-const defaultUrl = ref('about:blank')
+const userAgent = ref('')
 
 /** 当前图标是否为自定义图片 */
 const isImageIcon = computed(() => icon.value.startsWith('img:'))
@@ -43,46 +47,58 @@ const isImageIcon = computed(() => icon.value.startsWith('img:'))
 /** 图标选择器打开状态 */
 const iconPickerOpen = ref(false)
 
-watch(() => props.open, (val) => {
-  if (val) {
-    name.value = props.account?.name ?? ''
-    icon.value = props.account?.icon ?? '👤'
-    proxyId.value = props.account?.proxyId || NO_PROXY
-    autoProxyEnabled.value = props.account?.autoProxyEnabled ?? false
-    defaultUrl.value = props.account?.defaultUrl ?? 'about:blank'
-  }
-})
+/** 容器管理对话框打开状态 */
+const containerDialogOpen = ref(false)
 
 /** 代理下拉选项 */
 const proxyOptions = computed(() => proxyStore.proxies)
 
-/** 当前是否选择了代理 */
-const hasProxy = computed(() => proxyId.value !== NO_PROXY)
+/** 容器下拉选项 */
+const containers = computed(() => containerStore.containers)
+
+watch(() => props.open, (val) => {
+  if (val) {
+    name.value = props.page?.name ?? ''
+    icon.value = props.page?.icon ?? '📄'
+    url.value = props.page?.url ?? 'about:blank'
+    containerId.value = props.page?.containerId ?? ''
+    proxyId.value = props.page?.proxyId || NO_PROXY
+    userAgent.value = props.page?.userAgent ?? ''
+  }
+})
 
 /** 上传自定义图标 */
 async function handleUploadIcon() {
-  const result = await window.api.account.uploadIcon()
+  const result = await window.api.container.uploadIcon()
   if (result) icon.value = result
 }
 
 /** 清除自定义图标，恢复为 emoji */
 function clearImageIcon() {
-  icon.value = '👤'
+  icon.value = '📄'
 }
 
 function handleSave() {
   const trimmed = name.value.trim()
   if (!trimmed) return
   emit('save', {
-    groupId: props.account?.groupId ?? props.groupId ?? '',
+    groupId: props.page?.groupId ?? props.groupId ?? '',
+    containerId: containerId.value || undefined,
     name: trimmed,
     icon: icon.value,
+    url: url.value.trim() || 'about:blank',
+    order: props.page?.order ?? pageStore.pages.length,
     proxyId: proxyId.value === NO_PROXY ? undefined : proxyId.value,
-    autoProxyEnabled: hasProxy.value ? autoProxyEnabled.value : false,
-    defaultUrl: defaultUrl.value.trim() || 'about:blank',
-    order: props.account?.order ?? accountStore.accounts.length
+    userAgent: userAgent.value.trim() || undefined,
   })
   emit('update:open', false)
+}
+
+function handleDelete() {
+  if (props.page?.id) {
+    emit('delete', props.page.id)
+    emit('update:open', false)
+  }
 }
 </script>
 
@@ -90,16 +106,16 @@ function handleSave() {
   <Dialog :open="open" @update:open="emit('update:open', $event)">
     <DialogContent class="sm:max-w-[420px]">
       <DialogHeader>
-        <DialogTitle>{{ account ? '编辑账号' : '新建账号' }}</DialogTitle>
+        <DialogTitle>{{ page ? '编辑页面' : '新建页面' }}</DialogTitle>
       </DialogHeader>
 
       <div class="flex flex-col gap-5 py-2">
-        <!-- 头像 -->
+        <!-- 图标 -->
         <div class="flex flex-col items-center gap-3">
           <div class="relative group/icon">
-            <!-- 圆形头像 -->
+            <!-- 圆形图标 -->
             <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-border flex items-center justify-center bg-muted">
-              <img v-if="isImageIcon" :src="`account-icon://${icon.slice(4)}`" alt="头像" class="w-full h-full object-cover" />
+              <img v-if="isImageIcon" :src="`account-icon://${icon.slice(4)}`" alt="图标" class="w-full h-full object-cover" />
               <EmojiRenderer v-else :emoji="icon" class="text-4xl [&_img]:w-10 [&_img]:h-10 [&_*:not(img)]:text-4xl" />
             </div>
             <!-- 图片 hover 清除按钮 -->
@@ -132,14 +148,14 @@ function handleSave() {
         <!-- 名称 -->
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">名称</label>
-          <Input v-model="name" placeholder="输入账号名称" autofocus @keydown.enter="handleSave" />
+          <Input v-model="name" placeholder="输入页面名称" autofocus @keydown.enter="handleSave" />
         </div>
 
-        <!-- 启动 URL -->
+        <!-- URL -->
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-medium text-muted-foreground">启动 URL</label>
+          <label class="text-xs font-medium text-muted-foreground">URL</label>
           <div class="flex gap-2">
-            <Select @update:model-value="(url) => { if (url) defaultUrl = String(url) }">
+            <Select @update:model-value="(val) => { if (val) url = String(val) }">
               <SelectTrigger class="w-36 shrink-0">
                 <SelectValue placeholder="常用网址" />
               </SelectTrigger>
@@ -153,7 +169,28 @@ function handleSave() {
                 </SelectItem>
               </SelectContent>
             </Select>
-            <Input v-model="defaultUrl" placeholder="默认 about:blank" class="flex-1" />
+            <Input v-model="url" placeholder="默认 about:blank" class="flex-1" />
+          </div>
+        </div>
+
+        <!-- 容器 -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-muted-foreground">容器</label>
+          <div class="flex gap-2">
+            <Select v-model="containerId">
+              <SelectTrigger class="flex-1">
+                <SelectValue placeholder="默认容器" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">默认容器</SelectItem>
+                <SelectItem v-for="c in containers" :key="c.id" :value="c.id">
+                  {{ c.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="icon" @click="containerDialogOpen = true" title="管理容器">
+              <Settings class="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
@@ -171,14 +208,18 @@ function handleSave() {
               </SelectItem>
             </SelectContent>
           </Select>
-          <div v-if="hasProxy" class="flex items-center justify-between mt-1">
-            <label class="text-xs text-muted-foreground">自动启用代理</label>
-            <Switch v-model:model-value="autoProxyEnabled" />
-          </div>
+        </div>
+
+        <!-- UA -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-muted-foreground">User-Agent</label>
+          <Input v-model="userAgent" placeholder="留空使用默认 UA" />
         </div>
       </div>
 
       <DialogFooter class="gap-2">
+        <Button v-if="page" variant="destructive" @click="handleDelete">删除</Button>
+        <div class="flex-1" />
         <Button variant="secondary" @click="emit('update:open', false)">取消</Button>
         <Button :disabled="!name.trim()" @click="handleSave">保存</Button>
       </DialogFooter>
@@ -191,5 +232,11 @@ function handleSave() {
     :current-icon="icon"
     @update:open="iconPickerOpen = $event"
     @confirm="icon = $event"
+  />
+
+  <!-- 容器管理对话框 -->
+  <ContainerDialog
+    :open="containerDialogOpen"
+    @update:open="containerDialogOpen = $event"
   />
 </template>
