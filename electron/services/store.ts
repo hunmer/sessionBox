@@ -337,6 +337,89 @@ export function getPagesByContainer(containerId: string): Page[] {
   return getCollection<Page>('pages').filter(p => p.containerId === containerId)
 }
 
+// ====== Page 数据迁移 ======
+
+/** 将旧 Container 数据（含 groupId/defaultUrl）自动生成 Page */
+export function migrateContainersToPages(): void {
+  // 如果已有 pages 数据，跳过迁移
+  if (store.has('pages')) {
+    const existing = getCollection('pages')
+    if (existing.length > 0) return
+  }
+
+  // 读取 containers 数据（可能含旧字段）
+  const containers = getCollection<Record<string, any>>('containers')
+  const pages: Page[] = []
+
+  for (const c of containers) {
+    // 只有含 groupId 的旧格式 container 才需要迁移
+    if (c.groupId && c.defaultUrl) {
+      pages.push({
+        id: randomUUID(),
+        groupId: c.groupId,
+        containerId: c.id === 'default' ? undefined : c.id,
+        name: c.name || '未命名页面',
+        icon: c.icon || '📄',
+        url: c.defaultUrl || 'https://www.baidu.com',
+        order: c.order ?? 0,
+        proxyId: c.proxyId,
+        userAgent: c.userAgent,
+      })
+    }
+  }
+
+  if (pages.length > 0) {
+    setCollection('pages', pages)
+    console.log(`[Migration] Generated ${pages.length} pages from containers`)
+  }
+}
+
+/** 将 Tab 的 containerId 迁移为 pageId */
+export function migrateTabContainerIdToPageId(): void {
+  const tabs = getCollection<Record<string, any>>('tabs')
+  const pages = getCollection('pages')
+  let updated = false
+
+  const newTabs = tabs.map(tab => {
+    // 如果已经有 pageId，跳过
+    if (tab.pageId) return tab
+    // 如果有旧的 containerId，查找对应的 page
+    if (tab.containerId) {
+      const page = pages.find((p: Page) => p.containerId === tab.containerId)
+      updated = true
+      return { ...tab, pageId: page?.id ?? '' }
+    }
+    return tab
+  })
+
+  if (updated) {
+    setCollection('tabs', newTabs)
+    console.log('[Migration] Updated tabs with pageId')
+  }
+}
+
+/** 将 Bookmark 的 containerId 迁移为 pageId */
+export function migrateBookmarkContainerIdToPageId(): void {
+  const bookmarks = getCollection<Record<string, any>>('bookmarks')
+  const pages = getCollection('pages')
+  let updated = false
+
+  const newBookmarks = bookmarks.map(b => {
+    if (b.pageId) return b
+    if (b.containerId) {
+      const page = pages.find((p: Page) => p.containerId === b.containerId)
+      updated = true
+      return { ...b, pageId: page?.id ?? '' }
+    }
+    return b
+  })
+
+  if (updated) {
+    setCollection('bookmarks', newBookmarks)
+    console.log('[Migration] Updated bookmarks with pageId')
+  }
+}
+
 // ====== 代理操作 ======
 
 export function listProxies(): Proxy[] {
