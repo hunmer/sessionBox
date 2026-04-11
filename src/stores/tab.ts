@@ -32,6 +32,7 @@ export const useTabStore = defineStore('tab', () => {
   const favicons = ref<Map<string, string>>(new Map())
   const frozenTabIds = ref<Set<string>>(new Set())
   const proxyInfos = ref<Map<string, TabProxyInfo>>(new Map())
+  const mutedSites = ref<string[]>([])
 
   // ====== 标签栏布局 ======
   const tabLayout = ref<TabLayout>(
@@ -351,11 +352,18 @@ export const useTabStore = defineStore('tab', () => {
   /** 静音指定网站（添加到静音列表） */
   async function muteSite(hostname: string) {
     await api.mutedSites.add(hostname)
+    mutedSites.value = await api.mutedSites.list()
   }
 
   /** 取消静音指定网站（从静音列表移除） */
   async function unmuteSite(hostname: string) {
     await api.mutedSites.remove(hostname)
+    mutedSites.value = await api.mutedSites.list()
+  }
+
+  /** 判断域名是否在静音列表中（支持子域名匹配） */
+  function isSiteMuted(hostname: string): boolean {
+    return mutedSites.value.some((site) => hostname === site || hostname.endsWith(`.${site}`))
   }
 
   /** 切换标签固定状态 */
@@ -468,6 +476,7 @@ export const useTabStore = defineStore('tab', () => {
   /** 初始化 */
   async function init() {
     await loadTabs()
+    mutedSites.value = await api.mutedSites.list()
     setupListeners()
 
     // 恢复保存的 tab（重建 WebContentsView）
@@ -545,6 +554,8 @@ export const useTabStore = defineStore('tab', () => {
     toggleMute,
     muteSite,
     unmuteSite,
+    mutedSites,
+    isSiteMuted,
     togglePin,
     init,
     saveState

@@ -69,18 +69,29 @@ function getTabHostname(): string {
   }
 }
 
-// 静音此网站
-async function handleMuteSite() {
+// 当前网站是否在静音列表中
+const isSiteMuted = computed(() => {
   const hostname = getTabHostname()
-  if (!hostname) return
-  await tabStore.muteSite(hostname)
-}
+  return hostname ? tabStore.isSiteMuted(hostname) : false
+})
 
-// 取消静音此网站
-async function handleUnmuteSite() {
+// 切换当前网站的静音状态
+async function handleToggleSiteMute() {
   const hostname = getTabHostname()
   if (!hostname) return
-  await tabStore.unmuteSite(hostname)
+  if (isSiteMuted.value) {
+    await tabStore.unmuteSite(hostname)
+    // 同时解除当前标签页的静音
+    if (props.tab.muted) {
+      tabStore.toggleMute(props.tab.id)
+    }
+  } else {
+    await tabStore.muteSite(hostname)
+    // 同时静音当前标签页
+    if (!props.tab.muted) {
+      tabStore.toggleMute(props.tab.id)
+    }
+  }
 }
 
 // 当前标签页的域名是否在静音列表中（仅用于菜单显示判断）
@@ -127,8 +138,9 @@ const isWebPage = computed(() => props.tab.url?.startsWith('http'))
         <Volume2 v-else class="w-3.5 h-3.5 mr-2" />
         {{ isMuted ? '取消静音' : '静音标签' }}
       </ContextMenuItem>
-      <ContextMenuItem v-if="isWebPage" @click="handleMuteSite">
-        <GlobeLock class="w-3.5 h-3.5 mr-2" />静音此网站
+      <ContextMenuItem v-if="isWebPage" @click="handleToggleSiteMute">
+        <GlobeLock class="w-3.5 h-3.5 mr-2" />
+        {{ isSiteMuted ? '取消静音此网站' : '静音此网站' }}
       </ContextMenuItem>
       <ContextMenuItem @click="tabStore.togglePin(tab.id)">
         <PinOff v-if="isPinned" class="w-3.5 h-3.5 mr-2" />
