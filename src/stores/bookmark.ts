@@ -16,21 +16,10 @@ export const useBookmarkStore = defineStore('bookmark', () => {
     folders.value.filter((f) => f.parentId === null).sort((a, b) => a.order - b.order)
   )
 
-  /** 书签栏统一列表：第一个根级文件夹内的直接书签 + 子文件夹，混合排序 */
-  const toolbarItems = computed(() => {
-    const firstRoot = rootFolders.value[0]
-    if (!firstRoot) return []
-
-    const childFolders = folders.value
-      .filter((f) => f.parentId === firstRoot.id)
-      .map((f) => ({ type: 'folder' as const, data: f, order: f.order }))
-
-    const childBookmarks = bookmarks.value
-      .filter((b) => b.folderId === firstRoot.id)
-      .map((b) => ({ type: 'bookmark' as const, data: b, order: b.order }))
-
-    return [...childBookmarks, ...childFolders].sort((a, b) => a.order - b.order)
-  })
+  /** 书签栏统一列表：所有根级文件夹（第一层），点击展开查看内部书签和子文件夹 */
+  const toolbarItems = computed(() =>
+    rootFolders.value.map((f) => ({ type: 'folder' as const, data: f, order: f.order }))
+  )
 
   // ====== 文件夹操作 ======
 

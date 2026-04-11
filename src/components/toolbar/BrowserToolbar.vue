@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTabStore } from '@/stores/tab'
 import { useBookmarkStore } from '@/stores/bookmark'
-import ExtensionActionList from './ExtensionActionList.vue'
 import ExtensionManager from '@/components/settings/ExtensionManager.vue'
 import AddBookmarkDialog from '@/components/bookmarks/AddBookmarkDialog.vue'
 
@@ -156,8 +155,7 @@ function toggleBookmark() {
       <Code2 class="w-4 h-4" />
     </Button>
 
-    <!-- 扩展图标列表 -->
-    <ExtensionActionList @open-manager="extensionManagerRef?.open()" />
+    <!-- 扩展图标列表已移至右侧面板 -->
   </div>
 
   <!-- 扩展管理对话框 -->

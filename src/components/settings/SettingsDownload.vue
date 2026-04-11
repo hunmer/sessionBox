@@ -99,8 +99,8 @@ async function handleToggleConnection() {
         <div class="flex items-center justify-between">
           <label class="text-xs text-muted-foreground">自动启动 aria2</label>
           <Switch
-            :checked="editConfig.autoStart"
-            @update:checked="saveField('autoStart', $event)"
+            :model-value="editConfig.autoStart"
+            @update:model-value="saveField('autoStart', $event)"
           />
         </div>
       </div>
@@ -115,8 +115,8 @@ async function handleToggleConnection() {
         <div class="flex items-center justify-between">
           <label class="text-xs text-muted-foreground">总是询问下载位置</label>
           <Switch
-            :checked="editConfig.alwaysAsk"
-            @update:checked="saveField('alwaysAsk', $event)"
+            :model-value="editConfig.alwaysAsk"
+            @update:model-value="saveField('alwaysAsk', $event)"
           />
         </div>
         <div class="space-y-1">
@@ -140,22 +140,22 @@ async function handleToggleConnection() {
         <div class="flex items-center justify-between">
           <label class="text-xs text-muted-foreground">开始下载时通知</label>
           <Switch
-            :checked="editConfig.notifyOnStart"
-            @update:checked="saveField('notifyOnStart', $event)"
+            :model-value="editConfig.notifyOnStart"
+            @update:model-value="saveField('notifyOnStart', $event)"
           />
         </div>
         <div class="flex items-center justify-between">
           <label class="text-xs text-muted-foreground">下载成功时通知</label>
           <Switch
-            :checked="editConfig.notifyOnSuccess"
-            @update:checked="saveField('notifyOnSuccess', $event)"
+            :model-value="editConfig.notifyOnSuccess"
+            @update:model-value="saveField('notifyOnSuccess', $event)"
           />
         </div>
         <div class="flex items-center justify-between">
           <label class="text-xs text-muted-foreground">下载失败时通知</label>
           <Switch
-            :checked="editConfig.notifyOnFailure"
-            @update:checked="saveField('notifyOnFailure', $event)"
+            :model-value="editConfig.notifyOnFailure"
+            @update:model-value="saveField('notifyOnFailure', $event)"
           />
         </div>
       </div>
