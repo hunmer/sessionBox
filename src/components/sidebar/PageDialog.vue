@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { Camera, SmilePlus, Settings } from 'lucide-vue-next'
+import { ref, watch, computed, watchEffect } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
+import { Camera, SmilePlus, Settings, CheckIcon, ChevronsUpDownIcon } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from '@/components/ui/command'
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import IconPickerDialog from './IconPickerDialog.vue'
 import ContainerDialog from './ContainerDialog.vue'
@@ -50,6 +58,26 @@ const iconPickerOpen = ref(false)
 
 /** 容器管理对话框打开状态 */
 const containerDialogOpen = ref(false)
+
+/** URL Combobox 状态 */
+const comboboxOpen = ref(false)
+const comboboxSearch = ref('')
+const urlTriggerRef = ref<HTMLElement | null>(null)
+const filteredBookmarks = ref<typeof bookmarkStore.bookmarks>([])
+
+/** 截流过滤：300ms 延迟，无关键词时不展示，最多 50 条 */
+const debouncedFilter = useDebounceFn((keyword: string) => {
+  if (!keyword) {
+    filteredBookmarks.value = []
+    return
+  }
+  const kw = keyword.toLowerCase()
+  filteredBookmarks.value = bookmarkStore.bookmarks
+    .filter(b => b.title.toLowerCase().includes(kw) || b.url.toLowerCase().includes(kw))
+    .slice(0, 50)
+}, 300)
+
+watch(comboboxSearch, (val) => debouncedFilter(val.trim()))
 
 /** 代理下拉选项 */
 const proxyOptions = computed(() => proxyStore.proxies)
@@ -155,23 +183,63 @@ function handleDelete() {
         <!-- URL -->
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">URL</label>
-          <div class="flex gap-2">
-            <Select @update:model-value="(val) => { if (val) url = String(val) }">
-              <SelectTrigger class="w-36 shrink-0">
-                <SelectValue placeholder="常用网址" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="site in bookmarkStore.bookmarks"
-                  :key="site.id"
-                  :value="site.url"
-                >
-                  {{ site.title }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <Input v-model="url" placeholder="默认 about:blank" class="flex-1" />
-          </div>
+          <Popover v-model:open="comboboxOpen" :modal="false">
+            <PopoverTrigger as-child>
+              <Button
+                ref="urlTriggerRef"
+                variant="outline"
+                role="combobox"
+                :aria-expanded="comboboxOpen"
+                class="w-full justify-between h-9 px-3 font-normal"
+              >
+                <span class="truncate text-sm">{{ url || 'about:blank' }}</span>
+                <ChevronsUpDownIcon class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              :style="{ width: urlTriggerRef?.$el?.offsetWidth + 'px' }"
+              class="p-0"
+              align="start"
+            >
+              <Command>
+                <CommandInput
+                  v-model="comboboxSearch"
+                  placeholder="搜索书签..."
+                  @keydown.enter="() => { comboboxOpen = false }"
+                />
+                <CommandList>
+                  <CommandEmpty>无匹配书签</CommandEmpty>
+                  <CommandGroup>
+                    <!-- 第一项：当前输入的 URL -->
+                    <CommandItem
+                      v-if="comboboxSearch.trim()"
+                      value="__current_url__"
+                      @select="() => { url = comboboxSearch.trim(); comboboxOpen = false }"
+                    >
+                      <CheckIcon class="mr-2 h-4 w-4 opacity-0" />
+                      <span class="truncate text-primary">{{ comboboxSearch.trim() }}</span>
+                      <span class="ml-auto text-xs text-muted-foreground">当前输入</span>
+                    </CommandItem>
+                    <CommandItem
+                      v-for="site in filteredBookmarks"
+                      :key="site.id"
+                      :value="site.url"
+                      @select="(ev: { detail: { value: string } }) => {
+                        url = ev.detail.value
+                        comboboxOpen = false
+                      }"
+                    >
+                      <CheckIcon
+                        :class="cn('mr-2 h-4 w-4', url === site.url ? 'opacity-100' : 'opacity-0')"
+                      />
+                      <span class="truncate">{{ site.title }}</span>
+                      <span class="ml-auto text-xs text-muted-foreground truncate max-w-[40%]">{{ site.url }}</span>
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <!-- 容器 -->
