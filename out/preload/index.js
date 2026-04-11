@@ -174,6 +174,12 @@ const api = {
     getTabFreezeMinutes: () => electron.ipcRenderer.invoke("settings:getTabFreezeMinutes"),
     setTabFreezeMinutes: (minutes) => electron.ipcRenderer.invoke("settings:setTabFreezeMinutes", minutes)
   },
+  mutedSites: {
+    list: () => electron.ipcRenderer.invoke("mutedSites:list"),
+    set: (sites) => electron.ipcRenderer.invoke("mutedSites:set", sites),
+    add: (hostname) => electron.ipcRenderer.invoke("mutedSites:add", hostname),
+    remove: (hostname) => electron.ipcRenderer.invoke("mutedSites:remove", hostname)
+  },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   shortcut: {
     list: () => electron.ipcRenderer.invoke("shortcut:list"),

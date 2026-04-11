@@ -21,7 +21,7 @@ const tabs = [
   { key: 'general', label: '常规', icon: Settings2 },
   { key: 'tabs', label: '标签页', icon: LayoutList },
   { key: 'shortcuts', label: '快捷键', icon: Keyboard },
-  { key: 'sites', label: '常用网站', icon: Globe },
+  { key: 'sites', label: '网站', icon: Globe },
   { key: 'about', label: '关于', icon: Info }
 ]
 const activeTab = ref('general')

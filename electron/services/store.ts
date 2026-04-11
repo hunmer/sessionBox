@@ -111,6 +111,7 @@ interface StoreSchema {
   windowState: WindowState
   tabFreezeMinutes: number
   shortcuts: ShortcutBindingStore[]
+  mutedSites: string[]  // 默认静音的网站域名列表
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -134,7 +135,8 @@ const defaults: StoreSchema = {
   accountExtensions: {},
   windowState: { width: 1280, height: 800, isMaximized: false },
   tabFreezeMinutes: 0, // 0 = 禁用冻结
-  shortcuts: []
+  shortcuts: [],
+  mutedSites: []
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -633,4 +635,27 @@ export function getShortcutBindings(): ShortcutBindingStore[] {
 
 export function setShortcutBindings(bindings: ShortcutBindingStore[]): void {
   store.set('shortcuts', bindings)
+}
+
+// ====== 默认静音网站操作 ======
+
+export function getMutedSites(): string[] {
+  return store.get('mutedSites', [])
+}
+
+export function setMutedSites(sites: string[]): void {
+  store.set('mutedSites', sites)
+}
+
+export function addMutedSite(hostname: string): void {
+  const sites = store.get('mutedSites', [])
+  if (!sites.includes(hostname)) {
+    sites.push(hostname)
+    store.set('mutedSites', sites)
+  }
+}
+
+export function removeMutedSite(hostname: string): void {
+  const sites = store.get('mutedSites', []).filter((s) => s !== hostname)
+  store.set('mutedSites', sites)
 }

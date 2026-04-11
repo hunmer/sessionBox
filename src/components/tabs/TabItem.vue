@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { X, Globe, Loader2, ExternalLink, Monitor, Snowflake, Volume2, VolumeX, Pin, PinOff } from 'lucide-vue-next'
+import { X, Globe, Loader2, ExternalLink, Monitor, Snowflake, Volume2, VolumeX, Pin, PinOff, GlobeLock } from 'lucide-vue-next'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -59,6 +59,32 @@ function handleClose(e: MouseEvent) {
   e.stopPropagation()
   tabStore.closeTab(props.tab.id)
 }
+
+// 获取当前标签页的域名
+function getTabHostname(): string {
+  try {
+    return new URL(props.tab.url).hostname
+  } catch {
+    return ''
+  }
+}
+
+// 静音此网站
+async function handleMuteSite() {
+  const hostname = getTabHostname()
+  if (!hostname) return
+  await tabStore.muteSite(hostname)
+}
+
+// 取消静音此网站
+async function handleUnmuteSite() {
+  const hostname = getTabHostname()
+  if (!hostname) return
+  await tabStore.unmuteSite(hostname)
+}
+
+// 当前标签页的域名是否在静音列表中（仅用于菜单显示判断）
+const isWebPage = computed(() => props.tab.url?.startsWith('http'))
 </script>
 
 <template>
@@ -95,11 +121,14 @@ function handleClose(e: MouseEvent) {
         </button>
       </div>
     </ContextMenuTrigger>
-    <ContextMenuContent class="w-44">
+    <ContextMenuContent class="w-48">
       <ContextMenuItem @click="tabStore.toggleMute(tab.id)">
         <VolumeX v-if="isMuted" class="w-3.5 h-3.5 mr-2" />
         <Volume2 v-else class="w-3.5 h-3.5 mr-2" />
         {{ isMuted ? '取消静音' : '静音标签' }}
+      </ContextMenuItem>
+      <ContextMenuItem v-if="isWebPage" @click="handleMuteSite">
+        <GlobeLock class="w-3.5 h-3.5 mr-2" />静音此网站
       </ContextMenuItem>
       <ContextMenuItem @click="tabStore.togglePin(tab.id)">
         <PinOff v-if="isPinned" class="w-3.5 h-3.5 mr-2" />

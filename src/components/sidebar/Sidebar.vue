@@ -59,9 +59,19 @@ async function handleSaveGroup(data: { name: string; icon?: string; proxyId?: st
 }
 
 async function handleDeleteGroup(group: Group) {
-  if (confirm(`确定要删除分组「${group.name}」吗？账号不会被删除。`)) {
-    await accountStore.deleteGroup(group.id)
+  const groupAccounts = accountStore.accountsByGroup.get(group.id) || []
+  const hint = groupAccounts.length > 0
+    ? `该分组下有 ${groupAccounts.length} 个账号，将一并删除。`
+    : ''
+  if (!confirm(`确定要删除分组「${group.name}」吗？${hint}`)) return
+
+  // 先关闭并删除该分组下所有账号的标签页，再删除账号，最后删除分组
+  for (const account of groupAccounts) {
+    const tab = tabStore.tabs.find(t => t.accountId === account.id)
+    if (tab) await tabStore.closeTab(tab.id)
+    await accountStore.deleteAccount(account.id)
   }
+  await accountStore.deleteGroup(group.id)
 }
 
 // 添加分组

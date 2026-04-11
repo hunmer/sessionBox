@@ -1,6 +1,6 @@
 import { BrowserWindow, Session, WebContentsView } from 'electron'
 import { ensureExtensionsLoadedForAccount, getExtensionsForAccount } from './extensions'
-import { getAccountById, getGroupById, getProxyById, type Proxy } from './store'
+import { getAccountById, getGroupById, getProxyById, getMutedSites, type Proxy } from './store'
 import { applyProxyToSession, fetchSessionExitIp } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
@@ -305,11 +305,13 @@ class WebviewManager {
     wc.on('did-navigate', (_event, url) => {
       if (canSend()) win.webContents.send('on:tab:url-updated', tabId, url)
       this.sendNavState(tabId)
+      this.checkAutoMute(tabId, url)
     })
 
     wc.on('did-navigate-in-page', (_event, url) => {
       if (canSend()) win.webContents.send('on:tab:url-updated', tabId, url)
       this.sendNavState(tabId)
+      this.checkAutoMute(tabId, url)
     })
 
     wc.on('did-start-loading', () => {
@@ -702,6 +704,23 @@ class WebviewManager {
   /** 获取标签是否已冻结 */
   isFrozen(tabId: string): boolean {
     return this.frozenTabUrls.has(tabId)
+  }
+
+  /** 检查 URL 是否匹配静音网站列表，匹配则自动静音 */
+  private checkAutoMute(tabId: string, url: string): void {
+    try {
+      const hostname = new URL(url).hostname
+      const mutedSites = getMutedSites()
+      if (mutedSites.some((site) => hostname === site || hostname.endsWith(`.${site}`))) {
+        this.setAudioMuted(tabId, true)
+        // 通知渲染进程更新 tab 的 muted 状态
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('on:tab:auto-muted', tabId)
+        }
+      }
+    } catch {
+      // URL 解析失败，忽略
+    }
   }
 
   /** 设置标签音频静音状态 */

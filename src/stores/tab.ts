@@ -348,6 +348,16 @@ export const useTabStore = defineStore('tab', () => {
     await api.tab.setMuted(tabId, muted)
   }
 
+  /** 静音指定网站（添加到静音列表） */
+  async function muteSite(hostname: string) {
+    await api.mutedSites.add(hostname)
+  }
+
+  /** 取消静音指定网站（从静音列表移除） */
+  async function unmuteSite(hostname: string) {
+    await api.mutedSites.remove(hostname)
+  }
+
   /** 切换标签固定状态 */
   async function togglePin(tabId: string) {
     const tab = tabs.value.find((t) => t.id === tabId)
@@ -435,6 +445,12 @@ export const useTabStore = defineStore('tab', () => {
       } else {
         frozenTabIds.value.delete(id)
       }
+    })
+
+    // 自动静音匹配（导航到静音网站时触发）
+    api.on('tab:auto-muted', (tabId: unknown) => {
+      const t = tabs.value.find((t) => t.id === (tabId as string))
+      if (t) t.muted = true
     })
 
     // 深度链接 → 激活或创建对应账号的 tab
@@ -527,6 +543,8 @@ export const useTabStore = defineStore('tab', () => {
     openInNewWindow,
     openInBrowser,
     toggleMute,
+    muteSite,
+    unmuteSite,
     togglePin,
     init,
     saveState

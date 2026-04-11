@@ -34,7 +34,11 @@ import {
   deleteWorkspace,
   reorderWorkspaces,
   getTabFreezeMinutes,
-  setTabFreezeMinutes
+  setTabFreezeMinutes,
+  getMutedSites,
+  setMutedSites,
+  addMutedSite,
+  removeMutedSite
 } from '../services/store'
 import type { Account, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
@@ -316,4 +320,10 @@ $img.Dispose()`
     setTabFreezeMinutes(minutes)
     webviewManager.setFreezeMinutes(minutes)
   })
+
+  // ====== 默认静音网站 ======
+  ipcMain.handle('mutedSites:list', () => getMutedSites())
+  ipcMain.handle('mutedSites:set', (_e, sites: string[]) => setMutedSites(sites))
+  ipcMain.handle('mutedSites:add', (_e, hostname: string) => addMutedSite(hostname))
+  ipcMain.handle('mutedSites:remove', (_e, hostname: string) => removeMutedSite(hostname))
 }
