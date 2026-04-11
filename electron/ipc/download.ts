@@ -15,17 +15,29 @@ import {
   getGlobalStat,
   purgeDownloadResult
 } from '../services/aria2'
+import { webviewManager } from '../services/webview-manager'
 
 export function registerDownloadIpcHandlers(): void {
-  ipcMain.handle('download:checkConnection', () => checkConnection())
+  ipcMain.handle('download:checkConnection', async () => {
+    const connected = await checkConnection()
+    webviewManager.setAria2Enabled(connected)
+    return connected
+  })
 
   ipcMain.handle('download:getConfig', () => getAria2Config())
 
   ipcMain.handle('download:updateConfig', (_e, config) => updateAria2Config(config))
 
-  ipcMain.handle('download:start', () => startAria2())
+  ipcMain.handle('download:start', async () => {
+    const ok = await startAria2()
+    webviewManager.setAria2Enabled(ok)
+    return ok
+  })
 
-  ipcMain.handle('download:stop', () => stopAria2())
+  ipcMain.handle('download:stop', async () => {
+    await stopAria2()
+    webviewManager.setAria2Enabled(false)
+  })
 
   ipcMain.handle('download:add', (_e, url: string, options?: { filename?: string; dir?: string; headers?: string[]; cookies?: string; referer?: string }) =>
     addDownload(url, options)

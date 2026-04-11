@@ -3,12 +3,9 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useDownloadStore } from '@/stores/download'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
-import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
+import DownloadSettingsDialog from './DownloadSettingsDialog.vue'
 import {
   Download,
-  Upload,
   Pause,
   Play,
   X,
@@ -16,25 +13,18 @@ import {
   Settings,
   ArrowDownToLine,
   Loader2,
-  FolderOpen,
   Server,
-  RefreshCw,
   CircleCheck
 } from 'lucide-vue-next'
-import type { DownloadTask } from '@/stores/download'
 
 const store = useDownloadStore()
 const showConfig = ref(false)
 const filterStatus = ref<'all' | 'active' | 'waiting' | 'complete' | 'error'>('all')
 
-// 编辑中的配置（不直接修改 store）
-const editConfig = ref<Record<string, any>>({})
-
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
   await store.init()
-  editConfig.value = { ...store.config }
 
   if (store.config?.autoStart && !store.connected) {
     await store.start()
@@ -90,25 +80,6 @@ function statusVariant(status: string) {
   return 'outline' as const
 }
 
-function toggleConfig() {
-  if (showConfig.value) {
-    // 保存配置
-    store.saveConfig(editConfig.value)
-  }
-  showConfig.value = !showConfig.value
-}
-
-async function handleToggleConnection() {
-  if (store.connected) {
-    await store.stop()
-  } else {
-    const ok = await store.start()
-    if (ok) {
-      await store.refreshTasks()
-      await store.refreshStat()
-    }
-  }
-}
 </script>
 
 <template>
@@ -124,7 +95,7 @@ async function handleToggleConnection() {
           <Badge :variant="store.connected ? 'default' : 'outline'" class="text-xs">
             {{ store.connected ? '已连接' : '未连接' }}
           </Badge>
-          <Button size="sm" variant="outline" @click="toggleConfig">
+          <Button size="sm" variant="outline" @click="showConfig = true">
             <Settings class="w-4 h-4" />
           </Button>
         </div>
@@ -139,53 +110,6 @@ async function handleToggleConnection() {
         <span>{{ store.globalStat.numActive }} 活跃</span>
         <span>{{ store.globalStat.numWaiting }} 等待</span>
         <span>{{ store.globalStat.numStopped }} 已完成</span>
-      </div>
-
-      <!-- 配置面板 -->
-      <div v-if="showConfig" class="space-y-3 pt-2">
-        <Separator />
-        <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-1">
-            <label class="text-xs text-muted-foreground">服务器地址</label>
-            <Input v-model="editConfig.host" placeholder="localhost" />
-          </div>
-          <div class="space-y-1">
-            <label class="text-xs text-muted-foreground">端口</label>
-            <Input v-model.number="editConfig.port" type="number" />
-          </div>
-          <div class="space-y-1">
-            <label class="text-xs text-muted-foreground">RPC 密钥</label>
-            <Input v-model="editConfig.secret" type="password" />
-          </div>
-          <div class="space-y-1">
-            <label class="text-xs text-muted-foreground">aria2c 路径</label>
-            <Input v-model="editConfig.aria2Path" placeholder="aria2c" />
-          </div>
-          <div class="col-span-2 space-y-1">
-            <label class="text-xs text-muted-foreground">下载目录（留空使用系统默认）</label>
-            <Input v-model="editConfig.downloadDir" placeholder="系统下载目录" />
-          </div>
-        </div>
-        <div class="flex items-center gap-4 text-sm">
-          <label class="flex items-center gap-2">
-            <Switch :checked="editConfig.autoStart" @update:checked="editConfig.autoStart = $event" />
-            自动启动
-          </label>
-        </div>
-        <div class="flex items-center gap-2">
-          <Button size="sm" @click="handleToggleConnection" :disabled="store.loading">
-            <template v-if="store.connected">
-              <Server class="w-3.5 h-3.5 mr-1" /> 停止
-            </template>
-            <template v-else>
-              <Server class="w-3.5 h-3.5 mr-1" /> 启动
-            </template>
-          </Button>
-          <Button size="sm" variant="outline" @click="store.checkConnection()">
-            <RefreshCw class="w-3.5 h-3.5 mr-1" /> 检测连接
-          </Button>
-        </div>
-        <Separator />
       </div>
 
       <!-- 筛选标签 -->
@@ -292,5 +216,8 @@ async function handleToggleConnection() {
         </div>
       </div>
     </div>
+
+    <!-- 下载设置弹窗 -->
+    <DownloadSettingsDialog v-model:open="showConfig" />
   </div>
 </template>

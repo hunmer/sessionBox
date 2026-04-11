@@ -55,6 +55,7 @@ class WebviewManager {
   private frozenTabUrls = new Map<string, { url: string; accountId: string }>() // 冻结的 tab 信息
   private pendingViews = new Map<string, { url: string; accountId: string }>() // 未激活的 tab（尚未创建 WebContentsView）
   private _freezeMinutes = 0
+  private aria2Enabled = false // 缓存 aria2 接管下载的状态
 
   setMainWindow(win: BrowserWindow): void {
     this.mainWindow = win
@@ -62,6 +63,11 @@ class WebviewManager {
 
   getMainWindow(): BrowserWindow | null {
     return this.mainWindow
+  }
+
+  /** 设置 aria2 接管下载的状态（同步缓存） */
+  setAria2Enabled(enabled: boolean): void {
+    this.aria2Enabled = enabled
   }
 
   private getEffectiveProxy(accountId: string): Proxy | undefined {
@@ -343,31 +349,40 @@ class WebviewManager {
     })
 
     // 拦截下载事件，转发到 aria2
-    wc.session.on('will-download', async (event, item) => {
-      // 仅在 aria2 可用时接管下载
-      if (!(await checkConnection())) return
+    wc.session.on('will-download', (event, item) => {
+      // 同步检查缓存的 aria2 状态，必须同步调用 preventDefault 才能阻止默认保存对话框
+      if (!this.aria2Enabled) return
 
       event.preventDefault()
       const url = item.getURL()
       const filename = item.getFilename()
       const referer = wc.getURL()
 
-      try {
-        // 获取该 session 下对应 URL 的 cookies
-        const cookies = await wc.session.cookies.get({ url })
-        const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ')
+      // 异步处理下载提交
+      void (async () => {
+        try {
+          // 双重检查：实际确认 aria2 可用
+          if (!(await checkConnection())) {
+            console.warn('[Aria2] 连接不可用，下载未接管:', url)
+            return
+          }
 
-        const headers: string[] = []
-        if (cookieStr) {
-          await addDownload(url, { filename, referer, cookies: cookieStr, headers })
-        } else {
-          await addDownload(url, { filename, referer })
+          // 获取该 session 下对应 URL 的 cookies
+          const cookies = await wc.session.cookies.get({ url })
+          const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ')
+
+          const headers: string[] = []
+          if (cookieStr) {
+            await addDownload(url, { filename, referer, cookies: cookieStr, headers })
+          } else {
+            await addDownload(url, { filename, referer })
+          }
+          // 通知渲染进程有新下载
+          if (canSend()) win.webContents.send('on:download:started', { url, filename, tabId })
+        } catch (e) {
+          console.error('[Aria2] 添加下载失败:', e)
         }
-        // 通知渲染进程有新下载
-        if (canSend()) win.webContents.send('on:download:started', { url, filename, tabId })
-      } catch (e) {
-        console.error('[Aria2] 添加下载失败:', e)
-      }
+      })()
     })
   }
 

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 
 const api = window.api
 
@@ -95,7 +95,7 @@ export const useDownloadStore = defineStore('download', () => {
 
   /** 保存配置 */
   async function saveConfig(data: Partial<Aria2Config>) {
-    config.value = await api.download.updateConfig(data)
+    config.value = await api.download.updateConfig(toRaw(data) as Partial<Aria2Config>)
   }
 
   /** 启动 aria2 */
