@@ -11,8 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { useContainerStore } from '@/stores/container'
-import type { Group, Container } from '@/types'
+import type { Group, Page } from '@/types'
 
 defineProps<{
   collapsed?: boolean
@@ -21,13 +20,11 @@ defineProps<{
 const emit = defineEmits<{
   editGroup: [group: Group]
   deleteGroup: [group: Group]
-  addContainer: [groupId: string]
-  editContainer: [container: Container]
-  deleteContainer: [container: Container]
-  selectContainer: [containerId: string]
+  addPage: [groupId: string]
+  editPage: [page: Page]
+  deletePage: [page: Page]
+  selectPage: [pageId: string]
 }>()
-
-const containerStore = useContainerStore()
 </script>
 
 <template>
@@ -37,7 +34,7 @@ const containerStore = useContainerStore()
       <button
         v-if="!collapsed"
         class="flex-shrink-0 p-0.5 rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors opacity-0 group-hover:opacity-100"
-        @click.stop="emit('addContainer', '')"
+        @click.stop="emit('addPage', '')"
       >
         <Plus class="w-3.5 h-3.5" />
       </button>
@@ -47,10 +44,10 @@ const containerStore = useContainerStore()
         :collapsed="collapsed"
         @edit-group="emit('editGroup', $event)"
         @delete-group="emit('deleteGroup', $event)"
-        @add-container="emit('addContainer', $event)"
-        @edit-container="emit('editContainer', $event)"
-        @delete-container="emit('deleteContainer', $event)"
-        @select-container="emit('selectContainer', $event)"
+        @add-page="emit('addPage', $event)"
+        @edit-page="emit('editPage', $event)"
+        @delete-page="emit('deletePage', $event)"
+        @select-page="emit('selectPage', $event)"
       />
     </SidebarGroupContent>
   </SidebarGroup>

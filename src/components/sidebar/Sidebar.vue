@@ -7,6 +7,7 @@ import NavMain from '@/components/NavMain.vue'
 import NavUser from '@/components/NavUser.vue'
 import SidebarGroups from './SidebarGroups.vue'
 import GroupDialog from './GroupDialog.vue'
+import PageDialog from './PageDialog.vue'
 import ContainerDialog from './ContainerDialog.vue'
 import {
   SidebarContent,
@@ -16,13 +17,15 @@ import {
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
 import { useContainerStore } from '@/stores/container'
+import { usePageStore } from '@/stores/page'
 import { useHomepageStore } from '@/stores/homepage'
 import { useUserProfileStore } from '@/stores/userProfile'
-import type { Group, Container } from '@/types'
+import type { Group, Page } from '@/types'
 
 const workspaceStore = useWorkspaceStore()
 const tabStore = useTabStore()
 const containerStore = useContainerStore()
+const pageStore = usePageStore()
 const homepageStore = useHomepageStore()
 const userProfileStore = useUserProfileStore()
 
@@ -38,6 +41,9 @@ const emit = defineEmits<{
 // 对话框状态
 const groupDialogOpen = ref(false)
 const editingGroup = ref<Group | null>(null)
+const pageDialogOpen = ref(false)
+const editingPage = ref<Page | null>(null)
+const newPageGroupId = ref<string>('')
 const containerDialogOpen = ref(false)
 
 // 分组操作
@@ -57,17 +63,17 @@ async function handleSaveGroup(data: { name: string; icon?: string; proxyId?: st
 }
 
 async function handleDeleteGroup(group: Group) {
-  const groupContainers = containerStore.containersByGroup.get(group.id) || []
-  const hint = groupContainers.length > 0
-    ? `该分组下有 ${groupContainers.length} 个容器，将一并删除。`
+  const groupPages = pageStore.pagesByGroup.get(group.id) || []
+  const hint = groupPages.length > 0
+    ? `该分组下有 ${groupPages.length} 个页面，将一并删除。`
     : ''
   if (!confirm(`确定要删除分组「${group.name}」吗？${hint}`)) return
 
-  // 先关闭并删除该分组下所有容器的标签页，再删除容器，最后删除分组
-  for (const container of groupContainers) {
-    const tab = tabStore.tabs.find(t => t.containerId === container.id)
+  // 先关闭并删除该分组下所有页面的标签页，再删除页面，最后删除分组
+  for (const page of groupPages) {
+    const tab = tabStore.tabs.find(t => t.pageId === page.id)
     if (tab) await tabStore.closeTab(tab.id)
-    await containerStore.deleteContainer(container.id)
+    await pageStore.deletePage(page.id)
   }
   await containerStore.deleteGroup(group.id)
 }
@@ -78,30 +84,51 @@ function handleAddGroup() {
   groupDialogOpen.value = true
 }
 
-// 添加容器（打开容器管理面板）
-function handleAddContainer(groupId: string) {
+// 添加页面
+function handleAddPage(groupId: string) {
   if (!groupId) {
     handleAddGroup()
     return
   }
-  containerDialogOpen.value = true
+  editingPage.value = null
+  newPageGroupId.value = groupId
+  pageDialogOpen.value = true
 }
 
-function handleEditContainer(_container: Container) {
-  containerDialogOpen.value = true
+// 编辑页面
+function handleEditPage(page: Page) {
+  editingPage.value = page
+  newPageGroupId.value = page.groupId
+  pageDialogOpen.value = true
 }
 
-async function handleDeleteContainer(_container: Container) {
-  containerDialogOpen.value = true
+// 删除页面
+async function handleDeletePage(page: Page) {
+  if (!confirm(`确定要删除页面「${page.name}」吗？`)) return
+  // 关闭关联的 tab
+  const tab = tabStore.tabs.find(t => t.pageId === page.id)
+  if (tab) await tabStore.closeTab(tab.id)
+  await pageStore.deletePage(page.id)
 }
 
-/** 切换到或创建指定容器的标签页 */
-function handleSelectContainer(containerId: string) {
-  const containerTabs = tabStore.sortedTabs.filter((t) => t.containerId === containerId)
-  if (containerTabs.length > 0) {
-    tabStore.switchTab(containerTabs[containerTabs.length - 1].id)
+// 保存页面
+async function handleSavePage(data: Omit<Page, 'id'>) {
+  if (editingPage.value) {
+    await pageStore.updatePage(editingPage.value.id, data)
   } else {
-    tabStore.createTab(containerId)
+    await pageStore.createPage(data)
+  }
+  pageDialogOpen.value = false
+  editingPage.value = null
+}
+
+/** 切换到或创建指定页面的标签页 */
+function handleSelectPage(pageId: string) {
+  const pageTabs = tabStore.sortedTabs.filter((t) => t.pageId === pageId)
+  if (pageTabs.length > 0) {
+    tabStore.switchTab(pageTabs[pageTabs.length - 1].id)
+  } else {
+    tabStore.createTab(pageId)
   }
 }
 
@@ -172,10 +199,10 @@ const workspaceSwitcherItems = computed(() => {
         :collapsed="collapsed"
         @edit-group="handleEditGroup"
         @delete-group="handleDeleteGroup"
-        @add-container="handleAddContainer"
-        @edit-container="handleEditContainer"
-        @delete-container="handleDeleteContainer"
-        @select-container="handleSelectContainer"
+        @add-page="handleAddPage"
+        @edit-page="handleEditPage"
+        @delete-page="handleDeletePage"
+        @select-page="handleSelectPage"
       />
       <NavUser
         class="mt-auto p-1 shrink-0"
@@ -193,6 +220,15 @@ const workspaceSwitcherItems = computed(() => {
     v-model:open="groupDialogOpen"
     :group="editingGroup"
     @save="handleSaveGroup"
+  />
+
+  <!-- 页面编辑/新建对话框 -->
+  <PageDialog
+    v-model:open="pageDialogOpen"
+    :page="editingPage"
+    :group-id="newPageGroupId"
+    @save="handleSavePage"
+    @delete="handleDeletePage"
   />
 
   <!-- 容器管理面板 -->
