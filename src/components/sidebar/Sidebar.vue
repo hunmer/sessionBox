@@ -39,8 +39,6 @@ const emit = defineEmits<{
 const groupDialogOpen = ref(false)
 const editingGroup = ref<Group | null>(null)
 const containerDialogOpen = ref(false)
-const editingContainer = ref<Container | null>(null)
-const newContainerGroupId = ref<string | undefined>(undefined)
 
 // 分组操作
 function handleEditGroup(group: Group) {
@@ -80,37 +78,21 @@ function handleAddGroup() {
   groupDialogOpen.value = true
 }
 
-// 添加容器（groupId 为空时是新建分组按钮，否则是分组菜单中的新建容器）
+// 添加容器（打开容器管理面板）
 function handleAddContainer(groupId: string) {
   if (!groupId) {
     handleAddGroup()
     return
   }
-  editingContainer.value = null
-  newContainerGroupId.value = groupId
   containerDialogOpen.value = true
 }
 
-function handleEditContainer(container: Container) {
-  editingContainer.value = container
+function handleEditContainer(_container: Container) {
   containerDialogOpen.value = true
 }
 
-async function handleSaveContainer(data: Partial<Container> & { groupId: string; name: string; icon: string; defaultUrl: string; order: number }) {
-  if (editingContainer.value) {
-    await containerStore.updateContainer(editingContainer.value.id, data)
-  } else {
-    await containerStore.createContainer(data)
-  }
-  containerDialogOpen.value = false
-  editingContainer.value = null
-  newContainerGroupId.value = undefined
-}
-
-async function handleDeleteContainer(container: Container) {
-  if (confirm(`确定要删除容器「${container.name}」吗？`)) {
-    await containerStore.deleteContainer(container.id)
-  }
+async function handleDeleteContainer(_container: Container) {
+  containerDialogOpen.value = true
 }
 
 /** 切换到或创建指定容器的标签页 */
@@ -213,11 +195,8 @@ const workspaceSwitcherItems = computed(() => {
     @save="handleSaveGroup"
   />
 
-  <!-- 容器编辑对话框 -->
+  <!-- 容器管理面板 -->
   <ContainerDialog
     v-model:open="containerDialogOpen"
-    :container="editingContainer"
-    :group-id="newContainerGroupId"
-    @save="handleSaveContainer"
   />
 </template>

@@ -238,6 +238,5 @@ function handleDelete() {
   <ContainerDialog
     :open="containerDialogOpen"
     @update:open="containerDialogOpen = $event"
-    @save="() => {}"
   />
 </template>
