@@ -229,10 +229,10 @@ export function updateGroup(id: string, data: Partial<Omit<Group, 'id'>>): void 
 
 export function deleteGroup(id: string): void {
   const groups = getCollection('groups')
-  const accounts = getCollection('accounts')
+  const containers = getCollection('containers')
 
-  // 将该分组下的账号移到同工作区的其他分组
-  const affected = accounts.filter((a) => a.groupId === id)
+  // 将该分组下的容器移到同工作区的其他分组
+  const affected = containers.filter((c) => c.groupId === id)
   if (affected.length > 0) {
     const group = groups.find((g) => g.id === id)
     const targetGroup =
@@ -245,8 +245,8 @@ export function deleteGroup(id: string): void {
     if (!targetGroup) throw new Error('无法删除唯一分组')
 
     setCollection(
-      'accounts',
-      accounts.map((a) => (a.groupId === id ? { ...a, groupId: targetGroup.id } : a))
+      'containers',
+      containers.map((c) => (c.groupId === id ? { ...c, groupId: targetGroup.id } : c))
     )
   }
 
@@ -262,40 +262,40 @@ export function reorderGroups(groupIds: string[]): void {
   setCollection('groups', groups)
 }
 
-// ====== 账号操作 ======
+// ====== 容器操作 ======
 
-export function listAccounts(): Account[] {
-  return getCollection('accounts').sort((a, b) => a.order - b.order)
+export function listContainers(): Container[] {
+  return getCollection('containers').sort((a, b) => a.order - b.order)
 }
 
-export function createAccount(data: Omit<Account, 'id'>): Account {
-  const accounts = getCollection('accounts')
-  const account: Account = { ...data, id: randomUUID() }
-  accounts.push(account)
-  setCollection('accounts', accounts)
-  return account
+export function createContainer(data: Omit<Container, 'id'>): Container {
+  const containers = getCollection('containers')
+  const container: Container = { ...data, id: randomUUID() }
+  containers.push(container)
+  setCollection('containers', containers)
+  return container
 }
 
-export function updateAccount(id: string, data: Partial<Omit<Account, 'id'>>): void {
-  const accounts = getCollection('accounts')
-  const idx = accounts.findIndex((a) => a.id === id)
-  if (idx === -1) throw new Error(`账号 ${id} 不存在`)
-  accounts[idx] = { ...accounts[idx], ...data }
-  setCollection('accounts', accounts)
+export function updateContainer(id: string, data: Partial<Omit<Container, 'id'>>): void {
+  const containers = getCollection('containers')
+  const idx = containers.findIndex((c) => c.id === id)
+  if (idx === -1) throw new Error(`容器 ${id} 不存在`)
+  containers[idx] = { ...containers[idx], ...data }
+  setCollection('containers', containers)
 }
 
-export function deleteAccount(id: string): void {
-  const accounts = getCollection('accounts').filter((a) => a.id !== id)
-  setCollection('accounts', accounts)
+export function deleteContainer(id: string): void {
+  const containers = getCollection('containers').filter((c) => c.id !== id)
+  setCollection('containers', containers)
 }
 
-export function reorderAccounts(accountIds: string[]): void {
-  const accounts = getCollection('accounts')
-  accountIds.forEach((id, order) => {
-    const a = accounts.find((a) => a.id === id)
-    if (a) a.order = order
+export function reorderContainers(containerIds: string[]): void {
+  const containers = getCollection('containers')
+  containerIds.forEach((id, order) => {
+    const c = containers.find((c) => c.id === id)
+    if (c) c.order = order
   })
-  setCollection('accounts', accounts)
+  setCollection('containers', containers)
 }
 
 // ====== 代理操作 ======
@@ -321,11 +321,11 @@ export function updateProxy(id: string, data: Partial<Omit<Proxy, 'id'>>): void 
 }
 
 export function deleteProxy(id: string): void {
-  // 清除所有引用该代理的账号和分组
-  const accounts = getCollection('accounts').map((a) =>
-    a.proxyId === id ? { ...a, proxyId: undefined } : a
+  // 清除所有引用该代理的容器和分组
+  const containers = getCollection('containers').map((c) =>
+    c.proxyId === id ? { ...c, proxyId: undefined } : c
   )
-  setCollection('accounts', accounts)
+  setCollection('containers', containers)
 
   const groups = getCollection('groups').map((g) =>
     g.proxyId === id ? { ...g, proxyId: undefined } : g
@@ -338,8 +338,8 @@ export function deleteProxy(id: string): void {
 
 // ====== 辅助查询 ======
 
-export function getAccountById(id: string): Account | undefined {
-  return getCollection('accounts').find((a) => a.id === id)
+export function getContainerById(id: string): Container | undefined {
+  return getCollection('containers').find((c) => c.id === id)
 }
 
 export function getGroupById(id: string): Group | undefined {
@@ -569,41 +569,41 @@ export function updateExtension(id: string, data: Partial<Omit<Extension, 'id'>>
 export function deleteExtension(id: string): void {
   const extensions = getCollection('extensions').filter((e) => e.id !== id)
   setCollection('extensions', extensions)
-  // 从所有账号的扩展列表中移除
-  const accountExtensions = getCollection('accountExtensions')
-  for (const accountId in accountExtensions) {
-    accountExtensions[accountId] = accountExtensions[accountId].filter((eid) => eid !== id)
+  // 从所有容器的扩展列表中移除
+  const containerExtensions = getCollection('containerExtensions')
+  for (const containerId in containerExtensions) {
+    containerExtensions[containerId] = containerExtensions[containerId].filter((eid) => eid !== id)
   }
-  setCollection('accountExtensions', accountExtensions)
+  setCollection('containerExtensions', containerExtensions)
 }
 
-export function getAccountExtensions(accountId: string): string[] {
-  const accountExtensions = getCollection('accountExtensions')
-  return accountExtensions[accountId] || []
+export function getContainerExtensions(containerId: string): string[] {
+  const containerExtensions = getCollection('containerExtensions')
+  return containerExtensions[containerId] || []
 }
 
-export function setAccountExtensions(accountId: string, extensionIds: string[]): void {
-  const accountExtensions = getCollection('accountExtensions')
-  accountExtensions[accountId] = extensionIds
-  setCollection('accountExtensions', accountExtensions)
+export function setContainerExtensions(containerId: string, extensionIds: string[]): void {
+  const containerExtensions = getCollection('containerExtensions')
+  containerExtensions[containerId] = extensionIds
+  setCollection('containerExtensions', containerExtensions)
 }
 
-export function addExtensionToAccount(accountId: string, extensionId: string): void {
-  const accountExtensions = getCollection('accountExtensions')
-  if (!accountExtensions[accountId]) {
-    accountExtensions[accountId] = []
+export function addExtensionToContainer(containerId: string, extensionId: string): void {
+  const containerExtensions = getCollection('containerExtensions')
+  if (!containerExtensions[containerId]) {
+    containerExtensions[containerId] = []
   }
-  if (!accountExtensions[accountId].includes(extensionId)) {
-    accountExtensions[accountId].push(extensionId)
-    setCollection('accountExtensions', accountExtensions)
+  if (!containerExtensions[containerId].includes(extensionId)) {
+    containerExtensions[containerId].push(extensionId)
+    setCollection('containerExtensions', containerExtensions)
   }
 }
 
-export function removeExtensionFromAccount(accountId: string, extensionId: string): void {
-  const accountExtensions = getCollection('accountExtensions')
-  if (accountExtensions[accountId]) {
-    accountExtensions[accountId] = accountExtensions[accountId].filter((id) => id !== extensionId)
-    setCollection('accountExtensions', accountExtensions)
+export function removeExtensionFromContainer(containerId: string, extensionId: string): void {
+  const containerExtensions = getCollection('containerExtensions')
+  if (containerExtensions[containerId]) {
+    containerExtensions[containerId] = containerExtensions[containerId].filter((id) => id !== extensionId)
+    setCollection('containerExtensions', containerExtensions)
   }
 }
 
