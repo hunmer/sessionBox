@@ -18,7 +18,7 @@ const bookmarkStore = useBookmarkStore()
 const tabStore = useTabStore()
 
 async function handleOpen() {
-  await tabStore.createTabForSite(props.bookmark.url, props.bookmark.containerId)
+  await tabStore.createTabForSite(props.bookmark.url, props.bookmark.pageId)
 }
 
 async function handleDelete() {
