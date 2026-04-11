@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useDownloadStore } from '@/stores/download'
+import { useDownloadStore, type Aria2Config } from '@/stores/download'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
@@ -12,16 +12,22 @@ const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const store = useDownloadStore()
-const editConfig = ref<Record<string, any>>({})
+const editConfig = ref<Partial<Aria2Config>>({})
 
 watch(() => props.open, (val) => {
   if (val) {
-    editConfig.value = { ...store.config }
+    editConfig.value = store.config ? { ...store.config } : {}
   }
 })
 
-function handleClose() {
-  store.saveConfig(editConfig.value)
+function updateField<Key extends keyof Aria2Config>(key: Key, value: Aria2Config[Key]) {
+  editConfig.value[key] = value
+}
+
+async function handleClose() {
+  if (Object.keys(editConfig.value).length > 0) {
+    await store.saveConfig(editConfig.value)
+  }
   emit('update:open', false)
 }
 
@@ -45,23 +51,43 @@ async function handleToggleConnection() {
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1">
             <label class="text-xs text-muted-foreground">服务器地址</label>
-            <Input v-model="editConfig.host" placeholder="localhost" />
+            <Input
+              :model-value="editConfig.host"
+              placeholder="localhost"
+              @update:model-value="updateField('host', String($event))"
+            />
           </div>
           <div class="space-y-1">
             <label class="text-xs text-muted-foreground">端口</label>
-            <Input v-model.number="editConfig.port" type="number" />
+            <Input
+              :model-value="editConfig.port"
+              type="number"
+              @update:model-value="updateField('port', Number($event))"
+            />
           </div>
           <div class="space-y-1">
             <label class="text-xs text-muted-foreground">RPC 密钥</label>
-            <Input v-model="editConfig.secret" type="password" />
+            <Input
+              :model-value="editConfig.secret"
+              type="password"
+              @update:model-value="updateField('secret', String($event))"
+            />
           </div>
           <div class="space-y-1">
             <label class="text-xs text-muted-foreground">aria2c 路径</label>
-            <Input v-model="editConfig.aria2Path" placeholder="aria2c" />
+            <Input
+              :model-value="editConfig.aria2Path"
+              placeholder="aria2c"
+              @update:model-value="updateField('aria2Path', String($event))"
+            />
           </div>
           <div class="col-span-2 space-y-1">
             <label class="text-xs text-muted-foreground">下载目录（留空使用系统默认）</label>
-            <Input v-model="editConfig.downloadDir" placeholder="系统下载目录" />
+            <Input
+              :model-value="editConfig.downloadDir"
+              placeholder="系统下载目录"
+              @update:model-value="updateField('downloadDir', String($event))"
+            />
           </div>
         </div>
 
@@ -69,7 +95,10 @@ async function handleToggleConnection() {
 
         <div class="flex items-center justify-between">
           <label class="text-sm">自动启动 aria2</label>
-          <Switch v-model="editConfig.autoStart" />
+          <Switch
+            :model-value="editConfig.autoStart"
+            @update:model-value="updateField('autoStart', $event)"
+          />
         </div>
 
         <Separator />

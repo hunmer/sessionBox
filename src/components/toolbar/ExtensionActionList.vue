@@ -7,6 +7,8 @@ import { usePageStore } from '@/stores/page'
 import { useContainerStore } from '@/stores/container'
 import { useTabStore } from '@/stores/tab'
 
+const props = withDefaults(defineProps<{ vertical?: boolean }>(), { vertical: false })
+
 const extensionStore = useExtensionStore()
 const pageStore = usePageStore()
 const containerStore = useContainerStore()
@@ -45,7 +47,10 @@ async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
 </script>
 
 <template>
-  <div class="extension-action-list flex items-center gap-0.5">
+  <div
+    class="extension-action-list"
+    :class="vertical ? 'flex flex-col items-center gap-0.5' : 'flex items-center gap-0.5'"
+  >
     <Button
       v-for="ext in enabledExtensions"
       :key="ext.id"

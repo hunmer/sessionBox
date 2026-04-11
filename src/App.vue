@@ -15,6 +15,7 @@ import BookmarkBar from '@/components/bookmarks/BookmarkBar.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import UpdateNotification from '@/components/common/UpdateNotification.vue'
+import RightPanel from '@/components/common/RightPanel.vue'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
@@ -464,6 +465,11 @@ watch(() => tabStore.bookmarkBarVisible, () => {
             </div>
           </div>
         </ResizablePanel>
+
+        <!-- 右侧面板（固定 50px） -->
+        <div class="w-[50px] shrink-0 h-full border-l border-border">
+          <RightPanel />
+        </div>
       </ResizablePanelGroup>
     </div>
 

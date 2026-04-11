@@ -11,27 +11,26 @@ export const useBookmarkStore = defineStore('bookmark', () => {
 
   // ====== 计算属性 ======
 
-  /** 书签栏显示的书签（所有根级文件夹的书签，按文件夹排序后平铺） */
-  const toolbarBookmarks = computed(() => {
-    const rootFolderIds = folders.value
-      .filter((f) => f.parentId === null)
-      .sort((a, b) => a.order - b.order)
-      .map((f) => f.id)
-    // 按根级文件夹顺序排列，每个文件夹内按 order 排序
-    const result: Bookmark[] = []
-    for (const folderId of rootFolderIds) {
-      const folderBookmarks = bookmarks.value
-        .filter((b) => b.folderId === folderId)
-        .sort((a, b) => a.order - b.order)
-      result.push(...folderBookmarks)
-    }
-    return result
-  })
-
   /** 根级文件夹 */
   const rootFolders = computed(() =>
     folders.value.filter((f) => f.parentId === null).sort((a, b) => a.order - b.order)
   )
+
+  /** 书签栏统一列表：第一个根级文件夹内的直接书签 + 子文件夹，混合排序 */
+  const toolbarItems = computed(() => {
+    const firstRoot = rootFolders.value[0]
+    if (!firstRoot) return []
+
+    const childFolders = folders.value
+      .filter((f) => f.parentId === firstRoot.id)
+      .map((f) => ({ type: 'folder' as const, data: f, order: f.order }))
+
+    const childBookmarks = bookmarks.value
+      .filter((b) => b.folderId === firstRoot.id)
+      .map((b) => ({ type: 'bookmark' as const, data: b, order: b.order }))
+
+    return [...childBookmarks, ...childFolders].sort((a, b) => a.order - b.order)
+  })
 
   // ====== 文件夹操作 ======
 
@@ -326,7 +325,7 @@ export const useBookmarkStore = defineStore('bookmark', () => {
   return {
     folders,
     bookmarks,
-    toolbarBookmarks,
+    toolbarItems,
     rootFolders,
     loadFolders,
     createFolder,

@@ -47,8 +47,10 @@ export interface Aria2TaskInfo {
 
 /** 获取内置 aria2c 可执行文件路径 */
 function getBundledAria2Path(): string {
-  // 开发环境：项目根目录下的 packages
-  // 生产环境：resources 目录
+  const isMac = process.platform === 'darwin'
+  // macOS 上使用系统安装的 aria2c
+  if (isMac) return 'aria2c'
+
   const devPath = join(app.getAppPath(), 'win_packages', 'aria2', 'aria2c.exe')
   const prodPath = join(process.resourcesPath, 'win_packages', 'aria2', 'aria2c.exe')
   return existsSync(devPath) ? devPath : prodPath
@@ -92,10 +94,7 @@ function getConfig(): Aria2Config {
 
   // 自动设置内置 aria2c 路径（仅在用户未自定义时）
   if (!saved?.aria2Path || saved.aria2Path === 'aria2c') {
-    const bundled = getBundledAria2Path()
-    if (existsSync(bundled)) {
-      config.aria2Path = bundled
-    }
+    config.aria2Path = getBundledAria2Path()
   }
 
   // 默认下载目录

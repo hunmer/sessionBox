@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Plus } from 'lucide-vue-next'
+import { Plus, Folder } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import BookmarkItem from './BookmarkItem.vue'
@@ -15,6 +15,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   edit: [id: string]
   addBookmark: []
+  selectFolder: [id: string]
 }>()
 
 const bookmarkStore = useBookmarkStore()
@@ -22,6 +23,11 @@ const bookmarkStore = useBookmarkStore()
 const currentFolder = computed(() =>
   bookmarkStore.folders.find((f) => f.id === props.folderId)
 )
+
+const childFolders = computed(() => {
+  if (props.searchQuery) return []
+  return bookmarkStore.getChildFolders(props.folderId)
+})
 
 const bookmarks = computed(() => {
   if (props.searchQuery) {
@@ -54,14 +60,27 @@ const bookmarks = computed(() => {
 
       <!-- 空状态 -->
       <div
-        v-if="bookmarks.length === 0"
+        v-if="childFolders.length === 0 && bookmarks.length === 0"
         class="flex flex-col items-center justify-center py-12 text-muted-foreground"
       >
         <p class="text-xs">{{ searchQuery ? '未找到匹配的书签' : '此文件夹暂无书签' }}</p>
       </div>
 
+      <!-- 子文件夹列表 -->
+      <div v-if="childFolders.length > 0" class="grid grid-cols-2 gap-2 mb-3">
+        <button
+          v-for="folder in childFolders"
+          :key="folder.id"
+          class="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-secondary transition-colors text-left"
+          @click="emit('selectFolder', folder.id)"
+        >
+          <Folder class="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+          <span class="text-xs truncate">{{ folder.name }}</span>
+        </button>
+      </div>
+
       <!-- 书签列表 -->
-      <div v-else class="space-y-1">
+      <div v-if="bookmarks.length > 0" class="space-y-1">
         <BookmarkItem
           v-for="bookmark in bookmarks"
           :key="bookmark.id"

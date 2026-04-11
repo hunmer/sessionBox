@@ -149,6 +149,7 @@ async function handleExport() {
           :search-query="searchQuery"
           @edit="handleEditBookmark"
           @add-bookmark="handleAddBookmark"
+          @select-folder="selectedFolderId = $event"
         />
       </ResizablePanel>
     </ResizablePanelGroup>

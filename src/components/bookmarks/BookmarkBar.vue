@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Plus, ChevronDown, Folder, MoreHorizontal, Pencil, Trash2, FolderInput } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from '@/components/ui/dropdown-menu'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -31,10 +31,10 @@ const itemsContainer = ref<HTMLElement>()
 const overflowStartIndex = ref(-1)
 let resizeObserver: ResizeObserver | null = null
 
-/** 溢出的书签列表 */
-const overflowBookmarks = computed(() => {
+/** 溢出项列表 */
+const overflowItems = computed(() => {
   if (overflowStartIndex.value <= -1) return []
-  return bookmarkStore.toolbarBookmarks.slice(overflowStartIndex.value)
+  return bookmarkStore.toolbarItems.slice(overflowStartIndex.value)
 })
 
 /** 检测书签栏溢出 */
@@ -46,7 +46,6 @@ function updateOverflow() {
     overflowStartIndex.value = -1
     return
   }
-  // 预留"更多"按钮的宽度
   const moreBtnWidth = 36
   const availableWidth = container.clientWidth - moreBtnWidth
   let firstOverflow = -1
@@ -62,51 +61,43 @@ function updateOverflow() {
 
 // ====== 操作函数 ======
 
-/** 点击快捷网站，在新 tab 中打开 */
 function openSite(site: { url: string; pageId?: string }) {
   tabStore.createTabForSite(site.url, site.pageId)
 }
 
-/** 编辑书签 */
 function handleEdit(site: Bookmark) {
   editSite.value = { id: site.id, title: site.title, url: site.url, pageId: site.pageId }
   showAddDialog.value = true
 }
 
-/** 移动书签到指定文件夹 */
 async function moveBookmark(bookmark: Bookmark, targetFolderId: string) {
   if (bookmark.folderId === targetFolderId) return
   await bookmarkStore.updateBookmark(bookmark.id, { folderId: targetFolderId })
 }
 
-/** 删除书签 */
 function handleDelete(site: Bookmark) {
   if (confirm(`删除书签「${site.title}」？`)) {
     bookmarkStore.deleteBookmark(site.id)
   }
 }
 
-/** 添加按钮 */
 function handleAdd() {
   editSite.value = null
   showAddDialog.value = true
 }
 
-/** 对话框关闭时清理编辑状态 */
 function onDialogClose(open: boolean) {
   showAddDialog.value = open
   if (!open) editSite.value = null
 }
 
-/** 获取可移动的目标文件夹列表 */
 function getMoveTargetFolders(currentFolderId: string) {
   return bookmarkStore.folders.filter(f => f.id !== currentFolderId)
 }
 
 // ====== 生命周期 ======
 
-// 书签列表变化时重新计算溢出
-watch(() => bookmarkStore.toolbarBookmarks, () => {
+watch(() => bookmarkStore.toolbarItems, () => {
   nextTick(updateOverflow)
 })
 
@@ -125,7 +116,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex items-center h-[34px] px-2 gap-1 bg-card/20 border-b border-border">
-    <!-- 添加按钮 -->
     <Button
       variant="ghost"
       size="icon-sm"
@@ -137,23 +127,24 @@ onBeforeUnmount(() => {
 
     <div class="w-px h-4 bg-border flex-shrink-0" />
 
-    <!-- 书签项容器（溢出隐藏） -->
+    <!-- 书签栏：书签 + 文件夹混合排列 -->
     <div ref="itemsContainer" class="flex items-center gap-0.5 overflow-hidden min-w-0 flex-shrink" style="flex: 1 1 0%">
-      <template v-for="item in bookmarkStore.toolbarBookmarks" :key="item.id">
-        <ContextMenu>
+      <template v-for="item in bookmarkStore.toolbarItems" :key="item.data.id">
+        <!-- 书签项 -->
+        <ContextMenu v-if="item.type === 'bookmark'">
           <ContextMenuTrigger as-child>
             <button
               data-bookmark-item
               class="h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-md text-xs hover:bg-secondary transition-colors flex-shrink-0"
-              @click="openSite(item)"
-              @dblclick.prevent="handleEdit(item)"
+              @click="openSite(item.data)"
+              @dblclick.prevent="handleEdit(item.data)"
             >
-              <img :src="getFaviconUrl(item.url)" alt="" class="w-4 h-4 rounded-sm object-cover flex-shrink-0" @error="($event.target as HTMLImageElement).style.display = 'none'" />
-              <span class="ml-1 truncate max-w-[60px]">{{ item.title }}</span>
+              <img :src="getFaviconUrl(item.data.url)" alt="" class="w-4 h-4 rounded-sm object-cover flex-shrink-0" @error="($event.target as HTMLImageElement).style.display = 'none'" />
+              <span class="ml-1 truncate max-w-[60px]">{{ item.data.title }}</span>
             </button>
           </ContextMenuTrigger>
           <ContextMenuContent class="min-w-[140px]">
-            <ContextMenuItem class="text-xs" @click="handleEdit(item)">
+            <ContextMenuItem class="text-xs" @click="handleEdit(item.data)">
               <Pencil class="w-3.5 h-3.5 mr-2" />
               编辑
             </ContextMenuItem>
@@ -164,10 +155,10 @@ onBeforeUnmount(() => {
               </ContextMenuSubTrigger>
               <ContextMenuSubContent class="min-w-[160px]">
                 <ContextMenuItem
-                  v-for="folder in getMoveTargetFolders(item.folderId)"
+                  v-for="folder in getMoveTargetFolders(item.data.folderId)"
                   :key="folder.id"
                   class="text-xs"
-                  @click="moveBookmark(item, folder.id)"
+                  @click="moveBookmark(item.data, folder.id)"
                 >
                   <Folder class="w-3.5 h-3.5 mr-2 text-muted-foreground" />
                   {{ folder.name }}
@@ -175,35 +166,34 @@ onBeforeUnmount(() => {
               </ContextMenuSubContent>
             </ContextMenuSub>
             <ContextMenuSeparator />
-            <ContextMenuItem class="text-xs text-destructive focus:text-destructive" @click="handleDelete(item)">
+            <ContextMenuItem class="text-xs text-destructive focus:text-destructive" @click="handleDelete(item.data)">
               <Trash2 class="w-3.5 h-3.5 mr-2" />
               删除
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
+
+        <!-- 文件夹项 -->
+        <DropdownMenu v-else>
+          <DropdownMenuTrigger as-child>
+            <button
+              data-bookmark-item
+              class="h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-md text-xs hover:bg-secondary transition-colors flex-shrink-0"
+            >
+              <Folder class="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+              <span class="ml-1 truncate max-w-[60px]">{{ item.data.name }}</span>
+              <ChevronDown class="w-3 h-3 ml-0.5 text-muted-foreground flex-shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" class="min-w-[160px]">
+            <BookmarkFolderMenu :folder-id="item.data.id" />
+          </DropdownMenuContent>
+        </DropdownMenu>
       </template>
     </div>
 
-    <!-- 仅含子文件夹的根级文件夹显示为下拉按钮 -->
-    <template v-for="folder in bookmarkStore.rootFolders.filter(f => bookmarkStore.getChildFolders(f.id).length > 0)" :key="folder.id">
-      <DropdownMenu>
-        <DropdownMenuTrigger as-child>
-          <button
-            class="h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-md text-xs hover:bg-secondary transition-colors flex-shrink-0"
-          >
-            <Folder class="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-            <span class="ml-1 truncate max-w-[60px]">{{ folder.name }}</span>
-            <ChevronDown class="w-3 h-3 ml-0.5 text-muted-foreground flex-shrink-0" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" class="min-w-[160px]">
-          <BookmarkFolderMenu :folder-id="folder.id" />
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </template>
-
-    <!-- 更多按钮（显示溢出书签，在最右侧） -->
-    <DropdownMenu v-if="overflowBookmarks.length > 0">
+    <!-- 溢出更多按钮 -->
+    <DropdownMenu v-if="overflowItems.length > 0">
       <DropdownMenuTrigger as-child>
         <Button
           variant="ghost"
@@ -214,24 +204,33 @@ onBeforeUnmount(() => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" class="min-w-[180px]">
-        <DropdownMenuItem
-          v-for="item in overflowBookmarks"
-          :key="item.id"
-          class="text-xs"
-          @click="openSite(item)"
-        >
-          <img
-            :src="getFaviconUrl(item.url)"
-            alt=""
-            class="w-3.5 h-3.5 rounded-sm mr-1.5"
-            @error="($event.target as HTMLImageElement).style.display = 'none'"
-          />
-          <span class="truncate">{{ item.title }}</span>
-        </DropdownMenuItem>
+        <template v-for="item in overflowItems" :key="item.data.id">
+          <DropdownMenuSub v-if="item.type === 'folder'">
+            <DropdownMenuSubTrigger class="text-xs">
+              <Folder class="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+              <span class="truncate">{{ item.data.name }}</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent class="min-w-[160px]">
+              <BookmarkFolderMenu :folder-id="item.data.id" />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuItem
+            v-else
+            class="text-xs"
+            @click="openSite(item.data)"
+          >
+            <img
+              :src="getFaviconUrl(item.data.url)"
+              alt=""
+              class="w-3.5 h-3.5 rounded-sm mr-1.5"
+              @error="($event.target as HTMLImageElement).style.display = 'none'"
+            />
+            <span class="truncate">{{ item.data.title }}</span>
+          </DropdownMenuItem>
+        </template>
       </DropdownMenuContent>
     </DropdownMenu>
 
-    <!-- 添加/编辑对话框 -->
     <AddBookmarkDialog
       :open="showAddDialog"
       :edit-site="editSite"
