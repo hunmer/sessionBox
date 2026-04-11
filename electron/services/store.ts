@@ -34,7 +34,7 @@ export interface Group {
   workspaceId?: string
 }
 
-export interface Account {
+export interface Container {
   id: string
   groupId: string
   name: string
@@ -48,7 +48,7 @@ export interface Account {
 
 export interface Tab {
   id: string
-  accountId: string
+  containerId: string
   title: string
   url: string
   order: number
@@ -67,7 +67,7 @@ export interface Bookmark {
   id: string
   title: string
   url: string
-  accountId?: string // 可选绑定账号，使用其 partition
+  containerId?: string // 可选绑定容器，使用其 partition
   favicon?: string   // 图标 URL
   folderId: string   // 所属文件夹
   order: number      // 排序
@@ -101,13 +101,13 @@ export interface ShortcutBindingStore {
 interface StoreSchema {
   workspaces: Workspace[]
   groups: Group[]
-  accounts: Account[]
+  containers: Container[]
   proxies: Proxy[]
   tabs: Tab[]
   bookmarkFolders: BookmarkFolder[]
   bookmarks: Bookmark[]
   extensions: Extension[]
-  accountExtensions: Record<string, string[]>  // accountId -> extensionIds
+  containerExtensions: Record<string, string[]>  // containerId -> extensionIds
   windowState: WindowState
   tabFreezeMinutes: number
   shortcuts: ShortcutBindingStore[]
@@ -120,7 +120,7 @@ export const BOOKMARK_BAR_FOLDER_ID = '__bookmark_bar__'
 const defaults: StoreSchema = {
   workspaces: [{ id: DEFAULT_WORKSPACE_ID, title: '默认工作区', color: '#3b82f6', order: 0, isDefault: true }],
   groups: [],
-  accounts: [],
+  containers: [],
   proxies: [],
   tabs: [],
   bookmarkFolders: [{ id: BOOKMARK_BAR_FOLDER_ID, name: '书签栏', parentId: null, order: 0 }],
@@ -132,7 +132,7 @@ const defaults: StoreSchema = {
     { id: 'default-wechat', title: '微信视频号助手', url: 'https://channels.weixin.qq.com/platform/post/create', folderId: BOOKMARK_BAR_FOLDER_ID, order: 4 }
   ],
   extensions: [],
-  accountExtensions: {},
+  containerExtensions: {},
   windowState: { width: 1280, height: 800, isMaximized: false },
   tabFreezeMinutes: 0, // 0 = 禁用冻结
   shortcuts: [],

@@ -34,7 +34,7 @@ export interface Group {
   workspaceId?: string
 }
 
-export interface Account {
+export interface Container {
   id: string
   groupId: string
   name: string
@@ -48,7 +48,7 @@ export interface Account {
 
 export interface Tab {
   id: string
-  accountId: string
+  containerId: string
   title: string
   url: string
   order: number
@@ -73,7 +73,7 @@ export interface Bookmark {
   id: string
   title: string
   url: string
-  accountId?: string
+  containerId?: string
   favicon?: string
   folderId: string
   order: number
