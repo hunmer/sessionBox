@@ -9,12 +9,12 @@ import {
   updateGroup,
   deleteGroup,
   reorderGroups,
-  reorderAccounts,
-  listAccounts,
-  createAccount,
-  updateAccount,
-  deleteAccount,
-  getAccountById,
+  reorderContainers,
+  listContainers,
+  createContainer,
+  updateContainer,
+  deleteContainer,
+  getContainerById,
   listBookmarks,
   createBookmark,
   updateBookmark,
@@ -40,7 +40,7 @@ import {
   addMutedSite,
   removeMutedSite
 } from '../services/store'
-import type { Account, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder } from '../services/store'
+import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
@@ -49,8 +49,8 @@ import { registerShortcutIpcHandlers } from './shortcut'
 import { registerBookmarkCheckIpc } from './bookmark-check'
 import { webviewManager } from '../services/webview-manager'
 
-/** 账号图标存储目录 */
-const iconDir = join(app.getPath('userData'), 'account-icons')
+/** 容器图标存储目录 */
+const iconDir = join(app.getPath('userData'), 'container-icons')
 
 /**
  * 注册所有 IPC 处理器
@@ -86,45 +86,45 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('group:reorder', (_e, groupIds: string[]) => reorderGroups(groupIds))
 
-  // ====== 账号 ======
-  ipcMain.handle('account:list', () => listAccounts())
+  // ====== 容器 ======
+  ipcMain.handle('container:list', () => listContainers())
 
-  ipcMain.handle('account:create', (_e, data: Omit<Account, 'id'>) => createAccount(data))
+  ipcMain.handle('container:create', (_e, data: Omit<Container, 'id'>) => createContainer(data))
 
-  ipcMain.handle('account:update', (_e, id: string, data: Partial<Omit<Account, 'id'>>) =>
-    updateAccount(id, data)
+  ipcMain.handle('container:update', (_e, id: string, data: Partial<Omit<Container, 'id'>>) =>
+    updateContainer(id, data)
   )
 
-  ipcMain.handle('account:delete', (_e, id: string) => {
-    // 清理该账号的自定义图标文件
-    const account = getAccountById(id)
-    if (account?.icon?.startsWith('img:')) {
-      const filePath = join(iconDir, account.icon.slice(4))
+  ipcMain.handle('container:delete', (_e, id: string) => {
+    // 清理该容器的自定义图标文件
+    const container = getContainerById(id)
+    if (container?.icon?.startsWith('img:')) {
+      const filePath = join(iconDir, container.icon.slice(4))
       if (existsSync(filePath)) unlinkSync(filePath)
     }
-    // 清理该账号的 partition 目录（Session/Cookie 数据）
-    const partitionPath = join(app.getPath('userData'), 'Partitions', `persist:account-${id}`)
+    // 清理该容器的 partition 目录（Session/Cookie 数据）
+    const partitionPath = join(app.getPath('userData'), 'Partitions', `persist:container-${id}`)
     if (existsSync(partitionPath)) rmSync(partitionPath, { recursive: true })
-    deleteAccount(id)
+    deleteContainer(id)
   })
 
-  ipcMain.handle('account:reorder', (_e, accountIds: string[]) => reorderAccounts(accountIds))
+  ipcMain.handle('container:reorder', (_e, containerIds: string[]) => reorderContainers(containerIds))
 
-  /** 创建桌面快捷方式（.url 文件），使用 sessionbox:// 协议打开账号 */
-  ipcMain.handle('account:createDesktopShortcut', (_e, accountId: string) => {
-    const account = getAccountById(accountId)
-    if (!account) throw new Error(`账号 ${accountId} 不存在`)
+  /** 创建桌面快捷方式（.url 文件），使用 sessionbox:// 协议打开容器 */
+  ipcMain.handle('container:createDesktopShortcut', (_e, containerId: string) => {
+    const container = getContainerById(containerId)
+    if (!container) throw new Error(`容器 ${containerId} 不存在`)
 
     const desktopPath = app.getPath('desktop')
-    const shortcutPath = join(desktopPath, `${account.name}.url`)
-    const protocolUrl = `sessionbox://openAccount?id=${account.id}`
+    const shortcutPath = join(desktopPath, `${container.name}.url`)
+    const protocolUrl = `sessionbox://openContainer?id=${container.id}`
 
     // 默认使用应用图标
     let iconFile = process.execPath.replace(/\\/g, '/')
 
     // 如果有自定义图片图标，转换为 ICO 格式供快捷方式使用（.url 不支持 PNG/JPG）
-    if (account.icon?.startsWith('img:')) {
-      const imgName = account.icon.slice(4)
+    if (container.icon?.startsWith('img:')) {
+      const imgName = container.icon.slice(4)
       const imgPath = join(iconDir, imgName)
 
       if (existsSync(imgPath) && !imgName.endsWith('.svg')) {
@@ -171,9 +171,9 @@ $img.Dispose()`
   })
 
   /** 选择图片并保存到本地图标目录，返回图标标识（img:文件名） */
-  ipcMain.handle('account:uploadIcon', async () => {
+  ipcMain.handle('container:uploadIcon', async () => {
     const result = await dialog.showOpenDialog({
-      title: '选择账号图标',
+      title: '选择容器图标',
       filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] }],
       properties: ['openFile']
     })
