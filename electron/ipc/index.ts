@@ -38,9 +38,16 @@ import {
   getMutedSites,
   setMutedSites,
   addMutedSite,
-  removeMutedSite
+  removeMutedSite,
+  listPages,
+  createPage,
+  updatePage,
+  deletePage,
+  reorderPages,
+  getPageById,
+  getPagesByContainer
 } from '../services/store'
-import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder } from '../services/store'
+import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder, Page } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
@@ -96,19 +103,39 @@ export function registerIpcHandlers(): void {
   )
 
   ipcMain.handle('container:delete', (_e, id: string) => {
+    // 检查是否为默认容器
+    if (id === 'default') {
+      throw new Error('默认容器不可删除')
+    }
+
     // 清理该容器的自定义图标文件
     const container = getContainerById(id)
     if (container?.icon?.startsWith('img:')) {
       const filePath = join(iconDir, container.icon.slice(4))
       if (existsSync(filePath)) unlinkSync(filePath)
     }
-    // 清理该容器的 partition 目录（Session/Cookie 数据）
+
+    // 清理该容器的 partition 目录
     const partitionPath = join(app.getPath('userData'), 'Partitions', `persist:container-${id}`)
     if (existsSync(partitionPath)) rmSync(partitionPath, { recursive: true })
+
+    // 将关联此容器的 Page 的 containerId 置空
+    const affectedPages = getPagesByContainer(id)
+    for (const page of affectedPages) {
+      updatePage(page.id, { containerId: undefined })
+    }
+
     deleteContainer(id)
   })
 
   ipcMain.handle('container:reorder', (_e, containerIds: string[]) => reorderContainers(containerIds))
+
+  // ====== 页面管理 ======
+  ipcMain.handle('page:list', () => listPages())
+  ipcMain.handle('page:create', (_e, data: Omit<Page, 'id'>) => createPage(data))
+  ipcMain.handle('page:update', (_e, id: string, data: Partial<Omit<Page, 'id'>>) => updatePage(id, data))
+  ipcMain.handle('page:delete', (_e, id: string) => deletePage(id))
+  ipcMain.handle('page:reorder', (_e, pageIds: string[]) => reorderPages(pageIds))
 
   /** 创建桌面快捷方式（.url 文件），使用 sessionbox:// 协议打开容器 */
   ipcMain.handle('container:createDesktopShortcut', (_e, containerId: string) => {
