@@ -144,6 +144,18 @@ const api = {
       ipcRenderer.invoke('container:createDesktopShortcut', containerId)
   },
 
+  page: {
+    list: (): Promise<Page[]> => ipcRenderer.invoke('page:list'),
+    create: (data: Omit<Page, 'id'>): Promise<Page> =>
+      ipcRenderer.invoke('page:create', data),
+    update: (id: string, data: Partial<Omit<Page, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('page:update', id, data),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke('page:delete', id),
+    reorder: (pageIds: string[]): Promise<void> =>
+      ipcRenderer.invoke('page:reorder', pageIds)
+  },
+
   proxy: {
     list: (): Promise<Proxy[]> => ipcRenderer.invoke('proxy:list'),
     create: (data: Omit<Proxy, 'id'>): Promise<Proxy> =>
@@ -159,7 +171,7 @@ const api = {
 
   tab: {
     list: (): Promise<Tab[]> => ipcRenderer.invoke('tab:list'),
-    create: (containerId: string | null, url?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', containerId, url),
+    create: (pageId: string | null, url?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', pageId, url),
     close: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:close', tabId),
     switch: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:switch', tabId),
     update: (tabId: string, data: Partial<Omit<Tab, 'id'>>): Promise<void> =>
