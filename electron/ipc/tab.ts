@@ -7,7 +7,7 @@ import {
   deleteTab,
   reorderTabs,
   saveTabs,
-  getAccountById
+  getContainerById
 } from '../services/store'
 import { webviewManager } from '../services/webview-manager'
 import type { Tab } from '../services/store'
@@ -21,8 +21,8 @@ export function registerTabIpcHandlers(): void {
   ipcMain.handle('tab:list', () => listTabs())
 
   // 创建 tab（含 WebContentsView）
-  // accountId 为空字符串时使用默认 partition（无账号关联）
-  ipcMain.handle('tab:create', (_e, accountId: string | null, url?: string) => {
+  // containerId 为空字符串时使用默认 partition（无容器关联）
+  ipcMain.handle('tab:create', (_e, containerId: string | null, url?: string) => {
     const tabs = listTabs()
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
     const mainWindow = webviewManager.getMainWindow()
@@ -47,8 +47,8 @@ export function registerTabIpcHandlers(): void {
     const pageKey = isInternalPage ? url!.replace('sessionbox://', '') : null
     const internalPageTitle = pageKey ? (internalPageTitles[pageKey] || pageKey) : null
 
-    if (!accountId) {
-      // 无账号模式：使用默认 partition
+    if (!containerId) {
+      // 无容器模式：使用默认 partition
       const tabUrl = url || 'https://www.baidu.com'
       const tab = createTab({
         accountId: '',
@@ -61,17 +61,17 @@ export function registerTabIpcHandlers(): void {
       return tab
     }
 
-    const account = getAccountById(accountId)
-    if (!account) throw new Error(`账号 ${accountId} 不存在`)
+    const container = getContainerById(containerId)
+    if (!container) throw new Error(`容器 ${containerId} 不存在`)
 
-    const tabUrl = url || account.defaultUrl
+    const tabUrl = url || container.defaultUrl
     const tab = createTab({
-      accountId,
-      title: account.name,
+      accountId: containerId,
+      title: container.name,
       url: tabUrl,
       order
     })
-    webviewManager.registerPendingView(tab.id, accountId, tabUrl)
+    webviewManager.registerPendingView(tab.id, containerId, tabUrl)
     mainWindow?.webContents.send('on:tab:created', tab)
     return tab
   })
@@ -148,16 +148,16 @@ export function registerTabIpcHandlers(): void {
     const info = webviewManager.getViewInfo(tabId)
     if (!info) throw new Error(`Tab ${tabId} 不存在`)
 
-    const account = getAccountById(info.accountId)
+    const container = getContainerById(info.containerId)
 
     const newWin = new BrowserWindow({
       width: 1280,
       height: 800,
       show: false,
       autoHideMenuBar: true,
-      title: account?.name ?? '新窗口',
+      title: container?.name ?? '新窗口',
       webPreferences: {
-        partition: `persist:account-${info.accountId}`,
+        partition: `persist:container-${info.containerId}`,
         sandbox: false
       }
     })
@@ -181,9 +181,9 @@ export function registerTabIpcHandlers(): void {
     const tabs = listTabs()
     for (const tab of tabs) {
       if (tab.accountId) {
-        const account = getAccountById(tab.accountId)
-        if (account) {
-          webviewManager.registerPendingView(tab.id, tab.accountId, tab.url || account.defaultUrl)
+        const container = getContainerById(tab.accountId)
+        if (container) {
+          webviewManager.registerPendingView(tab.id, tab.accountId, tab.url || container.defaultUrl)
         }
       } else {
         webviewManager.registerPendingView(tab.id, '', tab.url || 'https://www.baidu.com')
