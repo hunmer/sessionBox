@@ -41,7 +41,7 @@ async function handleSubmit() {
   if (isEdit.value && props.folderId) {
     await bookmarkStore.updateFolder(props.folderId, { name: name.value.trim() })
   } else {
-    const parentFolderId = props.parentId === '__bookmark_bar__' ? null : props.parentId
+    const parentFolderId = props.parentId || null
     const siblings = parentFolderId
       ? bookmarkStore.getChildFolders(parentFolderId)
       : bookmarkStore.rootFolders

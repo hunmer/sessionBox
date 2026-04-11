@@ -37,6 +37,10 @@ export interface Aria2Config {
   checkCertificate: boolean
   userAgent: string
   autoStart: boolean
+  alwaysAsk: boolean
+  notifyOnStart: boolean
+  notifyOnSuccess: boolean
+  notifyOnFailure: boolean
 }
 
 export const useDownloadStore = defineStore('download', () => {

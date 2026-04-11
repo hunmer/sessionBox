@@ -11,10 +11,22 @@ export const useBookmarkStore = defineStore('bookmark', () => {
 
   // ====== 计算属性 ======
 
-  /** 书签栏文件夹的书签（用于 BookmarkBar） */
-  const toolbarBookmarks = computed(() =>
-    bookmarks.value.filter((b) => b.folderId === '__bookmark_bar__').sort((a, b) => a.order - b.order)
-  )
+  /** 书签栏显示的书签（所有根级文件夹的书签，按文件夹排序后平铺） */
+  const toolbarBookmarks = computed(() => {
+    const rootFolderIds = folders.value
+      .filter((f) => f.parentId === null)
+      .sort((a, b) => a.order - b.order)
+      .map((f) => f.id)
+    // 按根级文件夹顺序排列，每个文件夹内按 order 排序
+    const result: Bookmark[] = []
+    for (const folderId of rootFolderIds) {
+      const folderBookmarks = bookmarks.value
+        .filter((b) => b.folderId === folderId)
+        .sort((a, b) => a.order - b.order)
+      result.push(...folderBookmarks)
+    }
+    return result
+  })
 
   /** 根级文件夹 */
   const rootFolders = computed(() =>

@@ -133,14 +133,8 @@ const defaults: StoreSchema = {
   pages: [],
   proxies: [],
   tabs: [],
-  bookmarkFolders: [{ id: BOOKMARK_BAR_FOLDER_ID, name: '书签栏', parentId: null, order: 0 }],
-  bookmarks: [
-    { id: 'default-douyin', title: '抖音', url: 'https://www.douyin.com', folderId: BOOKMARK_BAR_FOLDER_ID, order: 0 },
-    { id: 'default-iqiyi', title: '爱奇艺', url: 'https://www.iqiyi.com', folderId: BOOKMARK_BAR_FOLDER_ID, order: 1 },
-    { id: 'default-qq', title: '腾讯', url: 'https://www.qq.com', folderId: BOOKMARK_BAR_FOLDER_ID, order: 2 },
-    { id: 'default-douyin-creator', title: '抖音创作者中心', url: 'https://creator.douyin.com/creator-micro/home', folderId: BOOKMARK_BAR_FOLDER_ID, order: 3 },
-    { id: 'default-wechat', title: '微信视频号助手', url: 'https://channels.weixin.qq.com/platform/post/create', folderId: BOOKMARK_BAR_FOLDER_ID, order: 4 }
-  ],
+  bookmarkFolders: [],
+  bookmarks: [],
   extensions: [],
   containerExtensions: {},
   windowState: { width: 1280, height: 800, isMaximized: false },
@@ -573,7 +567,6 @@ export function updateBookmarkFolder(id: string, data: Partial<Omit<BookmarkFold
 }
 
 export function deleteBookmarkFolder(id: string): void {
-  if (id === BOOKMARK_BAR_FOLDER_ID) throw new Error('书签栏文件夹不可删除')
   // 级联删除子文件夹
   const folders = getCollection('bookmarkFolders')
   const childIds = collectChildFolderIds(folders, id)
@@ -650,17 +643,25 @@ export function migrateBookmarks(): void {
   const needsMigration = sites.some((s) => !('folderId' in s) || s.folderId === undefined)
   if (!needsMigration) return
 
-  // 确保书签栏文件夹存在
-  const folders = getCollection('bookmarkFolders')
-  if (!folders.some((f) => f.id === BOOKMARK_BAR_FOLDER_ID)) {
-    folders.push({ id: BOOKMARK_BAR_FOLDER_ID, name: '书签栏', parentId: null, order: 0 })
+  // 确保至少有一个根级文件夹用于迁移旧书签
+  let folders = getCollection('bookmarkFolders')
+  if (folders.length === 0) {
+    const defaultFolder = { id: randomUUID(), name: '默认文件夹', parentId: null, order: 0 }
+    folders.push(defaultFolder)
     setCollection('bookmarkFolders', folders)
   }
+  // 如果存在旧的 __bookmark_bar__ 文件夹，重命名为"默认文件夹"
+  const barFolder = folders.find((f) => f.id === BOOKMARK_BAR_FOLDER_ID)
+  if (barFolder) {
+    barFolder.name = '默认文件夹'
+    setCollection('bookmarkFolders', folders)
+  }
+  const fallbackFolderId = folders[0].id
 
   // 迁移旧书签：赋予 folderId 和 order
   const migrated = sites.map((s, index) => ({
     ...s,
-    folderId: s.folderId || BOOKMARK_BAR_FOLDER_ID,
+    folderId: s.folderId || fallbackFolderId,
     order: s.order ?? index
   }))
   setCollection('bookmarks', migrated)

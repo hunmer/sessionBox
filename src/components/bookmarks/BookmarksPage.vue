@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Plus, FolderPlus, Search, Import, Download, ShieldCheck } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +14,14 @@ import { useBookmarkStore } from '@/stores/bookmark'
 
 const bookmarkStore = useBookmarkStore()
 
-const selectedFolderId = ref<string>('__bookmark_bar__')
+const selectedFolderId = ref<string>('')
+
+// 初始化选中第一个根级文件夹
+watch(() => bookmarkStore.rootFolders, (folders) => {
+  if (!selectedFolderId.value && folders.length > 0) {
+    selectedFolderId.value = folders[0].id
+  }
+}, { immediate: true })
 const searchQuery = ref('')
 
 // 文件夹对话框

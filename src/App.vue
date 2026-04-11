@@ -50,6 +50,7 @@ const homepageStore = useHomepageStore()
 
 const proxyDialogOpen = ref(false)
 const settingsDialogOpen = ref(false)
+const settingsInitialTab = ref('general')
 const ready = ref(false)
 const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
@@ -354,7 +355,7 @@ watch(() => tabStore.bookmarkBarVisible, () => {
             <Sidebar
               :collapsed="sidebarCollapsed"
               @open-proxy="proxyDialogOpen = true"
-              @open-settings="settingsDialogOpen = true"
+              @open-settings="settingsDialogOpen = true; settingsInitialTab = 'general'"
             />
           </SidebarProvider>
         </ResizablePanel>
@@ -389,7 +390,11 @@ watch(() => tabStore.bookmarkBarVisible, () => {
                   v-if="tabStore.isInternalPage"
                   class="absolute inset-x-0 top-0 bottom-2 z-20 overflow-auto"
                 >
-                  <component :is="internalPageComponent" v-if="internalPageComponent" />
+                  <component
+                    :is="internalPageComponent"
+                    v-if="internalPageComponent"
+                    @open-download-settings="settingsDialogOpen = true; settingsInitialTab = 'download'"
+                  />
                   <div v-else class="flex items-center justify-center h-full">
                     <p class="text-muted-foreground text-sm">未知页面</p>
                   </div>
@@ -466,7 +471,7 @@ watch(() => tabStore.bookmarkBarVisible, () => {
     <ProxyDialog :open="proxyDialogOpen" @update:open="proxyDialogOpen = $event" />
 
     <!-- 设置弹窗 -->
-    <SettingsDialog :open="settingsDialogOpen" @update:open="settingsDialogOpen = $event" />
+    <SettingsDialog :open="settingsDialogOpen" :initial-tab="settingsInitialTab" @update:open="settingsDialogOpen = $event" />
 
     <!-- 更新提示弹窗 -->
     <UpdateNotification />

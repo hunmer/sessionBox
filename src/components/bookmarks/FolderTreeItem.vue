@@ -82,7 +82,6 @@ function handleClick() {
               <Pencil class="w-3 h-3 mr-1.5" /> 重命名
             </DropdownMenuItem>
             <DropdownMenuItem
-              v-if="folder.id !== '__bookmark_bar__'"
               class="text-xs text-destructive"
               @click="bookmarkStore.deleteFolder(folder.id)"
             >

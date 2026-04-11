@@ -35,10 +35,16 @@ const bookmarkStore = useBookmarkStore()
 const title = ref('')
 const url = ref('')
 const pageId = ref<string>('__none__')
-const folderId = ref<string>('__bookmark_bar__')
+const folderId = ref<string>('')
 
 const isEdit = computed(() => !!props.editSite)
 const dialogTitle = computed(() => isEdit.value ? '编辑快捷网站' : '添加快捷网站')
+
+/** 获取第一个根级文件夹 ID */
+function firstRootFolderId(): string {
+  const root = bookmarkStore.rootFolders[0]
+  return root?.id || ''
+}
 
 /** 所有页面列表（扁平化） */
 const allPages = computed(() =>
@@ -53,12 +59,12 @@ watch(() => props.open, (open) => {
     url.value = props.editSite.url
     pageId.value = props.editSite.pageId || '__none__'
     const bookmark = bookmarkStore.bookmarks.find((b) => b.id === props.editSite?.id)
-    folderId.value = bookmark?.folderId || '__bookmark_bar__'
+    folderId.value = bookmark?.folderId || firstRootFolderId()
   } else {
     title.value = props.defaultTitle || ''
     url.value = props.defaultUrl || ''
     pageId.value = props.defaultPageId || '__none__'
-    folderId.value = '__bookmark_bar__'
+    folderId.value = firstRootFolderId()
   }
 })
 

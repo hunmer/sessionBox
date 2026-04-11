@@ -3,7 +3,6 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useDownloadStore } from '@/stores/download'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import DownloadSettingsDialog from './DownloadSettingsDialog.vue'
 import {
   Download,
   Pause,
@@ -18,7 +17,7 @@ import {
 } from 'lucide-vue-next'
 
 const store = useDownloadStore()
-const showConfig = ref(false)
+const emit = defineEmits<{ 'open-download-settings': [] }>()
 const filterStatus = ref<'all' | 'active' | 'waiting' | 'complete' | 'error'>('all')
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -95,7 +94,7 @@ function statusVariant(status: string) {
           <Badge :variant="store.connected ? 'default' : 'outline'" class="text-xs">
             {{ store.connected ? '已连接' : '未连接' }}
           </Badge>
-          <Button size="sm" variant="outline" @click="showConfig = true">
+          <Button size="sm" variant="outline" @click="emit('open-download-settings')">
             <Settings class="w-4 h-4" />
           </Button>
         </div>
@@ -142,7 +141,7 @@ function statusVariant(status: string) {
       <div v-if="!store.connected" class="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
         <Server class="w-10 h-10" />
         <p class="text-sm">Aria2 服务未连接</p>
-        <Button size="sm" @click="showConfig = true">
+        <Button size="sm" @click="emit('open-download-settings')">
           <Settings class="w-3.5 h-3.5 mr-1" /> 配置连接
         </Button>
       </div>
@@ -216,8 +215,5 @@ function statusVariant(status: string) {
         </div>
       </div>
     </div>
-
-    <!-- 下载设置弹窗 -->
-    <DownloadSettingsDialog v-model:open="showConfig" />
   </div>
 </template>

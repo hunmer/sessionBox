@@ -138,7 +138,7 @@ onBeforeUnmount(() => {
     <div class="w-px h-4 bg-border flex-shrink-0" />
 
     <!-- 书签项容器（溢出隐藏） -->
-    <div ref="itemsContainer" class="flex items-center gap-0.5 overflow-hidden min-w-0" style="flex: 1 1 0%">
+    <div ref="itemsContainer" class="flex items-center gap-0.5 overflow-hidden min-w-0 flex-shrink" style="flex: 1 1 0%">
       <template v-for="item in bookmarkStore.toolbarBookmarks" :key="item.id">
         <ContextMenu>
           <ContextMenuTrigger as-child>
@@ -184,7 +184,25 @@ onBeforeUnmount(() => {
       </template>
     </div>
 
-    <!-- 更多按钮（显示溢出书签） -->
+    <!-- 仅含子文件夹的根级文件夹显示为下拉按钮 -->
+    <template v-for="folder in bookmarkStore.rootFolders.filter(f => bookmarkStore.getChildFolders(f.id).length > 0)" :key="folder.id">
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <button
+            class="h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-md text-xs hover:bg-secondary transition-colors flex-shrink-0"
+          >
+            <Folder class="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+            <span class="ml-1 truncate max-w-[60px]">{{ folder.name }}</span>
+            <ChevronDown class="w-3 h-3 ml-0.5 text-muted-foreground flex-shrink-0" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" class="min-w-[160px]">
+          <BookmarkFolderMenu :folder-id="folder.id" />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </template>
+
+    <!-- 更多按钮（显示溢出书签，在最右侧） -->
     <DropdownMenu v-if="overflowBookmarks.length > 0">
       <DropdownMenuTrigger as-child>
         <Button
@@ -212,24 +230,6 @@ onBeforeUnmount(() => {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-
-    <!-- 其他根级文件夹（非书签栏）显示为下拉按钮 -->
-    <template v-for="folder in bookmarkStore.rootFolders.filter(f => f.id !== '__bookmark_bar__')" :key="folder.id">
-      <DropdownMenu>
-        <DropdownMenuTrigger as-child>
-          <button
-            class="h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-md text-xs hover:bg-secondary transition-colors flex-shrink-0"
-          >
-            <Folder class="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-            <span class="ml-1 truncate max-w-[60px]">{{ folder.name }}</span>
-            <ChevronDown class="w-3 h-3 ml-0.5 text-muted-foreground flex-shrink-0" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" class="min-w-[160px]">
-          <BookmarkFolderMenu :folder-id="folder.id" />
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </template>
 
     <!-- 添加/编辑对话框 -->
     <AddBookmarkDialog

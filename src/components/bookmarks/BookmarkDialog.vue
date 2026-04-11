@@ -30,7 +30,7 @@ const dialogTitle = computed(() => isEdit.value ? '编辑书签' : '添加书签
 
 watch(() => props.open, (open) => {
   if (open) {
-    selectedFolderId.value = props.folderId || '__bookmark_bar__'
+    selectedFolderId.value = props.folderId || bookmarkStore.rootFolders[0]?.id || ''
     if (props.bookmarkId) {
       const bookmark = bookmarkStore.bookmarks.find((b) => b.id === props.bookmarkId)
       if (bookmark) {

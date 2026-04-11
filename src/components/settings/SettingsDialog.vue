@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import {
-  Settings, User, Palette, Settings2, LayoutList, Keyboard, Globe, Info
+  Settings, User, Palette, Settings2, LayoutList, Keyboard, Globe, Info, Download
 } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import SettingsGeneral from './SettingsGeneral.vue'
@@ -11,8 +11,9 @@ import SettingsTabs from './SettingsTabs.vue'
 import SettingsShortcut from './SettingsShortcut.vue'
 import SettingsUser from './SettingsUser.vue'
 import SettingsTheme from './SettingsTheme.vue'
+import SettingsDownload from './SettingsDownload.vue'
 
-const props = defineProps<{ open: boolean }>()
+const props = defineProps<{ open: boolean; initialTab?: string }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const tabs = [
@@ -22,9 +23,16 @@ const tabs = [
   { key: 'tabs', label: '标签页', icon: LayoutList },
   { key: 'shortcuts', label: '快捷键', icon: Keyboard },
   { key: 'sites', label: '网站', icon: Globe },
+  { key: 'download', label: '下载', icon: Download },
   { key: 'about', label: '关于', icon: Info }
 ]
 const activeTab = ref('general')
+
+watch(() => props.open, (open) => {
+  if (open && props.initialTab) {
+    activeTab.value = props.initialTab
+  }
+})
 </script>
 
 <template>
@@ -60,6 +68,7 @@ const activeTab = ref('general')
           <SettingsTabs v-else-if="activeTab === 'tabs'" />
           <SettingsShortcut v-else-if="activeTab === 'shortcuts'" />
           <SettingsSites v-else-if="activeTab === 'sites'" />
+          <SettingsDownload v-else-if="activeTab === 'download'" />
           <SettingsAbout v-else-if="activeTab === 'about'" />
         </div>
       </div>
