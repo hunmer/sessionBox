@@ -24,7 +24,7 @@ const bookmarkStore = useBookmarkStore()
 const tabStore = useTabStore()
 
 const showAddDialog = ref(false)
-const editSite = ref<{ id: string; title: string; url: string; containerId?: string } | null>(null)
+const editSite = ref<{ id: string; title: string; url: string; pageId?: string } | null>(null)
 
 // ====== 溢出检测 ======
 const itemsContainer = ref<HTMLElement>()
@@ -63,13 +63,13 @@ function updateOverflow() {
 // ====== 操作函数 ======
 
 /** 点击快捷网站，在新 tab 中打开 */
-function openSite(site: { url: string; containerId?: string }) {
-  tabStore.createTabForSite(site.url, site.containerId)
+function openSite(site: { url: string; pageId?: string }) {
+  tabStore.createTabForSite(site.url, site.pageId)
 }
 
 /** 编辑书签 */
 function handleEdit(site: Bookmark) {
-  editSite.value = { id: site.id, title: site.title, url: site.url, containerId: site.containerId }
+  editSite.value = { id: site.id, title: site.title, url: site.url, pageId: site.pageId }
   showAddDialog.value = true
 }
 
