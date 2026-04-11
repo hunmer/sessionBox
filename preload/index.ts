@@ -122,18 +122,18 @@ const api = {
       ipcRenderer.invoke('group:reorder', groupIds)
   },
 
-  account: {
-    list: (): Promise<Account[]> => ipcRenderer.invoke('account:list'),
-    create: (data: Omit<Account, 'id'>): Promise<Account> =>
-      ipcRenderer.invoke('account:create', data),
-    update: (id: string, data: Partial<Omit<Account, 'id'>>): Promise<void> =>
-      ipcRenderer.invoke('account:update', id, data),
-    delete: (id: string): Promise<void> => ipcRenderer.invoke('account:delete', id),
-    reorder: (accountIds: string[]): Promise<void> =>
-      ipcRenderer.invoke('account:reorder', accountIds),
-    uploadIcon: (): Promise<string | null> => ipcRenderer.invoke('account:uploadIcon'),
-    createDesktopShortcut: (accountId: string): Promise<string> =>
-      ipcRenderer.invoke('account:createDesktopShortcut', accountId)
+  container: {
+    list: (): Promise<Container[]> => ipcRenderer.invoke('container:list'),
+    create: (data: Omit<Container, 'id'>): Promise<Container> =>
+      ipcRenderer.invoke('container:create', data),
+    update: (id: string, data: Partial<Omit<Container, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('container:update', id, data),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('container:delete', id),
+    reorder: (containerIds: string[]): Promise<void> =>
+      ipcRenderer.invoke('container:reorder', containerIds),
+    uploadIcon: (): Promise<string | null> => ipcRenderer.invoke('container:uploadIcon'),
+    createDesktopShortcut: (containerId: string): Promise<string> =>
+      ipcRenderer.invoke('container:createDesktopShortcut', containerId)
   },
 
   proxy: {
@@ -151,7 +151,7 @@ const api = {
 
   tab: {
     list: (): Promise<Tab[]> => ipcRenderer.invoke('tab:list'),
-    create: (accountId: string | null, url?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', accountId, url),
+    create: (containerId: string | null, url?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', containerId, url),
     close: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:close', tabId),
     switch: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:switch', tabId),
     update: (tabId: string, data: Partial<Omit<Tab, 'id'>>): Promise<void> =>
@@ -236,10 +236,10 @@ const api = {
       ipcRenderer.invoke('extension:update', id, data),
     getLoaded: (): Promise<string[]> => ipcRenderer.invoke('extension:getLoaded'),
     openBrowserActionPopup: (
-      accountId: string | null,
+      containerId: string | null,
       extensionId: string,
       anchorRect: { x: number; y: number; width: number; height: number }
-    ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', accountId, extensionId, anchorRect)
+    ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', containerId, extensionId, anchorRect)
   },
 
   window: {
