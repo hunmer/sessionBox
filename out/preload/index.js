@@ -102,6 +102,13 @@ const api = {
     uploadIcon: () => electron.ipcRenderer.invoke("container:uploadIcon"),
     createDesktopShortcut: (containerId) => electron.ipcRenderer.invoke("container:createDesktopShortcut", containerId)
   },
+  page: {
+    list: () => electron.ipcRenderer.invoke("page:list"),
+    create: (data) => electron.ipcRenderer.invoke("page:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("page:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("page:delete", id),
+    reorder: (pageIds) => electron.ipcRenderer.invoke("page:reorder", pageIds)
+  },
   proxy: {
     list: () => electron.ipcRenderer.invoke("proxy:list"),
     create: (data) => electron.ipcRenderer.invoke("proxy:create", data),
@@ -112,7 +119,7 @@ const api = {
   },
   tab: {
     list: () => electron.ipcRenderer.invoke("tab:list"),
-    create: (containerId, url) => electron.ipcRenderer.invoke("tab:create", containerId, url),
+    create: (pageId, url) => electron.ipcRenderer.invoke("tab:create", pageId, url),
     close: (tabId) => electron.ipcRenderer.invoke("tab:close", tabId),
     switch: (tabId) => electron.ipcRenderer.invoke("tab:switch", tabId),
     update: (tabId, data) => electron.ipcRenderer.invoke("tab:update", tabId, data),

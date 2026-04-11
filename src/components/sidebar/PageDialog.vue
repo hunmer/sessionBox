@@ -38,6 +38,7 @@ const icon = ref('📄')
 const url = ref('about:blank')
 const containerId = ref('')
 const NO_PROXY = '__none__'
+const DEFAULT_CONTAINER = '__default__'
 const proxyId = ref(NO_PROXY)
 const userAgent = ref('')
 
@@ -61,7 +62,7 @@ watch(() => props.open, (val) => {
     name.value = props.page?.name ?? ''
     icon.value = props.page?.icon ?? '📄'
     url.value = props.page?.url ?? 'about:blank'
-    containerId.value = props.page?.containerId ?? ''
+    containerId.value = props.page?.containerId || DEFAULT_CONTAINER
     proxyId.value = props.page?.proxyId || NO_PROXY
     userAgent.value = props.page?.userAgent ?? ''
   }
@@ -83,7 +84,7 @@ function handleSave() {
   if (!trimmed) return
   emit('save', {
     groupId: props.page?.groupId ?? props.groupId ?? '',
-    containerId: containerId.value || undefined,
+    containerId: containerId.value === DEFAULT_CONTAINER ? undefined : containerId.value,
     name: trimmed,
     icon: icon.value,
     url: url.value.trim() || 'about:blank',
@@ -182,7 +183,7 @@ function handleDelete() {
                 <SelectValue placeholder="默认容器" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">默认容器</SelectItem>
+                <SelectItem :value="DEFAULT_CONTAINER">默认容器</SelectItem>
                 <SelectItem v-for="c in containers" :key="c.id" :value="c.id">
                   {{ c.name }}
                 </SelectItem>
