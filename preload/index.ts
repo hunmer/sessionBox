@@ -309,7 +309,9 @@ const api = {
     globalStat: (): Promise<any> => ipcRenderer.invoke('download:globalStat'),
     purge: (): Promise<void> => ipcRenderer.invoke('download:purge'),
     showInFolder: (filePath: string): Promise<void> => ipcRenderer.invoke('download:showInFolder', filePath),
-    getFilePath: (dir: string, filename: string): Promise<string> => ipcRenderer.invoke('download:getFilePath', dir, filename)
+    getFilePath: (dir: string, filename: string): Promise<string> => ipcRenderer.invoke('download:getFilePath', dir, filename),
+    startDrag: (filePath: string): void => ipcRenderer.send('download:startDrag', filePath),
+    openFile: (filePath: string): Promise<void> => ipcRenderer.invoke('download:openFile', filePath)
   },
 
   // 自动更新

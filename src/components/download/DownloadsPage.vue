@@ -145,29 +145,41 @@ function statusVariant(status: string) {
 
 // ====== 文件操作 ======
 
+/** 获取任务文件的完整路径 */
+async function getTaskFilePath(task: { dir: string; filename: string }): Promise<string> {
+  return window.api.download.getFilePath(task.dir, task.filename)
+}
+
+/** 双击打开已下载的文件 */
+async function openFile(task: { dir: string; filename: string; status: string }) {
+  if (task.status !== 'complete' || !task.filename) return
+  const filePath = await getTaskFilePath(task)
+  await window.api.download.openFile(filePath)
+}
+
 /** 在系统文件管理器中显示文件 */
 async function showInFolder(task: { dir: string; filename: string }) {
-  const filePath = await window.api.download.getFilePath(task.dir, task.filename)
+  const filePath = await getTaskFilePath(task)
   await window.api.download.showInFolder(filePath)
 }
 
-/** 拖拽文件到外部应用 */
-async function onDragStart(event: DragEvent, task: { dir: string; filename: string }) {
-  if (!event.dataTransfer) return
+// 拖拽状态：记录当前正在拖拽的文件路径
+const draggingFilePath = ref<string | null>(null)
 
-  const filePath = await window.api.download.getFilePath(task.dir, task.filename)
+/** mousedown 时预加载文件路径，避免 async 导致 startDrag 失败 */
+async function onItemMouseDown(task: { dir: string; filename: string; status: string }) {
+  if (task.status !== 'complete' || !task.filename) {
+    draggingFilePath.value = null
+    return
+  }
+  draggingFilePath.value = await getTaskFilePath(task)
+}
 
-  // Electron 通过 file:// 协议支持原生文件拖拽
-  event.dataTransfer.setData('text/plain', filePath)
-
-  // 尝试使用 File 对象实现原生拖拽
-  try {
-    const response = await fetch(`file://${filePath}`)
-    const blob = await response.blob()
-    const file = new File([blob], task.filename, { type: blob.type })
-    event.dataTransfer.items.add(file)
-  } catch {
-    // 降级：仅设置文本路径
+/** 拖拽开始时，通知主进程执行原生文件拖拽 */
+function onDragStart(event: DragEvent) {
+  event.preventDefault()
+  if (draggingFilePath.value) {
+    window.api.download.startDrag(draggingFilePath.value)
   }
 }
 </script>
@@ -267,8 +279,10 @@ async function onDragStart(event: DragEvent, task: { dir: string; filename: stri
                 :key="task.gid"
                 class="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-muted/50 transition-colors group"
                 :class="{ 'cursor-grab': task.status === 'complete' && task.filename }"
-                draggable="true"
-                @dragstart="task.status === 'complete' && task.filename && onDragStart($event, task)"
+                :draggable="task.status === 'complete' && !!task.filename"
+                @mousedown="onItemMouseDown(task)"
+                @dragstart="onDragStart"
+                @dblclick="openFile(task)"
               >
                 <!-- 文件图标 -->
                 <div class="shrink-0 w-8 h-8 rounded bg-muted flex items-center justify-center">

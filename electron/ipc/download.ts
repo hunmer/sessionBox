@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
-import { shell } from 'electron'
+import { ipcMain, shell, nativeImage } from 'electron'
+import path from 'path'
 import {
   checkConnection,
   getAria2Config,
@@ -67,8 +67,20 @@ export function registerDownloadIpcHandlers(): void {
 
   /** 获取下载文件的完整路径（用于拖拽） */
   ipcMain.handle('download:getFilePath', (_e, dir: string, filename: string) => {
-    const path = require('path')
-    const filePath = path.join(dir, filename)
-    return filePath
+    return path.join(dir, filename)
+  })
+
+  /** 原生文件拖拽：通过主进程 startDrag 实现拖拽到外部应用 */
+  ipcMain.on('download:startDrag', (event, filePath: string) => {
+    // macOS 要求 icon 非空，使用 1x1 透明 PNG
+    const icon = nativeImage.createFromBuffer(
+      Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
+    )
+    event.sender.startDrag({ file: filePath, icon })
+  })
+
+  /** 双击打开已下载的文件 */
+  ipcMain.handle('download:openFile', async (_e, filePath: string) => {
+    await shell.openPath(filePath)
   })
 }

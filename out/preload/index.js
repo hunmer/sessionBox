@@ -210,7 +210,9 @@ const api = {
     globalStat: () => electron.ipcRenderer.invoke("download:globalStat"),
     purge: () => electron.ipcRenderer.invoke("download:purge"),
     showInFolder: (filePath) => electron.ipcRenderer.invoke("download:showInFolder", filePath),
-    getFilePath: (dir, filename) => electron.ipcRenderer.invoke("download:getFilePath", dir, filename)
+    getFilePath: (dir, filename) => electron.ipcRenderer.invoke("download:getFilePath", dir, filename),
+    startDrag: (filePath) => electron.ipcRenderer.send("download:startDrag", filePath),
+    openFile: (filePath) => electron.ipcRenderer.invoke("download:openFile", filePath)
   },
   // 自动更新
   updater: {
