@@ -116,7 +116,6 @@ function createExtensionsInstance(
     license: extensionRuntimeLicense,
     session: browserSession,
     async createTab(details) {
-      console.log('[Extensions] createTab requested:', details)
 
       const mainWindow = webviewManager.getMainWindow()
       if (!mainWindow || mainWindow.isDestroyed()) {
@@ -151,11 +150,9 @@ function createExtensionsInstance(
       return [webContents, mainWindow]
     },
     selectTab(webContents) {
-      console.log('[Extensions] selectTab:', webContents.id)
       webviewManager.switchByWebContents(webContents)
     },
     removeTab(webContents) {
-      console.log('[Extensions] removeTab:', webContents.id)
       const tabId = webviewManager.destroyByWebContents(webContents)
       if (!tabId) return
 
@@ -214,12 +211,6 @@ async function loadExtensionIntoAccount(
   const loadTask = (async () => {
     getExtensionsForAccount(accountId)
 
-    console.log('[Extensions] Loading extension into partition:', {
-      partitionKey,
-      extensionId: extension.id,
-      path: extension.path
-    })
-
     const loadedExt = await browserSession.loadExtension(extension.path)
     loadedMap.set(extension.id, loadedExt.id)
     extensionInfoMap.set(`${partitionKey}:${loadedExt.id}`, {
@@ -255,12 +246,6 @@ export async function ensureExtensionsLoadedForAccount(
  * 将扩展加载到所有 partition。
  */
 export async function loadExtensionForAllAccounts(extension: Extension): Promise<void> {
-  console.log('[loadExtensionForAllAccounts] Starting...', {
-    extensionId: extension.id,
-    extensionPath: extension.path,
-    license: extensionRuntimeLicense
-  })
-
   const targets = getAllTargetAccountIds()
   for (const accountId of targets) {
     await loadExtensionIntoAccount(accountId, extension)

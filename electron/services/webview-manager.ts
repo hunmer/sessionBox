@@ -53,6 +53,7 @@ class WebviewManager {
   private activeTabId: string | null = null
   private freezeTimer: ReturnType<typeof setInterval> | null = null
   private frozenTabUrls = new Map<string, { url: string; accountId: string }>() // 冻结的 tab 信息
+  private pendingViews = new Map<string, { url: string; accountId: string }>() // 未激活的 tab（尚未创建 WebContentsView）
   private _freezeMinutes = 0
 
   setMainWindow(win: BrowserWindow): void {
@@ -208,11 +209,7 @@ class WebviewManager {
       this.sessionProxyEnabled.set(accountId, true)
       applyProxyPromise = applyProxyToSession(view.webContents.session, proxy)
         .then(() => {
-          // console.log('[WebviewManager] setProxy success', {
-          //   tabId,
-          //   partition: partition || 'default',
-          //   proxyMode: proxy.proxyMode ?? 'global'
-          // })
+  
         })
         .catch((error) => {
           console.error('[WebviewManager] setProxy failed', {
@@ -266,6 +263,12 @@ class WebviewManager {
     })()
 
     return view.webContents
+  }
+
+  /** 注册待激活的标签（不创建 WebContentsView，激活时再创建） */
+  registerPendingView(tabId: string, accountId: string, url: string): void {
+    if (url.startsWith('sessionbox://')) return
+    this.pendingViews.set(tabId, { url, accountId })
   }
 
   private setupEventForwarding(tabId: string, view: WebContentsView): void {
@@ -379,6 +382,9 @@ class WebviewManager {
   }
 
   destroyView(tabId: string): void {
+    // 清理待激活记录
+    this.pendingViews.delete(tabId)
+
     const entry = this.views.get(tabId)
     if (!entry) {
       // 也清理冻结记录
@@ -434,6 +440,13 @@ class WebviewManager {
       this.mainWindow.webContents.send('on:tab:frozen', tabId, false)
     }
 
+    // 如果目标标签尚未创建 View（懒加载），先创建
+    if (!this.views.has(tabId) && this.pendingViews.has(tabId)) {
+      const pending = this.pendingViews.get(tabId)!
+      this.pendingViews.delete(tabId)
+      this.createView(tabId, pending.accountId, pending.url)
+    }
+
     const target = this.views.get(tabId)
     if (!target) return
 
@@ -462,6 +475,12 @@ class WebviewManager {
   navigate(tabId: string, url: string): void {
     // 内部页面不加载到 WebContentsView
     if (url.startsWith('sessionbox://')) return
+    // 如果标签尚未创建 View，更新待加载的 URL
+    const pending = this.pendingViews.get(tabId)
+    if (pending) {
+      pending.url = url
+      return
+    }
     const entry = this.views.get(tabId)
     if (entry) {
       void entry.view.webContents.loadURL(url)

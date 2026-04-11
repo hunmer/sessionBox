@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, computed } from 'vue'
 import { ChevronRight, MoreHorizontal } from "lucide-vue-next"
 import draggable from 'vuedraggable'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import { useAccountStore } from '@/stores/account'
+import { useTabStore } from '@/stores/tab'
 
 import {
   Collapsible,
@@ -55,6 +56,18 @@ const emit = defineEmits<{
 }>()
 
 const accountStore = useAccountStore()
+const tabStore = useTabStore()
+
+// 计算每个账号的标签页数量
+const accountTabCounts = computed(() => {
+  const counts: Record<string, number> = {}
+  for (const tab of tabStore.tabs) {
+    if (tab.accountId) {
+      counts[tab.accountId] = (counts[tab.accountId] || 0) + 1
+    }
+  }
+  return counts
+})
 
 // 为每个 workspace 维护独立的折叠状态
 const openStates = reactive<Record<string, boolean>>({})
@@ -169,6 +182,14 @@ function onAccountReorder(groupId: string, reordered: WorkspacePage[]) {
                       >
                         <EmojiRenderer :emoji="page.emoji" />
                         <span>{{ page.name }}</span>
+                        <span
+                          v-if="accountTabCounts[page.id]"
+                          class="ml-auto inline-flex items-center justify-center rounded-full text-[10px] leading-none min-w-4 h-4 px-1"
+                          :style="workspace.color
+                            ? { backgroundColor: workspace.color + '30', color: workspace.color }
+                            : undefined"
+                          :class="!workspace.color && 'bg-primary/20 text-primary'"
+                        >{{ accountTabCounts[page.id] > 1 ? accountTabCounts[page.id] : '' }}</span>
                       </a>
                     </SidebarMenuSubButton>
                     <DropdownMenu>

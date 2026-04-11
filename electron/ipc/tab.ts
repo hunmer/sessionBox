@@ -56,7 +56,7 @@ export function registerTabIpcHandlers(): void {
         url: tabUrl,
         order
       })
-      webviewManager.createView(tab.id, '', tabUrl)
+      webviewManager.registerPendingView(tab.id, '', tabUrl)
       mainWindow?.webContents.send('on:tab:created', tab)
       return tab
     }
@@ -71,7 +71,7 @@ export function registerTabIpcHandlers(): void {
       url: tabUrl,
       order
     })
-    webviewManager.createView(tab.id, accountId, tabUrl)
+    webviewManager.registerPendingView(tab.id, accountId, tabUrl)
     mainWindow?.webContents.send('on:tab:created', tab)
     return tab
   })
@@ -174,7 +174,7 @@ export function registerTabIpcHandlers(): void {
     await shell.openExternal(info.url)
   })
 
-  // 启动时恢复所有保存的 tab（重建 WebContentsView）
+  // 启动时恢复所有保存的 tab（懒加载：仅注册，不创建 WebContentsView）
   // 先清除旧视图，避免刷新时重复叠加
   ipcMain.handle('tab:restore-all', () => {
     webviewManager.destroyAll()
@@ -183,17 +183,10 @@ export function registerTabIpcHandlers(): void {
       if (tab.accountId) {
         const account = getAccountById(tab.accountId)
         if (account) {
-          webviewManager.createView(tab.id, tab.accountId, tab.url || account.defaultUrl)
-          // 恢复静音状态
-          if (tab.muted) {
-            webviewManager.setAudioMuted(tab.id, true)
-          }
+          webviewManager.registerPendingView(tab.id, tab.accountId, tab.url || account.defaultUrl)
         }
       } else {
-        webviewManager.createView(tab.id, '', tab.url || 'https://www.baidu.com')
-        if (tab.muted) {
-          webviewManager.setAudioMuted(tab.id, true)
-        }
+        webviewManager.registerPendingView(tab.id, '', tab.url || 'https://www.baidu.com')
       }
     }
     return tabs.map((t) => t.id)
