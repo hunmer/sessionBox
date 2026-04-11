@@ -16,6 +16,7 @@ import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import UpdateNotification from '@/components/common/UpdateNotification.vue'
 import { useContainerStore } from '@/stores/container'
+import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
@@ -40,6 +41,7 @@ const internalPageComponent = computed(() => {
 })
 
 const containerStore = useContainerStore()
+const pageStore = usePageStore()
 const tabStore = useTabStore()
 const proxyStore = useProxyStore()
 const bookmarkStore = useBookmarkStore()
@@ -82,7 +84,8 @@ async function handleToggleProxy(enabled: boolean): Promise<void> {
   if (!tabStore.activeTabId) return
   const tab = tabStore.activeTab
   if (!tab) return
-  const container = containerStore.getContainer(tab.containerId)
+  const page = pageStore.getPage(tab.pageId)
+  const container = page?.containerId ? containerStore.getContainer(page.containerId) : undefined
   if (!container) return
   // 1. 更新容器的 autoProxyEnabled（持久化）
   await containerStore.updateContainer(container.id, { autoProxyEnabled: enabled })
@@ -201,6 +204,7 @@ onMounted(async () => {
   await Promise.all([
     workspaceStore.init(),
     containerStore.init(),
+    pageStore.loadPages(),
     tabStore.init(),
     proxyStore.init(),
     bookmarkStore.init()
@@ -234,9 +238,9 @@ onMounted(async () => {
     const tab = tabStore.activeTab
     switch (actionId) {
       case 'new-tab': {
-        // 新建标签页：用当前活动容器或第一个容器
-        const containerId = tab?.containerId || containerStore.containers[0]?.id
-        if (containerId) tabStore.createTab(containerId)
+        // 新建标签页：用当前活动页面的 pageId 或第一个 page
+        const currentPageId = tab?.pageId || pageStore.pages[0]?.id
+        if (currentPageId) tabStore.createTab(currentPageId)
         break
       }
       case 'close-tab':
