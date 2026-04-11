@@ -1,6 +1,6 @@
 import { BrowserWindow, Session, WebContentsView } from 'electron'
 import { ensureExtensionsLoadedForContainer, getExtensionsForContainer } from './extensions'
-import { getContainerById, getGroupById, getProxyById, getMutedSites, type Proxy } from './store'
+import { getPageById, getContainerById, getGroupById, getProxyById, getMutedSites, type Proxy } from './store'
 import { applyProxyToSession, fetchSessionExitIp } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
@@ -42,7 +42,8 @@ function registerBlockedProtocolHandlers(targetSession: Session): void {
 interface ViewEntry {
   view: WebContentsView
   tabId: string
-  containerId: string
+  pageId: string          // 关联的页面 ID
+  containerId: string     // 缓存的容器 ID
   lastActiveAt: number // 上次激活时间戳
 }
 
@@ -52,8 +53,8 @@ class WebviewManager {
   private mainWindow: BrowserWindow | null = null
   private activeTabId: string | null = null
   private freezeTimer: ReturnType<typeof setInterval> | null = null
-  private frozenTabUrls = new Map<string, { url: string; containerId: string }>() // 冻结的 tab 信息
-  private pendingViews = new Map<string, { url: string; containerId: string }>() // 未激活的 tab（尚未创建 WebContentsView）
+  private frozenTabUrls = new Map<string, { url: string; pageId: string; containerId: string }>() // 冻结的 tab 信息
+  private pendingViews = new Map<string, { url: string; pageId: string; containerId: string }>() // 未激活的 tab（尚未创建 WebContentsView）
   private _freezeMinutes = 0
   private aria2Enabled = false // 缓存 aria2 接管下载的状态
 
@@ -70,11 +71,12 @@ class WebviewManager {
     this.aria2Enabled = enabled
   }
 
-  private getEffectiveProxy(containerId: string): Proxy | undefined {
-    const container = containerId ? getContainerById(containerId) : undefined
-    if (!container) return undefined
-
-    const proxyId = container.proxyId ?? getGroupById(container.groupId)?.proxyId
+  private getEffectiveProxy(pageId: string): Proxy | undefined {
+    const page = getPageById(pageId)
+    if (!page) return undefined
+    const containerId = page.containerId || 'default'
+    const container = getContainerById(containerId)
+    const proxyId = page.proxyId ?? container?.proxyId ?? getGroupById(page.groupId)?.proxyId
     return proxyId ? getProxyById(proxyId) : undefined
   }
 
@@ -106,7 +108,7 @@ class WebviewManager {
       return
     }
 
-    const proxy = this.getEffectiveProxy(entry.containerId)
+    const proxy = this.getEffectiveProxy(entry.pageId)
     if (!proxy) {
       this.sendProxyInfo(tabId, null)
       return
@@ -132,7 +134,7 @@ class WebviewManager {
       return { ok: false, error: '标签页不存在' }
     }
 
-    const proxy = this.getEffectiveProxy(entry.containerId)
+    const proxy = this.getEffectiveProxy(entry.pageId)
     if (!proxy) {
       this.sendProxyInfo(tabId, null)
       return { ok: false, error: '当前标签页未绑定代理' }
@@ -179,17 +181,17 @@ class WebviewManager {
     }
   }
 
-  createView(tabId: string, containerId: string, url: string) {
+  createView(tabId: string, pageId: string, url: string) {
     if (!this.mainWindow) return null
 
     // 内部页面不创建 WebContentsView
     if (url.startsWith('sessionbox://')) return null
 
+    const page = getPageById(pageId)
+    const containerId = page?.containerId || ''
     const container = containerId ? getContainerById(containerId) : undefined
-    if (containerId && !container) return null
 
-    const proxyId =
-      container?.proxyId ?? (container ? getGroupById(container.groupId)?.proxyId : undefined)
+    const proxyId = page?.proxyId ?? container?.proxyId ?? (page ? getGroupById(page.groupId)?.proxyId : undefined)
     const proxy = proxyId ? getProxyById(proxyId) : undefined
     const partition = containerId ? `persist:container-${containerId}` : ''
 
@@ -199,8 +201,8 @@ class WebviewManager {
       }
     })
 
-    if (container?.userAgent) {
-      view.webContents.setUserAgent(getUserAgent(container.userAgent))
+    if (page?.userAgent) {
+      view.webContents.setUserAgent(getUserAgent(page.userAgent))
     }
 
     registerBlockedProtocolHandlers(view.webContents.session)
@@ -242,7 +244,7 @@ class WebviewManager {
 
     view.setVisible(false)
     this.mainWindow.contentView.addChildView(view)
-    this.views.set(tabId, { view, tabId, containerId, lastActiveAt: Date.now() })
+    this.views.set(tabId, { view, tabId, pageId, containerId, lastActiveAt: Date.now() })
     this.setupEventForwarding(tabId, view)
 
     // 拦截 tab 内的快捷键（Ctrl+R、Ctrl+W 等）
@@ -272,9 +274,9 @@ class WebviewManager {
   }
 
   /** 注册待激活的标签（不创建 WebContentsView，激活时再创建） */
-  registerPendingView(tabId: string, containerId: string, url: string): void {
+  registerPendingView(tabId: string, pageId: string, containerId: string, url: string): void {
     if (url.startsWith('sessionbox://')) return
-    this.pendingViews.set(tabId, { url, containerId })
+    this.pendingViews.set(tabId, { url, pageId, containerId })
   }
 
   private setupEventForwarding(tabId: string, view: WebContentsView): void {
@@ -453,7 +455,7 @@ class WebviewManager {
     if (this.frozenTabUrls.has(tabId)) {
       const frozen = this.frozenTabUrls.get(tabId)!
       this.frozenTabUrls.delete(tabId)
-      this.createView(tabId, frozen.containerId, frozen.url)
+      this.createView(tabId, frozen.pageId, frozen.url)
       this.mainWindow.webContents.send('on:tab:frozen', tabId, false)
     }
 
@@ -461,7 +463,7 @@ class WebviewManager {
     if (!this.views.has(tabId) && this.pendingViews.has(tabId)) {
       const pending = this.pendingViews.get(tabId)!
       this.pendingViews.delete(tabId)
-      this.createView(tabId, pending.containerId, pending.url)
+      this.createView(tabId, pending.pageId, pending.url)
     }
 
     const target = this.views.get(tabId)
@@ -531,7 +533,7 @@ class WebviewManager {
       return { ok: false, enabled, error: '标签页不存在' }
     }
 
-    const proxy = this.getEffectiveProxy(entry.containerId)
+    const proxy = this.getEffectiveProxy(entry.pageId)
     if (!proxy) {
       this.sendProxyInfo(tabId, null)
       return { ok: false, enabled: false, error: '当前标签页未绑定代理' }
@@ -600,12 +602,13 @@ class WebviewManager {
     return result
   }
 
-  getViewInfo(tabId: string): { url: string; containerId: string } | null {
+  getViewInfo(tabId: string): { url: string; pageId: string; containerId: string } | null {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return null
 
     return {
       url: entry.view.webContents.getURL(),
+      pageId: entry.pageId,
       containerId: entry.containerId
     }
   }
@@ -693,7 +696,7 @@ class WebviewManager {
       if (url.startsWith('sessionbox://')) continue
 
       // 记录冻结信息（用于后续解冻重建）
-      this.frozenTabUrls.set(tabId, { url, containerId: entry.containerId })
+      this.frozenTabUrls.set(tabId, { url, pageId: entry.pageId, containerId: entry.containerId })
 
       // 销毁 view 但保留 tab 数据
       try {
