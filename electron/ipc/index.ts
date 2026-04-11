@@ -45,7 +45,10 @@ import {
   deletePage,
   reorderPages,
   getPageById,
-  getPagesByContainer
+  getPagesByContainer,
+  migrateContainersToPages,
+  migrateTabContainerIdToPageId,
+  migrateBookmarkContainerIdToPageId
 } from '../services/store'
 import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder, Page } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
@@ -64,6 +67,11 @@ const iconDir = join(app.getPath('userData'), 'container-icons')
  * 在 app ready 后调用
  */
 export function registerIpcHandlers(): void {
+  // ====== Page 数据迁移 ======
+  migrateContainersToPages()
+  migrateTabContainerIdToPageId()
+  migrateBookmarkContainerIdToPageId()
+
   // ====== 书签数据迁移 ======
   migrateBookmarks()
 
