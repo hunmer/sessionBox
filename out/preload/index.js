@@ -167,7 +167,8 @@ const api = {
     minimize: () => electron.ipcRenderer.invoke("window:minimize"),
     maximize: () => electron.ipcRenderer.invoke("window:maximize"),
     close: () => electron.ipcRenderer.invoke("window:close"),
-    isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized")
+    isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized"),
+    toggleFullscreen: () => electron.ipcRenderer.invoke("window:toggleFullscreen")
   },
   settings: {
     getTabFreezeMinutes: () => electron.ipcRenderer.invoke("settings:getTabFreezeMinutes"),

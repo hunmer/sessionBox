@@ -4,6 +4,7 @@ import { getAccountById, getGroupById, getProxyById, type Proxy } from './store'
 import { applyProxyToSession, fetchSessionExitIp } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
+import { handleBeforeInputEvent } from './shortcut-manager'
 
 export const BLOCKED_SCHEMES = [
   'bitbrowser',
@@ -240,6 +241,13 @@ class WebviewManager {
     this.mainWindow.contentView.addChildView(view)
     this.views.set(tabId, { view, tabId, accountId, lastActiveAt: Date.now() })
     this.setupEventForwarding(tabId, view)
+
+    // 拦截 tab 内的快捷键（Ctrl+R、Ctrl+W 等）
+    view.webContents.on('before-input-event', (event, input) => {
+      if (handleBeforeInputEvent(input, view.webContents)) {
+        event.preventDefault()
+      }
+    })
 
     const extensions = getExtensionsForAccount(accountId || null)
     extensions.addTab(view.webContents, this.mainWindow)

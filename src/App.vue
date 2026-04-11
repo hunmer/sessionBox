@@ -228,6 +228,63 @@ onMounted(async () => {
   // 主进程请求同步 bounds（switchView 后触发）
   window.api.on('tab:request-bounds', () => sendBounds())
 
+  // 快捷键事件处理（本地 + 全局快捷键统一入口）
+  window.api.on('shortcut', (actionId: string) => {
+    console.log('[App] 收到快捷键事件:', actionId)
+    const tab = tabStore.activeTab
+    switch (actionId) {
+      case 'new-tab': {
+        // 新建标签页：用当前活动账号或第一个账号
+        const accountId = tab?.accountId || accountStore.accounts[0]?.id
+        if (accountId) tabStore.createTab(accountId)
+        break
+      }
+      case 'close-tab':
+        if (tab) tabStore.closeTab(tab.id)
+        break
+      case 'next-tab': {
+        const tabs = tabStore.sortedTabs
+        if (tabs.length < 2) break
+        const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
+        const next = tabs[(idx + 1) % tabs.length]
+        if (next) tabStore.switchTab(next.id)
+        break
+      }
+      case 'prev-tab': {
+        const tabs = tabStore.sortedTabs
+        if (tabs.length < 2) break
+        const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
+        const prev = tabs[(idx - 1 + tabs.length) % tabs.length]
+        if (prev) tabStore.switchTab(prev.id)
+        break
+      }
+      case 'toggle-sidebar':
+        toggleSidebar()
+        break
+      case 'new-account':
+        // 由 Sidebar 内部处理，此处通过全局事件通知
+        window.dispatchEvent(new CustomEvent('shortcut:new-account'))
+        break
+      case 'reload-tab':
+        if (tab) tabStore.reload(tab.id)
+        break
+      case 'go-back':
+        if (tab) tabStore.goBack(tab.id)
+        break
+      case 'go-forward':
+        if (tab) tabStore.goForward(tab.id)
+        break
+      case 'focus-address': {
+        const input = document.querySelector<HTMLInputElement>('[data-address-input]')
+        input?.focus()
+        break
+      }
+      case 'toggle-fullscreen':
+        window.api.window.toggleFullscreen()
+        break
+    }
+  })
+
   // reka-ui 初始化时 layout 计算可能因 groupSizeInPixels 未就绪而跳过，
   // 导致 handleLayout 不被调用。主动同步一次侧边栏折叠状态。
   nextTick(() => {

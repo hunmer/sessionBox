@@ -301,6 +301,12 @@ $img.Dispose()`
     return BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false
   })
 
+  ipcMain.handle('window:toggleFullscreen', (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return
+    win.setFullScreen(!win.isFullScreen())
+  })
+
   // ====== 外部链接 ======
   ipcMain.handle('openExternal', (_e, url: string) => shell.openExternal(url))
 

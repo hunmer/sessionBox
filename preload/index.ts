@@ -246,7 +246,8 @@ const api = {
     minimize: (): Promise<void> => ipcRenderer.invoke('window:minimize'),
     maximize: (): Promise<boolean> => ipcRenderer.invoke('window:maximize'),
     close: (): Promise<void> => ipcRenderer.invoke('window:close'),
-    isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized')
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
+    toggleFullscreen: (): Promise<void> => ipcRenderer.invoke('window:toggleFullscreen')
   },
 
   settings: {
@@ -258,7 +259,7 @@ const api = {
 
   shortcut: {
     list: (): Promise<ShortcutItem[]> => ipcRenderer.invoke('shortcut:list'),
-    update: (id: string, accelerator: string, isGlobal: boolean): Promise<{ success: boolean; error?: string }> =>
+    update: (id: string, accelerator: string, isGlobal: boolean): Promise<{ success: boolean; error?: string; conflictId?: string }> =>
       ipcRenderer.invoke('shortcut:update', id, accelerator, isGlobal),
     clear: (id: string): Promise<{ success: boolean }> => ipcRenderer.invoke('shortcut:clear', id),
     reset: (): Promise<{ success: boolean }> => ipcRenderer.invoke('shortcut:reset')

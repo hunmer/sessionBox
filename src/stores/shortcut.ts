@@ -18,11 +18,16 @@ export const useShortcutStore = defineStore('shortcut', () => {
   }
 
   async function updateShortcut(id: string, accelerator: string, isGlobal: boolean) {
+    console.log('[ShortcutStore] updateShortcut:', { id, accelerator, isGlobal })
     const result = await api.shortcut.update(id, accelerator, isGlobal)
+    console.log('[ShortcutStore] IPC result:', result)
     if (result.success) {
       const idx = shortcuts.value.findIndex(s => s.id === id)
       if (idx >= 0) {
-        shortcuts.value[idx] = { ...shortcuts.value[idx], accelerator, global: isGlobal }
+        shortcuts.value.splice(idx, 1, { ...shortcuts.value[idx], accelerator, global: isGlobal })
+        console.log('[ShortcutStore] local state updated')
+      } else {
+        console.warn('[ShortcutStore] item not found:', id)
       }
     }
     return result
@@ -32,7 +37,7 @@ export const useShortcutStore = defineStore('shortcut', () => {
     await api.shortcut.clear(id)
     const idx = shortcuts.value.findIndex(s => s.id === id)
     if (idx >= 0) {
-      shortcuts.value[idx] = { ...shortcuts.value[idx], accelerator: '', global: false }
+      shortcuts.value.splice(idx, 1, { ...shortcuts.value[idx], accelerator: '', global: false })
     }
   }
 

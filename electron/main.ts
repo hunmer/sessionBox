@@ -7,7 +7,7 @@ import { registerDownloadIpcHandlers } from './ipc/download'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
 import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
-import { registerGlobalShortcuts, unregisterGlobalShortcuts } from './services/shortcut-manager'
+import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
 
 // 节流函数
 function throttle<T extends (...args: any[]) => void>(fn: T, delay: number): T {
@@ -171,6 +171,13 @@ if (!gotTheLock) {
     // 窗口已销毁后清理 WebContentsView
     mainWindow.on('closed', () => {
       webviewManager.destroyAll()
+    })
+
+    // 拦截本地快捷键（禁用 Ctrl+R 刷新、Ctrl+W 关闭等系统默认行为）
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (handleBeforeInputEvent(input, mainWindow.webContents)) {
+        event.preventDefault()
+      }
     })
 
     // 首次启动时处理协议 URL（例如从桌面快捷方式启动）

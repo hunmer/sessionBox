@@ -4,6 +4,16 @@ import { useShortcutStore } from '@/stores/shortcut'
 import { Kbd } from '@/components/ui/kbd'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { toast } from 'vue-sonner'
 
 const store = useShortcutStore()
@@ -11,6 +21,16 @@ const store = useShortcutStore()
 // 录制状态
 const recordingId = ref<string | null>(null)
 const recordedKeys = ref<string[]>([])
+
+// 冲突确认状态
+const conflictDialogOpen = ref(false)
+const conflictMessage = ref('')
+const pendingConflict = ref<{
+  targetId: string
+  accelerator: string
+  conflictId: string
+  isGlobal: boolean
+} | null>(null)
 
 /** 将键盘事件转换为 Electron accelerator 部分 */
 function keyToAcceleratorPart(e: KeyboardEvent): string {
@@ -106,25 +126,39 @@ async function onKeyDown(e: KeyboardEvent) {
   const isGlobal = item?.global ?? false
 
   const result = await store.updateShortcut(id, accelerator, isGlobal)
-  if (!result.success) {
-    toast.error(result.error || '快捷键冲突')
-  }
-
   recordingId.value = null
   recordedKeys.value = []
+
+  if (result.conflictId) {
+    // 有冲突，弹出确认对话框
+    conflictMessage.value = `${result.error}，是否覆盖？`
+    pendingConflict.value = { targetId: id, accelerator, conflictId: result.conflictId, isGlobal }
+    conflictDialogOpen.value = true
+  } else if (!result.success) {
+    toast.error(result.error || '设置快捷键失败')
+  }
+}
+
+/** 确认覆盖冲突的快捷键 */
+async function confirmOverride() {
+  if (!pendingConflict.value) return
+  const { targetId, accelerator, conflictId, isGlobal } = pendingConflict.value
+  pendingConflict.value = null
+  await store.clearShortcut(conflictId)
+  const result = await store.updateShortcut(targetId, accelerator, isGlobal)
+  if (!result.success) {
+    toast.error(result.error || '设置快捷键失败')
+  }
 }
 
 async function onGlobalChange(id: string, value: boolean) {
+  console.log('[Shortcut] Switch toggled:', id, value)
   const item = store.shortcuts.find(s => s.id === id)
   if (!item) return
-  const accelerator = item.accelerator
-  if (accelerator) {
-    const result = await store.updateShortcut(id, accelerator, value)
-    if (!result.success) {
-      toast.error(result.error || '更新失败')
-    }
-  } else {
-    item.global = value
+  const result = await store.updateShortcut(id, item.accelerator || '', value)
+  console.log('[Shortcut] Switch update result:', result)
+  if (!result.success) {
+    toast.error(result.error || '更新失败')
   }
 }
 
@@ -153,18 +187,14 @@ onUnmounted(() => {
           <span class="text-sm text-muted-foreground">{{ item.label }}</span>
           <div class="flex items-center gap-3">
             <!-- 全局注册开关 -->
-            <label
-              v-if="item.supportsGlobal"
-              class="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer"
-            >
+            <label class="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
               <span>全局</span>
               <Switch
-                :checked="item.global"
-                @update:checked="onGlobalChange(item.id, $event)"
+                :model-value="item.global"
+                @update:model-value="onGlobalChange(item.id, $event)"
                 class="scale-75"
               />
             </label>
-            <div v-else class="w-12" />
 
             <!-- 快捷键显示/录制区域 -->
             <button
@@ -190,5 +220,19 @@ onUnmounted(() => {
     <p class="text-xs text-muted-foreground/60 mt-1">
       点击快捷键区域录入 · Delete 清空 · Escape 取消
     </p>
+
+    <!-- 冲突覆盖确认对话框 -->
+    <AlertDialog v-model:open="conflictDialogOpen">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>快捷键冲突</AlertDialogTitle>
+          <AlertDialogDescription>{{ conflictMessage }}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction @click="confirmOverride">覆盖</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
