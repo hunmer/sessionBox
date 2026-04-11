@@ -4,7 +4,7 @@ import { Plus, Minus, Square, X, Copy, PanelLeftClose, ChevronRight } from 'luci
 import { Button } from '@/components/ui/button'
 import draggable from 'vuedraggable'
 import TabLayoutMenu from './TabLayoutMenu.vue'
-import AccountPickerDialog from '@/components/AccountPickerDialog.vue'
+import NewTabDialog from './NewTabDialog.vue'
 import TabItem from './TabItem.vue'
 import { useTabStore } from '@/stores/tab'
 import type { Account } from '@/types'
@@ -75,6 +75,10 @@ function onListUpdate(newList: { id: string }[]) {
 
 function handleAddAccount(account: Account) {
   tabStore.createTab(account.id)
+}
+
+function handleNavigateUrl(url: string) {
+  tabStore.createTabForSite(url)
 }
 </script>
 
@@ -158,11 +162,11 @@ function handleAddAccount(account: Account) {
       <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" @click="showAddDialog = true">
         <Plus class="w-3.5 h-3.5" />
       </Button>
-      <AccountPickerDialog
+      <NewTabDialog
         :open="showAddDialog"
-        title="新建标签页"
         @update:open="showAddDialog = $event"
         @select="handleAddAccount"
+        @navigate="handleNavigateUrl"
       />
 
       <!-- 更多选项 -->
