@@ -1,24 +1,24 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Group, Account } from '../types'
+import type { Group, Container } from '../types'
 import { useWorkspaceStore } from './workspace'
 
 const api = window.api
 
-export const useAccountStore = defineStore('account', () => {
+export const useContainerStore = defineStore('container', () => {
   // ====== 状态 ======
   const groups = ref<Group[]>([])
-  const accounts = ref<Account[]>([])
+  const containers = ref<Container[]>([])
 
   // ====== 计算属性 ======
 
-  /** 按分组归类的账号映射 */
-  const accountsByGroup = computed(() => {
-    const map = new Map<string, Account[]>()
-    for (const account of accounts.value) {
-      const list = map.get(account.groupId) || []
-      list.push(account)
-      map.set(account.groupId, list)
+  /** 按分组归类的容器映射 */
+  const containersByGroup = computed(() => {
+    const map = new Map<string, Container[]>()
+    for (const container of containers.value) {
+      const list = map.get(container.groupId) || []
+      list.push(container)
+      map.set(container.groupId, list)
     }
     return map
   })
@@ -39,9 +39,9 @@ export const useAccountStore = defineStore('account', () => {
     })
   })
 
-  /** 根据 ID 获取账号 */
-  function getAccount(id: string): Account | undefined {
-    return accounts.value.find((a) => a.id === id)
+  /** 根据 ID 获取容器 */
+  function getContainer(id: string): Container | undefined {
+    return containers.value.find((c) => c.id === id)
   }
 
   /** 根据 ID 获取分组 */
@@ -81,60 +81,60 @@ export const useAccountStore = defineStore('account', () => {
     })
   }
 
-  // ====== 账号操作 ======
+  // ====== 容器操作 ======
 
-  async function loadAccounts() {
-    accounts.value = await api.account.list()
+  async function loadContainers() {
+    containers.value = await api.container.list()
   }
 
-  async function createAccount(data: Omit<Account, 'id'>) {
-    const account = await api.account.create(data)
-    accounts.value.push(account)
-    return account
+  async function createContainer(data: Omit<Container, 'id'>) {
+    const container = await api.container.create(data)
+    containers.value.push(container)
+    return container
   }
 
-  async function updateAccount(id: string, data: Partial<Omit<Account, 'id'>>) {
-    await api.account.update(id, data)
-    const idx = accounts.value.findIndex((a) => a.id === id)
-    if (idx !== -1) accounts.value[idx] = { ...accounts.value[idx], ...data }
+  async function updateContainer(id: string, data: Partial<Omit<Container, 'id'>>) {
+    await api.container.update(id, data)
+    const idx = containers.value.findIndex((c) => c.id === id)
+    if (idx !== -1) containers.value[idx] = { ...containers.value[idx], ...data }
   }
 
-  async function deleteAccount(id: string) {
-    await api.account.delete(id)
-    accounts.value = accounts.value.filter((a) => a.id !== id)
+  async function deleteContainer(id: string) {
+    await api.container.delete(id)
+    containers.value = containers.value.filter((c) => c.id !== id)
   }
 
-  async function reorderAccounts(accountIds: string[]) {
-    await api.account.reorder(accountIds)
-    accountIds.forEach((id, order) => {
-      const a = accounts.value.find((a) => a.id === id)
-      if (a) a.order = order
+  async function reorderContainers(containerIds: string[]) {
+    await api.container.reorder(containerIds)
+    containerIds.forEach((id, order) => {
+      const c = containers.value.find((c) => c.id === id)
+      if (c) c.order = order
     })
   }
 
-  /** 初始化：加载所有分组和账号数据 */
+  /** 初始化：加载所有分组和容器数据 */
   async function init() {
-    await Promise.all([loadGroups(), loadAccounts()])
+    await Promise.all([loadGroups(), loadContainers()])
   }
 
   return {
     groups,
-    accounts,
-    accountsByGroup,
+    containers,
+    containersByGroup,
     sortedGroups,
     workspaceGroups,
-    getAccount,
+    getContainer,
     getGroup,
     loadGroups,
     createGroup,
     updateGroup,
     deleteGroup,
     reorderGroups,
-    loadAccounts,
-    createAccount,
-    updateAccount,
-    deleteAccount,
-    reorderAccounts,
+    loadContainers,
+    createContainer,
+    updateContainer,
+    deleteContainer,
+    reorderContainers,
     init
   }
 })
