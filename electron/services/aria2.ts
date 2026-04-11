@@ -5,7 +5,7 @@
 
 import { spawn, ChildProcess } from 'child_process'
 import Store from 'electron-store'
-import { app } from 'electron'
+import { app, Notification } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
@@ -278,11 +278,14 @@ export function updateAria2Config(config: Partial<Aria2Config>): Aria2Config {
 
 /** 启动 aria2 服务 */
 export async function startAria2(): Promise<boolean> {
-  return startProcess()
+  const ok = await startProcess()
+  if (ok) startNotificationMonitor()
+  return ok
 }
 
 /** 停止 aria2 服务 */
 export async function stopAria2(): Promise<void> {
+  stopNotificationMonitor()
   await stopProcess()
 }
 
@@ -369,4 +372,97 @@ export async function getGlobalStat(): Promise<{
 /** 清除已完成/出错的任务记录 */
 export async function purgeDownloadResult(): Promise<void> {
   await sendRPC('aria2.purgeDownloadResult')
+}
+
+// ====== 下载通知监控 ======
+
+/** 上次已知的任务状态，用于检测变化 */
+const previousTaskStatus = new Map<string, Aria2TaskInfo['status']>()
+
+let monitorTimer: ReturnType<typeof setInterval> | null = null
+
+/** 格式化文件大小 */
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
+}
+
+/** 显示系统通知 */
+function showNotification(title: string, body: string): void {
+  if (!Notification.isSupported()) return
+  new Notification({ title, body, silent: false }).show()
+}
+
+/** 检测任务状态变化并触发通知 */
+async function checkAndNotify(): Promise<void> {
+  const config = getConfig()
+  const shouldNotifyOnStart = config.notifyOnStart
+  const shouldNotifyOnSuccess = config.notifyOnSuccess
+  const shouldNotifyOnFailure = config.notifyOnFailure
+
+  // 如果所有通知都关闭，跳过轮询
+  if (!shouldNotifyOnStart && !shouldNotifyOnSuccess && !shouldNotifyOnFailure) return
+
+  try {
+    const [active, waiting, stopped] = await Promise.all([
+      getActiveTasks(),
+      getWaitingTasks(),
+      getStoppedTasks()
+    ])
+    const allTasks = [...active, ...waiting, ...stopped]
+
+    const currentGids = new Set<string>()
+
+    for (const task of allTasks) {
+      currentGids.add(task.gid)
+      const prevStatus = previousTaskStatus.get(task.gid)
+
+      if (prevStatus === undefined) {
+        // 新任务首次出现
+        if (shouldNotifyOnStart && (task.status === 'active' || task.status === 'waiting')) {
+          showNotification('开始下载', task.filename || task.url)
+        }
+      } else if (prevStatus !== task.status) {
+        // 状态变化
+        if (shouldNotifyOnSuccess && task.status === 'complete') {
+          const size = task.totalLength > 0 ? ` (${formatFileSize(task.totalLength)})` : ''
+          showNotification('下载完成', `${task.filename}${size}`)
+        } else if (shouldNotifyOnFailure && task.status === 'error') {
+          const errMsg = task.errorMessage ? `：${task.errorMessage}` : ''
+          showNotification('下载失败', `${task.filename}${errMsg}`)
+        }
+      }
+    }
+
+    // 更新已知状态
+    for (const task of allTasks) {
+      previousTaskStatus.set(task.gid, task.status)
+    }
+
+    // 清理已不存在的任务记录
+    for (const gid of previousTaskStatus.keys()) {
+      if (!currentGids.has(gid)) {
+        previousTaskStatus.delete(gid)
+      }
+    }
+  } catch {
+    // aria2 不可用时忽略
+  }
+}
+
+/** 启动通知监控 */
+export function startNotificationMonitor(): void {
+  stopNotificationMonitor()
+  monitorTimer = setInterval(checkAndNotify, 3000)
+}
+
+/** 停止通知监控 */
+export function stopNotificationMonitor(): void {
+  if (monitorTimer) {
+    clearInterval(monitorTimer)
+    monitorTimer = null
+  }
+  previousTaskStatus.clear()
 }

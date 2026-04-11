@@ -14,7 +14,9 @@ import {
   getWaitingTasks,
   getStoppedTasks,
   getGlobalStat,
-  purgeDownloadResult
+  purgeDownloadResult,
+  startNotificationMonitor,
+  stopNotificationMonitor
 } from '../services/aria2'
 import { webviewManager } from '../services/webview-manager'
 
@@ -22,6 +24,7 @@ export function registerDownloadIpcHandlers(): void {
   ipcMain.handle('download:checkConnection', async () => {
     const connected = await checkConnection()
     webviewManager.setAria2Enabled(connected)
+    if (connected) startNotificationMonitor()
     return connected
   })
 
@@ -36,6 +39,7 @@ export function registerDownloadIpcHandlers(): void {
   })
 
   ipcMain.handle('download:stop', async () => {
+    stopNotificationMonitor()
     await stopAria2()
     webviewManager.setAria2Enabled(false)
   })
