@@ -30,7 +30,7 @@ const extensionInfoMap = new Map<string, { name: string; icon?: string }>()
 const pendingLoads = new Map<string, Promise<string>>()
 
 function getPartitionKey(containerId?: string | null): PartitionKey {
-  return containerId ? `persist:account-${containerId}` : defaultPartitionKey
+  return containerId ? `persist:container-${containerId}` : defaultPartitionKey
 }
 
 function getSessionForContainer(containerId?: string | null): Session {

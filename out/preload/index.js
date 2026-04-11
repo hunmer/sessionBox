@@ -93,14 +93,14 @@ const api = {
     delete: (id) => electron.ipcRenderer.invoke("group:delete", id),
     reorder: (groupIds) => electron.ipcRenderer.invoke("group:reorder", groupIds)
   },
-  account: {
-    list: () => electron.ipcRenderer.invoke("account:list"),
-    create: (data) => electron.ipcRenderer.invoke("account:create", data),
-    update: (id, data) => electron.ipcRenderer.invoke("account:update", id, data),
-    delete: (id) => electron.ipcRenderer.invoke("account:delete", id),
-    reorder: (accountIds) => electron.ipcRenderer.invoke("account:reorder", accountIds),
-    uploadIcon: () => electron.ipcRenderer.invoke("account:uploadIcon"),
-    createDesktopShortcut: (accountId) => electron.ipcRenderer.invoke("account:createDesktopShortcut", accountId)
+  container: {
+    list: () => electron.ipcRenderer.invoke("container:list"),
+    create: (data) => electron.ipcRenderer.invoke("container:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("container:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("container:delete", id),
+    reorder: (containerIds) => electron.ipcRenderer.invoke("container:reorder", containerIds),
+    uploadIcon: () => electron.ipcRenderer.invoke("container:uploadIcon"),
+    createDesktopShortcut: (containerId) => electron.ipcRenderer.invoke("container:createDesktopShortcut", containerId)
   },
   proxy: {
     list: () => electron.ipcRenderer.invoke("proxy:list"),
@@ -112,7 +112,7 @@ const api = {
   },
   tab: {
     list: () => electron.ipcRenderer.invoke("tab:list"),
-    create: (accountId, url) => electron.ipcRenderer.invoke("tab:create", accountId, url),
+    create: (containerId, url) => electron.ipcRenderer.invoke("tab:create", containerId, url),
     close: (tabId) => electron.ipcRenderer.invoke("tab:close", tabId),
     switch: (tabId) => electron.ipcRenderer.invoke("tab:switch", tabId),
     update: (tabId, data) => electron.ipcRenderer.invoke("tab:update", tabId, data),
@@ -161,7 +161,7 @@ const api = {
     delete: (extensionId) => electron.ipcRenderer.invoke("extension:delete", extensionId),
     update: (id, data) => electron.ipcRenderer.invoke("extension:update", id, data),
     getLoaded: () => electron.ipcRenderer.invoke("extension:getLoaded"),
-    openBrowserActionPopup: (accountId, extensionId, anchorRect) => electron.ipcRenderer.invoke("extension:openBrowserActionPopup", accountId, extensionId, anchorRect)
+    openBrowserActionPopup: (containerId, extensionId, anchorRect) => electron.ipcRenderer.invoke("extension:openBrowserActionPopup", containerId, extensionId, anchorRect)
   },
   window: {
     minimize: () => electron.ipcRenderer.invoke("window:minimize"),
