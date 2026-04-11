@@ -36,19 +36,27 @@ export interface Group {
 
 export interface Container {
   id: string
-  groupId: string
   name: string
   icon: string
   proxyId?: string
-  autoProxyEnabled?: boolean // 是否自动启用代理（默认 false）
-  userAgent?: string
-  defaultUrl: string
   order: number
+}
+
+export interface Page {
+  id: string
+  groupId: string
+  containerId?: string    // 空 = 走默认容器
+  name: string
+  icon: string
+  url: string             // 默认启动 URL
+  order: number
+  proxyId?: string        // 页面级代理（覆盖容器代理）
+  userAgent?: string
 }
 
 export interface Tab {
   id: string
-  containerId: string
+  pageId: string
   title: string
   url: string
   order: number
@@ -73,7 +81,7 @@ export interface Bookmark {
   id: string
   title: string
   url: string
-  containerId?: string
+  pageId?: string
   favicon?: string
   folderId: string
   order: number

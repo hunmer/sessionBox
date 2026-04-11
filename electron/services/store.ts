@@ -36,19 +36,27 @@ export interface Group {
 
 export interface Container {
   id: string
-  groupId: string
   name: string
   icon: string
   proxyId?: string
-  autoProxyEnabled?: boolean // 是否自动启用代理（默认 false）
-  userAgent?: string
-  defaultUrl: string
   order: number
+}
+
+export interface Page {
+  id: string
+  groupId: string
+  containerId?: string    // 空 = 走默认容器
+  name: string
+  icon: string
+  url: string             // 默认启动 URL
+  order: number
+  proxyId?: string        // 页面级代理（覆盖容器代理）
+  userAgent?: string
 }
 
 export interface Tab {
   id: string
-  containerId: string
+  pageId: string
   title: string
   url: string
   order: number
@@ -67,7 +75,7 @@ export interface Bookmark {
   id: string
   title: string
   url: string
-  containerId?: string // 可选绑定容器，使用其 partition
+  pageId?: string // 可选绑定页面，使用其 partition
   favicon?: string   // 图标 URL
   folderId: string   // 所属文件夹
   order: number      // 排序
@@ -102,6 +110,7 @@ interface StoreSchema {
   workspaces: Workspace[]
   groups: Group[]
   containers: Container[]
+  pages: Page[]
   proxies: Proxy[]
   tabs: Tab[]
   bookmarkFolders: BookmarkFolder[]
@@ -120,7 +129,8 @@ export const BOOKMARK_BAR_FOLDER_ID = '__bookmark_bar__'
 const defaults: StoreSchema = {
   workspaces: [{ id: DEFAULT_WORKSPACE_ID, title: '默认工作区', color: '#3b82f6', order: 0, isDefault: true }],
   groups: [],
-  containers: [],
+  containers: [{ id: 'default', name: '默认容器', icon: '📦', order: 0 }],
+  pages: [],
   proxies: [],
   tabs: [],
   bookmarkFolders: [{ id: BOOKMARK_BAR_FOLDER_ID, name: '书签栏', parentId: null, order: 0 }],
@@ -229,27 +239,7 @@ export function updateGroup(id: string, data: Partial<Omit<Group, 'id'>>): void 
 
 export function deleteGroup(id: string): void {
   const groups = getCollection('groups')
-  const containers = getCollection('containers')
-
-  // 将该分组下的容器移到同工作区的其他分组
-  const affected = containers.filter((c) => c.groupId === id)
-  if (affected.length > 0) {
-    const group = groups.find((g) => g.id === id)
-    const targetGroup =
-      groups.find(
-        (g) =>
-          g.id !== id &&
-          (g.workspaceId || DEFAULT_WORKSPACE_ID) === (group?.workspaceId || DEFAULT_WORKSPACE_ID)
-      ) ?? groups.find((g) => g.id !== id)
-
-    if (!targetGroup) throw new Error('无法删除唯一分组')
-
-    setCollection(
-      'containers',
-      containers.map((c) => (c.groupId === id ? { ...c, groupId: targetGroup.id } : c))
-    )
-  }
-
+  if (groups.length <= 1) throw new Error('无法删除唯一分组')
   setCollection('groups', groups.filter((g) => g.id !== id))
 }
 
@@ -296,6 +286,55 @@ export function reorderContainers(containerIds: string[]): void {
     if (c) c.order = order
   })
   setCollection('containers', containers)
+}
+
+// ====== 页面操作 ======
+
+export function listPages(): Page[] {
+  return getCollection<Page>('pages')
+}
+
+export function createPage(data: Omit<Page, 'id'>): Page {
+  const pages = getCollection<Page>('pages')
+  const page: Page = { ...data, id: randomUUID() }
+  pages.push(page)
+  setCollection('pages', pages)
+  return page
+}
+
+export function updatePage(id: string, data: Partial<Omit<Page, 'id'>>): void {
+  const pages = getCollection<Page>('pages')
+  const idx = pages.findIndex(p => p.id === id)
+  if (idx !== -1) {
+    pages[idx] = { ...pages[idx], ...data }
+    setCollection('pages', pages)
+  }
+}
+
+export function deletePage(id: string): void {
+  const pages = getCollection<Page>('pages').filter(p => p.id !== id)
+  setCollection('pages', pages)
+}
+
+export function reorderPages(pageIds: string[]): void {
+  const pages = getCollection<Page>('pages')
+  pageIds.forEach((id, order) => {
+    const p = pages.find(p => p.id === id)
+    if (p) p.order = order
+  })
+  setCollection('pages', pages)
+}
+
+export function getPageById(id: string): Page | undefined {
+  return getCollection<Page>('pages').find(p => p.id === id)
+}
+
+export function getPagesByGroup(groupId: string): Page[] {
+  return getCollection<Page>('pages').filter(p => p.groupId === groupId)
+}
+
+export function getPagesByContainer(containerId: string): Page[] {
+  return getCollection<Page>('pages').filter(p => p.containerId === containerId)
 }
 
 // ====== 代理操作 ======
