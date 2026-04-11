@@ -7,6 +7,7 @@ import { useTabStore } from '@/stores/tab'
 import { useBookmarkStore } from '@/stores/bookmark'
 import ExtensionActionList from './ExtensionActionList.vue'
 import ExtensionManager from '@/components/settings/ExtensionManager.vue'
+import AddBookmarkDialog from '@/components/bookmarks/AddBookmarkDialog.vue'
 
 const tabStore = useTabStore()
 const bookmarkStore = useBookmarkStore()
@@ -73,18 +74,27 @@ const isBookmarked = computed(() => {
   return bookmarkStore.isBookmarked(url)
 })
 
-/** 切换收藏状态 */
-async function toggleBookmark() {
+// 收藏对话框
+const bookmarkDialogOpen = ref(false)
+const editSite = ref<{ id: string; title: string; url: string; accountId?: string } | null>(null)
+
+/** 当前 tab 关联的账号 ID */
+const activeAccountId = computed(() => tabStore.activeTab?.accountId)
+
+/** 点击收藏按钮：已收藏则编辑，否则新增 */
+function toggleBookmark() {
   const url = tabStore.activeTab?.url
   if (!url) return
 
   if (isBookmarked.value) {
     const bookmark = bookmarkStore.findBookmarkByUrl(url)
-    if (bookmark) await bookmarkStore.deleteBookmark(bookmark.id)
+    if (bookmark) {
+      editSite.value = { id: bookmark.id, title: bookmark.title, url: bookmark.url, accountId: bookmark.accountId }
+    }
   } else {
-    const title = tabStore.activeTab?.title || url
-    await bookmarkStore.createBookmark({ title, url, folderId: '__bookmark_bar__', order: bookmarkStore.toolbarBookmarks.length })
+    editSite.value = null
   }
+  bookmarkDialogOpen.value = true
 }
 </script>
 
@@ -152,4 +162,13 @@ async function toggleBookmark() {
 
   <!-- 扩展管理对话框 -->
   <ExtensionManager ref="extensionManagerRef" />
+
+  <!-- 收藏对话框 -->
+  <AddBookmarkDialog
+    v-model:open="bookmarkDialogOpen"
+    :edit-site="editSite"
+    :default-account-id="activeAccountId"
+    :default-url="tabStore.activeTab?.url"
+    :default-title="tabStore.activeTab?.title"
+  />
 </template>

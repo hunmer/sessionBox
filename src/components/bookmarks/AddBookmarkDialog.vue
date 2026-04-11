@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,12 @@ const props = defineProps<{
   open: boolean
   /** 编辑模式：传入已有的站点数据 */
   editSite?: { id: string; title: string; url: string; accountId?: string } | null
+  /** 新增模式下的默认关联账号 ID */
+  defaultAccountId?: string
+  /** 新增模式下的默认 URL */
+  defaultUrl?: string
+  /** 新增模式下的默认标题 */
+  defaultTitle?: string
 }>()
 
 const emit = defineEmits<{
@@ -39,21 +45,25 @@ const allAccounts = computed(() =>
   [...accountStore.accounts].sort((a, b) => a.order - b.order)
 )
 
-/** 监听编辑数据变化 */
-function onOpenChange(open: boolean) {
-  if (open && props.editSite) {
+/** 监听对话框打开，初始化表单数据 */
+watch(() => props.open, (open) => {
+  if (!open) return
+  if (props.editSite) {
     title.value = props.editSite.title
     url.value = props.editSite.url
     accountId.value = props.editSite.accountId || '__none__'
-    // 查找编辑书签的 folderId
     const bookmark = bookmarkStore.bookmarks.find((b) => b.id === props.editSite?.id)
     folderId.value = bookmark?.folderId || '__bookmark_bar__'
-  } else if (open) {
-    title.value = ''
-    url.value = ''
-    accountId.value = '__none__'
+  } else {
+    title.value = props.defaultTitle || ''
+    url.value = props.defaultUrl || ''
+    accountId.value = props.defaultAccountId || '__none__'
     folderId.value = '__bookmark_bar__'
   }
+})
+
+/** Dialog 组件请求关闭时转发事件 */
+function onOpenChange(open: boolean) {
   emit('update:open', open)
 }
 
