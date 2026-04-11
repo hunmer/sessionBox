@@ -205,21 +205,14 @@ function handleDelete() {
                 <CommandInput
                   v-model="comboboxSearch"
                   placeholder="搜索书签..."
-                  @keydown.enter="() => { comboboxOpen = false }"
+                  @keydown.enter="() => {
+                    if (comboboxSearch.trim()) url = comboboxSearch.trim()
+                    comboboxOpen = false
+                  }"
                 />
                 <CommandList>
                   <CommandEmpty>无匹配书签</CommandEmpty>
                   <CommandGroup>
-                    <!-- 第一项：当前输入的 URL -->
-                    <CommandItem
-                      v-if="comboboxSearch.trim()"
-                      value="__current_url__"
-                      @select="() => { url = comboboxSearch.trim(); comboboxOpen = false }"
-                    >
-                      <CheckIcon class="mr-2 h-4 w-4 opacity-0" />
-                      <span class="truncate text-primary">{{ comboboxSearch.trim() }}</span>
-                      <span class="ml-auto text-xs text-muted-foreground">当前输入</span>
-                    </CommandItem>
                     <CommandItem
                       v-for="site in filteredBookmarks"
                       :key="site.id"
@@ -251,7 +244,6 @@ function handleDelete() {
                 <SelectValue placeholder="默认容器" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem :value="DEFAULT_CONTAINER">默认容器</SelectItem>
                 <SelectItem v-for="c in containers" :key="c.id" :value="c.id">
                   {{ c.name }}
                 </SelectItem>
