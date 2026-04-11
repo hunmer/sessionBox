@@ -9,24 +9,24 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
-import { useAccountStore } from '@/stores/account'
+import { useContainerStore } from '@/stores/container'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
 import IconPickerDialog from './IconPickerDialog.vue'
-import type { Account } from '@/types'
+import type { Container } from '@/types'
 
 const props = defineProps<{
   open: boolean
-  account?: Account | null
+  container?: Container | null
   groupId?: string
 }>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  save: [data: Partial<Account> & { groupId: string; name: string; icon: string; defaultUrl: string; order: number }]
+  save: [data: Partial<Container> & { groupId: string; name: string; icon: string; defaultUrl: string; order: number }]
 }>()
 
-const accountStore = useAccountStore()
+const containerStore = useContainerStore()
 const proxyStore = useProxyStore()
 const bookmarkStore = useBookmarkStore()
 
@@ -45,11 +45,11 @@ const iconPickerOpen = ref(false)
 
 watch(() => props.open, (val) => {
   if (val) {
-    name.value = props.account?.name ?? ''
-    icon.value = props.account?.icon ?? '👤'
-    proxyId.value = props.account?.proxyId || NO_PROXY
-    autoProxyEnabled.value = props.account?.autoProxyEnabled ?? false
-    defaultUrl.value = props.account?.defaultUrl ?? 'about:blank'
+    name.value = props.container?.name ?? ''
+    icon.value = props.container?.icon ?? '👤'
+    proxyId.value = props.container?.proxyId || NO_PROXY
+    autoProxyEnabled.value = props.container?.autoProxyEnabled ?? false
+    defaultUrl.value = props.container?.defaultUrl ?? 'about:blank'
   }
 })
 
@@ -61,7 +61,7 @@ const hasProxy = computed(() => proxyId.value !== NO_PROXY)
 
 /** 上传自定义图标 */
 async function handleUploadIcon() {
-  const result = await window.api.account.uploadIcon()
+  const result = await window.api.container.uploadIcon()
   if (result) icon.value = result
 }
 
@@ -74,13 +74,13 @@ function handleSave() {
   const trimmed = name.value.trim()
   if (!trimmed) return
   emit('save', {
-    groupId: props.account?.groupId ?? props.groupId ?? '',
+    groupId: props.container?.groupId ?? props.groupId ?? '',
     name: trimmed,
     icon: icon.value,
     proxyId: proxyId.value === NO_PROXY ? undefined : proxyId.value,
     autoProxyEnabled: hasProxy.value ? autoProxyEnabled.value : false,
     defaultUrl: defaultUrl.value.trim() || 'about:blank',
-    order: props.account?.order ?? accountStore.accounts.length
+    order: props.container?.order ?? containerStore.containers.length
   })
   emit('update:open', false)
 }
@@ -90,7 +90,7 @@ function handleSave() {
   <Dialog :open="open" @update:open="emit('update:open', $event)">
     <DialogContent class="sm:max-w-[420px]">
       <DialogHeader>
-        <DialogTitle>{{ account ? '编辑账号' : '新建账号' }}</DialogTitle>
+        <DialogTitle>{{ container ? '编辑容器' : '新建容器' }}</DialogTitle>
       </DialogHeader>
 
       <div class="flex flex-col gap-5 py-2">
@@ -132,7 +132,7 @@ function handleSave() {
         <!-- 名称 -->
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">名称</label>
-          <Input v-model="name" placeholder="输入账号名称" autofocus @keydown.enter="handleSave" />
+          <Input v-model="name" placeholder="输入容器名称" autofocus @keydown.enter="handleSave" />
         </div>
 
         <!-- 启动 URL -->

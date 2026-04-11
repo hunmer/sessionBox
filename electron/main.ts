@@ -58,14 +58,14 @@ app.setAsDefaultProtocolClient('sessionbox')
 function handleProtocolUrl(url: string): void {
   try {
     const parsed = new URL(url)
-    if (parsed.host === 'openAccount') {
-      const accountId = parsed.searchParams.get('id')
-      if (!accountId) return
+    if (parsed.host === 'openContainer') {
+      const containerId = parsed.searchParams.get('id')
+      if (!containerId) return
       const win = BrowserWindow.getAllWindows()[0]
       if (win) {
         if (win.isMinimized()) win.restore()
         win.focus()
-        win.webContents.send('on:open-account', accountId)
+        win.webContents.send('open-container', containerId)
       }
     }
   } catch (e) {

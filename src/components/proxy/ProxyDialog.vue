@@ -335,7 +335,7 @@ async function handleDelete() {
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除</AlertDialogTitle>
             <AlertDialogDescription>
-              确定删除代理“{{ deleteTarget?.name }}”？绑定该代理的账号和分组会自动解除绑定。
+              确定删除代理”{{ deleteTarget?.name }}”？绑定该代理的容器和分组会自动解除绑定。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

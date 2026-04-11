@@ -7,7 +7,7 @@ import NavMain from '@/components/NavMain.vue'
 import NavUser from '@/components/NavUser.vue'
 import SidebarGroups from './SidebarGroups.vue'
 import GroupDialog from './GroupDialog.vue'
-import AccountDialog from './AccountDialog.vue'
+import ContainerDialog from './ContainerDialog.vue'
 import {
   SidebarContent,
   SidebarHeader,
@@ -15,14 +15,14 @@ import {
 } from '@/components/ui/sidebar'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
-import { useAccountStore } from '@/stores/account'
+import { useContainerStore } from '@/stores/container'
 import { useHomepageStore } from '@/stores/homepage'
 import { useUserProfileStore } from '@/stores/userProfile'
-import type { Group, Account } from '@/types'
+import type { Group, Container } from '@/types'
 
 const workspaceStore = useWorkspaceStore()
 const tabStore = useTabStore()
-const accountStore = useAccountStore()
+const containerStore = useContainerStore()
 const homepageStore = useHomepageStore()
 const userProfileStore = useUserProfileStore()
 
@@ -38,9 +38,9 @@ const emit = defineEmits<{
 // 对话框状态
 const groupDialogOpen = ref(false)
 const editingGroup = ref<Group | null>(null)
-const accountDialogOpen = ref(false)
-const editingAccount = ref<Account | null>(null)
-const newAccountGroupId = ref<string | undefined>(undefined)
+const containerDialogOpen = ref(false)
+const editingContainer = ref<Container | null>(null)
+const newContainerGroupId = ref<string | undefined>(undefined)
 
 // 分组操作
 function handleEditGroup(group: Group) {
@@ -50,28 +50,28 @@ function handleEditGroup(group: Group) {
 
 async function handleSaveGroup(data: { name: string; icon?: string; proxyId?: string; color?: string; workspaceId?: string }) {
   if (editingGroup.value) {
-    await accountStore.updateGroup(editingGroup.value.id, data)
+    await containerStore.updateGroup(editingGroup.value.id, data)
   } else {
-    await accountStore.createGroup(data.name, data.color, data.workspaceId, data.proxyId, data.icon)
+    await containerStore.createGroup(data.name, data.color, data.workspaceId, data.proxyId, data.icon)
   }
   groupDialogOpen.value = false
   editingGroup.value = null
 }
 
 async function handleDeleteGroup(group: Group) {
-  const groupAccounts = accountStore.accountsByGroup.get(group.id) || []
-  const hint = groupAccounts.length > 0
-    ? `该分组下有 ${groupAccounts.length} 个账号，将一并删除。`
+  const groupContainers = containerStore.containersByGroup.get(group.id) || []
+  const hint = groupContainers.length > 0
+    ? `该分组下有 ${groupContainers.length} 个容器，将一并删除。`
     : ''
   if (!confirm(`确定要删除分组「${group.name}」吗？${hint}`)) return
 
-  // 先关闭并删除该分组下所有账号的标签页，再删除账号，最后删除分组
-  for (const account of groupAccounts) {
-    const tab = tabStore.tabs.find(t => t.accountId === account.id)
+  // 先关闭并删除该分组下所有容器的标签页，再删除容器，最后删除分组
+  for (const container of groupContainers) {
+    const tab = tabStore.tabs.find(t => t.containerId === container.id)
     if (tab) await tabStore.closeTab(tab.id)
-    await accountStore.deleteAccount(account.id)
+    await containerStore.deleteContainer(container.id)
   }
-  await accountStore.deleteGroup(group.id)
+  await containerStore.deleteGroup(group.id)
 }
 
 // 添加分组
@@ -80,46 +80,46 @@ function handleAddGroup() {
   groupDialogOpen.value = true
 }
 
-// 添加账号（groupId 为空时是新建分组按钮，否则是分组菜单中的新建账号）
-function handleAddAccount(groupId: string) {
+// 添加容器（groupId 为空时是新建分组按钮，否则是分组菜单中的新建容器）
+function handleAddContainer(groupId: string) {
   if (!groupId) {
     handleAddGroup()
     return
   }
-  editingAccount.value = null
-  newAccountGroupId.value = groupId
-  accountDialogOpen.value = true
+  editingContainer.value = null
+  newContainerGroupId.value = groupId
+  containerDialogOpen.value = true
 }
 
-function handleEditAccount(account: Account) {
-  editingAccount.value = account
-  accountDialogOpen.value = true
+function handleEditContainer(container: Container) {
+  editingContainer.value = container
+  containerDialogOpen.value = true
 }
 
-async function handleSaveAccount(data: Partial<Account> & { groupId: string; name: string; icon: string; defaultUrl: string; order: number }) {
-  if (editingAccount.value) {
-    await accountStore.updateAccount(editingAccount.value.id, data)
+async function handleSaveContainer(data: Partial<Container> & { groupId: string; name: string; icon: string; defaultUrl: string; order: number }) {
+  if (editingContainer.value) {
+    await containerStore.updateContainer(editingContainer.value.id, data)
   } else {
-    await accountStore.createAccount(data)
+    await containerStore.createContainer(data)
   }
-  accountDialogOpen.value = false
-  editingAccount.value = null
-  newAccountGroupId.value = undefined
+  containerDialogOpen.value = false
+  editingContainer.value = null
+  newContainerGroupId.value = undefined
 }
 
-async function handleDeleteAccount(account: Account) {
-  if (confirm(`确定要删除账号「${account.name}」吗？`)) {
-    await accountStore.deleteAccount(account.id)
+async function handleDeleteContainer(container: Container) {
+  if (confirm(`确定要删除容器「${container.name}」吗？`)) {
+    await containerStore.deleteContainer(container.id)
   }
 }
 
-/** 切换到或创建指定账号的标签页 */
-function handleSelectAccount(accountId: string) {
-  const accountTabs = tabStore.sortedTabs.filter((t) => t.accountId === accountId)
-  if (accountTabs.length > 0) {
-    tabStore.switchTab(accountTabs[accountTabs.length - 1].id)
+/** 切换到或创建指定容器的标签页 */
+function handleSelectContainer(containerId: string) {
+  const containerTabs = tabStore.sortedTabs.filter((t) => t.containerId === containerId)
+  if (containerTabs.length > 0) {
+    tabStore.switchTab(containerTabs[containerTabs.length - 1].id)
   } else {
-    tabStore.createTab(accountId)
+    tabStore.createTab(containerId)
   }
 }
 
@@ -190,10 +190,10 @@ const workspaceSwitcherItems = computed(() => {
         :collapsed="collapsed"
         @edit-group="handleEditGroup"
         @delete-group="handleDeleteGroup"
-        @add-account="handleAddAccount"
-        @edit-account="handleEditAccount"
-        @delete-account="handleDeleteAccount"
-        @select-account="handleSelectAccount"
+        @add-container="handleAddContainer"
+        @edit-container="handleEditContainer"
+        @delete-container="handleDeleteContainer"
+        @select-container="handleSelectContainer"
       />
       <NavUser
         class="mt-auto p-1 shrink-0"
@@ -213,11 +213,11 @@ const workspaceSwitcherItems = computed(() => {
     @save="handleSaveGroup"
   />
 
-  <!-- 账号编辑对话框 -->
-  <AccountDialog
-    v-model:open="accountDialogOpen"
-    :account="editingAccount"
-    :group-id="newAccountGroupId"
-    @save="handleSaveAccount"
+  <!-- 容器编辑对话框 -->
+  <ContainerDialog
+    v-model:open="containerDialogOpen"
+    :container="editingContainer"
+    :group-id="newContainerGroupId"
+    @save="handleSaveContainer"
   />
 </template>

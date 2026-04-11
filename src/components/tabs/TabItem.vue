@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/context-menu'
 import type { Tab } from '@/types'
 import { useTabStore } from '@/stores/tab'
-import { useAccountStore } from '@/stores/account'
+import { useContainerStore } from '@/stores/container'
 
 const props = defineProps<{
   tab: Tab
@@ -18,24 +18,24 @@ const props = defineProps<{
 }>()
 
 const tabStore = useTabStore()
-const accountStore = useAccountStore()
+const containerStore = useContainerStore()
 
 // 网页标题
 const pageTitle = computed(() => {
   if (!props.tab.url?.startsWith('http')) return props.tab.title || '新标签页'
   const title = props.tab.title
-  // 排除初始占位标题（账号名或"新标签页"），视为尚未加载
+  // 排除初始占位标题（容器名或"新标签页"），视为尚未加载
   if (!title || title === '新标签页') return ''
-  const account = accountStore.getAccount(props.tab.accountId)
-  if (title === account?.name) return ''
+  const container = containerStore.getContainer(props.tab.containerId)
+  if (title === container?.name) return ''
   return title
 })
-// 账号标识：【分组】账号名
-const accountLabel = computed(() => {
-  const account = accountStore.getAccount(props.tab.accountId)
-  if (!account) return ''
-  const group = accountStore.getGroup(account.groupId)
-  return group ? `${group.name}·${account.name}` : account.name
+// 容器标识：【分组】容器名
+const containerLabel = computed(() => {
+  const container = containerStore.getContainer(props.tab.containerId)
+  if (!container) return ''
+  const group = containerStore.getGroup(container.groupId)
+  return group ? `${group.name}·${container.name}` : container.name
 })
 const isActive = computed(() => tabStore.activeTabId === props.tab.id)
 const isLoading = computed(() => tabStore.navStates.get(props.tab.id)?.isLoading ?? false)
@@ -118,8 +118,8 @@ const isWebPage = computed(() => props.tab.url?.startsWith('http'))
         <Snowflake v-else-if="isFrozen" class="w-3.5 h-3.5 flex-shrink-0 text-blue-400" />
         <img v-else-if="faviconUrl" :src="faviconUrl" class="w-3.5 h-3.5 flex-shrink-0 rounded-sm" />
         <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
-        <span class="truncate text-xs" :class="vertical ? 'flex-1 min-w-0' : isPinned ? 'max-w-[100px]' : 'max-w-[120px]'">{{ pageTitle || accountLabel || '新标签页' }}</span>
-        <span v-if="pageTitle && accountLabel" class="truncate text-[10px] text-muted-foreground/60 max-w-[60px] flex-shrink-0">{{ accountLabel }}</span>
+        <span class="truncate text-xs" :class="vertical ? 'flex-1 min-w-0' : isPinned ? 'max-w-[100px]' : 'max-w-[120px]'">{{ pageTitle || containerLabel || '新标签页' }}</span>
+        <span v-if="pageTitle && containerLabel" class="truncate text-[10px] text-muted-foreground/60 max-w-[60px] flex-shrink-0">{{ containerLabel }}</span>
         <VolumeX v-if="isMuted" class="w-3 h-3 flex-shrink-0 text-muted-foreground" />
         <Pin v-if="isPinned" class="w-3 h-3 flex-shrink-0 text-muted-foreground" />
         <button

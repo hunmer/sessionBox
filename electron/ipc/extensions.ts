@@ -10,9 +10,9 @@ import {
 } from '../services/store'
 import {
   getLoadedExtensionIds,
-  loadExtensionForAllAccounts,
+  loadExtensionForAllContainers,
   openExtensionBrowserActionPopup,
-  unloadExtensionFromAllAccounts
+  unloadExtensionFromAllContainers
 } from '../services/extensions'
 
 /**
@@ -138,15 +138,15 @@ export function registerExtensionHandlers(): void {
       throw new Error(`扩展 ${extensionId} 不存在`)
     }
 
-    await loadExtensionForAllAccounts(extension)
+    await loadExtensionForAllContainers(extension)
   })
 
   ipcMain.handle('extension:unload', async (_event, extensionId: string): Promise<void> => {
-    await unloadExtensionFromAllAccounts(extensionId)
+    await unloadExtensionFromAllContainers(extensionId)
   })
 
   ipcMain.handle('extension:delete', async (_event, extensionId: string): Promise<void> => {
-    await unloadExtensionFromAllAccounts(extensionId)
+    await unloadExtensionFromAllContainers(extensionId)
     deleteExtension(extensionId)
   })
 
@@ -162,10 +162,10 @@ export function registerExtensionHandlers(): void {
       if ('enabled' in data && data.enabled !== extension.enabled) {
         if (data.enabled) {
           // 启用：加载扩展
-          await loadExtensionForAllAccounts(extension)
+          await loadExtensionForAllContainers(extension)
         } else {
           // 禁用：卸载扩展
-          await unloadExtensionFromAllAccounts(id)
+          await unloadExtensionFromAllContainers(id)
         }
       }
 
@@ -181,11 +181,11 @@ export function registerExtensionHandlers(): void {
     'extension:openBrowserActionPopup',
     async (
       _event,
-      accountId: string | null,
+      containerId: string | null,
       extensionId: string,
       anchorRect: { x: number; y: number; width: number; height: number }
     ): Promise<void> => {
-      openExtensionBrowserActionPopup(accountId, extensionId, anchorRect)
+      openExtensionBrowserActionPopup(containerId, extensionId, anchorRect)
     }
   )
 }

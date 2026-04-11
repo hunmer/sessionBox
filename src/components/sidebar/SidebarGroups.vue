@@ -11,8 +11,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { useAccountStore } from '@/stores/account'
-import type { Group, Account } from '@/types'
+import { useContainerStore } from '@/stores/container'
+import type { Group, Container } from '@/types'
 
 defineProps<{
   collapsed?: boolean
@@ -21,13 +21,13 @@ defineProps<{
 const emit = defineEmits<{
   editGroup: [group: Group]
   deleteGroup: [group: Group]
-  addAccount: [groupId: string]
-  editAccount: [account: Account]
-  deleteAccount: [account: Account]
-  selectAccount: [accountId: string]
+  addContainer: [groupId: string]
+  editContainer: [container: Container]
+  deleteContainer: [container: Container]
+  selectContainer: [containerId: string]
 }>()
 
-const accountStore = useAccountStore()
+const containerStore = useContainerStore()
 </script>
 
 <template>
@@ -37,7 +37,7 @@ const accountStore = useAccountStore()
       <button
         v-if="!collapsed"
         class="flex-shrink-0 p-0.5 rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors opacity-0 group-hover:opacity-100"
-        @click.stop="emit('addAccount', '')"
+        @click.stop="emit('addContainer', '')"
       >
         <Plus class="w-3.5 h-3.5" />
       </button>
@@ -47,10 +47,10 @@ const accountStore = useAccountStore()
         :collapsed="collapsed"
         @edit-group="emit('editGroup', $event)"
         @delete-group="emit('deleteGroup', $event)"
-        @add-account="emit('addAccount', $event)"
-        @edit-account="emit('editAccount', $event)"
-        @delete-account="emit('deleteAccount', $event)"
-        @select-account="emit('selectAccount', $event)"
+        @add-container="emit('addContainer', $event)"
+        @edit-container="emit('editContainer', $event)"
+        @delete-container="emit('deleteContainer', $event)"
+        @select-container="emit('selectContainer', $event)"
       />
     </SidebarGroupContent>
   </SidebarGroup>

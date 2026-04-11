@@ -6,9 +6,9 @@ import { useUserProfileStore } from '@/stores/userProfile'
 
 const userStore = useUserProfileStore()
 
-/** 上传自定义头像，复用账号图标上传接口 */
+/** 上传自定义头像，复用容器图标上传接口 */
 async function handleUploadAvatar() {
-  const result = await window.api.account.uploadIcon()
+  const result = await window.api.container.uploadIcon()
   if (result) {
     userStore.updateProfile({ avatar: result })
   }

@@ -70,7 +70,7 @@ onMounted(loadMutedSites)
 <template>
   <!-- 常用网站 -->
   <h3 class="text-sm font-medium mb-3">常用网站</h3>
-  <p class="text-xs text-muted-foreground mb-4">添加常用网站后，在新建/编辑账号时可快速选择网址。</p>
+  <p class="text-xs text-muted-foreground mb-4">添加常用网站后，在新建/编辑容器时可快速选择网址。</p>
 
   <div class="flex gap-2 mb-4">
     <Input v-model="newTitle" placeholder="网站标题" class="w-36" @keydown.enter="addSite" />

@@ -13,7 +13,7 @@ const emit = defineEmits<{ 'open-manager': [] }>()
 
 const enabledExtensions = computed(() => extensionStore.extensions.filter((e) => e.enabled))
 
-const currentAccountId = computed(() => tabStore.activeTab?.accountId ?? null)
+const currentContainerId = computed(() => tabStore.activeTab?.containerId ?? null)
 
 onMounted(async () => {
   if (extensionStore.extensions.length === 0) {
@@ -26,7 +26,7 @@ onMounted(async () => {
 async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
-  await window.api.extension.openBrowserActionPopup(currentAccountId.value, extensionId, {
+  await window.api.extension.openBrowserActionPopup(currentContainerId.value, extensionId, {
     x: rect.left,
     y: rect.top,
     width: rect.width,

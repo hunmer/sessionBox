@@ -51,7 +51,7 @@ export function registerTabIpcHandlers(): void {
       // 无容器模式：使用默认 partition
       const tabUrl = url || 'https://www.baidu.com'
       const tab = createTab({
-        accountId: '',
+        containerId: '',
         title: internalPageTitle || '新标签页',
         url: tabUrl,
         order
@@ -66,7 +66,7 @@ export function registerTabIpcHandlers(): void {
 
     const tabUrl = url || container.defaultUrl
     const tab = createTab({
-      accountId: containerId,
+      containerId: containerId,
       title: container.name,
       url: tabUrl,
       order
@@ -180,10 +180,10 @@ export function registerTabIpcHandlers(): void {
     webviewManager.destroyAll()
     const tabs = listTabs()
     for (const tab of tabs) {
-      if (tab.accountId) {
-        const container = getContainerById(tab.accountId)
+      if (tab.containerId) {
+        const container = getContainerById(tab.containerId)
         if (container) {
-          webviewManager.registerPendingView(tab.id, tab.accountId, tab.url || container.defaultUrl)
+          webviewManager.registerPendingView(tab.id, tab.containerId, tab.url || container.defaultUrl)
         }
       } else {
         webviewManager.registerPendingView(tab.id, '', tab.url || 'https://www.baidu.com')

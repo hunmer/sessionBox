@@ -1,5 +1,5 @@
 import { BrowserWindow, Session, WebContentsView } from 'electron'
-import { ensureExtensionsLoadedForAccount, getExtensionsForAccount } from './extensions'
+import { ensureExtensionsLoadedForContainer, getExtensionsForContainer } from './extensions'
 import { getContainerById, getGroupById, getProxyById, getMutedSites, type Proxy } from './store'
 import { applyProxyToSession, fetchSessionExitIp } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
@@ -252,7 +252,7 @@ class WebviewManager {
       }
     })
 
-    const extensions = getExtensionsForAccount(containerId || null)
+    const extensions = getExtensionsForContainer(containerId || null)
     extensions.addTab(view.webContents, this.mainWindow)
 
     void (async () => {
@@ -261,7 +261,7 @@ class WebviewManager {
           await applyProxyPromise
         }
         await this.refreshProxyInfo(tabId)
-        await ensureExtensionsLoadedForAccount(containerId || null)
+        await ensureExtensionsLoadedForContainer(containerId || null)
         await view.webContents.loadURL(url)
       } catch (error) {
         console.error(`[WebviewManager] loadURL failed for tab ${tabId}:`, error)
@@ -412,7 +412,7 @@ class WebviewManager {
     this.views.delete(tabId)
 
     try {
-      const extensions = getExtensionsForAccount(entry.containerId || null)
+      const extensions = getExtensionsForContainer(entry.containerId || null)
       if (!entry.view.webContents.isDestroyed()) {
         extensions.removeTab(entry.view.webContents)
       }
@@ -472,7 +472,7 @@ class WebviewManager {
     target.lastActiveAt = Date.now()
     this.activeTabId = tabId
 
-    const extensions = getExtensionsForAccount(target.containerId || null)
+    const extensions = getExtensionsForContainer(target.containerId || null)
     extensions.selectTab(target.view.webContents)
 
     this.mainWindow.webContents.send('on:tab:activated', tabId)
@@ -697,7 +697,7 @@ class WebviewManager {
 
       // 销毁 view 但保留 tab 数据
       try {
-        const extensions = getExtensionsForAccount(entry.containerId || null)
+        const extensions = getExtensionsForContainer(entry.containerId || null)
         if (!entry.view.webContents.isDestroyed()) {
           extensions.removeTab(entry.view.webContents)
         }
