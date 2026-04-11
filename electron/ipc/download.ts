@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import { shell } from 'electron'
 import {
   checkConnection,
   getAria2Config,
@@ -58,4 +59,16 @@ export function registerDownloadIpcHandlers(): void {
   ipcMain.handle('download:globalStat', () => getGlobalStat())
 
   ipcMain.handle('download:purge', () => purgeDownloadResult())
+
+  /** 在系统文件管理器中显示已下载的文件 */
+  ipcMain.handle('download:showInFolder', async (_e, filePath: string) => {
+    await shell.showItemInFolder(filePath)
+  })
+
+  /** 获取下载文件的完整路径（用于拖拽） */
+  ipcMain.handle('download:getFilePath', (_e, dir: string, filename: string) => {
+    const path = require('path')
+    const filePath = path.join(dir, filename)
+    return filePath
+  })
 }

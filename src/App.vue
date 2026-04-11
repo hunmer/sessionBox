@@ -378,12 +378,12 @@ watch(() => tabStore.bookmarkBarVisible, () => {
               <!-- 水平标签栏 -->
               <TabBar :is-maximized="isMaximized" @toggle-sidebar="toggleSidebar" />
 
-              <!-- 快捷网站栏 -->
-              <BookmarkBar v-if="tabStore.bookmarkBarVisible" />
-
-              <!-- 工具栏 -->
+               <!-- 工具栏 -->
               <BrowserToolbar v-if="tabStore.activeTab" />
 
+              <!-- 快捷网站栏 -->
+              <BookmarkBar v-if="tabStore.bookmarkBarVisible" />
+             
               <!-- WebContentsView 占位区域 -->
               <div class="flex-1 relative bg-background">
                 <!-- 内部页面渲染 -->

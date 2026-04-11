@@ -45,6 +45,7 @@ interface ViewEntry {
   pageId: string          // 关联的页面 ID
   containerId: string     // 缓存的容器 ID
   lastActiveAt: number // 上次激活时间戳
+  willDownloadHandler?: (...args: any[]) => void // session 上的下载监听器引用（用于清理）
 }
 
 class WebviewManager {
@@ -351,9 +352,13 @@ class WebviewManager {
     })
 
     // 拦截下载事件，转发到 aria2
-    wc.session.on('will-download', (event, item) => {
+    const willDownloadHandler = (event: Electron.Event, item: Electron.DownloadItem) => {
       // 同步检查缓存的 aria2 状态，必须同步调用 preventDefault 才能阻止默认保存对话框
       if (!this.aria2Enabled) return
+
+      // 守卫：webContents 已销毁（标签页被关闭/冻结但 session 仍存活时，监听器仍会触发）
+      // 必须在 preventDefault() 之前检查，否则下载既不会走默认保存也不会走 aria2
+      if (wc.isDestroyed()) return
 
       event.preventDefault()
       const url = item.getURL()
@@ -385,7 +390,15 @@ class WebviewManager {
           console.error('[Aria2] 添加下载失败:', e)
         }
       })()
-    })
+    }
+
+    wc.session.on('will-download', willDownloadHandler)
+
+    // 保存 handler 引用，以便标签页销毁时从 session 上移除监听器
+    const entry = this.views.get(tabId)
+    if (entry) {
+      entry.willDownloadHandler = willDownloadHandler
+    }
   }
 
   private sendNavState(tabId: string): void {
@@ -414,6 +427,11 @@ class WebviewManager {
     this.views.delete(tabId)
 
     try {
+      // 清理 session 上的 will-download 监听器（防止标签页销毁后仍触发回调）
+      if (entry.willDownloadHandler && !entry.view.webContents.isDestroyed()) {
+        entry.view.webContents.session.removeListener('will-download', entry.willDownloadHandler)
+      }
+
       const extensions = getExtensionsForContainer(entry.containerId || null)
       if (!entry.view.webContents.isDestroyed()) {
         extensions.removeTab(entry.view.webContents)
@@ -700,6 +718,11 @@ class WebviewManager {
 
       // 销毁 view 但保留 tab 数据
       try {
+        // 清理 session 上的 will-download 监听器
+        if (entry.willDownloadHandler && !entry.view.webContents.isDestroyed()) {
+          entry.view.webContents.session.removeListener('will-download', entry.willDownloadHandler)
+        }
+
         const extensions = getExtensionsForContainer(entry.containerId || null)
         if (!entry.view.webContents.isDestroyed()) {
           extensions.removeTab(entry.view.webContents)

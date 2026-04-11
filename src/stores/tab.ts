@@ -412,6 +412,8 @@ export const useTabStore = defineStore('tab', () => {
       const t = tabs.value.find((t) => t.id === tabId)
       if (t) {
         t.title = title as string
+        // 实时持久化标题到主进程 store，避免 beforeunload 时 IPC 未完成导致标题丢失
+        api.tab.update(tabId, { title: title as string })
         // 更新历史记录中对应 URL 的标题
         const historyStore = useHistoryStore()
         historyStore.updateTitle(t.url, title as string)
@@ -422,6 +424,8 @@ export const useTabStore = defineStore('tab', () => {
       const t = tabs.value.find((t) => t.id === tabId)
       if (t) {
         t.url = url as string
+        // 实时持久化 URL 到主进程 store
+        api.tab.update(tabId, { url: url as string })
         // 记录浏览历史（仅 http/https）
         const historyStore = useHistoryStore()
         historyStore.addHistory(url as string, t.title)

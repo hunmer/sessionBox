@@ -208,7 +208,9 @@ const api = {
     listWaiting: () => electron.ipcRenderer.invoke("download:listWaiting"),
     listStopped: () => electron.ipcRenderer.invoke("download:listStopped"),
     globalStat: () => electron.ipcRenderer.invoke("download:globalStat"),
-    purge: () => electron.ipcRenderer.invoke("download:purge")
+    purge: () => electron.ipcRenderer.invoke("download:purge"),
+    showInFolder: (filePath) => electron.ipcRenderer.invoke("download:showInFolder", filePath),
+    getFilePath: (dir, filename) => electron.ipcRenderer.invoke("download:getFilePath", dir, filename)
   },
   // 自动更新
   updater: {

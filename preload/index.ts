@@ -307,7 +307,9 @@ const api = {
     listWaiting: (): Promise<any[]> => ipcRenderer.invoke('download:listWaiting'),
     listStopped: (): Promise<any[]> => ipcRenderer.invoke('download:listStopped'),
     globalStat: (): Promise<any> => ipcRenderer.invoke('download:globalStat'),
-    purge: (): Promise<void> => ipcRenderer.invoke('download:purge')
+    purge: (): Promise<void> => ipcRenderer.invoke('download:purge'),
+    showInFolder: (filePath: string): Promise<void> => ipcRenderer.invoke('download:showInFolder', filePath),
+    getFilePath: (dir: string, filename: string): Promise<string> => ipcRenderer.invoke('download:getFilePath', dir, filename)
   },
 
   // 自动更新
