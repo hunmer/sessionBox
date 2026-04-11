@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Globe, Search } from 'lucide-vue-next'
+import { Search } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAccountStore } from '@/stores/account'
-import { useTabStore } from '@/stores/tab'
-import { useHistoryStore } from '@/stores/history'
+import { getFaviconUrl } from '@/lib/utils'
 import type { Account } from '@/types'
-import type { HistoryEntry } from '@/lib/db'
+
+/** 通过输入框提交的 URL 记录 */
+interface UrlRecord {
+  url: string
+  time: number
+}
+
+const STORAGE_KEY = 'sessionbox-url-input-history'
+const MAX_RECORDS = 50
 
 const props = defineProps<{
   open: boolean
@@ -19,11 +26,27 @@ const emit = defineEmits<{
 }>()
 
 const accountStore = useAccountStore()
-const tabStore = useTabStore()
-const historyStore = useHistoryStore()
-
 const urlInput = ref('')
-const recentHistory = ref<HistoryEntry[]>([])
+const urlRecords = ref<UrlRecord[]>([])
+
+// 从 localStorage 加载输入框提交记录
+function loadRecords() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    urlRecords.value = raw ? JSON.parse(raw) : []
+  } catch {
+    urlRecords.value = []
+  }
+}
+
+// 保存一条提交记录
+function saveRecord(url: string) {
+  const list = urlRecords.value.filter((r) => r.url !== url)
+  list.unshift({ url, time: Date.now() })
+  if (list.length > MAX_RECORDS) list.length = MAX_RECORDS
+  urlRecords.value = list
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+}
 
 // 获取当前工作区的账号列表
 const accounts = computed(() => {
@@ -37,28 +60,26 @@ const accounts = computed(() => {
 
 // 根据 URL 输入过滤历史记录
 const filteredHistory = computed(() => {
-  if (!urlInput.value.trim()) return recentHistory.value.slice(0, 20)
+  if (!urlInput.value.trim()) return urlRecords.value.slice(0, 20)
   const q = urlInput.value.toLowerCase()
-  return recentHistory.value.filter(
-    (h) => h.title.toLowerCase().includes(q) || h.url.toLowerCase().includes(q)
-  ).slice(0, 20)
+  return urlRecords.value.filter((r) => r.url.toLowerCase().includes(q)).slice(0, 20)
 })
 
-// 弹窗打开时加载最近历史记录
-watch(() => props.open, async (open) => {
+// 弹窗打开时加载记录
+watch(() => props.open, (open) => {
   if (open) {
     urlInput.value = ''
-    recentHistory.value = await historyStore.getRecentHistory(100)
+    loadRecords()
   }
 })
 
-// 获取域名首字母
-function getDomainLetter(url: string) {
+// 从 URL 提取简短显示名
+function getUrlLabel(url: string) {
   try {
-    const hostname = new URL(url).hostname
-    return hostname.replace(/^www\./, '').charAt(0).toUpperCase()
+    const u = new URL(url)
+    return u.hostname.replace(/^www\./, '')
   } catch {
-    return '?'
+    return url
   }
 }
 
@@ -67,10 +88,13 @@ function isImageIcon(icon: string | undefined) {
   return icon?.startsWith('img:')
 }
 
-// URL 输入框回车处理
+// URL 输入框回车：记录并导航
 function handleUrlSubmit() {
-  const url = urlInput.value.trim()
+  let url = urlInput.value.trim()
   if (!url) return
+  // 自动补全协议
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url
+  saveRecord(url)
   emit('navigate', url)
   emit('update:open', false)
 }
@@ -82,16 +106,17 @@ function handleSelectAccount(account: Account) {
 }
 
 // 点击历史记录
-function handleSelectHistory(entry: HistoryEntry) {
-  emit('navigate', entry.url)
+function handleSelectHistory(record: UrlRecord) {
+  saveRecord(record.url)
+  emit('navigate', record.url)
   emit('update:open', false)
 }
 </script>
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="sm:max-w-[480px] p-4 gap-3" show-close-button>
-      <DialogHeader class="sr-only">
+    <DialogContent class="w-[80vw] sm:max-w-[640px] p-4 gap-3" show-close-button>
+      <DialogHeader>
         <DialogTitle>新建标签页</DialogTitle>
       </DialogHeader>
 
@@ -101,7 +126,7 @@ function handleSelectHistory(entry: HistoryEntry) {
         <input
           v-model="urlInput"
           type="text"
-          placeholder="输入网址搜索或访问..."
+          placeholder="输入网址访问..."
           class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-transparent text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           @keydown.enter="handleUrlSubmit"
         />
@@ -110,7 +135,7 @@ function handleSelectHistory(entry: HistoryEntry) {
       <!-- 账号列表 -->
       <div v-if="accounts.length > 0">
         <div class="text-xs text-muted-foreground mb-1.5 px-1">账号</div>
-        <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        <div class="flex gap-2 overflow-x-auto pb-1">
           <button
             v-for="account in accounts"
             :key="account.id"
@@ -135,18 +160,23 @@ function handleSelectHistory(entry: HistoryEntry) {
       <!-- 历史记录 -->
       <div v-if="filteredHistory.length > 0">
         <div class="text-xs text-muted-foreground mb-1.5 px-1">历史记录</div>
-        <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        <div class="flex gap-2 overflow-x-auto pb-1">
           <button
-            v-for="entry in filteredHistory"
-            :key="entry.id"
+            v-for="record in filteredHistory"
+            :key="record.url"
             class="flex-shrink-0 flex flex-col items-center gap-1 w-16 p-1.5 rounded-lg hover:bg-accent transition-colors"
-            :title="entry.title || entry.url"
-            @click="handleSelectHistory(entry)"
+            :title="record.url"
+            @click="handleSelectHistory(record)"
           >
             <span class="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-              <Globe class="w-4 h-4 text-muted-foreground" />
+              <img
+                :src="getFaviconUrl(record.url)"
+                alt=""
+                class="w-5 h-5 rounded-sm object-cover"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              />
             </span>
-            <span class="text-[11px] text-center leading-tight truncate w-full">{{ entry.title || getDomainLetter(entry.url) }}</span>
+            <span class="text-[11px] text-center leading-tight truncate w-full">{{ getUrlLabel(record.url) }}</span>
           </button>
         </div>
       </div>

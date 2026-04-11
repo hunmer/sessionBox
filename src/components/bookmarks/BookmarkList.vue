@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import BookmarkItem from './BookmarkItem.vue'
 import { useBookmarkStore } from '@/stores/bookmark'
+import { getFaviconUrl } from '@/lib/utils'
 
 const props = defineProps<{
   folderId: string
@@ -31,15 +32,6 @@ const bookmarks = computed(() => {
   }
   return bookmarkStore.getBookmarksByFolder(props.folderId)
 })
-
-function getFaviconUrl(url: string): string {
-  try {
-    const u = new URL(url)
-    return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=32`
-  } catch {
-    return ''
-  }
-}
 </script>
 
 <template>

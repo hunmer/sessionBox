@@ -9,6 +9,7 @@ import {
 import BookmarkFolderMenu from './BookmarkFolderMenu.vue'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useTabStore } from '@/stores/tab'
+import { getFaviconUrl } from '@/lib/utils'
 import type { Bookmark, BookmarkFolder } from '@/types'
 
 defineProps<{
@@ -17,16 +18,6 @@ defineProps<{
 
 const bookmarkStore = useBookmarkStore()
 const tabStore = useTabStore()
-
-/** 获取网站图标 URL */
-function getFaviconUrl(url: string): string {
-  try {
-    const domain = new URL(url).hostname
-    return `https://icon.horse/icon/${domain}`
-  } catch {
-    return url
-  }
-}
 
 /** 点击书签，在新 tab 中打开 */
 function openSite(bookmark: Bookmark) {

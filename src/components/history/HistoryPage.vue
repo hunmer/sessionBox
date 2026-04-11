@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { useHistoryStore } from '@/stores/history'
 import { useTabStore } from '@/stores/tab'
+import { getDomain } from '@/lib/utils'
 import type { HistoryEntry } from '@/lib/db'
 
 const historyStore = useHistoryStore()
@@ -81,15 +82,6 @@ async function handleDelete(id: number) {
 function formatTime(ms: number): string {
   const d = new Date(ms)
   return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-}
-
-/** 提取域名用于显示 */
-function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname
-  } catch {
-    return url
-  }
 }
 
 onMounted(loadEntries)

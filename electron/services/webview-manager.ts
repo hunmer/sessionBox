@@ -203,41 +203,15 @@ class WebviewManager {
       && proxy.enabled !== false
       && account?.autoProxyEnabled === true
 
-    console.log('[WebviewManager] createView proxy decision', {
-      tabId,
-      accountId,
-      hasProxy: !!proxy,
-      proxyId: proxy?.id,
-      'proxy.enabled': proxy?.enabled,
-      'proxy.enabled !== false': proxy ? proxy.enabled !== false : 'N/A',
-      'account.autoProxyEnabled': account?.autoProxyEnabled,
-      shouldAutoApplyProxy
-    })
-
     if (shouldAutoApplyProxy) {
-      console.log('[WebviewManager] applying proxy', {
-        tabId,
-        accountId,
-        partition: partition || 'default',
-        url,
-        proxyId,
-        proxyMode: proxy.proxyMode ?? 'global',
-        type: proxy.type ?? '',
-        host: proxy.host ?? '',
-        port: proxy.port ?? '',
-        pacUrl: proxy.pacUrl ?? '',
-        username: proxy.username ?? '',
-        passwordLength: proxy.password?.length ?? 0,
-        pacScriptLength: proxy.pacScript?.length ?? 0
-      })
       this.sessionProxyEnabled.set(accountId, true)
       applyProxyPromise = applyProxyToSession(view.webContents.session, proxy)
         .then(() => {
-          console.log('[WebviewManager] setProxy success', {
-            tabId,
-            partition: partition || 'default',
-            proxyMode: proxy.proxyMode ?? 'global'
-          })
+          // console.log('[WebviewManager] setProxy success', {
+          //   tabId,
+          //   partition: partition || 'default',
+          //   proxyMode: proxy.proxyMode ?? 'global'
+          // })
         })
         .catch((error) => {
           console.error('[WebviewManager] setProxy failed', {
@@ -249,12 +223,6 @@ class WebviewManager {
         })
     } else if (proxy) {
       // 代理配置存在但不自动应用（代理被禁用或账号未开启自动代理）
-      console.log('[WebviewManager] proxy exists but not auto-applied', {
-        tabId,
-        accountId,
-        proxyEnabled: proxy.enabled !== false,
-        autoProxyEnabled: account?.autoProxyEnabled ?? false
-      })
       this.sessionProxyEnabled.set(accountId, false)
       this.sendProxyInfo(tabId, {
         enabled: proxy.enabled !== false,
@@ -265,12 +233,6 @@ class WebviewManager {
         proxyMode: proxy.proxyMode ?? 'global'
       })
     } else {
-      console.log('[WebviewManager] no proxy applied', {
-        tabId,
-        accountId,
-        partition: partition || 'default',
-        url
-      })
       this.sendProxyInfo(tabId, null)
     }
 
@@ -532,12 +494,6 @@ class WebviewManager {
     }
 
     // 代理配置被禁用时，不允许开启
-    console.log('[WebviewManager] setProxyEnabledForTab', {
-      tabId,
-      enabled,
-      'proxy.enabled': proxy.enabled,
-      willBlock: enabled && proxy.enabled === false
-    })
     if (enabled && proxy.enabled === false) {
       return { ok: false, enabled: false, error: '代理配置已被禁用' }
     }

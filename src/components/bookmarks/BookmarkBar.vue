@@ -7,6 +7,7 @@ import BookmarkFolderMenu from './BookmarkFolderMenu.vue'
 import AddBookmarkDialog from './AddBookmarkDialog.vue'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useTabStore } from '@/stores/tab'
+import { getFaviconUrl } from '@/lib/utils'
 import type { Bookmark } from '@/types'
 
 const bookmarkStore = useBookmarkStore()
@@ -14,21 +15,6 @@ const tabStore = useTabStore()
 
 const showAddDialog = ref(false)
 const editSite = ref<{ id: string; title: string; url: string; accountId?: string } | null>(null)
-
-/** 从 URL 提取域名 */
-function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname
-  } catch {
-    return url
-  }
-}
-
-/** 获取网站图标 URL */
-function getFaviconUrl(url: string): string {
-  const domain = getDomain(url)
-  return `https://icon.horse/icon/${domain}`
-}
 
 /** 点击快捷网站，在新 tab 中打开 */
 function openSite(site: { url: string; accountId?: string }) {
