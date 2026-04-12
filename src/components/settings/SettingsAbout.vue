@@ -12,7 +12,7 @@ function openExternal(url: string) {
     <img :src="appIcon" alt="SessionBox" class="w-20 h-20 rounded-xl" />
     <div class="text-center">
       <h3 class="text-lg font-semibold">SessionBox</h3>
-      <p class="text-xs text-muted-foreground mt-1">版本 0.0.1</p>
+      <p class="text-xs text-muted-foreground mt-1">版本 0.0.6</p>
     </div>
     <button
       class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mt-2"

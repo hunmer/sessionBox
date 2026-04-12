@@ -277,7 +277,6 @@ export function updateGroup(id: string, data: Partial<Omit<Group, 'id'>>): void 
 
 export function deleteGroup(id: string): void {
   const groups = getCollection('groups')
-  if (groups.length <= 1) throw new Error('无法删除唯一分组')
   setCollection('groups', groups.filter((g) => g.id !== id))
 }
 

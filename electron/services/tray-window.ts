@@ -2,6 +2,7 @@
 import { BrowserWindow, Tray, screen } from 'electron'
 import { getTrayWindowSizes, updateTrayWindowSize } from './store'
 import type { Page, TrayWindowSizes } from './store'
+import { getUserAgent } from '../utils/user-agent'
 
 type TrayWindowType = keyof TrayWindowSizes
 
@@ -51,6 +52,8 @@ class TrayWindowManager {
       }
     })
 
+    // 始终设置 Chrome UA，避免暴露 Electron 标识
+    win.webContents.setUserAgent(getUserAgent(page.userAgent))
     win.loadURL(page.url || 'about:blank')
     win.once('ready-to-show', () => win.show())
 
@@ -81,9 +84,11 @@ class TrayWindowManager {
     // 定位到 Tray 图标附近
     this.positionNearTray(win, tray, saved.width, saved.height)
 
-    // 手机版使用移动端 User-Agent
+    // 手机版使用移动端 User-Agent，桌面版使用 Chrome UA
     if (mode === 'mobile') {
       win.webContents.setUserAgent(MOBILE_USER_AGENT)
+    } else {
+      win.webContents.setUserAgent(getUserAgent(page.userAgent))
     }
 
     win.loadURL(page.url || 'about:blank')

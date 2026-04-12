@@ -237,9 +237,8 @@ class WebviewManager {
       }
     })
 
-    if (page?.userAgent) {
-      view.webContents.setUserAgent(getUserAgent(page.userAgent))
-    }
+    // 始终设置 UA：自定义 > 默认 Chrome UA，避免暴露 Electron 标识
+    view.webContents.setUserAgent(getUserAgent(page?.userAgent))
 
     registerBlockedProtocolHandlers(view.webContents.session)
 
@@ -350,7 +349,7 @@ class WebviewManager {
 
       const entry = this.views.get(tabId)
       if (entry && canSend()) {
-        win.webContents.send('on:tab:open-url', entry.containerId, url)
+        win.webContents.send('on:tab:open-url', entry.pageId, url)
       }
 
       return { action: 'deny' }
@@ -491,7 +490,7 @@ class WebviewManager {
         click: () => {
           const entry = this.views.get(tabId)
           if (entry && this.mainWindow && !this.mainWindow.isDestroyed()) {
-            this.mainWindow.webContents.send('on:tab:open-url', entry.containerId, params.linkURL)
+            this.mainWindow.webContents.send('on:tab:open-url', entry.pageId, params.linkURL)
           }
         }
       })
