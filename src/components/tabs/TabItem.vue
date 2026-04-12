@@ -22,8 +22,23 @@ const tabStore = useTabStore()
 const pageStore = usePageStore()
 const containerStore = useContainerStore()
 
+// 内部页面名称映射
+const internalPageNames: Record<string, string> = {
+  bookmarks: '书签管理',
+  history: '历史记录',
+  downloads: '下载管理',
+}
+
+// 判断是否为内部页面
+const isInternalPage = computed(() => props.tab.url?.startsWith('sessionbox://'))
+
 // 网页标题
 const pageTitle = computed(() => {
+  // 内部页面：返回映射的中文名称
+  if (isInternalPage.value) {
+    const path = props.tab.url!.replace('sessionbox://', '')
+    return internalPageNames[path] || path
+  }
   if (!props.tab.url?.startsWith('http')) return props.tab.title || '新标签页'
   const title = props.tab.title
   // 排除初始占位标题（页面名或"新标签页"），视为尚未加载
@@ -34,6 +49,8 @@ const pageTitle = computed(() => {
 })
 // 页面标识：【分组】页面名（通过 page -> group 链路）
 const pageLabel = computed(() => {
+  // 内部页面不显示分组·页面名
+  if (isInternalPage.value) return ''
   const page = pageStore.getPage(props.tab.pageId)
   if (!page) return ''
   const group = containerStore.getGroup(page.groupId)

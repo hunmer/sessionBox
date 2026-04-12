@@ -535,6 +535,12 @@ export function deleteBookmark(id: string): void {
   setCollection('bookmarks', sites)
 }
 
+export function batchDeleteBookmarks(ids: string[]): void {
+  const idSet = new Set(ids)
+  const sites = getCollection('bookmarks').filter((s) => !idSet.has(s.id))
+  setCollection('bookmarks', sites)
+}
+
 export function reorderBookmarks(ids: string[]): void {
   const sites = getCollection('bookmarks')
   ids.forEach((id, order) => {
@@ -575,6 +581,45 @@ export function deleteBookmarkFolder(id: string): void {
   // 级联删除文件夹内的书签
   const sites = getCollection('bookmarks').filter((s) => !idsToDelete.includes(s.folderId))
   setCollection('bookmarks', sites)
+}
+
+/** 批量删除空文件夹（无书签且无子文件夹），返回被删除的文件夹 ID */
+export function deleteEmptyBookmarkFolders(): string[] {
+  const folders = getCollection('bookmarkFolders')
+  const bookmarks = getCollection('bookmarks')
+
+  // 找出所有空文件夹：没有直接子书签且没有子文件夹
+  const emptyIds = new Set<string>()
+  for (const folder of folders) {
+    const hasChildFolders = folders.some((f) => f.parentId === folder.id && !emptyIds.has(f.id))
+    const hasBookmarks = bookmarks.some((b) => b.folderId === folder.id)
+    if (!hasChildFolders && !hasBookmarks) {
+      emptyIds.add(folder.id)
+    }
+  }
+
+  if (emptyIds.size === 0) return []
+
+  // 删除后可能导致父级也变空，迭代清理
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const folder of folders) {
+      if (emptyIds.has(folder.id)) continue
+      const hasChildFolders = folders.some((f) => f.parentId === folder.id && !emptyIds.has(f.id))
+      const hasBookmarks = bookmarks.some((b) => b.folderId === folder.id)
+      if (!hasChildFolders && !hasBookmarks) {
+        emptyIds.add(folder.id)
+        changed = true
+      }
+    }
+  }
+
+  setCollection(
+    'bookmarkFolders',
+    folders.filter((f) => !emptyIds.has(f.id))
+  )
+  return [...emptyIds]
 }
 
 export function reorderBookmarkFolders(ids: string[]): void {

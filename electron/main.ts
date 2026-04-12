@@ -1,6 +1,5 @@
 import { app, BrowserWindow, nativeImage, protocol, net } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupUserAgent } from './utils/user-agent'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
@@ -8,6 +7,7 @@ import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
 import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
 import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
+import { electronApp, optimizer } from '@electron-toolkit/utils'
 
 // 节流函数
 function throttle<T extends (...args: any[]) => void>(fn: T, delay: number): T {

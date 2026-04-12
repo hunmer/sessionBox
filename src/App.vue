@@ -23,7 +23,8 @@ import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useHomepageStore } from '@/stores/homepage'
-import { isOverlayActive, setOverlayRestoreGuard } from '@/lib/webview-overlay'
+import { useIpcEvent } from '@/composables/useIpc'
+import { isOverlayActive, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
 import { markRaw, type Component } from 'vue'
 import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
 import HistoryPage from '@/components/history/HistoryPage.vue'
@@ -56,6 +57,9 @@ const ready = ref(false)
 const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
+const shouldShowWebContentsView = computed(() =>
+  !!tabStore.activeTab && !tabStore.isInternalPage && !isOverlayActive.value
+)
 const proxyApplied = computed(() => {
   const info = tabStore.activeProxyInfo
   if (!info) return false
@@ -75,6 +79,18 @@ const activeProxyBadgeClass = computed(() => {
   }
   return 'cursor-pointer'
 })
+
+function syncWebContentsViewVisibility() {
+  const visible = shouldShowWebContentsView.value
+  if (visible) {
+    sendBounds()
+  }
+  window.api.tab.setOverlayVisible(visible)
+}
+
+function handleBeforeUnload() {
+  void tabStore.saveState()
+}
 
 async function handleDetectProxy(): Promise<void> {
   if (!tabStore.activeTabId || !tabStore.activeProxyInfo?.enabled) return
@@ -179,8 +195,8 @@ function toggleSidebar() {
 }
 
 // 窗口最大化状态
-window.api.on('window:maximized', () => { isMaximized.value = true })
-window.api.on('window:unmaximized', () => { isMaximized.value = false })
+useIpcEvent('window:maximized', () => { isMaximized.value = true })
+useIpcEvent('window:unmaximized', () => { isMaximized.value = false })
 window.api.window.isMaximized().then((m: boolean) => { isMaximized.value = m })
 
 
@@ -200,8 +216,8 @@ function sendBounds() {
 let resizeObserver: ResizeObserver | null = null
 
 onMounted(async () => {
-  // 内部页面时，关闭覆盖层后不恢复 webview 可见性
-  setOverlayRestoreGuard(() => !tabStore.isInternalPage)
+  startWebviewOverlayDetection()
+  window.addEventListener('beforeunload', handleBeforeUnload)
 
   await Promise.all([
     workspaceStore.init(),
@@ -231,66 +247,6 @@ onMounted(async () => {
     resizeObserver.observe(container)
   }
 
-  // 主进程请求同步 bounds（switchView 后触发）
-  window.api.on('tab:request-bounds', () => sendBounds())
-
-  // 快捷键事件处理（本地 + 全局快捷键统一入口）
-  window.api.on('shortcut', (actionId: string) => {
-    console.log('[App] 收到快捷键事件:', actionId)
-    const tab = tabStore.activeTab
-    switch (actionId) {
-      case 'new-tab': {
-        // 新建标签页：用当前活动页面的 pageId 或第一个 page
-        const currentPageId = tab?.pageId || pageStore.pages[0]?.id
-        if (currentPageId) tabStore.createTab(currentPageId)
-        break
-      }
-      case 'close-tab':
-        if (tab) tabStore.closeTab(tab.id)
-        break
-      case 'next-tab': {
-        const tabs = tabStore.sortedTabs
-        if (tabs.length < 2) break
-        const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
-        const next = tabs[(idx + 1) % tabs.length]
-        if (next) tabStore.switchTab(next.id)
-        break
-      }
-      case 'prev-tab': {
-        const tabs = tabStore.sortedTabs
-        if (tabs.length < 2) break
-        const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
-        const prev = tabs[(idx - 1 + tabs.length) % tabs.length]
-        if (prev) tabStore.switchTab(prev.id)
-        break
-      }
-      case 'toggle-sidebar':
-        toggleSidebar()
-        break
-      case 'new-container':
-        // 由 Sidebar 内部处理，此处通过全局事件通知
-        window.dispatchEvent(new CustomEvent('shortcut:new-container'))
-        break
-      case 'reload-tab':
-        if (tab) tabStore.reload(tab.id)
-        break
-      case 'go-back':
-        if (tab) tabStore.goBack(tab.id)
-        break
-      case 'go-forward':
-        if (tab) tabStore.goForward(tab.id)
-        break
-      case 'focus-address': {
-        const input = document.querySelector<HTMLInputElement>('[data-address-input]')
-        input?.focus()
-        break
-      }
-      case 'toggle-fullscreen':
-        window.api.window.toggleFullscreen()
-        break
-    }
-  })
-
   // reka-ui 初始化时 layout 计算可能因 groupSizeInPixels 未就绪而跳过，
   // 导致 handleLayout 不被调用。主动同步一次侧边栏折叠状态。
   nextTick(() => {
@@ -310,29 +266,79 @@ onMounted(async () => {
 onUnmounted(() => {
   resizeObserver?.disconnect()
   if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  stopWebviewOverlayDetection()
 })
 
-// 退出前保存 tab 状态（title/url 等运行时数据回写到主进程 store）
-window.addEventListener('beforeunload', () => {
-  tabStore.saveState()
-})
-
-// Tab 切换/关闭时同步 bounds 和 WebContentsView 可见性
-watch(() => tabStore.activeTabId, () => {
-  nextTick(() => {
-    sendBounds()
-    window.api.tab.setOverlayVisible(!tabStore.isInternalPage)
-  })
-})
-
-// 内部页面切换时隐藏/显示 WebContentsView
-watch(() => tabStore.isInternalPage, (isInternal) => {
-  window.api.tab.setOverlayVisible(!isInternal)
-})
+// 主进程切换 view、内部页面切换、覆盖层显隐时统一同步 WebContentsView 状态
+watch([() => tabStore.activeTabId, shouldShowWebContentsView], () => {
+  nextTick(() => syncWebContentsViewVisibility())
+}, { immediate: true, flush: 'post' })
 
 // 快捷网站栏显隐时同步 bounds
 watch(() => tabStore.bookmarkBarVisible, () => {
   nextTick(() => sendBounds())
+})
+
+useIpcEvent('tab:request-bounds', () => {
+  nextTick(() => syncWebContentsViewVisibility())
+})
+
+useIpcEvent('shortcut', (actionId) => {
+  const action = actionId as string
+  console.log('[App] 收到快捷键事件:', action)
+  const tab = tabStore.activeTab
+  switch (action) {
+    case 'new-tab': {
+      // 新建标签页：用当前活动页面的 pageId 或第一个 page
+      const currentPageId = tab?.pageId || pageStore.pages[0]?.id
+      if (currentPageId) tabStore.createTab(currentPageId)
+      break
+    }
+    case 'close-tab':
+      if (tab) tabStore.closeTab(tab.id)
+      break
+    case 'next-tab': {
+      const tabs = tabStore.sortedTabs
+      if (tabs.length < 2) break
+      const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
+      const next = tabs[(idx + 1) % tabs.length]
+      if (next) tabStore.switchTab(next.id)
+      break
+    }
+    case 'prev-tab': {
+      const tabs = tabStore.sortedTabs
+      if (tabs.length < 2) break
+      const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
+      const prev = tabs[(idx - 1 + tabs.length) % tabs.length]
+      if (prev) tabStore.switchTab(prev.id)
+      break
+    }
+    case 'toggle-sidebar':
+      toggleSidebar()
+      break
+    case 'new-container':
+      // 由 Sidebar 内部处理，此处通过全局事件通知
+      window.dispatchEvent(new CustomEvent('shortcut:new-container'))
+      break
+    case 'reload-tab':
+      if (tab) tabStore.reload(tab.id)
+      break
+    case 'go-back':
+      if (tab) tabStore.goBack(tab.id)
+      break
+    case 'go-forward':
+      if (tab) tabStore.goForward(tab.id)
+      break
+    case 'focus-address': {
+      const input = document.querySelector<HTMLInputElement>('[data-address-input]')
+      input?.focus()
+      break
+    }
+    case 'toggle-fullscreen':
+      window.api.window.toggleFullscreen()
+      break
+  }
 })
 </script>
 

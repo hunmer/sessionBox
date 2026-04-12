@@ -27,6 +27,8 @@ import {
   deleteBookmarkFolder,
   reorderBookmarkFolders,
   batchCreateBookmarkFolders,
+  batchDeleteBookmarks,
+  deleteEmptyBookmarkFolders,
   migrateBookmarks,
   listWorkspaces,
   createWorkspace,
@@ -257,6 +259,8 @@ $img.Dispose()`
 
   ipcMain.handle('bookmark:delete', (_e, id: string) => deleteBookmark(id))
 
+  ipcMain.handle('bookmark:batchDelete', (_e, ids: string[]) => batchDeleteBookmarks(ids))
+
   ipcMain.handle('bookmark:reorder', (_e, ids: string[]) => reorderBookmarks(ids))
 
   ipcMain.handle('bookmark:importOpenFile', async (e) => {
@@ -313,6 +317,8 @@ $img.Dispose()`
   )
 
   ipcMain.handle('bookmarkFolder:delete', (_e, id: string) => deleteBookmarkFolder(id))
+
+  ipcMain.handle('bookmarkFolder:deleteEmpty', () => deleteEmptyBookmarkFolders())
 
   ipcMain.handle('bookmarkFolder:reorder', (_e, ids: string[]) => reorderBookmarkFolders(ids))
 

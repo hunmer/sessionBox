@@ -46,6 +46,16 @@ export const useBookmarkStore = defineStore('bookmark', () => {
     bookmarks.value = bookmarks.value.filter((b) => b.folderId !== id)
   }
 
+  /** 删除所有空文件夹（无书签且无子文件夹），返回被删除的文件夹 ID */
+  async function deleteEmptyFolders(): Promise<string[]> {
+    const deletedIds = await api.bookmarkFolder.deleteEmpty()
+    if (deletedIds.length > 0) {
+      const idSet = new Set(deletedIds)
+      folders.value = folders.value.filter((f) => !idSet.has(f.id))
+    }
+    return deletedIds
+  }
+
   async function reorderFolders(ids: string[]) {
     await api.bookmarkFolder.reorder(ids)
     ids.forEach((id, order) => {
@@ -80,6 +90,12 @@ export const useBookmarkStore = defineStore('bookmark', () => {
   async function deleteBookmark(id: string) {
     await api.bookmark.delete(id)
     bookmarks.value = bookmarks.value.filter((b) => b.id !== id)
+  }
+
+  async function batchDeleteBookmarks(ids: string[]) {
+    await api.bookmark.batchDelete(ids)
+    const idSet = new Set(ids)
+    bookmarks.value = bookmarks.value.filter((b) => !idSet.has(b.id))
   }
 
   async function reorderBookmarks(ids: string[]) {
@@ -386,12 +402,14 @@ export const useBookmarkStore = defineStore('bookmark', () => {
     createFolder,
     updateFolder,
     deleteFolder,
+    deleteEmptyFolders,
     reorderFolders,
     getChildFolders,
     loadBookmarks,
     createBookmark,
     updateBookmark,
     deleteBookmark,
+    batchDeleteBookmarks,
     reorderBookmarks,
     moveFolder,
     moveBookmark,

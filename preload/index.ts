@@ -209,6 +209,8 @@ const api = {
     update: (id: string, data: Partial<Omit<Bookmark, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('bookmark:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('bookmark:delete', id),
+    batchDelete: (ids: string[]): Promise<void> =>
+      ipcRenderer.invoke('bookmark:batchDelete', ids),
     reorder: (ids: string[]): Promise<void> => ipcRenderer.invoke('bookmark:reorder', ids),
     importOpenFile: (): Promise<{ html: string } | null> =>
       ipcRenderer.invoke('bookmark:importOpenFile'),
@@ -230,6 +232,7 @@ const api = {
     update: (id: string, data: Partial<Omit<BookmarkFolder, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('bookmarkFolder:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('bookmarkFolder:delete', id),
+    deleteEmpty: (): Promise<string[]> => ipcRenderer.invoke('bookmarkFolder:deleteEmpty'),
     reorder: (ids: string[]): Promise<void> => ipcRenderer.invoke('bookmarkFolder:reorder', ids)
   },
 

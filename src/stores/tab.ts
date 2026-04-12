@@ -37,6 +37,8 @@ export const useTabStore = defineStore('tab', () => {
   const frozenTabIds = ref<Set<string>>(new Set())
   const proxyInfos = ref<Map<string, TabProxyInfo>>(new Map())
   const mutedSites = ref<string[]>([])
+  let listenersReady = false
+  let restoreReady = false
 
   // ====== 标签栏布局 ======
   const tabLayout = ref<TabLayout>(
@@ -411,6 +413,9 @@ export const useTabStore = defineStore('tab', () => {
 
   /** 注册主进程 → 渲染进程事件监听 */
   function setupListeners() {
+    if (listenersReady) return
+    listenersReady = true
+
     api.on('tab:created', (tab: unknown) => {
       const nextTab = tab as Tab
       if (!tabs.value.some((item) => item.id === nextTab.id)) {
@@ -518,6 +523,8 @@ export const useTabStore = defineStore('tab', () => {
     mutedSites.value = await api.mutedSites.list()
     setupListeners()
 
+    if (restoreReady) return
+
     // 恢复保存的 tab（重建 WebContentsView）
     if (tabs.value.length > 0) {
       await api.tab.restoreAll()
@@ -526,6 +533,8 @@ export const useTabStore = defineStore('tab', () => {
       const targetTab = savedActiveId ? tabs.value.find((t) => t.id === savedActiveId) : null
       await switchTab(targetTab?.id ?? sortedTabs.value[0].id)
     }
+
+    restoreReady = true
   }
 
   // 激活标签变化时持久化，以便重启后恢复

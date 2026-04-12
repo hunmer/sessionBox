@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ShieldCheck, CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
+import { ShieldCheck, CheckCircle2, XCircle, Loader2, FolderX } from 'lucide-vue-next'
 import { useBookmarkStore } from '@/stores/bookmark'
 
 const props = defineProps<{
@@ -183,13 +183,33 @@ async function deleteSelected() {
   if (isDeleting.value || selectedInvalidIds.value.size === 0) return
   isDeleting.value = true
   try {
-    for (const id of selectedInvalidIds.value) {
-      await bookmarkStore.deleteBookmark(id)
-    }
+    await bookmarkStore.batchDeleteBookmarks([...selectedInvalidIds.value])
     resetState()
     emit('update:open', false)
   } finally {
     isDeleting.value = false
+  }
+}
+
+const isCleaningEmptyFolders = ref(false)
+
+async function cleanEmptyFolders() {
+  if (isCleaningEmptyFolders.value) return
+  isCleaningEmptyFolders.value = true
+  try {
+    const deletedIds = await bookmarkStore.deleteEmptyFolders()
+    if (deletedIds.length === 0) return
+    // 从结果中也移除属于已删除文件夹的书签
+    const folderIdSet = new Set(deletedIds)
+    results.value = results.value.filter((r) => {
+      const bm = bookmarkStore.bookmarks.find((b) => b.id === r.bookmarkId)
+      return !bm || !folderIdSet.has(bm.folderId)
+    })
+    selectedInvalidIds.value = new Set(
+      invalidResults.value.map((r) => r.bookmarkId)
+    )
+  } finally {
+    isCleaningEmptyFolders.value = false
   }
 }
 
@@ -340,6 +360,16 @@ watch(() => props.open, (val) => {
           </Button>
         </template>
         <template v-else-if="phase === 'result'">
+          <Button
+            variant="ghost"
+            size="sm"
+            :disabled="isCleaningEmptyFolders"
+            @click="cleanEmptyFolders"
+          >
+            <Loader2 v-if="isCleaningEmptyFolders" class="w-3.5 h-3.5 mr-1 animate-spin" />
+            <FolderX v-else class="w-3.5 h-3.5 mr-1" />
+            清空空文件夹
+          </Button>
           <Button variant="ghost" size="sm" @click="handleClose">关闭</Button>
           <Button
             v-if="invalidResults.length > 0"
