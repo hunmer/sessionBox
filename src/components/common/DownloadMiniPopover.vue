@@ -82,7 +82,7 @@ function handleOpenFull() {
 <template>
   <div class="w-80">
     <!-- 标题栏 -->
-    <div class="flex items-center justify-between px-3 pb-2">
+    <div class="flex items-center justify-between px-3 pt-2 pb-2">
       <div class="flex items-center gap-2 text-sm font-medium">
         <Download class="h-3.5 w-3.5 text-muted-foreground" />
         下载管理

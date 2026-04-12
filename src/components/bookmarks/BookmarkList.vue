@@ -175,9 +175,14 @@ function onItemDrop(event: DragEvent, targetIndex: number) {
 <style scoped>
 .drop-indicator {
   height: 2px;
-  border-radius: 1px;
-  background-color: hsl(var(--primary));
-  pointer-events: none;
   margin: 0 12px;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0px,
+    hsl(var(--primary)) 4px,
+    transparent 4px,
+    transparent 8px
+  );
 }
 </style>

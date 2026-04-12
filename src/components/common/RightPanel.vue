@@ -46,7 +46,7 @@ function openFullPage(site: string) {
                 <Bookmark class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" class="p-0 w-auto">
+            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
               <BookmarkMiniPopover @open-full="openFullPage('sessionbox://bookmarks')" />
             </PopoverContent>
           </Popover>
@@ -58,7 +58,7 @@ function openFullPage(site: string) {
                 <History class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" class="p-0 w-auto">
+            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
               <HistoryMiniPopover @open-full="openFullPage('sessionbox://history')" />
             </PopoverContent>
           </Popover>
@@ -70,7 +70,7 @@ function openFullPage(site: string) {
                 <Download class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" class="p-0 w-auto">
+            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
               <DownloadMiniPopover @open-full="openFullPage('sessionbox://downloads')" />
             </PopoverContent>
           </Popover>
