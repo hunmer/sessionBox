@@ -16,6 +16,8 @@ import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import UpdateNotification from '@/components/common/UpdateNotification.vue'
 import RightPanel from '@/components/common/RightPanel.vue'
+import SplitView from '@/components/tabs/SplitView.vue'
+import { useSplitStore } from '@/stores/split'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
@@ -51,6 +53,7 @@ const proxyStore = useProxyStore()
 const bookmarkStore = useBookmarkStore()
 const workspaceStore = useWorkspaceStore()
 const homepageStore = useHomepageStore()
+const splitStore = useSplitStore()
 
 const proxyDialogOpen = ref(false)
 const settingsDialogOpen = ref(false)
@@ -204,6 +207,10 @@ window.api.window.isMaximized().then((m: boolean) => { isMaximized.value = m })
 
 /** 向主进程同步 webview 容器的位置和大小 */
 function sendBounds() {
+  if (splitStore.isSplitActive) {
+    // Multi-pane mode: bounds are handled by SplitView component
+    return
+  }
   const container = document.getElementById('webview-container')
   if (!container || !tabStore.activeTabId) return
   const rect = container.getBoundingClientRect()
@@ -227,7 +234,9 @@ onMounted(async () => {
     pageStore.loadPages(),
     tabStore.init(),
     proxyStore.init(),
-    bookmarkStore.init()
+    bookmarkStore.init(),
+    splitStore.loadSchemes(),
+    splitStore.restoreState()
   ])
   ready.value = true
 
@@ -431,7 +440,7 @@ useIpcEvent('shortcut', (actionId) => {
                   <p class="text-sm text-muted-foreground/60">页面已暂停</p>
                 </div>
                 <!-- 主进程在此区域叠加 WebContentsView -->
-                <div id="webview-container" class="absolute inset-x-0 top-0 bottom-7" />
+                <SplitView class="absolute inset-x-0 top-0 bottom-7" />
                 <!-- 页面加载进度条 -->
                 <div class="absolute bottom-[3px] inset-x-0 z-20">
                   <div class="h-6 w-full border-t bg-background/95 backdrop-blur-sm px-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
