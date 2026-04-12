@@ -222,6 +222,8 @@ const api = {
     applyProxy: (tabId: string, proxyId: string | null): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('tab:apply-proxy', tabId, proxyId),
     openDevTools: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:openDevTools', tabId),
+    toggleHtmlFullscreen: (tabId: string): Promise<boolean> =>
+      ipcRenderer.invoke('tab:toggle-html-fullscreen', tabId),
     setMuted: (tabId: string, muted: boolean): Promise<void> =>
       ipcRenderer.invoke('tab:set-muted', tabId, muted),
     openInNewWindow: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-new-window', tabId),

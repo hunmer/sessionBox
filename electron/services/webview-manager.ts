@@ -728,6 +728,30 @@ class WebviewManager {
     }
   }
 
+  async toggleHtmlFullscreen(tabId: string): Promise<boolean> {
+    const entry = this.ensureViewReady(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) {
+      return false
+    }
+
+    return await entry.view.webContents.executeJavaScript(`
+      (async () => {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen()
+          return false
+        }
+
+        const target = document.documentElement
+        if (!target?.requestFullscreen) {
+          return false
+        }
+
+        await target.requestFullscreen()
+        return true
+      })()
+    `, true)
+  }
+
   async setProxyEnabledForTab(tabId: string, enabled: boolean): Promise<{ ok: boolean; enabled: boolean; error?: string }> {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) {

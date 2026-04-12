@@ -86,7 +86,7 @@ function toggleManualAdjust() {
         @click="toggleManualAdjust"
       >
         <GripVertical class="size-4 mr-2" />
-        <span class="flex-1">手动调整</span>
+        <span class="flex-1">切换分屏控制栏</span>
         <Check v-if="splitStore.manualAdjustEnabled" class="size-4 text-primary" />
       </DropdownMenuItem>
 

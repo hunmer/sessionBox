@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Check, GripVertical } from 'lucide-vue-next'
+import { GripVertical, Maximize2, Minus, X } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import type { SplitDropPosition, SplitNode, SplitPane } from '@/types'
@@ -32,7 +32,9 @@ const emit = defineEmits<{
   'drag-enter-pane': [event: DragEvent, paneId: string]
   'drag-over-pane': [event: DragEvent, paneId: string]
   'drop-pane': [event: DragEvent, paneId: string]
-  'exit-manual-adjust': []
+  'pane-fullscreen': [paneId: string]
+  'pane-close-tab': [paneId: string]
+  'pane-remove': [paneId: string]
 }>()
 
 const pane = computed(() =>
@@ -47,6 +49,8 @@ const paneTitle = computed(() => {
 
 const isFocused = computed(() => props.node.kind === 'pane' && props.focusedPaneId === props.node.paneId)
 const isDragSource = computed(() => props.node.kind === 'pane' && props.draggingPaneId === props.node.paneId)
+const hasActiveTab = computed(() => !!pane.value?.activeTabId)
+const canRemovePane = computed(() => Object.keys(props.paneMap).length > 1)
 const previewPosition = computed(() => {
   if (props.node.kind !== 'pane') return null
   return props.preview?.targetPaneId === props.node.paneId ? props.preview.position : null
@@ -89,7 +93,9 @@ function hotspotClass(position: SplitDropPosition): string {
             @drag-enter-pane="(event, paneId) => emit('drag-enter-pane', event, paneId)"
             @drag-over-pane="(event, paneId) => emit('drag-over-pane', event, paneId)"
             @drop-pane="(event, paneId) => emit('drop-pane', event, paneId)"
-            @exit-manual-adjust="emit('exit-manual-adjust')"
+            @pane-fullscreen="emit('pane-fullscreen', $event)"
+            @pane-close-tab="emit('pane-close-tab', $event)"
+            @pane-remove="emit('pane-remove', $event)"
           />
         </ResizablePanel>
         <ResizableHandle v-if="index < node.children.length - 1" />
@@ -130,10 +136,31 @@ function hotspotClass(position: SplitDropPosition): string {
           variant="ghost"
           size="icon-sm"
           class="h-6 w-6 rounded-md"
-          title="完成调整"
-          @click.stop="emit('exit-manual-adjust')"
+          title="全屏"
+          :disabled="!hasActiveTab"
+          @click.stop="emit('pane-fullscreen', node.paneId)"
         >
-          <Check class="size-3.5" />
+          <Maximize2 class="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="h-6 w-6 rounded-md"
+          title="移除此分屏"
+          :disabled="!canRemovePane"
+          @click.stop="emit('pane-remove', node.paneId)"
+        >
+          <Minus class="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="h-6 w-6 rounded-md"
+          title="关闭 tab"
+          :disabled="!hasActiveTab"
+          @click.stop="emit('pane-close-tab', node.paneId)"
+        >
+          <X class="size-3.5" />
         </Button>
       </div>
     </div>

@@ -69,6 +69,25 @@ function handleRequestAddTab(paneId: string) {
   showAddDialog.value = true
 }
 
+async function handlePaneFullscreen(paneId: string) {
+  const tabId = paneMap.value[paneId]?.activeTabId
+  if (!tabId) return
+
+  splitStore.focusPane(paneId)
+  await window.api.tab.toggleHtmlFullscreen(tabId)
+}
+
+async function handlePaneCloseTab(paneId: string) {
+  const tabId = paneMap.value[paneId]?.activeTabId
+  if (!tabId) return
+
+  await tabStore.closeTab(tabId)
+}
+
+function handlePaneRemove(paneId: string) {
+  splitStore.removePane(paneId)
+}
+
 function handleAddDialogOpenChange(open: boolean) {
   showAddDialog.value = open
   if (!open) {
@@ -251,7 +270,9 @@ onUnmounted(() => {
           @drag-enter-pane="handleDragEnterPane"
           @drag-over-pane="handleDragOverPane"
           @drop-pane="handleDropPane"
-          @exit-manual-adjust="splitStore.setManualAdjustEnabled(false)"
+          @pane-fullscreen="handlePaneFullscreen"
+          @pane-remove="handlePaneRemove"
+          @pane-close-tab="handlePaneCloseTab"
         />
       </div>
       <NewTabDialog

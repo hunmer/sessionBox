@@ -18,6 +18,7 @@ import {
   detectLayoutType,
   movePaneInTree,
   normalizeSizes,
+  removePaneFromTree,
   remapTreePaneIds,
   reorderPanesByTree,
   updateBranchSizesAtPath
@@ -328,6 +329,41 @@ export const useSplitStore = defineStore('split', () => {
     }
   }
 
+  function removePane(paneId: string) {
+    if (!activeLayout.value || activeLayout.value.panes.length <= 1) return
+
+    const removedPane = activeLayout.value.panes.find((pane) => pane.id === paneId)
+    if (!removedPane) return
+
+    const nextPanes = activeLayout.value.panes.filter((pane) => pane.id !== paneId)
+    if (nextPanes.length === 0) return
+
+    if (nextPanes.length === 1) {
+      const nextTabId = nextPanes[0]?.activeTabId ?? removedPane.activeTabId ?? tabStore.activeTabId
+
+      activeLayout.value = null
+      focusedPaneId.value = null
+      manualAdjustEnabled.value = false
+      bumpLayoutRevision()
+
+      if (nextTabId) {
+        void tabStore.switchTab(nextTabId)
+      }
+
+      void persistState()
+      return
+    }
+
+    const nextRoot = removePaneFromTree(activeLayout.value.root, paneId)
+    if (!nextRoot) return
+
+    const preferredPaneId = focusedPaneId.value && focusedPaneId.value !== paneId
+      ? focusedPaneId.value
+      : nextPanes.find((pane) => pane.activeTabId)?.id ?? nextPanes[0]?.id ?? null
+
+    applyLayout('custom', nextPanes, nextRoot, preferredPaneId)
+  }
+
   function movePane(
     sourcePaneId: string,
     targetPaneId: string,
@@ -497,6 +533,7 @@ export const useSplitStore = defineStore('split', () => {
     handleTabClick,
     handleTabClosed,
     handleTabCreated,
+    removePane,
     movePane,
     updateBranchSizes,
     setManualAdjustEnabled,

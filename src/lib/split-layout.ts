@@ -229,6 +229,10 @@ function removePaneNode(root: SplitNode, paneId: string): SplitNode | null {
   }
 }
 
+export function removePaneFromTree(root: SplitNode, paneId: string): SplitNode | null {
+  return removePaneNode(root, paneId)
+}
+
 function insertPaneNode(
   root: SplitNode,
   targetPaneId: string,
