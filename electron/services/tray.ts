@@ -26,14 +26,11 @@ class TrayManager {
       mainWindow.focus()
     })
 
-    // 右键显示菜单
+    // 右键显示菜单（每次动态构建，确保任务栏窗口列表实时更新）
     this.tray.on('right-click', () => {
       const menu = this.buildMenu(mainWindow)
       this.tray!.popUpContextMenu(menu)
     })
-
-    // 初始化菜单（Windows 上使用 setContextMenu）
-    this.tray.setContextMenu(this.buildMenu(mainWindow))
   }
 
   private getIconPath(): string {
