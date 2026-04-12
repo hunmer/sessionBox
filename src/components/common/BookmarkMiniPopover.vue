@@ -50,7 +50,7 @@ function handleOpenFull() {
     <Separator />
 
     <!-- 列表 -->
-    <ScrollArea class="max-h-[360px]">
+    <ScrollArea class="h-[360px]">
       <div v-if="recentBookmarks.length === 0" class="flex items-center justify-center py-8">
         <p class="text-xs text-muted-foreground">暂无书签</p>
       </div>

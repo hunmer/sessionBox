@@ -1,4 +1,4 @@
-import { ref, provide, inject, type InjectionKey } from 'vue'
+import { ref } from 'vue'
 
 // ====== 拖拽数据协议 ======
 
@@ -9,7 +9,7 @@ export interface DragData {
 
 export const DRAG_DATA_MIME = 'application/x-sessionbox-drag'
 
-// ====== 全局拖拽状态 ======
+// ====== 全局拖拽状态（模块级单例） ======
 
 export interface DragState {
   /** 当前正在拖拽的项 */
@@ -20,40 +20,26 @@ export interface DragState {
   dropPosition: 'before' | 'after' | 'inside' | null
 }
 
-const DRAG_STATE_KEY: InjectionKey<ReturnType<typeof createDragState>> = Symbol('bookmark-drag-state')
+const dragState = ref<DragState>({
+  data: null,
+  overId: null,
+  dropPosition: null
+})
 
-function createDragState() {
-  const state = ref<DragState>({
-    data: null,
-    overId: null,
-    dropPosition: null
-  })
-
+export function useDragState() {
   function startDrag(data: DragData) {
-    state.value = { data, overId: null, dropPosition: null }
+    dragState.value = { data, overId: null, dropPosition: null }
   }
 
   function updateOver(overId: string | null, dropPosition: 'before' | 'after' | 'inside' | null) {
-    state.value = { ...state.value, overId, dropPosition }
+    dragState.value = { ...dragState.value, overId, dropPosition }
   }
 
   function endDrag() {
-    state.value = { data: null, overId: null, dropPosition: null }
+    dragState.value = { data: null, overId: null, dropPosition: null }
   }
 
-  return { state, startDrag, updateOver, endDrag }
-}
-
-export function provideDragState() {
-  const dragCtx = createDragState()
-  provide(DRAG_STATE_KEY, dragCtx)
-  return dragCtx
-}
-
-export function useDragState() {
-  const ctx = inject(DRAG_STATE_KEY)
-  if (!ctx) throw new Error('useDragState must be used inside a provider')
-  return ctx
+  return { state: dragState, startDrag, updateOver, endDrag }
 }
 
 // ====== 落点位置计算 ======
