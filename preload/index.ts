@@ -126,6 +126,7 @@ export interface SplitLayoutData {
   panes: SplitPaneData[]
   direction: 'horizontal' | 'vertical'
   sizes: number[]
+  manualAdjustEnabled?: boolean
   root?: SplitNodeData
 }
 

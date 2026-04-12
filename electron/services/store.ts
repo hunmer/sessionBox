@@ -112,6 +112,7 @@ export interface SplitLayoutData {
   panes: Array<{ id: string; activeTabId: string | null; order: number }>
   direction: 'horizontal' | 'vertical'
   sizes: number[]
+  manualAdjustEnabled?: boolean
   root?: {
     kind: 'pane' | 'branch'
     paneId?: string

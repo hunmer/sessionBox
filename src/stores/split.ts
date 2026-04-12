@@ -249,6 +249,9 @@ export const useSplitStore = defineStore('split', () => {
 
   function setManualAdjustEnabled(enabled: boolean) {
     manualAdjustEnabled.value = enabled && isSplitActive.value
+    if (activeLayout.value) {
+      void persistState()
+    }
   }
 
   /** Reset to single pane mode */
@@ -439,6 +442,7 @@ export const useSplitStore = defineStore('split', () => {
         })),
         direction: activeLayout.value.direction,
         sizes: [...activeLayout.value.sizes],
+        manualAdjustEnabled: manualAdjustEnabled.value,
         root: cloneSplitNode(activeLayout.value.root)
       })
     } else {
@@ -471,6 +475,7 @@ export const useSplitStore = defineStore('split', () => {
       }
 
       focusedPaneId.value = getInitialPaneId(orderedPanes)
+      manualAdjustEnabled.value = !!data.manualAdjustEnabled && orderedPanes.length > 1
       bumpLayoutRevision()
 
       if (focusedPaneId.value) {
