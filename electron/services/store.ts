@@ -133,6 +133,13 @@ export interface SavedSplitSchemeData {
   root?: SplitLayoutData['root']
 }
 
+// Tray 独立窗口尺寸
+export interface TrayWindowSizes {
+  newWindow: { width: number; height: number }
+  desktop: { width: number; height: number }
+  mobile: { width: number; height: number }
+}
+
 interface StoreSchema {
   workspaces: Workspace[]
   groups: Group[]
@@ -150,6 +157,7 @@ interface StoreSchema {
   mutedSites: string[]  // 默认静音的网站域名列表
   splitStates: Record<string, SplitLayoutData>
   splitSchemes: SavedSplitSchemeData[]
+  trayWindowSizes: TrayWindowSizes
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -171,7 +179,12 @@ const defaults: StoreSchema = {
   shortcuts: [],
   mutedSites: [],
   splitStates: {},
-  splitSchemes: []
+  splitSchemes: [],
+  trayWindowSizes: {
+    newWindow: { width: 1280, height: 800 },
+    desktop: { width: 480, height: 270 },
+    mobile: { width: 270, height: 480 }
+  }
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -892,4 +905,23 @@ export function createSplitScheme(data: SavedSplitSchemeData): SavedSplitSchemeD
 export function deleteSplitScheme(id: string): void {
   const schemes = store.get('splitSchemes', defaults.splitSchemes)
   store.set('splitSchemes', schemes.filter((s) => s.id !== id))
+}
+
+// ====== Tray 窗口尺寸 ======
+
+export function getTrayWindowSizes(): TrayWindowSizes {
+  return store.get('trayWindowSizes', defaults.trayWindowSizes)
+}
+
+export function setTrayWindowSizes(sizes: TrayWindowSizes): void {
+  store.set('trayWindowSizes', sizes)
+}
+
+export function updateTrayWindowSize(
+  type: keyof TrayWindowSizes,
+  size: { width: number; height: number }
+): void {
+  const sizes = getTrayWindowSizes()
+  sizes[type] = size
+  store.set('trayWindowSizes', sizes)
 }

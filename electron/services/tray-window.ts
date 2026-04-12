@@ -1,12 +1,27 @@
 // electron/services/tray-window.ts
 import { BrowserWindow, Tray, screen } from 'electron'
-import type { Page } from './store'
+import { getTrayWindowSizes, updateTrayWindowSize } from './store'
+import type { Page, TrayWindowSizes } from './store'
+
+type TrayWindowType = keyof TrayWindowSizes
 
 interface TaskbarWindowEntry {
   win: BrowserWindow
   page: Page
   mode: 'desktop' | 'mobile'
   id: string
+}
+
+/** 节流函数 */
+function throttle<T extends (...args: any[]) => void>(fn: T, delay: number): T {
+  let timer: NodeJS.Timeout | null = null
+  return ((...args: Parameters<T>) => {
+    if (timer) return
+    timer = setTimeout(() => {
+      fn(...args)
+      timer = null
+    }, delay)
+  }) as T
 }
 
 class TrayWindowManager {
@@ -18,10 +33,11 @@ class TrayWindowManager {
   openInNewWindow(page: Page): BrowserWindow {
     const containerId = page.containerId || ''
     const partition = containerId ? `persist:container-${containerId}` : undefined
+    const saved = getTrayWindowSizes().newWindow
 
     const win = new BrowserWindow({
-      width: 1280,
-      height: 800,
+      width: saved.width,
+      height: saved.height,
       show: false,
       autoHideMenuBar: true,
       title: page.name || '新窗口',
@@ -34,7 +50,7 @@ class TrayWindowManager {
     win.loadURL(page.url || 'about:blank')
     win.once('ready-to-show', () => win.show())
 
-    this.trackWindow(win)
+    this.trackWindow(win, 'newWindow')
     return win
   }
 
@@ -42,16 +58,11 @@ class TrayWindowManager {
   openAtTaskbar(tray: Tray, page: Page, mode: 'desktop' | 'mobile'): BrowserWindow {
     const containerId = page.containerId || ''
     const partition = containerId ? `persist:container-${containerId}` : undefined
-
-    const sizes = {
-      desktop: { width: 480, height: 270 },
-      mobile: { width: 270, height: 480 }
-    }
-    const { width, height } = sizes[mode]
+    const saved = getTrayWindowSizes()[mode]
 
     const win = new BrowserWindow({
-      width,
-      height,
+      width: saved.width,
+      height: saved.height,
       show: false,
       frame: false,
       resizable: true,
@@ -64,7 +75,7 @@ class TrayWindowManager {
     })
 
     // 定位到 Tray 图标附近
-    this.positionNearTray(win, tray, width, height)
+    this.positionNearTray(win, tray, saved.width, saved.height)
 
     win.loadURL(page.url || 'about:blank')
     win.once('ready-to-show', () => win.show())
@@ -80,6 +91,14 @@ class TrayWindowManager {
     win.on('closed', () => {
       this.taskbarWindows.delete(id)
     })
+
+    // 节流保存窗口尺寸
+    const saveSize = throttle(() => {
+      if (win.isDestroyed()) return
+      const bounds = win.getBounds()
+      updateTrayWindowSize(mode, { width: bounds.width, height: bounds.height })
+    }, 500)
+    win.on('resize', saveSize)
 
     this.taskbarWindows.set(id, entry)
     return win
@@ -146,9 +165,18 @@ class TrayWindowManager {
     }
   }
 
-  /** 跟踪普通窗口生命周期 */
-  private trackWindow(win: BrowserWindow): void {
+  /** 跟踪普通窗口生命周期并保存尺寸 */
+  private trackWindow(win: BrowserWindow, type: TrayWindowType): void {
     this.windows.add(win)
+
+    // 节流保存窗口尺寸
+    const saveSize = throttle(() => {
+      if (win.isDestroyed()) return
+      const bounds = win.getBounds()
+      updateTrayWindowSize(type, { width: bounds.width, height: bounds.height })
+    }, 500)
+    win.on('resize', saveSize)
+
     win.on('closed', () => {
       this.windows.delete(win)
     })
