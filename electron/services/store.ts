@@ -106,6 +106,24 @@ export interface ShortcutBindingStore {
   global: boolean
 }
 
+// 分屏布局数据
+export interface SplitLayoutData {
+  presetType: string
+  panes: Array<{ id: string; activeTabId: string | null; order: number }>
+  direction: 'horizontal' | 'vertical'
+  sizes: number[]
+}
+
+// 保存的分屏方案
+export interface SavedSplitSchemeData {
+  id: string
+  name: string
+  presetType: string
+  direction: 'horizontal' | 'vertical'
+  paneCount: number
+  sizes: number[]
+}
+
 interface StoreSchema {
   workspaces: Workspace[]
   groups: Group[]
@@ -121,6 +139,8 @@ interface StoreSchema {
   tabFreezeMinutes: number
   shortcuts: ShortcutBindingStore[]
   mutedSites: string[]  // 默认静音的网站域名列表
+  splitStates: Record<string, SplitLayoutData>
+  splitSchemes: SavedSplitSchemeData[]
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -140,7 +160,9 @@ const defaults: StoreSchema = {
   windowState: { width: 1280, height: 800, isMaximized: false },
   tabFreezeMinutes: 0, // 0 = 禁用冻结
   shortcuts: [],
-  mutedSites: []
+  mutedSites: [],
+  splitStates: {},
+  splitSchemes: []
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -826,4 +848,39 @@ export function addMutedSite(hostname: string): void {
 export function removeMutedSite(hostname: string): void {
   const sites = store.get('mutedSites', []).filter((s) => s !== hostname)
   store.set('mutedSites', sites)
+}
+
+// ====== Split View ======
+
+export function getSplitState(workspaceId: string): SplitLayoutData | null {
+  const states = store.get('splitStates', defaults.splitStates)
+  return states[workspaceId] ?? null
+}
+
+export function setSplitState(workspaceId: string, data: SplitLayoutData): void {
+  const states = store.get('splitStates', defaults.splitStates)
+  states[workspaceId] = data
+  store.set('splitStates', states)
+}
+
+export function clearSplitState(workspaceId: string): void {
+  const states = store.get('splitStates', defaults.splitStates)
+  delete states[workspaceId]
+  store.set('splitStates', states)
+}
+
+export function listSplitSchemes(): SavedSplitSchemeData[] {
+  return store.get('splitSchemes', defaults.splitSchemes)
+}
+
+export function createSplitScheme(data: SavedSplitSchemeData): SavedSplitSchemeData {
+  const schemes = store.get('splitSchemes', defaults.splitSchemes)
+  schemes.push(data)
+  store.set('splitSchemes', schemes)
+  return data
+}
+
+export function deleteSplitScheme(id: string): void {
+  const schemes = store.get('splitSchemes', defaults.splitSchemes)
+  store.set('splitSchemes', schemes.filter((s) => s.id !== id))
 }
