@@ -186,6 +186,8 @@ const api = {
       ipcRenderer.invoke('tab:detect-proxy', tabId),
     setProxyEnabled: (tabId: string, enabled: boolean): Promise<{ ok: boolean; enabled: boolean; error?: string }> =>
       ipcRenderer.invoke('tab:set-proxy-enabled', tabId, enabled),
+    applyProxy: (tabId: string, proxyId: string | null): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('tab:apply-proxy', tabId, proxyId),
     openDevTools: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:openDevTools', tabId),
     setMuted: (tabId: string, muted: boolean): Promise<void> =>
       ipcRenderer.invoke('tab:set-muted', tabId, muted),

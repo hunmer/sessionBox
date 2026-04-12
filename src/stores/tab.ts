@@ -26,6 +26,8 @@ export const useTabStore = defineStore('tab', () => {
     error?: string
     status?: 'idle' | 'checking' | 'success' | 'error'
     proxyMode?: 'global' | 'custom' | 'pac_url'
+    proxyId?: string
+    isOverride?: boolean
   }
   // ====== 状态 ======
   const tabs = ref<Tab[]>([])
@@ -276,18 +278,26 @@ export const useTabStore = defineStore('tab', () => {
   }
 
   async function closeTab(tabId: string) {
+    const closingActive = activeTabId.value === tabId
+    const currentWorkspaceTabs = workspaceTabs.value
+    const currentIndex = currentWorkspaceTabs.findIndex((t) => t.id === tabId)
+    const nextWorkspaceTabId = currentIndex === -1
+      ? null
+      : currentWorkspaceTabs[currentIndex + 1]?.id ?? currentWorkspaceTabs[currentIndex - 1]?.id ?? null
+
     await api.tab.close(tabId)
     tabs.value = tabs.value.filter((t) => t.id !== tabId)
     navStates.value.delete(tabId)
     favicons.value.delete(tabId)
+    proxyInfos.value.delete(tabId)
 
-    // 如果关闭的是当前激活标签，切换到相邻标签
-    if (activeTabId.value === tabId) {
-      const remaining = sortedTabs.value
-      if (remaining.length > 0) {
-        await switchTab(remaining[0].id)
+    // 如果关闭的是当前激活标签，只在当前工作区内选择相邻标签
+    if (closingActive) {
+      if (nextWorkspaceTabId && workspaceTabs.value.some((t) => t.id === nextWorkspaceTabId)) {
+        await switchTab(nextWorkspaceTabId)
       } else {
         activeTabId.value = null
+        await api.tab.switch('')
       }
     }
   }
@@ -346,6 +356,10 @@ export const useTabStore = defineStore('tab', () => {
 
   async function setProxyEnabled(tabId: string, enabled: boolean) {
     return await api.tab.setProxyEnabled(tabId, enabled)
+  }
+
+  async function applyProxy(tabId: string, proxyId: string | null) {
+    return await api.tab.applyProxy(tabId, proxyId)
   }
 
   async function openDevTools(tabId: string) {
@@ -578,6 +592,7 @@ export const useTabStore = defineStore('tab', () => {
     reload,
     detectProxy,
     setProxyEnabled,
+    applyProxy,
     openDevTools,
     openInNewWindow,
     openInBrowser,

@@ -50,6 +50,7 @@ interface ViewEntry {
 
 class WebviewManager {
   private sessionProxyEnabled = new Map<string, boolean>()
+  private tabProxyOverride = new Map<string, string>() // tabId -> proxyId（临时代理覆盖）
   private views = new Map<string, ViewEntry>()
   private mainWindow: BrowserWindow | null = null
   private activeTabId: string | null = null
@@ -109,22 +110,36 @@ class WebviewManager {
       return
     }
 
-    const proxy = this.getEffectiveProxy(entry.pageId)
+    // 优先使用临时代理覆盖
+    const overrideProxyId = this.tabProxyOverride.get(tabId)
+    let proxy: Proxy | undefined
+    let isOverride = false
+
+    if (overrideProxyId) {
+      proxy = getProxyById(overrideProxyId)
+      isOverride = !!proxy
+    }
+
+    if (!proxy) {
+      proxy = this.getEffectiveProxy(entry.pageId)
+    }
+
     if (!proxy) {
       this.sendProxyInfo(tabId, null)
       return
     }
 
-    const container = entry.containerId ? getContainerById(entry.containerId) : undefined
     const proxyEnabled = proxy.enabled !== false
 
     this.sendProxyInfo(tabId, {
       enabled: proxyEnabled,
-      applied: container?.autoProxyEnabled === true,
+      applied: true,
       name: proxy.name,
       text: this.getProxyBindingText(proxy),
       status: 'idle',
-      proxyMode: proxy.proxyMode ?? 'global'
+      proxyMode: proxy.proxyMode ?? 'global',
+      proxyId: proxy.id,
+      isOverride
     })
   }
 
@@ -135,48 +150,65 @@ class WebviewManager {
       return { ok: false, error: '标签页不存在' }
     }
 
-    const proxy = this.getEffectiveProxy(entry.pageId)
+    // 优先使用临时代理覆盖
+    const overrideProxyId = this.tabProxyOverride.get(tabId)
+    let proxy: Proxy | undefined
+    let isOverride = false
+
+    if (overrideProxyId) {
+      proxy = getProxyById(overrideProxyId)
+      isOverride = !!proxy
+    }
+
+    if (!proxy) {
+      proxy = this.getEffectiveProxy(entry.pageId)
+    }
+
     if (!proxy) {
       this.sendProxyInfo(tabId, null)
       return { ok: false, error: '当前标签页未绑定代理' }
     }
 
-    const container = entry.containerId ? getContainerById(entry.containerId) : undefined
     const proxyEnabled = proxy.enabled !== false
-    const applied = container?.autoProxyEnabled === true
 
     const bindingText = this.getProxyBindingText(proxy)
     this.sendProxyInfo(tabId, {
       enabled: proxyEnabled,
-      applied,
+      applied: true,
       name: proxy.name,
       text: bindingText,
       status: 'checking',
-      proxyMode: proxy.proxyMode ?? 'global'
+      proxyMode: proxy.proxyMode ?? 'global',
+      proxyId: proxy.id,
+      isOverride
     })
 
     try {
       const ip = await fetchSessionExitIp(entry.view.webContents.session)
       this.sendProxyInfo(tabId, {
         enabled: proxyEnabled,
-        applied,
+        applied: true,
         name: proxy.name,
         text: bindingText,
         ip,
         status: 'success',
-        proxyMode: proxy.proxyMode ?? 'global'
+        proxyMode: proxy.proxyMode ?? 'global',
+        proxyId: proxy.id,
+        isOverride
       })
       return { ok: true, ip }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.sendProxyInfo(tabId, {
         enabled: proxyEnabled,
-        applied,
+        applied: true,
         name: proxy.name,
         text: bindingText,
         error: message,
         status: 'error',
-        proxyMode: proxy.proxyMode ?? 'global'
+        proxyMode: proxy.proxyMode ?? 'global',
+        proxyId: proxy.id,
+        isOverride
       })
       return { ok: false, error: message }
     }
@@ -416,6 +448,7 @@ class WebviewManager {
   destroyView(tabId: string): void {
     // 清理待激活记录
     this.pendingViews.delete(tabId)
+    this.tabProxyOverride.delete(tabId)
 
     const entry = this.views.get(tabId)
     if (!entry) {
@@ -465,6 +498,7 @@ class WebviewManager {
       const current = this.views.get(this.activeTabId)
       if (current) {
         current.view.setVisible(false)
+        current.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
         current.lastActiveAt = Date.now()
       }
     }
@@ -588,6 +622,42 @@ class WebviewManager {
         enabled: !enabled,
         error: error instanceof Error ? error.message : String(error)
       }
+    }
+  }
+
+  /** 为指定标签页临时应用代理（null 表示恢复原始代理） */
+  async applyProxyToTab(tabId: string, proxyId: string | null): Promise<{ ok: boolean; error?: string }> {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) {
+      return { ok: false, error: '标签页不存在' }
+    }
+
+    const session = entry.view.webContents.session
+
+    try {
+      if (proxyId) {
+        const proxy = getProxyById(proxyId)
+        if (!proxy) {
+          return { ok: false, error: '代理不存在' }
+        }
+        this.tabProxyOverride.set(tabId, proxyId)
+        await applyProxyToSession(session, proxy)
+      } else {
+        this.tabProxyOverride.delete(tabId)
+        const effectiveProxy = this.getEffectiveProxy(entry.pageId)
+        if (effectiveProxy && this.isSessionProxyEnabled(entry.containerId)) {
+          await applyProxyToSession(session, effectiveProxy)
+        } else {
+          await applyProxyToSession(session, null)
+        }
+      }
+
+      await this.refreshProxyInfo(tabId)
+      this.reload(tabId)
+
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) }
     }
   }
 

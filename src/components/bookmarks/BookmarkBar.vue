@@ -41,17 +41,28 @@ const overflowItems = computed(() => {
 function updateOverflow() {
   const container = itemsContainer.value
   if (!container) return
-  const items = container.querySelectorAll('[data-bookmark-item]')
+  const items = container.querySelectorAll<HTMLElement>('[data-bookmark-item]')
   if (items.length === 0) {
     overflowStartIndex.value = -1
     return
   }
   const moreBtnWidth = 36
-  const availableWidth = container.clientWidth - moreBtnWidth
+  const tolerance = 1
+  // 如果"更多"按钮已经显示，需要把它占掉的宽度补回来，判断在完整宽度下是否真的溢出
+  const totalAvailableWidth = container.clientWidth + (overflowStartIndex.value > -1 ? moreBtnWidth : 0)
+
+  if (container.scrollWidth <= totalAvailableWidth + tolerance) {
+    overflowStartIndex.value = -1
+    return
+  }
+
+  const availableWidth = totalAvailableWidth - moreBtnWidth
+  const containerLeft = container.getBoundingClientRect().left
   let firstOverflow = -1
+
   for (let i = 0; i < items.length; i++) {
-    const el = items[i] as HTMLElement
-    if (el.offsetLeft + el.offsetWidth > availableWidth) {
+    const itemRight = items[i].getBoundingClientRect().right - containerLeft
+    if (itemRight > availableWidth + tolerance) {
       firstOverflow = i
       break
     }
