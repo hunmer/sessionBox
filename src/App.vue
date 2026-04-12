@@ -95,6 +95,7 @@ function syncWebContentsViewVisibility() {
 
 function handleBeforeUnload() {
   void tabStore.saveState()
+  void splitStore.persistState()
 }
 
 async function handleDetectProxy(): Promise<void> {
