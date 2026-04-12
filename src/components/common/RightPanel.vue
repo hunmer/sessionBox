@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -23,6 +23,11 @@ import ProxyMiniPopover from './ProxyMiniPopover.vue'
 const tabStore = useTabStore()
 const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
 
+const emit = defineEmits<{
+  openSettings: [tab?: string]
+  openProxy: []
+}>()
+
 /** 控制各 Popover 的打开状态 */
 const bookmarkOpen = ref(false)
 const historyOpen = ref(false)
@@ -43,7 +48,7 @@ function openFullPage(site: string) {
     <ResizablePanelGroup direction="vertical">
       <!-- 区域一：书签 / 历史 / 下载 Popover 入口 -->
       <ResizablePanel :default-size="33">
-        <div class="flex flex-col items-center gap-1 py-2 h-full">
+        <div class="flex flex-col items-center justify-start gap-1 py-2 h-full">
           <!-- 书签 -->
           <Popover v-model:open="bookmarkOpen">
             <PopoverTrigger as-child>
@@ -98,16 +103,26 @@ function openFullPage(site: string) {
 
       <!-- 区域二：扩展列表（垂直模式） -->
       <ResizablePanel :default-size="33">
-        <div class="flex flex-col items-center py-2 h-full overflow-y-auto">
+        <div class="flex flex-col items-center justify-center py-2 h-full overflow-y-auto">
           <ExtensionActionList vertical @open-manager="extensionManagerRef?.open()" />
         </div>
       </ResizablePanel>
 
       <ResizableHandle />
 
-      <!-- 区域三：占位区域 -->
+      <!-- 区域三：设置 / 代理入口 -->
       <ResizablePanel :default-size="34">
-        <div class="flex items-center justify-center h-full text-xs text-muted-foreground" />
+        <div class="flex flex-col items-center justify-end gap-1 py-2 h-full">
+          <Button variant="ghost" size="icon" class="h-8 w-8" @click="emit('openSettings', 'shortcuts')">
+            <Keyboard class="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" class="h-8 w-8" @click="emit('openSettings')">
+            <Settings2 class="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" class="h-8 w-8" @click="emit('openProxy')">
+            <Network class="h-4 w-4" />
+          </Button>
+        </div>
       </ResizablePanel>
     </ResizablePanelGroup>
 

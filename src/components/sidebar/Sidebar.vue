@@ -34,7 +34,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  openProxy: []
   openSettings: []
 }>()
 
@@ -191,7 +190,6 @@ const workspaceSwitcherItems = computed(() => {
         :user="{ name: userProfileStore.profile.name, email: '', avatar: userProfileStore.avatarSrc, emoji: userProfileStore.isEmojiAvatar ? userProfileStore.profile.avatar : undefined }"
         :collapsed="collapsed"
         @open-settings="emit('openSettings')"
-        @open-proxy="emit('openProxy')"
       />
     </SidebarContent>
     <SidebarRail />

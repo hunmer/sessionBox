@@ -361,8 +361,7 @@ useIpcEvent('shortcut', (actionId) => {
           <SidebarProvider :open="!sidebarCollapsed" @update:open="sidebarCollapsed = !$event">
             <Sidebar
               :collapsed="sidebarCollapsed"
-              @open-proxy="proxyDialogOpen = true"
-              @open-settings="settingsDialogOpen = true; settingsInitialTab = 'general'"
+              @open-settings="settingsDialogOpen = true; settingsInitialTab = 'user'"
             />
           </SidebarProvider>
         </ResizablePanel>
@@ -476,7 +475,10 @@ useIpcEvent('shortcut', (actionId) => {
 
         <!-- 右侧面板（固定 50px） -->
         <div class="w-[50px] shrink-0 h-full border-l border-border">
-          <RightPanel />
+          <RightPanel
+            @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
+            @open-proxy="proxyDialogOpen = true"
+          />
         </div>
       </ResizablePanelGroup>
     </div>

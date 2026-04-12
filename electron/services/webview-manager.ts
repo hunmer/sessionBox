@@ -1,4 +1,4 @@
-import { BrowserWindow, Session, WebContentsView } from 'electron'
+import { BrowserWindow, Menu, Session, WebContentsView, clipboard } from 'electron'
 import { ensureExtensionsLoadedForContainer, getExtensionsForContainer } from './extensions'
 import { getPageById, getContainerById, getGroupById, getProxyById, getMutedSites, type Proxy } from './store'
 import { applyProxyToSession, fetchSessionExitIp } from './proxy'
@@ -383,6 +383,15 @@ class WebviewManager {
       }
     })
 
+    // 右键菜单
+    wc.on('context-menu', (_event, params) => {
+      const menuItems = this.buildContextMenuItems(tabId, params)
+      if (menuItems.length === 0) return
+
+      const menu = Menu.buildFromTemplate(menuItems)
+      menu.popup({ window: win })
+    })
+
     // 拦截下载事件，转发到 aria2
     const willDownloadHandler = (event: Electron.Event, item: Electron.DownloadItem) => {
       // 同步检查缓存的 aria2 状态，必须同步调用 preventDefault 才能阻止默认保存对话框
@@ -431,6 +440,67 @@ class WebviewManager {
     if (entry) {
       entry.willDownloadHandler = willDownloadHandler
     }
+  }
+
+  private buildContextMenuItems(
+    tabId: string,
+    params: Electron.ContextMenuParams
+  ): Electron.MenuItemConstructorOptions[] {
+    const items: Electron.MenuItemConstructorOptions[] = []
+
+    // 在新标签页打开链接
+    if (params.linkURL) {
+      items.push({
+        label: '在新标签页中打开链接',
+        click: () => {
+          const entry = this.views.get(tabId)
+          if (entry && this.mainWindow && !this.mainWindow.isDestroyed()) {
+            this.mainWindow.webContents.send('on:tab:open-url', entry.containerId, params.linkURL)
+          }
+        }
+      })
+    }
+
+    // 复制链接地址
+    if (params.linkURL) {
+      items.push({
+        label: '复制链接地址',
+        click: () => {
+          clipboard.writeText(params.linkURL)
+        }
+      })
+    }
+
+    // 复制图片
+    if (params.hasImageContents && params.srcURL) {
+      items.push({
+        label: '复制图片',
+        click: () => {
+          clipboard.writeText(params.srcURL)
+        }
+      })
+    }
+
+    // 复制选中的文本
+    if (params.selectionText) {
+      items.push({
+        label: '复制',
+        accelerator: 'CmdOrCtrl+C',
+        click: () => {
+          const entry = this.views.get(tabId)
+          if (entry && !entry.view.webContents.isDestroyed()) {
+            entry.view.webContents.copy()
+          }
+        }
+      })
+    }
+
+    // 如果有链接又有其他内容，加分割线
+    if (params.linkURL && items.length > 2) {
+      items.splice(2, 0, { type: 'separator' })
+    }
+
+    return items
   }
 
   private sendNavState(tabId: string): void {
