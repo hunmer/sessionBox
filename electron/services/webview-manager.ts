@@ -54,6 +54,9 @@ class WebviewManager {
   private views = new Map<string, ViewEntry>()
   private mainWindow: BrowserWindow | null = null
   private activeTabId: string | null = null
+  private visibleTabIds = new Set<string>()
+  private overlayVisible = true
+  private multiBoundsActive = false
   private freezeTimer: ReturnType<typeof setInterval> | null = null
   private frozenTabUrls = new Map<string, { url: string; pageId: string; containerId: string }>() // 冻结的 tab 信息
   private pendingViews = new Map<string, { url: string; pageId: string; containerId: string }>() // 未激活的 tab（尚未创建 WebContentsView）
@@ -383,6 +386,17 @@ class WebviewManager {
       }
     })
 
+    wc.on('focus', () => {
+      const entry = this.views.get(tabId)
+      if (!entry || !canSend()) return
+
+      entry.lastActiveAt = Date.now()
+      this.activeTabId = tabId
+
+      win.webContents.send('on:tab:activated', tabId)
+      void this.refreshProxyInfo(tabId)
+    })
+
     // 右键菜单
     wc.on('context-menu', (_event, params) => {
       const menuItems = this.buildContextMenuItems(tabId, params)
@@ -528,6 +542,7 @@ class WebviewManager {
     // 清理待激活记录
     this.pendingViews.delete(tabId)
     this.tabProxyOverride.delete(tabId)
+    this.visibleTabIds.delete(tabId)
 
     const entry = this.views.get(tabId)
     if (!entry) {
@@ -595,6 +610,9 @@ class WebviewManager {
 
     target.lastActiveAt = Date.now()
     this.activeTabId = tabId
+    if (!this.multiBoundsActive) {
+      this.visibleTabIds = new Set([tabId])
+    }
 
     const extensions = getExtensionsForContainer(target.containerId || null)
     extensions.selectTab(target.view.webContents)
@@ -608,8 +626,20 @@ class WebviewManager {
     if (!this.activeTabId) return
 
     const entry = this.views.get(this.activeTabId)
-    if (entry) {
-      entry.view.setBounds(rect)
+    if (!entry) return
+
+    this.multiBoundsActive = false
+    this.visibleTabIds = new Set([this.activeTabId])
+
+    entry.view.setBounds(rect)
+    entry.view.setVisible(this.overlayVisible)
+    entry.lastActiveAt = Date.now()
+
+    for (const [id, otherEntry] of this.views) {
+      if (id === this.activeTabId) continue
+
+      otherEntry.view.setVisible(false)
+      otherEntry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
     }
   }
 
@@ -617,17 +647,21 @@ class WebviewManager {
   updateMultiBounds(paneBounds: Array<{ tabId: string; rect: { x: number; y: number; width: number; height: number } }>): void {
     if (!this.mainWindow) return
 
-    const visibleTabIds = new Set(paneBounds.map((p) => p.tabId))
+    this.multiBoundsActive = true
+    const visibleTabIds = new Set<string>()
 
     // Show and position all pane views
     for (const { tabId, rect } of paneBounds) {
       const entry = this.views.get(tabId)
       if (entry) {
+        visibleTabIds.add(tabId)
         entry.view.setBounds(rect)
-        entry.view.setVisible(true)
+        entry.view.setVisible(this.overlayVisible)
         entry.lastActiveAt = Date.now()
       }
     }
+
+    this.visibleTabIds = visibleTabIds
 
     // Hide views not in any pane
     for (const [id, entry] of this.views) {
@@ -773,10 +807,18 @@ class WebviewManager {
   }
 
   setOverlayVisible(visible: boolean): void {
-    if (!this.activeTabId) return
+    this.overlayVisible = visible
 
-    const entry = this.views.get(this.activeTabId)
-    if (entry) {
+    const targetTabIds = this.visibleTabIds.size > 0
+      ? this.visibleTabIds
+      : this.activeTabId
+        ? new Set([this.activeTabId])
+        : new Set<string>()
+
+    for (const tabId of targetTabIds) {
+      const entry = this.views.get(tabId)
+      if (!entry) continue
+
       entry.view.setVisible(visible)
     }
   }
@@ -786,6 +828,8 @@ class WebviewManager {
     for (const tabId of tabIds) {
       this.destroyView(tabId)
     }
+    this.visibleTabIds.clear()
+    this.multiBoundsActive = false
   }
 
   getTabIdsByContainer(containerId: string): string[] {

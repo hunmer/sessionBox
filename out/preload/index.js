@@ -199,6 +199,15 @@ const api = {
     clear: (id) => electron.ipcRenderer.invoke("shortcut:clear", id),
     reset: () => electron.ipcRenderer.invoke("shortcut:reset")
   },
+  split: {
+    updateMultiBounds: (paneBounds) => electron.ipcRenderer.send("split:update-multi-bounds", paneBounds),
+    getState: (workspaceId) => electron.ipcRenderer.invoke("split:get-state", workspaceId),
+    setState: (workspaceId, data) => electron.ipcRenderer.invoke("split:set-state", workspaceId, data),
+    clearState: (workspaceId) => electron.ipcRenderer.invoke("split:clear-state", workspaceId),
+    listSchemes: () => electron.ipcRenderer.invoke("split:list-schemes"),
+    createScheme: (data) => electron.ipcRenderer.invoke("split:create-scheme", data),
+    deleteScheme: (id) => electron.ipcRenderer.invoke("split:delete-scheme", id)
+  },
   download: {
     checkConnection: () => electron.ipcRenderer.invoke("download:checkConnection"),
     getConfig: () => electron.ipcRenderer.invoke("download:getConfig"),

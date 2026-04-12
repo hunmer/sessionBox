@@ -97,7 +97,7 @@ function handleDeleteScheme(id: string) {
           v-for="scheme in splitStore.savedSchemes"
           :key="scheme.id"
           class="cursor-pointer"
-          @click="splitStore.applyPreset(scheme.presetType as SplitPresetType)"
+          @click="splitStore.applyScheme(scheme.id)"
         >
           <LayoutGrid class="size-4 mr-2" />
           <span class="flex-1">{{ scheme.name }}</span>

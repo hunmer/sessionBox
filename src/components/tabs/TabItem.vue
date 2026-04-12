@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/context-menu'
 import type { Tab } from '@/types'
 import { useTabStore } from '@/stores/tab'
+import { useSplitStore } from '@/stores/split'
 import { usePageStore } from '@/stores/page'
 import { useContainerStore } from '@/stores/container'
 
@@ -19,6 +20,7 @@ const props = defineProps<{
 }>()
 
 const tabStore = useTabStore()
+const splitStore = useSplitStore()
 const pageStore = usePageStore()
 const containerStore = useContainerStore()
 
@@ -56,7 +58,13 @@ const pageLabel = computed(() => {
   const group = containerStore.getGroup(page.groupId)
   return group ? `${group.name}·${page.name}` : page.name
 })
-const isActive = computed(() => tabStore.activeTabId === props.tab.id)
+const isActive = computed(() => {
+  if (splitStore.isSplitActive) {
+    return splitStore.focusedPane?.activeTabId === props.tab.id
+  }
+
+  return tabStore.activeTabId === props.tab.id
+})
 const isLoading = computed(() => tabStore.navStates.get(props.tab.id)?.isLoading ?? false)
 const faviconUrl = computed(() => tabStore.favicons.get(props.tab.id))
 const isFrozen = computed(() => tabStore.frozenTabIds.has(props.tab.id))

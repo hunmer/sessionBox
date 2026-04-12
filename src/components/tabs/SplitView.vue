@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, watch } from 'vue'
+import { nextTick, watch } from 'vue'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { useSplitStore } from '@/stores/split'
 import { useTabStore } from '@/stores/tab'
@@ -35,7 +35,8 @@ function sendPaneBounds() {
   }
 }
 
-function handlePaneClick(paneId: string) {
+function handlePaneClick(paneId?: string | null) {
+  if (!paneId) return
   splitStore.focusPane(paneId)
 }
 
@@ -48,7 +49,8 @@ watch(
   () => [splitStore.activePanes.map((p) => `${p.id}:${p.activeTabId}`).join(',')],
   () => {
     nextTick(() => sendPaneBounds())
-  }
+  },
+  { immediate: true, flush: 'post' }
 )
 
 // Watch for active tab overlay state changes
@@ -56,7 +58,8 @@ watch(
   () => tabStore.activeTabId,
   () => {
     nextTick(() => sendPaneBounds())
-  }
+  },
+  { flush: 'post' }
 )
 </script>
 

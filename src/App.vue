@@ -225,6 +225,17 @@ function sendBounds() {
 
 let resizeObserver: ResizeObserver | null = null
 
+function bindWebviewContainerObserver() {
+  resizeObserver?.disconnect()
+  resizeObserver = null
+
+  const container = document.getElementById('webview-container')
+  if (!container) return
+
+  resizeObserver = new ResizeObserver(() => sendBounds())
+  resizeObserver.observe(container)
+}
+
 onMounted(async () => {
   startWebviewOverlayDetection()
   window.addEventListener('beforeunload', handleBeforeUnload)
@@ -236,9 +247,9 @@ onMounted(async () => {
     tabStore.init(),
     proxyStore.init(),
     bookmarkStore.init(),
-    splitStore.loadSchemes(),
-    splitStore.restoreState()
+    splitStore.loadSchemes()
   ])
+  await splitStore.restoreState()
   ready.value = true
 
   // 启动时自动打开主页
@@ -253,11 +264,7 @@ onMounted(async () => {
 
   // 监听 webview 容器尺寸变化
   await nextTick()
-  const container = document.getElementById('webview-container')
-  if (container) {
-    resizeObserver = new ResizeObserver(() => sendBounds())
-    resizeObserver.observe(container)
-  }
+  bindWebviewContainerObserver()
 
   // reka-ui 初始化时 layout 计算可能因 groupSizeInPixels 未就绪而跳过，
   // 导致 handleLayout 不被调用。主动同步一次侧边栏折叠状态。
@@ -286,6 +293,15 @@ onUnmounted(() => {
 watch([() => tabStore.activeTabId, shouldShowWebContentsView], () => {
   nextTick(() => syncWebContentsViewVisibility())
 }, { immediate: true, flush: 'post' })
+
+watch(() => splitStore.layoutRevision, () => {
+  if (!ready.value) return
+
+  nextTick(() => {
+    bindWebviewContainerObserver()
+    syncWebContentsViewVisibility()
+  })
+}, { flush: 'post' })
 
 // 快捷网站栏显隐时同步 bounds
 watch(() => tabStore.bookmarkBarVisible, () => {
@@ -441,7 +457,7 @@ useIpcEvent('shortcut', (actionId) => {
                   <p class="text-sm text-muted-foreground/60">页面已暂停</p>
                 </div>
                 <!-- 主进程在此区域叠加 WebContentsView -->
-                <SplitView class="absolute inset-x-0 top-0 bottom-7" />
+                <SplitView :key="splitStore.layoutRevision" class="absolute inset-x-0 top-0 bottom-7" />
                 <!-- 页面加载进度条 -->
                 <div class="absolute bottom-[3px] inset-x-0 z-20">
                   <div class="h-6 w-full border-t bg-background/95 backdrop-blur-sm px-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
