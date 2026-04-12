@@ -5,16 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTabStore } from '@/stores/tab'
 import { useBookmarkStore } from '@/stores/bookmark'
-import ExtensionManager from '@/components/settings/ExtensionManager.vue'
 import AddBookmarkDialog from '@/components/bookmarks/AddBookmarkDialog.vue'
 
 const tabStore = useTabStore()
 const bookmarkStore = useBookmarkStore()
 const urlInput = ref('')
 const isFocused = ref(false)
-
-// 扩展管理对话框
-const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
 
 /** 同步当前 tab URL 到输入框 */
 watch(() => tabStore.activeTab?.url, (url) => {
@@ -157,9 +153,6 @@ function toggleBookmark() {
 
     <!-- 扩展图标列表已移至右侧面板 -->
   </div>
-
-  <!-- 扩展管理对话框 -->
-  <ExtensionManager ref="extensionManagerRef" />
 
   <!-- 收藏对话框 -->
   <AddBookmarkDialog

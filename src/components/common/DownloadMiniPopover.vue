@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import {
   Download,
   ArrowRight,
@@ -19,6 +19,13 @@ import { useDownloadStore } from '@/stores/download'
 const downloadStore = useDownloadStore()
 
 const emit = defineEmits<{ 'open-full': [] }>()
+
+/** 幂等初始化：仅在未初始化时执行（config 为 null 说明从未调用 init） */
+onMounted(async () => {
+  if (!downloadStore.config) {
+    await downloadStore.init()
+  }
+})
 
 /** 最近 50 条任务 */
 const recentTasks = computed(() =>
@@ -110,7 +117,7 @@ function handleOpenFull() {
 
     <!-- 列表 -->
     <template v-else>
-      <ScrollArea class="max-h-[360px]">
+      <ScrollArea class="h-[360px]">
         <div v-if="recentTasks.length === 0" class="flex items-center justify-center py-8">
           <p class="text-xs text-muted-foreground">暂无下载任务</p>
         </div>

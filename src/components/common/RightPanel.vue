@@ -14,11 +14,13 @@ import {
 import { Button } from '@/components/ui/button'
 import { useTabStore } from '@/stores/tab'
 import ExtensionActionList from '@/components/toolbar/ExtensionActionList.vue'
+import ExtensionManager from '@/components/settings/ExtensionManager.vue'
 import BookmarkMiniPopover from './BookmarkMiniPopover.vue'
 import HistoryMiniPopover from './HistoryMiniPopover.vue'
 import DownloadMiniPopover from './DownloadMiniPopover.vue'
 
 const tabStore = useTabStore()
+const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
 
 /** 控制各 Popover 的打开状态 */
 const bookmarkOpen = ref(false)
@@ -82,7 +84,7 @@ function openFullPage(site: string) {
       <!-- 区域二：扩展列表（垂直模式） -->
       <ResizablePanel :default-size="33">
         <div class="flex flex-col items-center py-2 h-full overflow-y-auto">
-          <ExtensionActionList vertical />
+          <ExtensionActionList vertical @open-manager="extensionManagerRef?.open()" />
         </div>
       </ResizablePanel>
 
@@ -93,5 +95,8 @@ function openFullPage(site: string) {
         <div class="flex items-center justify-center h-full text-xs text-muted-foreground" />
       </ResizablePanel>
     </ResizablePanelGroup>
+
+    <!-- 扩展管理对话框 -->
+    <ExtensionManager ref="extensionManagerRef" />
   </div>
 </template>

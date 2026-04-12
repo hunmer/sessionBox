@@ -485,7 +485,11 @@ class WebviewManager {
     }
 
     const target = this.views.get(tabId)
-    if (!target) return
+    if (!target) {
+      // 切换到无标签的工作区时，清除 activeTabId 防止旧 view 被重新显示
+      this.activeTabId = null
+      return
+    }
 
     target.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
     target.view.setVisible(true)
