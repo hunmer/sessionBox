@@ -5,6 +5,10 @@ import type { Page, TrayWindowSizes } from './store'
 
 type TrayWindowType = keyof TrayWindowSizes
 
+// 移动端 Chrome User-Agent
+const MOBILE_USER_AGENT =
+  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36'
+
 interface TaskbarWindowEntry {
   win: BrowserWindow
   page: Page
@@ -76,6 +80,11 @@ class TrayWindowManager {
 
     // 定位到 Tray 图标附近
     this.positionNearTray(win, tray, saved.width, saved.height)
+
+    // 手机版使用移动端 User-Agent
+    if (mode === 'mobile') {
+      win.webContents.setUserAgent(MOBILE_USER_AGENT)
+    }
 
     win.loadURL(page.url || 'about:blank')
     win.once('ready-to-show', () => win.show())
