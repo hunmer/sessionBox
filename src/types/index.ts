@@ -105,3 +105,5 @@ export interface Extension {
   enabled: boolean
   icon?: string
 }
+
+export type { SplitPane, SplitPresetType, SplitLayout, SavedSplitScheme, PaneBounds } from './split'
