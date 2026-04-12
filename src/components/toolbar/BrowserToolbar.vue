@@ -76,7 +76,7 @@ const editSite = ref<{ id: string; title: string; url: string; pageId?: string }
 /** 当前 tab 关联的页面 ID */
 const activePageId = computed(() => tabStore.activeTab?.pageId)
 
-/** 点击收藏按钮：已收藏则编辑，否则新增 */
+/** 点击收藏按钮：已收藏则直接取消，否则新增 */
 function toggleBookmark() {
   const url = tabStore.activeTab?.url
   if (!url) return
@@ -84,12 +84,12 @@ function toggleBookmark() {
   if (isBookmarked.value) {
     const bookmark = bookmarkStore.findBookmarkByUrl(url)
     if (bookmark) {
-      editSite.value = { id: bookmark.id, title: bookmark.title, url: bookmark.url, pageId: bookmark.pageId }
+      bookmarkStore.deleteBookmark(bookmark.id)
     }
   } else {
     editSite.value = null
+    bookmarkDialogOpen.value = true
   }
-  bookmarkDialogOpen.value = true
 }
 </script>
 

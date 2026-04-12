@@ -277,7 +277,9 @@ const api = {
 
   settings: {
     getTabFreezeMinutes: (): Promise<number> => ipcRenderer.invoke('settings:getTabFreezeMinutes'),
-    setTabFreezeMinutes: (minutes: number): Promise<void> => ipcRenderer.invoke('settings:setTabFreezeMinutes', minutes)
+    setTabFreezeMinutes: (minutes: number): Promise<void> => ipcRenderer.invoke('settings:setTabFreezeMinutes', minutes),
+    setDefaultBrowser: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setDefaultBrowser', enabled),
+    checkDefaultBrowser: (): Promise<boolean> => ipcRenderer.invoke('settings:checkDefaultBrowser')
   },
 
   mutedSites: {

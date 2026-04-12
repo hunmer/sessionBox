@@ -562,6 +562,11 @@ class WebviewManager {
     }
   }
 
+  /** 获取当前活跃标签页 ID */
+  getActiveTabId(): string | null {
+    return this.activeTabId
+  }
+
   goBack(tabId: string): void {
     const entry = this.views.get(tabId)
     if (entry && entry.view.webContents.navigationHistory.canGoBack()) {

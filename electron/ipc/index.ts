@@ -362,6 +362,20 @@ $img.Dispose()`
     webviewManager.setFreezeMinutes(minutes)
   })
 
+  // ====== 默认浏览器 ======
+  ipcMain.handle('settings:setDefaultBrowser', (_e, enabled: boolean) => {
+    const protocols = ['http', 'https'] as const
+    if (enabled) {
+      for (const p of protocols) app.setAsDefaultProtocolClient(p)
+    } else {
+      for (const p of protocols) app.removeAsDefaultProtocolClient(p)
+    }
+  })
+
+  ipcMain.handle('settings:checkDefaultBrowser', () => {
+    return app.isDefaultProtocolClient('http') && app.isDefaultProtocolClient('https')
+  })
+
   // ====== 默认静音网站 ======
   ipcMain.handle('mutedSites:list', () => getMutedSites())
   ipcMain.handle('mutedSites:set', (_e, sites: string[]) => setMutedSites(sites))

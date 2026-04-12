@@ -392,17 +392,19 @@ useIpcEvent('shortcut', (actionId) => {
              
               <!-- WebContentsView 占位区域 -->
               <div class="flex-1 relative bg-background">
-                <!-- 内部页面渲染 -->
+                <!-- 内部页面渲染（v-show + KeepAlive 保留状态，避免切换 tab 时销毁重建） -->
                 <div
-                  v-if="tabStore.isInternalPage"
+                  v-show="tabStore.isInternalPage"
                   class="absolute inset-x-0 top-0 bottom-2 z-20 overflow-auto"
                 >
-                  <component
-                    :is="internalPageComponent"
-                    v-if="internalPageComponent"
-                    @open-download-settings="settingsDialogOpen = true; settingsInitialTab = 'download'"
-                  />
-                  <div v-else class="flex items-center justify-center h-full">
+                  <KeepAlive>
+                    <component
+                      :is="internalPageComponent"
+                      v-if="internalPageComponent"
+                      @open-download-settings="settingsDialogOpen = true; settingsInitialTab = 'download'"
+                    />
+                  </KeepAlive>
+                  <div v-if="!internalPageComponent && tabStore.isInternalPage" class="flex items-center justify-center h-full">
                     <p class="text-muted-foreground text-sm">未知页面</p>
                   </div>
                 </div>

@@ -73,6 +73,18 @@ function handleProtocolUrl(url: string): void {
   }
 }
 
+/** 处理外部 http/https URL（默认浏览器功能） */
+function handleExternalUrl(url: string): void {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (!win) return
+  if (win.isMinimized()) win.restore()
+  win.focus()
+  const activeTabId = webviewManager.getActiveTabId()
+  if (activeTabId) {
+    webviewManager.navigate(activeTabId, url)
+  }
+}
+
 // 单实例锁：防止多开，同时用于接收深度链接
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
@@ -80,8 +92,23 @@ if (!gotTheLock) {
 } else {
   // Windows: 协议 URL 通过 second-instance 事件传入（应用已在运行时）
   app.on('second-instance', (_e, argv) => {
-    const url = argv.find((arg) => arg.startsWith('sessionbox://'))
-    if (url) handleProtocolUrl(url)
+    const protocolUrl = argv.find((arg) => arg.startsWith('sessionbox://'))
+    if (protocolUrl) {
+      handleProtocolUrl(protocolUrl)
+      return
+    }
+    // 处理外部 http/https 链接（默认浏览器功能）
+    const externalUrl = argv.find((arg) => arg.startsWith('http://') || arg.startsWith('https://'))
+    if (externalUrl) handleExternalUrl(externalUrl)
+  })
+
+  // macOS: 外部 URL 通过 open-url 事件传入
+  app.on('open-url', (_e, url: string) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      handleExternalUrl(url)
+    } else if (url.startsWith('sessionbox://')) {
+      handleProtocolUrl(url)
+    }
   })
 
   function createWindow(): void {
@@ -185,6 +212,14 @@ if (!gotTheLock) {
     if (protocolUrl) {
       mainWindow.webContents.once('did-finish-load', () => {
         handleProtocolUrl(protocolUrl)
+      })
+    }
+
+    // 首次启动时处理外部 http/https 链接（默认浏览器功能）
+    const externalUrl = process.argv.find((arg) => arg.startsWith('http://') || arg.startsWith('https://'))
+    if (externalUrl) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        handleExternalUrl(externalUrl)
       })
     }
 

@@ -1,9 +1,25 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useHomepageStore, type HomepageOpenMethod } from '@/stores/homepage'
 
 const homepageStore = useHomepageStore()
+const isDefaultBrowser = ref(false)
+
+async function checkDefaultBrowser() {
+  isDefaultBrowser.value = await window.api.settings.checkDefaultBrowser()
+}
+
+async function toggleDefaultBrowser() {
+  const next = !isDefaultBrowser.value
+  await window.api.settings.setDefaultBrowser(next)
+  isDefaultBrowser.value = next
+}
+
+onMounted(() => {
+  checkDefaultBrowser()
+})
 
 const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
   { value: 'newTab', label: '新标签页' },
@@ -56,5 +72,25 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
         />
       </button>
     </div>
+  </div>
+
+  <h3 class="text-sm font-medium mb-3 mt-6">默认浏览器</h3>
+  <div class="flex items-center justify-between">
+    <div>
+      <label class="text-xs text-muted-foreground">将 SessionBox 设为默认浏览器</label>
+      <p class="text-xs text-muted-foreground/60 mt-0.5">外部链接将在当前标签页中打开</p>
+    </div>
+    <button
+      role="switch"
+      :aria-checked="isDefaultBrowser"
+      class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+      :class="isDefaultBrowser ? 'bg-primary' : 'bg-input'"
+      @click="toggleDefaultBrowser"
+    >
+      <span
+        class="pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-sm transition-transform"
+        :class="isDefaultBrowser ? 'translate-x-4' : 'translate-x-0'"
+      />
+    </button>
   </div>
 </template>
