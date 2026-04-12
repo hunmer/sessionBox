@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
-import type { SplitDropPosition, SplitPane } from '@/types'
+import type { SplitDropPosition, SplitNode, SplitPane } from '@/types'
 import { isWebviewBlocked, setForcedWebviewBlocked } from '@/lib/webview-overlay'
 import { useSplitStore } from '@/stores/split'
 import { useTabStore } from '@/stores/tab'
@@ -15,6 +15,7 @@ const draggingPaneId = ref<string | null>(null)
 const preview = ref<{ targetPaneId: string; position: SplitDropPosition } | null>(null)
 const showAddDialog = ref(false)
 const pendingAddTabPaneId = ref<string | null>(null)
+const fullscreenPaneId = ref<string | null>(null)
 
 const paneMap = computed<Record<string, SplitPane | undefined>>(() =>
   Object.fromEntries(splitStore.activePanes.map((pane) => [pane.id, pane]))
@@ -31,6 +32,14 @@ const paneTitles = computed<Record<string, string>>(() => {
       pane.activeTabId ? (titleByTabId.get(pane.activeTabId) ?? '当前页面') : '空分屏'
     ])
   )
+})
+
+const displayNode = computed<SplitNode | null>(() => {
+  if (fullscreenPaneId.value) {
+    return { kind: 'pane', paneId: fullscreenPaneId.value }
+  }
+
+  return splitStore.activeLayout?.root ?? null
 })
 
 /** Send bounds for all panes */
@@ -69,12 +78,10 @@ function handleRequestAddTab(paneId: string) {
   showAddDialog.value = true
 }
 
-async function handlePaneFullscreen(paneId: string) {
-  const tabId = paneMap.value[paneId]?.activeTabId
-  if (!tabId) return
-
+function handlePaneFullscreen(paneId: string) {
   splitStore.focusPane(paneId)
-  await window.api.tab.toggleHtmlFullscreen(tabId)
+  fullscreenPaneId.value = fullscreenPaneId.value === paneId ? null : paneId
+  nextTick(() => sendPaneBounds())
 }
 
 async function handlePaneCloseTab(paneId: string) {
@@ -229,6 +236,7 @@ watch(
   () => splitStore.manualAdjustEnabled,
   (enabled) => {
     if (!enabled) {
+      fullscreenPaneId.value = null
       endDrag()
       return
     }
@@ -236,6 +244,24 @@ watch(
     nextTick(() => sendPaneBounds())
   },
   { flush: 'post' }
+)
+
+watch(
+  () => splitStore.activePanes.map((pane) => pane.id).join(','),
+  () => {
+    if (fullscreenPaneId.value && !paneMap.value[fullscreenPaneId.value]) {
+      fullscreenPaneId.value = null
+    }
+  }
+)
+
+watch(
+  () => splitStore.isSplitActive,
+  (active) => {
+    if (!active) {
+      fullscreenPaneId.value = null
+    }
+  }
 )
 
 onUnmounted(() => {
@@ -252,14 +278,15 @@ onUnmounted(() => {
   />
 
   <template v-else>
-    <template v-if="splitStore.activeLayout?.root">
+    <template v-if="displayNode">
       <div class="absolute inset-0">
         <SplitLayoutTree
-          :node="splitStore.activeLayout.root"
+          :node="displayNode"
           :pane-map="paneMap"
           :pane-titles="paneTitles"
           :focused-pane-id="splitStore.focusedPaneId"
           :manual-adjust-enabled="splitStore.manualAdjustEnabled"
+          :fullscreen-pane-id="fullscreenPaneId"
           :dragging-pane-id="draggingPaneId"
           :preview="preview"
           @pane-click="handlePaneClick"

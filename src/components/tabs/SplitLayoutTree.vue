@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { GripVertical, Maximize2, Minus, X } from 'lucide-vue-next'
+import { GripVertical, Maximize2, Minimize2, Minus, X } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import type { SplitDropPosition, SplitNode, SplitPane } from '@/types'
@@ -15,12 +15,14 @@ const props = withDefaults(defineProps<{
   paneTitles: Record<string, string>
   focusedPaneId?: string | null
   manualAdjustEnabled: boolean
+  fullscreenPaneId?: string | null
   draggingPaneId: string | null
   preview: { targetPaneId: string; position: SplitDropPosition } | null
   branchPath?: number[]
 }>(), {
   branchPath: () => [],
-  focusedPaneId: null
+  focusedPaneId: null,
+  fullscreenPaneId: null
 })
 
 const emit = defineEmits<{
@@ -49,6 +51,7 @@ const paneTitle = computed(() => {
 
 const isFocused = computed(() => props.node.kind === 'pane' && props.focusedPaneId === props.node.paneId)
 const isDragSource = computed(() => props.node.kind === 'pane' && props.draggingPaneId === props.node.paneId)
+const isFullscreenPane = computed(() => props.node.kind === 'pane' && props.fullscreenPaneId === props.node.paneId)
 const hasActiveTab = computed(() => !!pane.value?.activeTabId)
 const canRemovePane = computed(() => Object.keys(props.paneMap).length > 1)
 const previewPosition = computed(() => {
@@ -82,6 +85,7 @@ function hotspotClass(position: SplitDropPosition): string {
             :pane-titles="paneTitles"
             :focused-pane-id="focusedPaneId"
             :manual-adjust-enabled="manualAdjustEnabled"
+            :fullscreen-pane-id="fullscreenPaneId"
             :dragging-pane-id="draggingPaneId"
             :preview="preview"
             :branch-path="[...branchPath, index]"
@@ -136,11 +140,12 @@ function hotspotClass(position: SplitDropPosition): string {
           variant="ghost"
           size="icon-sm"
           class="h-6 w-6 rounded-md"
-          title="全屏"
+          :title="isFullscreenPane ? '退出全屏' : '全屏'"
           :disabled="!hasActiveTab"
           @click.stop="emit('pane-fullscreen', node.paneId)"
         >
-          <Maximize2 class="size-3.5" />
+          <Minimize2 v-if="isFullscreenPane" class="size-3.5" />
+          <Maximize2 v-else class="size-3.5" />
         </Button>
         <Button
           variant="ghost"

@@ -134,10 +134,6 @@ export function registerTabIpcHandlers(): void {
     webviewManager.openDevTools(tabId)
   })
 
-  ipcMain.handle('tab:toggle-html-fullscreen', async (_e, tabId: string) => {
-    return await webviewManager.toggleHtmlFullscreen(tabId)
-  })
-
   // 设置标签静音
   ipcMain.handle('tab:set-muted', (_e, tabId: string, muted: boolean) => {
     updateTab(tabId, { muted })
