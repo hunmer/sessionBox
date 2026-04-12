@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, Session, WebContentsView, clipboard } from 'electron'
+import { BrowserWindow, Menu, Session, WebContentsView, clipboard, nativeImage } from 'electron'
 import { ensureExtensionsLoadedForContainer, getExtensionsForContainer } from './extensions'
 import { getPageById, getContainerById, getGroupById, getProxyById, getMutedSites, type Proxy } from './store'
 import { applyProxyToSession, fetchSessionExitIp } from './proxy'
@@ -864,6 +864,36 @@ class WebviewManager {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return null
     return entry.view.webContents
+  }
+
+  /** 截取单个标签页的缩略图，返回 data URL 或 null（冻结/不可用时） */
+  async captureTab(tabId: string): Promise<string | null> {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) return null
+
+    try {
+      const image = await entry.view.webContents.capturePage()
+      if (image.isEmpty()) return null
+      const resized = image.resize({ width: 320 })
+      return resized.toDataURL()
+    } catch {
+      return null
+    }
+  }
+
+  /** 批量截取多个标签页的缩略图，每批 4 个避免 GPU 过载 */
+  async captureTabs(tabIds: string[]): Promise<Map<string, string | null>> {
+    const results = new Map<string, string | null>()
+    const batchSize = 4
+    for (let i = 0; i < tabIds.length; i += batchSize) {
+      const batch = tabIds.slice(i, i + batchSize)
+      await Promise.all(
+        batch.map(async (id) => {
+          results.set(id, await this.captureTab(id))
+        })
+      )
+    }
+    return results
   }
 
   getTabIdByWebContents(target: Electron.WebContents): string | null {

@@ -227,6 +227,8 @@ const api = {
       ipcRenderer.invoke('tab:set-muted', tabId, muted),
     openInNewWindow: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-new-window', tabId),
     openInBrowser: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-browser', tabId),
+    capture: (tabIds: string[]): Promise<Record<string, string | null>> =>
+      ipcRenderer.invoke('tab:capture', tabIds),
     updateBounds: (rect: { x: number; y: number; width: number; height: number }): void =>
       ipcRenderer.send('tab:update-bounds', rect),
     setOverlayVisible: (visible: boolean): void =>

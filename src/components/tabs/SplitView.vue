@@ -34,6 +34,10 @@ const paneTitles = computed<Record<string, string>>(() => {
   )
 })
 
+const shouldRenderSplitLayout = computed(() =>
+  splitStore.isSplitActive && !tabStore.isInternalPage
+)
+
 const displayNode = computed<SplitNode | null>(() => {
   if (fullscreenPaneId.value) {
     return { kind: 'pane', paneId: fullscreenPaneId.value }
@@ -44,7 +48,7 @@ const displayNode = computed<SplitNode | null>(() => {
 
 /** Send bounds for all panes */
 function sendPaneBounds() {
-  if (!splitStore.isSplitActive) return
+  if (!shouldRenderSplitLayout.value) return
 
   const bounds: Array<{ tabId: string; rect: { x: number; y: number; width: number; height: number } }> = []
 
@@ -233,6 +237,20 @@ watch(
 )
 
 watch(
+  () => tabStore.isInternalPage,
+  (isInternalPage) => {
+    if (isInternalPage) {
+      fullscreenPaneId.value = null
+      endDrag()
+      return
+    }
+
+    nextTick(() => sendPaneBounds())
+  },
+  { flush: 'post' }
+)
+
+watch(
   () => splitStore.manualAdjustEnabled,
   (enabled) => {
     if (!enabled) {
@@ -272,7 +290,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    v-if="!splitStore.isSplitActive"
+    v-if="!shouldRenderSplitLayout"
     id="webview-container"
     class="absolute inset-0"
   />

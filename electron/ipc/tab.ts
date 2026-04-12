@@ -175,6 +175,16 @@ export function registerTabIpcHandlers(): void {
     newWin.once('ready-to-show', () => newWin.show())
   })
 
+  // 批量截取标签页缩略图
+  ipcMain.handle('tab:capture', async (_e, tabIds: string[]) => {
+    const results = await webviewManager.captureTabs(tabIds)
+    const obj: Record<string, string | null> = {}
+    for (const [id, dataUrl] of results) {
+      obj[id] = dataUrl
+    }
+    return obj
+  })
+
   // 使用系统默认浏览器打开指定 tab 的当前 URL
   ipcMain.handle('tab:open-in-browser', async (_e, tabId: string) => {
     const info = webviewManager.getViewInfo(tabId)

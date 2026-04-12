@@ -429,8 +429,8 @@ export const useSplitStore = defineStore('split', () => {
   }
 
   /** Persist current split state to main process */
-  async function persistState() {
-    const workspaceId = workspaceStore.activeWorkspaceId
+  async function persistState(targetWorkspaceId = workspaceStore.activeWorkspaceId) {
+    const workspaceId = targetWorkspaceId
 
     if (activeLayout.value) {
       await api.split.setState(workspaceId, {
@@ -451,8 +451,8 @@ export const useSplitStore = defineStore('split', () => {
   }
 
   /** Restore split state for the current workspace */
-  async function restoreState() {
-    const data = await api.split.getState(workspaceStore.activeWorkspaceId)
+  async function restoreState(targetWorkspaceId = workspaceStore.activeWorkspaceId) {
+    const data = await api.split.getState(targetWorkspaceId)
 
     manualAdjustEnabled.value = false
 
@@ -513,11 +513,11 @@ export const useSplitStore = defineStore('split', () => {
   // ====== Workspace switch watcher ======
   watch(
     () => workspaceStore.activeWorkspaceId,
-    async () => {
-      if (activeLayout.value) {
-        await persistState()
+    async (nextWorkspaceId, previousWorkspaceId) => {
+      if (activeLayout.value && previousWorkspaceId) {
+        await persistState(previousWorkspaceId)
       }
-      await restoreState()
+      await restoreState(nextWorkspaceId)
     }
   )
 
