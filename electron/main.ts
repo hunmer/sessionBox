@@ -7,6 +7,8 @@ import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
 import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
 import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
+import { trayManager } from './services/tray'
+import { trayWindowManager } from './services/tray-window'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 
 // 节流函数
@@ -111,6 +113,13 @@ if (!gotTheLock) {
     }
   })
 
+  let isQuitting = false
+
+  app.on('before-quit', () => {
+    isQuitting = true
+    trayWindowManager.destroyAll()
+  })
+
   function createWindow(): void {
     const iconPath = app.isPackaged
       ? join(process.resourcesPath, 'icon.png')
@@ -180,8 +189,25 @@ if (!gotTheLock) {
     mainWindow.on('resize', saveWindowBounds)
     mainWindow.on('move', saveWindowBounds)
 
-    // 窗口即将关闭时保存最终状态（此时窗口仍可访问）
-    mainWindow.on('close', () => {
+    // 窗口关闭时隐藏到托盘（真正退出由 isQuitting 标志控制）
+    mainWindow.on('close', (e) => {
+      if (!isQuitting) {
+        e.preventDefault()
+        if (!mainWindow.isMaximized()) {
+          const bounds = mainWindow.getBounds()
+          const state = getWindowState()
+          setWindowState({
+            ...state,
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height
+          })
+        }
+        mainWindow.hide()
+        return
+      }
+      // 真正退出时保存状态
       if (!mainWindow.isMaximized()) {
         const bounds = mainWindow.getBounds()
         const state = getWindowState()
@@ -266,6 +292,12 @@ if (!gotTheLock) {
 
     createWindow()
 
+    // 初始化系统托盘（createWindow 内部创建 mainWindow，需要在这里获取引用）
+    const mainWindow = BrowserWindow.getAllWindows()[0]
+    if (mainWindow) {
+      trayManager.init(mainWindow)
+    }
+
     // 注册全局快捷键
     registerGlobalShortcuts()
 
@@ -283,8 +315,6 @@ if (!gotTheLock) {
 
   app.on('window-all-closed', () => {
     unregisterGlobalShortcuts()
-    if (process.platform !== 'darwin') {
-      app.quit()
-    }
+    // 不再自动退出，用户通过 Tray 菜单退出
   })
 }
