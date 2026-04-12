@@ -572,17 +572,7 @@ class WebviewManager {
   switchView(tabId: string): void {
     if (!this.mainWindow) return
 
-    // 更新当前激活标签的 lastActiveAt
-    if (this.activeTabId) {
-      const current = this.views.get(this.activeTabId)
-      if (current) {
-        current.view.setVisible(false)
-        current.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
-        current.lastActiveAt = Date.now()
-      }
-    }
-
-    // 如果目标标签被冻结，先解冻（重建 view）
+    // If target tab is frozen, thaw it first
     if (this.frozenTabUrls.has(tabId)) {
       const frozen = this.frozenTabUrls.get(tabId)!
       this.frozenTabUrls.delete(tabId)
@@ -590,7 +580,7 @@ class WebviewManager {
       this.mainWindow.webContents.send('on:tab:frozen', tabId, false)
     }
 
-    // 如果目标标签尚未创建 View（懒加载），先创建
+    // If target tab hasn't been created yet (lazy load), create it
     if (!this.views.has(tabId) && this.pendingViews.has(tabId)) {
       const pending = this.pendingViews.get(tabId)!
       this.pendingViews.delete(tabId)
@@ -599,13 +589,10 @@ class WebviewManager {
 
     const target = this.views.get(tabId)
     if (!target) {
-      // 切换到无标签的工作区时，清除 activeTabId 防止旧 view 被重新显示
       this.activeTabId = null
       return
     }
 
-    target.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
-    target.view.setVisible(true)
     target.lastActiveAt = Date.now()
     this.activeTabId = tabId
 
@@ -623,6 +610,39 @@ class WebviewManager {
     const entry = this.views.get(this.activeTabId)
     if (entry) {
       entry.view.setBounds(rect)
+    }
+  }
+
+  /** Update bounds for multiple visible views simultaneously (split-screen mode) */
+  updateMultiBounds(paneBounds: Array<{ tabId: string; rect: { x: number; y: number; width: number; height: number } }>): void {
+    if (!this.mainWindow) return
+
+    const visibleTabIds = new Set(paneBounds.map((p) => p.tabId))
+
+    // Show and position all pane views
+    for (const { tabId, rect } of paneBounds) {
+      const entry = this.views.get(tabId)
+      if (entry) {
+        entry.view.setBounds(rect)
+        entry.view.setVisible(true)
+        entry.lastActiveAt = Date.now()
+      }
+    }
+
+    // Hide views not in any pane
+    for (const [id, entry] of this.views) {
+      if (!visibleTabIds.has(id)) {
+        entry.view.setVisible(false)
+        entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+      }
+    }
+  }
+
+  /** Set visibility of a specific view by tabId */
+  setViewVisible(tabId: string, visible: boolean): void {
+    const entry = this.views.get(tabId)
+    if (entry) {
+      entry.view.setVisible(visible)
     }
   }
 
