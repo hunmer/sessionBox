@@ -76,6 +76,13 @@ async function handleSubmit() {
 function isValid() {
   return url.value.trim().length > 0
 }
+
+async function pickDirectory() {
+  const selected = await window.api.download.pickDirectory(store.config?.downloadDir)
+  if (selected) {
+    dir.value = selected
+  }
+}
 </script>
 
 <template>

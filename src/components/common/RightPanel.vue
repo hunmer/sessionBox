@@ -1,45 +1,79 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Bookmark, History, Download } from 'lucide-vue-next'
-import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
 import { useTabStore } from '@/stores/tab'
 import ExtensionActionList from '@/components/toolbar/ExtensionActionList.vue'
+import BookmarkMiniPopover from './BookmarkMiniPopover.vue'
+import HistoryMiniPopover from './HistoryMiniPopover.vue'
+import DownloadMiniPopover from './DownloadMiniPopover.vue'
 
 const tabStore = useTabStore()
 
-/** 快捷入口：历史记录、书签管理、下载管理 */
-const quickEntries = [
-  { title: '书签管理', icon: Bookmark, action: () => tabStore.createTabForSite('sessionbox://bookmarks') },
-  { title: '历史记录', icon: History, action: () => tabStore.createTabForSite('sessionbox://history') },
-  { title: '下载管理', icon: Download, action: () => tabStore.createTabForSite('sessionbox://downloads') },
-]
+/** 控制各 Popover 的打开状态 */
+const bookmarkOpen = ref(false)
+const historyOpen = ref(false)
+const downloadOpen = ref(false)
+
+function openFullPage(site: string) {
+  bookmarkOpen.value = false
+  historyOpen.value = false
+  downloadOpen.value = false
+  tabStore.createTabForSite(site)
+}
 </script>
 
 <template>
   <div class="h-full w-full bg-background">
     <ResizablePanelGroup direction="vertical">
-      <!-- 区域一：历史记录 / 书签管理 / 下载管理 图标 -->
+      <!-- 区域一：书签 / 历史 / 下载 Popover 入口 -->
       <ResizablePanel :default-size="33">
         <div class="flex flex-col items-center gap-1 py-2 h-full">
-          <Tooltip v-for="entry in quickEntries" :key="entry.title">
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon" class="h-8 w-8" @click="entry.action">
-                <component :is="entry.icon" class="h-4 w-4" />
+          <!-- 书签 -->
+          <Popover v-model:open="bookmarkOpen">
+            <PopoverTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-8 w-8">
+                <Bookmark class="h-4 w-4" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left" :side-offset="4">
-              {{ entry.title }}
-            </TooltipContent>
-          </Tooltip>
+            </PopoverTrigger>
+            <PopoverContent side="left" :side-offset="4" class="p-0 w-auto">
+              <BookmarkMiniPopover @open-full="openFullPage('sessionbox://bookmarks')" />
+            </PopoverContent>
+          </Popover>
+
+          <!-- 历史记录 -->
+          <Popover v-model:open="historyOpen">
+            <PopoverTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-8 w-8">
+                <History class="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="left" :side-offset="4" class="p-0 w-auto">
+              <HistoryMiniPopover @open-full="openFullPage('sessionbox://history')" />
+            </PopoverContent>
+          </Popover>
+
+          <!-- 下载管理 -->
+          <Popover v-model:open="downloadOpen">
+            <PopoverTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-8 w-8">
+                <Download class="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="left" :side-offset="4" class="p-0 w-auto">
+              <DownloadMiniPopover @open-full="openFullPage('sessionbox://downloads')" />
+            </PopoverContent>
+          </Popover>
         </div>
       </ResizablePanel>
 

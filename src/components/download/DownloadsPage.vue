@@ -20,8 +20,11 @@ import {
   Loader2,
   Server,
   CircleCheck,
-  FolderOpen
+  FolderOpen,
+  Plus,
+  RotateCw
 } from 'lucide-vue-next'
+import AddDownloadDialog from './AddDownloadDialog.vue'
 
 const store = useDownloadStore()
 const emit = defineEmits<{ 'open-download-settings': [] }>()
@@ -29,6 +32,7 @@ const emit = defineEmits<{ 'open-download-settings': [] }>()
 const filterStatus = ref<'all' | 'active' | 'waiting' | 'complete' | 'error'>('all')
 const selectedSite = ref<string | null>(null)
 const selectedCategory = ref<string | null>(null)
+const showAddDialog = ref(false)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
@@ -197,6 +201,9 @@ function onDragStart(event: DragEvent) {
           <Badge :variant="store.connected ? 'default' : 'outline'" class="text-xs">
             {{ store.connected ? '已连接' : '未连接' }}
           </Badge>
+          <Button v-if="store.connected" size="sm" @click="showAddDialog = true">
+            <Plus class="w-4 h-4 mr-1" /> 添加下载
+          </Button>
           <Button size="sm" variant="outline" @click="emit('open-download-settings')">
             <Settings class="w-4 h-4" />
           </Button>
@@ -328,11 +335,14 @@ function onDragStart(event: DragEvent) {
 
                 <!-- 操作按钮 -->
                 <div class="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button v-if="task.status === 'active'" size="icon" variant="ghost" class="h-7 w-7" @click="store.pause(task.gid)">
+                  <Button v-if="task.status === 'active'" size="icon" variant="ghost" class="h-7 w-7" title="暂停" @click="store.pause(task.gid)">
                     <Pause class="w-3.5 h-3.5" />
                   </Button>
-                  <Button v-if="task.status === 'paused' || task.status === 'waiting'" size="icon" variant="ghost" class="h-7 w-7" @click="store.resume(task.gid)">
+                  <Button v-if="task.status === 'paused' || task.status === 'waiting'" size="icon" variant="ghost" class="h-7 w-7" title="继续" @click="store.resume(task.gid)">
                     <Play class="w-3.5 h-3.5" />
+                  </Button>
+                  <Button v-if="task.status === 'error'" size="icon" variant="ghost" class="h-7 w-7" title="重试" @click="store.retry(task)">
+                    <RotateCw class="w-3.5 h-3.5" />
                   </Button>
                   <Button
                     v-if="task.status === 'complete' && task.filename"
@@ -344,7 +354,7 @@ function onDragStart(event: DragEvent) {
                   >
                     <FolderOpen class="w-3.5 h-3.5" />
                   </Button>
-                  <Button size="icon" variant="ghost" class="h-7 w-7" @click="store.remove(task.gid)">
+                  <Button size="icon" variant="ghost" class="h-7 w-7" title="移除" @click="store.remove(task.gid)">
                     <X class="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -354,5 +364,7 @@ function onDragStart(event: DragEvent) {
         </div>
       </ResizablePanel>
     </ResizablePanelGroup>
+
+    <AddDownloadDialog v-model:open="showAddDialog" />
   </div>
 </template>

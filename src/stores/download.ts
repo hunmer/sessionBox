@@ -140,6 +140,16 @@ export const useDownloadStore = defineStore('download', () => {
     await refreshTasks()
   }
 
+  /** 重试失败的任务：移除后重新添加 */
+  async function retry(task: DownloadTask) {
+    await remove(task.gid)
+    await api.download.add(task.url, {
+      filename: task.filename || undefined,
+      dir: task.dir || undefined
+    })
+    await refreshTasks()
+  }
+
   /** 初始化：加载配置、检查连接、拉取任务列表 */
   async function init() {
     await loadConfig()
@@ -169,6 +179,7 @@ export const useDownloadStore = defineStore('download', () => {
     resume,
     remove,
     purge,
+    retry,
     init
   }
 })

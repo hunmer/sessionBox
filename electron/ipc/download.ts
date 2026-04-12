@@ -1,4 +1,4 @@
-import { ipcMain, shell, nativeImage } from 'electron'
+import { ipcMain, shell, nativeImage, dialog, BrowserWindow } from 'electron'
 import path from 'path'
 import {
   checkConnection,
@@ -86,5 +86,23 @@ export function registerDownloadIpcHandlers(): void {
   /** 双击打开已下载的文件 */
   ipcMain.handle('download:openFile', async (_e, filePath: string) => {
     await shell.openPath(filePath)
+  })
+
+  /** 选择下载目录 */
+  ipcMain.handle('download:pickDirectory', async (_e, defaultPath?: string) => {
+    const win = BrowserWindow.getFocusedWindow()
+    const result = win
+      ? await dialog.showOpenDialog(win, {
+          title: '选择保存位置',
+          defaultPath,
+          properties: ['openDirectory', 'createDirectory']
+        })
+      : await dialog.showOpenDialog({
+          title: '选择保存位置',
+          defaultPath,
+          properties: ['openDirectory', 'createDirectory']
+        })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
   })
 }

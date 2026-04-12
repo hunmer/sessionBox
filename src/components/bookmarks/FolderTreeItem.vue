@@ -246,15 +246,15 @@ function handleBookmarkDrop(bookmarkId: string, position: 'before' | 'after' | '
 
 <style scoped>
 .drop-indicator {
-  height: 2px;
+  height: 0;
   margin: 0 8px;
-  border-radius: 1px;
-  background-color: hsl(var(--primary));
+  border-top: 2px dashed hsl(var(--primary));
   pointer-events: none;
 }
 
 .drop-inside {
-  background-color: hsl(var(--accent)) !important;
+  outline: 2px dashed hsl(var(--primary));
+  outline-offset: -2px;
 }
 
 .folder-item {

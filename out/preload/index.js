@@ -212,7 +212,8 @@ const api = {
     showInFolder: (filePath) => electron.ipcRenderer.invoke("download:showInFolder", filePath),
     getFilePath: (dir, filename) => electron.ipcRenderer.invoke("download:getFilePath", dir, filename),
     startDrag: (filePath) => electron.ipcRenderer.send("download:startDrag", filePath),
-    openFile: (filePath) => electron.ipcRenderer.invoke("download:openFile", filePath)
+    openFile: (filePath) => electron.ipcRenderer.invoke("download:openFile", filePath),
+    pickDirectory: (defaultPath) => electron.ipcRenderer.invoke("download:pickDirectory", defaultPath)
   },
   // 自动更新
   updater: {

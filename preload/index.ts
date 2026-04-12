@@ -311,7 +311,8 @@ const api = {
     showInFolder: (filePath: string): Promise<void> => ipcRenderer.invoke('download:showInFolder', filePath),
     getFilePath: (dir: string, filename: string): Promise<string> => ipcRenderer.invoke('download:getFilePath', dir, filename),
     startDrag: (filePath: string): void => ipcRenderer.send('download:startDrag', filePath),
-    openFile: (filePath: string): Promise<void> => ipcRenderer.invoke('download:openFile', filePath)
+    openFile: (filePath: string): Promise<void> => ipcRenderer.invoke('download:openFile', filePath),
+    pickDirectory: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('download:pickDirectory', defaultPath)
   },
 
   // 自动更新
