@@ -171,6 +171,27 @@ export const useSplitStore = defineStore('split', () => {
     return panes.find((pane) => !pane.activeTabId)?.id ?? focusedPane?.id ?? panes[0]?.id ?? null
   }
 
+  function getReplacementTabId(closedTabId: string, pane: SplitPane): string | null {
+    if (!activeLayout.value) return null
+
+    const occupiedTabIds = new Set(
+      activeLayout.value.panes
+        .filter((item) => item.id !== pane.id)
+        .map((item) => item.activeTabId)
+        .filter((tabId): tabId is string => !!tabId)
+    )
+
+    const availableTabs = tabStore.workspaceTabs.filter((tab) =>
+      tab.id !== closedTabId
+      && !occupiedTabIds.has(tab.id)
+      && !tab.url?.startsWith('sessionbox://')
+    )
+
+    if (availableTabs.length === 0) return null
+
+    return availableTabs[Math.min(pane.order, availableTabs.length - 1)]?.id ?? availableTabs[0]?.id ?? null
+  }
+
   function applyLayout(
     presetType: SplitLayoutType,
     panes: SplitPane[],
@@ -292,8 +313,7 @@ export const useSplitStore = defineStore('split', () => {
 
     for (const pane of activeLayout.value.panes) {
       if (pane.activeTabId === tabId) {
-        const remaining = tabStore.workspaceTabs.filter((tab) => tab.id !== tabId)
-        pane.activeTabId = remaining[pane.order]?.id ?? remaining[0]?.id ?? null
+        pane.activeTabId = getReplacementTabId(tabId, pane)
       }
     }
   }

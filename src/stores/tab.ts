@@ -310,6 +310,20 @@ export const useTabStore = defineStore('tab', () => {
     const splitStore = useSplitStore()
     splitStore.handleTabClosed(tabId)
 
+    if (closingActive && splitStore.isSplitActive) {
+      const nextSplitTabId = splitStore.focusedPane?.activeTabId
+        ?? splitStore.activePanes.find((pane) => pane.activeTabId)?.activeTabId
+        ?? null
+
+      if (nextSplitTabId && workspaceTabs.value.some((t) => t.id === nextSplitTabId)) {
+        await switchTab(nextSplitTabId)
+      } else {
+        activeTabId.value = null
+        await api.tab.switch('')
+      }
+      return
+    }
+
     // 如果关闭的是当前激活标签，只在当前工作区内选择相邻标签
     if (closingActive) {
       if (nextWorkspaceTabId && workspaceTabs.value.some((t) => t.id === nextWorkspaceTabId)) {
