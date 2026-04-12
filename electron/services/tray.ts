@@ -20,14 +20,10 @@ class TrayManager {
     this.tray = new Tray(icon)
     this.tray.setToolTip('SessionBox')
 
-    // 左键点击显示/隐藏主窗口
-    this.tray.on('click', () => {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide()
-      } else {
-        mainWindow.show()
-        mainWindow.focus()
-      }
+    // 双击激活主窗口（只显示不隐藏）
+    this.tray.on('double-click', () => {
+      mainWindow.show()
+      mainWindow.focus()
     })
 
     // 右键显示菜单
@@ -136,10 +132,42 @@ class TrayManager {
       }
     }
 
+    // 已打开的任务栏窗口列表
+    const taskbarWindows = trayWindowManager.getTaskbarWindows()
+    const taskbarItems: Electron.MenuItemConstructorOptions[] = []
+
+    if (taskbarWindows.length === 0) {
+      taskbarItems.push({
+        label: '暂无窗口',
+        enabled: false
+      })
+    } else {
+      for (const entry of taskbarWindows) {
+        const modeLabel = entry.mode === 'desktop' ? '桌面' : '手机'
+        taskbarItems.push({
+          label: `${entry.page.name} (${modeLabel})`,
+          submenu: [
+            {
+              label: '打开',
+              click: () => trayWindowManager.showTaskbarWindow(entry.id)
+            },
+            {
+              label: '关闭',
+              click: () => trayWindowManager.closeTaskbarWindow(entry.id)
+            }
+          ]
+        })
+      }
+    }
+
     return Menu.buildFromTemplate([
       {
         label: '打开页面',
         submenu: pageSubmenu
+      },
+      {
+        label: '已打开的窗口',
+        submenu: taskbarItems
       },
       { type: 'separator' },
       {
