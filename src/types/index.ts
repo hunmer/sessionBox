@@ -106,4 +106,16 @@ export interface Extension {
   icon?: string
 }
 
-export type { SplitPane, SplitPresetType, SplitLayout, SavedSplitScheme, PaneBounds } from './split'
+export type {
+  SplitPane,
+  SplitPresetType,
+  SplitLayoutType,
+  SplitDirection,
+  SplitDropPosition,
+  SplitLeafNode,
+  SplitBranchNode,
+  SplitNode,
+  SplitLayout,
+  SavedSplitScheme,
+  PaneBounds
+} from './split'

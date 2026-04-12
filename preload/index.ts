@@ -113,11 +113,20 @@ export interface SplitPaneData {
   order: number
 }
 
+export interface SplitNodeData {
+  kind: 'pane' | 'branch'
+  paneId?: string
+  direction?: 'horizontal' | 'vertical'
+  sizes?: number[]
+  children?: SplitNodeData[]
+}
+
 export interface SplitLayoutData {
   presetType: string
   panes: SplitPaneData[]
   direction: 'horizontal' | 'vertical'
   sizes: number[]
+  root?: SplitNodeData
 }
 
 export interface SavedSplitSchemeData {
@@ -127,6 +136,7 @@ export interface SavedSplitSchemeData {
   direction: 'horizontal' | 'vertical'
   paneCount: number
   sizes: number[]
+  root?: SplitNodeData
 }
 
 // IPC API 定义

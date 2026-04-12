@@ -112,6 +112,13 @@ export interface SplitLayoutData {
   panes: Array<{ id: string; activeTabId: string | null; order: number }>
   direction: 'horizontal' | 'vertical'
   sizes: number[]
+  root?: {
+    kind: 'pane' | 'branch'
+    paneId?: string
+    direction?: 'horizontal' | 'vertical'
+    sizes?: number[]
+    children?: SplitLayoutData['root'][]
+  }
 }
 
 // 保存的分屏方案
@@ -122,6 +129,7 @@ export interface SavedSplitSchemeData {
   direction: 'horizontal' | 'vertical'
   paneCount: number
   sizes: number[]
+  root?: SplitLayoutData['root']
 }
 
 interface StoreSchema {

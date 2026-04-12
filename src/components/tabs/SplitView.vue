@@ -1,22 +1,43 @@
 <script setup lang="ts">
-import { nextTick, watch } from 'vue'
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import type { SplitDropPosition, SplitPane } from '@/types'
+import { isWebviewBlocked, setForcedWebviewBlocked } from '@/lib/webview-overlay'
 import { useSplitStore } from '@/stores/split'
 import { useTabStore } from '@/stores/tab'
+import SplitLayoutTree from './SplitLayoutTree.vue'
 
 const splitStore = useSplitStore()
 const tabStore = useTabStore()
 
-/** Send bounds for all panes to main process */
+const draggingPaneId = ref<string | null>(null)
+const preview = ref<{ targetPaneId: string; position: SplitDropPosition } | null>(null)
+
+const paneMap = computed<Record<string, SplitPane | undefined>>(() =>
+  Object.fromEntries(splitStore.activePanes.map((pane) => [pane.id, pane]))
+)
+
+const paneTitles = computed<Record<string, string>>(() => {
+  const titleByTabId = new Map(
+    tabStore.tabs.map((tab) => [tab.id, tab.title || tab.url || '当前页面'])
+  )
+
+  return Object.fromEntries(
+    splitStore.activePanes.map((pane) => [
+      pane.id,
+      pane.activeTabId ? (titleByTabId.get(pane.activeTabId) ?? '当前页面') : '空分屏'
+    ])
+  )
+})
+
+/** Send bounds for all panes */
 function sendPaneBounds() {
   if (!splitStore.isSplitActive) return
 
-  const panes = splitStore.activePanes
   const bounds: Array<{ tabId: string; rect: { x: number; y: number; width: number; height: number } }> = []
 
-  for (const pane of panes) {
+  for (const pane of splitStore.activePanes) {
     if (!pane.activeTabId) continue
-    const el = document.getElementById(`webview-pane-${pane.id}`)
+    const el = document.getElementById(`webview-pane-content-${pane.id}`)
     if (!el) continue
     const rect = el.getBoundingClientRect()
     bounds.push({
@@ -30,9 +51,7 @@ function sendPaneBounds() {
     })
   }
 
-  if (bounds.length > 0) {
-    window.api.split.updateMultiBounds(bounds)
-  }
+  window.api.split.updateMultiBounds(bounds)
 }
 
 function handlePaneClick(paneId?: string | null) {
@@ -40,20 +59,120 @@ function handlePaneClick(paneId?: string | null) {
   splitStore.focusPane(paneId)
 }
 
-function handleLayoutResize() {
+function handleBranchLayout(path: number[], sizes: number[]) {
+  splitStore.updateBranchSizes(path, sizes)
   nextTick(() => sendPaneBounds())
 }
 
-// Watch for pane changes and re-send bounds
+function getDropPosition(event: DragEvent, target: HTMLElement): SplitDropPosition {
+  const rect = target.getBoundingClientRect()
+  const x = (event.clientX - rect.left) / Math.max(rect.width, 1)
+  const y = (event.clientY - rect.top) / Math.max(rect.height, 1)
+
+  if (x > 0.28 && x < 0.72 && y > 0.28 && y < 0.72) {
+    return 'center'
+  }
+
+  const edgeDistances = {
+    left: x,
+    right: 1 - x,
+    top: y,
+    bottom: 1 - y
+  }
+
+  return Object.entries(edgeDistances).sort((a, b) => a[1] - b[1])[0][0] as Exclude<SplitDropPosition, 'center'>
+}
+
+function getPaneRect(paneId: string): DOMRect | null {
+  return document.getElementById(`webview-pane-content-${paneId}`)?.getBoundingClientRect() ?? null
+}
+
+function syncDragOverlayVisibility(blocked: boolean) {
+  setForcedWebviewBlocked(blocked)
+  window.api.tab.setOverlayVisible(!blocked && !isWebviewBlocked.value)
+}
+
+function endDrag() {
+  draggingPaneId.value = null
+  preview.value = null
+  syncDragOverlayVisibility(false)
+  nextTick(() => sendPaneBounds())
+}
+
+function handleDragStart(event: DragEvent, paneId: string) {
+  if (!splitStore.manualAdjustEnabled) return
+
+  draggingPaneId.value = paneId
+  preview.value = null
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', paneId)
+  }
+
+  syncDragOverlayVisibility(true)
+}
+
+function updatePreview(event: DragEvent, targetPaneId: string) {
+  const sourcePaneId = draggingPaneId.value
+  const target = event.currentTarget as HTMLElement | null
+  if (!sourcePaneId || !target || sourcePaneId === targetPaneId) {
+    preview.value = null
+    return
+  }
+
+  preview.value = {
+    targetPaneId,
+    position: getDropPosition(event, target)
+  }
+}
+
+function handleDragEnterPane(event: DragEvent, targetPaneId: string) {
+  updatePreview(event, targetPaneId)
+}
+
+function handleDragOverPane(event: DragEvent, targetPaneId: string) {
+  updatePreview(event, targetPaneId)
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+function handleDropPane(event: DragEvent, targetPaneId: string) {
+  const sourcePaneId = draggingPaneId.value
+  const target = event.currentTarget as HTMLElement | null
+
+  if (!sourcePaneId || !target) {
+    endDrag()
+    return
+  }
+
+  const position = getDropPosition(event, target)
+  if (sourcePaneId !== targetPaneId) {
+    const sourceRect = getPaneRect(sourcePaneId)
+    const targetRect = getPaneRect(targetPaneId)
+    const horizontalMove = position === 'left' || position === 'right'
+
+    splitStore.movePane(sourcePaneId, targetPaneId, position, {
+      sourceSize: horizontalMove ? sourceRect?.width : sourceRect?.height,
+      targetSize: horizontalMove ? targetRect?.width : targetRect?.height
+    })
+  }
+
+  endDrag()
+}
+
 watch(
-  () => [splitStore.activePanes.map((p) => `${p.id}:${p.activeTabId}`).join(',')],
+  () => [
+    splitStore.activePanes.map((pane) => `${pane.id}:${pane.activeTabId}`).join(','),
+    splitStore.manualAdjustEnabled
+  ],
   () => {
     nextTick(() => sendPaneBounds())
   },
   { immediate: true, flush: 'post' }
 )
 
-// Watch for active tab overlay state changes
 watch(
   () => tabStore.activeTabId,
   () => {
@@ -61,177 +180,53 @@ watch(
   },
   { flush: 'post' }
 )
+
+watch(
+  () => splitStore.manualAdjustEnabled,
+  (enabled) => {
+    if (!enabled) {
+      endDrag()
+      return
+    }
+
+    nextTick(() => sendPaneBounds())
+  },
+  { flush: 'post' }
+)
+
+onUnmounted(() => {
+  setForcedWebviewBlocked(false)
+  window.api.tab.setOverlayVisible(!isWebviewBlocked.value)
+})
 </script>
 
 <template>
-  <!-- Single pane mode: just the original container -->
   <div
     v-if="!splitStore.isSplitActive"
     id="webview-container"
     class="absolute inset-0"
   />
 
-  <!-- Multi pane mode: resizable panels -->
   <template v-else>
-    <!-- 2-pane horizontal -->
-    <ResizablePanelGroup
-      v-if="splitStore.activeLayout!.presetType === '2h'"
-      direction="horizontal"
-      class="absolute inset-0"
-      @layout="handleLayoutResize"
-    >
-      <template v-for="(pane, i) in splitStore.activePanes" :key="pane.id">
-        <ResizablePanel :default-size="splitStore.activeLayout!.sizes[i] ?? 50">
-          <div
-            :id="`webview-pane-${pane.id}`"
-            class="relative h-full w-full border-r last:border-r-0 border-border/40"
-            @click="handlePaneClick(pane.id)"
-          >
-            <div v-if="!pane.activeTabId" class="flex items-center justify-center h-full text-muted-foreground text-xs">
-              空
-            </div>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle v-if="i < splitStore.activePanes.length - 1" :key="`handle-${i}`" />
-      </template>
-    </ResizablePanelGroup>
-
-    <!-- 2-pane vertical -->
-    <ResizablePanelGroup
-      v-else-if="splitStore.activeLayout!.presetType === '2v'"
-      direction="vertical"
-      class="absolute inset-0"
-      @layout="handleLayoutResize"
-    >
-      <template v-for="(pane, i) in splitStore.activePanes" :key="pane.id">
-        <ResizablePanel :default-size="splitStore.activeLayout!.sizes[i] ?? 50">
-          <div
-            :id="`webview-pane-${pane.id}`"
-            class="relative h-full w-full border-b last:border-b-0 border-border/40"
-            @click="handlePaneClick(pane.id)"
-          >
-            <div v-if="!pane.activeTabId" class="flex items-center justify-center h-full text-muted-foreground text-xs">
-              空
-            </div>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle v-if="i < splitStore.activePanes.length - 1" :key="`handle-${i}`" />
-      </template>
-    </ResizablePanelGroup>
-
-    <!-- 3-pane: left one, right two vertical -->
-    <ResizablePanelGroup
-      v-else-if="splitStore.activeLayout!.presetType === '3'"
-      direction="horizontal"
-      class="absolute inset-0"
-      @layout="handleLayoutResize"
-    >
-      <ResizablePanel :default-size="splitStore.activeLayout!.sizes[0] ?? 50">
-        <div
-          :id="`webview-pane-${splitStore.activePanes[0]?.id}`"
-          class="relative h-full w-full border-r border-border/40"
-          @click="handlePaneClick(splitStore.activePanes[0]?.id)"
-        >
-          <div v-if="!splitStore.activePanes[0]?.activeTabId" class="flex items-center justify-center h-full text-muted-foreground text-xs">
-            空
-          </div>
-        </div>
-      </ResizablePanel>
-      <ResizableHandle />
-      <ResizablePanel :default-size="splitStore.activeLayout!.sizes[1] ?? 50">
-        <ResizablePanelGroup direction="vertical" @layout="handleLayoutResize">
-          <ResizablePanel :default-size="50">
-            <div
-              :id="`webview-pane-${splitStore.activePanes[1]?.id}`"
-              class="relative h-full w-full border-b border-border/40"
-              @click="handlePaneClick(splitStore.activePanes[1]?.id)"
-            >
-              <div v-if="!splitStore.activePanes[1]?.activeTabId" class="flex items-center justify-center h-full text-muted-foreground text-xs">
-                空
-              </div>
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel :default-size="50">
-            <div
-              :id="`webview-pane-${splitStore.activePanes[2]?.id}`"
-              class="relative h-full w-full"
-              @click="handlePaneClick(splitStore.activePanes[2]?.id)"
-            >
-              <div v-if="!splitStore.activePanes[2]?.activeTabId" class="flex items-center justify-center h-full text-muted-foreground text-xs">
-                空
-              </div>
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </ResizablePanel>
-    </ResizablePanelGroup>
-
-    <!-- 4-pane: 2x2 grid -->
-    <ResizablePanelGroup
-      v-else-if="splitStore.activeLayout!.presetType === '4'"
-      direction="horizontal"
-      class="absolute inset-0"
-      @layout="handleLayoutResize"
-    >
-      <ResizablePanel :default-size="50">
-        <ResizablePanelGroup direction="vertical" @layout="handleLayoutResize">
-          <ResizablePanel :default-size="50">
-            <div
-              :id="`webview-pane-${splitStore.activePanes[0]?.id}`"
-              class="relative h-full w-full border-b border-r border-border/40"
-              @click="handlePaneClick(splitStore.activePanes[0]?.id)"
-            >
-              <div v-if="!splitStore.activePanes[0]?.activeTabId" class="flex items-center justify-center h-full text-muted-foreground text-xs">
-                空
-              </div>
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel :default-size="50">
-            <div
-              :id="`webview-pane-${splitStore.activePanes[1]?.id}`"
-              class="relative h-full w-full border-r border-border/40"
-              @click="handlePaneClick(splitStore.activePanes[1]?.id)"
-            >
-              <div v-if="!splitStore.activePanes[1]?.activeTabId" class="flex items-center justify-center h-full text-muted-foreground text-xs">
-                空
-              </div>
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </ResizablePanel>
-      <ResizableHandle />
-      <ResizablePanel :default-size="50">
-        <ResizablePanelGroup direction="vertical" @layout="handleLayoutResize">
-          <ResizablePanel :default-size="50">
-            <div
-              :id="`webview-pane-${splitStore.activePanes[2]?.id}`"
-              class="relative h-full w-full border-b border-border/40"
-              @click="handlePaneClick(splitStore.activePanes[2]?.id)"
-            >
-              <div v-if="!splitStore.activePanes[2]?.activeTabId" class="flex items-center justify-center h-full text-muted-foreground text-xs">
-                空
-              </div>
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel :default-size="50">
-            <div
-              :id="`webview-pane-${splitStore.activePanes[3]?.id}`"
-              class="relative h-full w-full"
-              @click="handlePaneClick(splitStore.activePanes[3]?.id)"
-            >
-              <div v-if="!splitStore.activePanes[3]?.activeTabId" class="flex items-center justify-center h-full text-muted-foreground text-xs">
-                空
-              </div>
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </ResizablePanel>
-    </ResizablePanelGroup>
-
-    <!-- Fallback for unknown preset: single pane -->
+    <div v-if="splitStore.activeLayout?.root" class="absolute inset-0">
+      <SplitLayoutTree
+        :node="splitStore.activeLayout.root"
+        :pane-map="paneMap"
+        :pane-titles="paneTitles"
+        :focused-pane-id="splitStore.focusedPaneId"
+        :manual-adjust-enabled="splitStore.manualAdjustEnabled"
+        :dragging-pane-id="draggingPaneId"
+        :preview="preview"
+        @pane-click="handlePaneClick"
+        @branch-layout="handleBranchLayout"
+        @drag-start="handleDragStart"
+        @drag-end="endDrag"
+        @drag-enter-pane="handleDragEnterPane"
+        @drag-over-pane="handleDragOverPane"
+        @drop-pane="handleDropPane"
+        @exit-manual-adjust="splitStore.setManualAdjustEnabled(false)"
+      />
+    </div>
     <div v-else id="webview-container" class="absolute inset-0" />
   </template>
 </template>

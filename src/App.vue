@@ -26,7 +26,7 @@ import { useBookmarkStore } from '@/stores/bookmark'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useHomepageStore } from '@/stores/homepage'
 import { useIpcEvent } from '@/composables/useIpc'
-import { isOverlayActive, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
+import { isOverlayActive, isWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
 import { markRaw, type Component } from 'vue'
 import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
 import HistoryPage from '@/components/history/HistoryPage.vue'
@@ -63,7 +63,7 @@ const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
 const shouldShowWebContentsView = computed(() =>
-  !!tabStore.activeTab && !tabStore.isInternalPage && !isOverlayActive.value
+  !!tabStore.activeTab && !tabStore.isInternalPage && !isWebviewBlocked.value
 )
 const proxyApplied = computed(() => {
   const info = tabStore.activeProxyInfo

@@ -1,6 +1,27 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
-import type { SplitPane, SplitPresetType, SplitLayout, SavedSplitScheme } from '../types'
+import { computed, ref, watch } from 'vue'
+import type {
+  SplitDropPosition,
+  SplitLayout,
+  SplitLayoutType,
+  SplitNode,
+  SplitPane,
+  SplitPresetType,
+  SavedSplitScheme
+} from '../types'
+import {
+  buildFallbackTree,
+  buildPresetTree,
+  cloneSplitNode,
+  collectPaneIds,
+  countSplitLeaves,
+  detectLayoutType,
+  movePaneInTree,
+  normalizeSizes,
+  remapTreePaneIds,
+  reorderPanesByTree,
+  updateBranchSizesAtPath
+} from '@/lib/split-layout'
 import { useTabStore } from './tab'
 import { useWorkspaceStore } from './workspace'
 
@@ -11,13 +32,77 @@ function generatePaneId(): string {
   return `pane-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
-/** Preset configurations */
-const PRESETS: Record<SplitPresetType, { paneCount: number; direction: 'horizontal' | 'vertical'; sizes: number[] }> = {
-  '1': { paneCount: 1, direction: 'horizontal', sizes: [100] },
-  '2h': { paneCount: 2, direction: 'horizontal', sizes: [50, 50] },
-  '2v': { paneCount: 2, direction: 'vertical', sizes: [50, 50] },
-  '3': { paneCount: 3, direction: 'horizontal', sizes: [50, 50, 50] },
-  '4': { paneCount: 4, direction: 'horizontal', sizes: [50, 50, 50, 50] }
+const PRESET_PANE_COUNTS: Record<Exclude<SplitPresetType, '1'>, number> = {
+  '2h': 2,
+  '2v': 2,
+  '3': 3,
+  '4': 4
+}
+
+function getLayoutDirection(root: SplitNode): 'horizontal' | 'vertical' {
+  return root.kind === 'branch' ? root.direction : 'horizontal'
+}
+
+function getLayoutSizes(root: SplitNode): number[] {
+  return root.kind === 'branch' ? [...root.sizes] : [100]
+}
+
+function isPresetType(value: string): value is Exclude<SplitPresetType, '1'> {
+  return value in PRESET_PANE_COUNTS
+}
+
+function isCompatibleRoot(root: SplitNode, panes: SplitPane[]): boolean {
+  const paneIds = new Set(panes.map((pane) => pane.id))
+  const layoutPaneIds = collectPaneIds(root)
+  return layoutPaneIds.length === panes.length && layoutPaneIds.every((paneId) => paneIds.has(paneId))
+}
+
+function buildRuntimeRoot(
+  presetType: string,
+  panes: SplitPane[],
+  root?: SplitNode
+): SplitNode {
+  if (root && isCompatibleRoot(root, panes)) {
+    return cloneSplitNode(root)
+  }
+
+  if (isPresetType(presetType)) {
+    return buildPresetTree(presetType, panes)
+  }
+
+  return buildFallbackTree(panes)
+}
+
+function buildSchemeRoot(
+  presetType: string,
+  panes: SplitPane[],
+  root?: SplitNode
+): SplitNode {
+  if (root) {
+    return remapTreePaneIds(cloneSplitNode(root), panes.map((pane) => pane.id))
+  }
+
+  if (isPresetType(presetType)) {
+    return buildPresetTree(presetType, panes)
+  }
+
+  return buildFallbackTree(panes)
+}
+
+function resolvePaneCountForScheme(scheme: SavedSplitScheme): number {
+  if (scheme.root) {
+    return countSplitLeaves(scheme.root)
+  }
+
+  if (scheme.paneCount > 1) {
+    return scheme.paneCount
+  }
+
+  if (isPresetType(scheme.presetType)) {
+    return PRESET_PANE_COUNTS[scheme.presetType]
+  }
+
+  return 2
 }
 
 export const useSplitStore = defineStore('split', () => {
@@ -29,16 +114,16 @@ export const useSplitStore = defineStore('split', () => {
   const focusedPaneId = ref<string | null>(null)
   const savedSchemes = ref<SavedSplitScheme[]>([])
   const layoutRevision = ref(0)
+  const manualAdjustEnabled = ref(false)
 
   // ====== Computed ======
   const paneCount = computed(() => activeLayout.value?.panes.length ?? 1)
   const isSplitActive = computed(() => paneCount.value > 1)
-
   const activePanes = computed(() => activeLayout.value?.panes ?? [])
 
   /** Get the pane that currently has focus */
   const focusedPane = computed(() =>
-    activeLayout.value?.panes.find((p) => p.id === focusedPaneId.value) ?? null
+    activeLayout.value?.panes.find((pane) => pane.id === focusedPaneId.value) ?? null
   )
 
   // ====== Actions ======
@@ -47,39 +132,53 @@ export const useSplitStore = defineStore('split', () => {
     layoutRevision.value += 1
   }
 
-  function createPanes(paneCount: number): SplitPane[] {
+  function createPanes(nextPaneCount: number): SplitPane[] {
     const workspaceTabs = tabStore.workspaceTabs
     const panes: SplitPane[] = []
 
-    for (let i = 0; i < paneCount; i++) {
+    for (let index = 0; index < nextPaneCount; index += 1) {
       panes.push({
         id: generatePaneId(),
-        activeTabId: workspaceTabs[i]?.id ?? null,
-        order: i
+        activeTabId: workspaceTabs[index]?.id ?? null,
+        order: index
       })
     }
 
     return panes
   }
 
-  function getInitialPaneId(panes: SplitPane[]): string | null {
+  function getInitialPaneId(panes: SplitPane[], preferredPaneId?: string | null): string | null {
+    if (preferredPaneId && panes.some((pane) => pane.id === preferredPaneId)) {
+      return preferredPaneId
+    }
+
     return panes.find((pane) => pane.activeTabId)?.id ?? panes[0]?.id ?? null
   }
 
   function applyLayout(
-    presetType: SplitPresetType,
+    presetType: SplitLayoutType,
     panes: SplitPane[],
-    direction: 'horizontal' | 'vertical',
-    sizes: number[]
+    root: SplitNode,
+    preferredPaneId?: string | null
   ) {
+    const normalizedRoot = cloneSplitNode(root)
+    const orderedPanes = reorderPanesByTree(panes, normalizedRoot)
+    const detectedPresetType = detectLayoutType(normalizedRoot)
+    const resolvedPresetType = presetType === 'custom' ? detectedPresetType : presetType
+
     activeLayout.value = {
-      presetType,
-      panes,
-      direction,
-      sizes: [...sizes]
+      presetType: resolvedPresetType,
+      panes: orderedPanes,
+      direction: getLayoutDirection(normalizedRoot),
+      sizes: getLayoutSizes(normalizedRoot),
+      root: normalizedRoot
     }
 
-    focusedPaneId.value = getInitialPaneId(activeLayout.value.panes)
+    focusedPaneId.value = getInitialPaneId(orderedPanes, preferredPaneId)
+    if (orderedPanes.length <= 1) {
+      manualAdjustEnabled.value = false
+    }
+
     bumpLayoutRevision()
 
     if (focusedPaneId.value) {
@@ -91,8 +190,13 @@ export const useSplitStore = defineStore('split', () => {
 
   /** Apply a preset split layout */
   function applyPreset(type: SplitPresetType) {
-    const preset = PRESETS[type]
-    applyLayout(type, createPanes(preset.paneCount), preset.direction, preset.sizes)
+    if (type === '1') {
+      resetToSingle()
+      return
+    }
+
+    const panes = createPanes(PRESET_PANE_COUNTS[type])
+    applyLayout(type, panes, buildPresetTree(type, panes))
   }
 
   /** Apply a saved scheme */
@@ -100,13 +204,13 @@ export const useSplitStore = defineStore('split', () => {
     const scheme = savedSchemes.value.find((item) => item.id === schemeId)
     if (!scheme) return
 
-    const preset = PRESETS[scheme.presetType]
-    applyLayout(
-      scheme.presetType,
-      createPanes(preset.paneCount),
-      scheme.direction,
-      scheme.sizes
-    )
+    const panes = createPanes(resolvePaneCountForScheme(scheme))
+    const root = buildSchemeRoot(scheme.presetType, panes, scheme.root)
+    applyLayout(scheme.presetType, panes, root)
+  }
+
+  function setManualAdjustEnabled(enabled: boolean) {
+    manualAdjustEnabled.value = enabled && isSplitActive.value
   }
 
   /** Reset to single pane mode */
@@ -115,6 +219,7 @@ export const useSplitStore = defineStore('split', () => {
 
     activeLayout.value = null
     focusedPaneId.value = null
+    manualAdjustEnabled.value = false
     bumpLayoutRevision()
 
     if (currentTabId) {
@@ -127,7 +232,7 @@ export const useSplitStore = defineStore('split', () => {
   /** Set the active tab for a specific pane */
   function setPaneActiveTab(paneId: string, tabId: string | null) {
     if (!activeLayout.value) return
-    const pane = activeLayout.value.panes.find((p) => p.id === paneId)
+    const pane = activeLayout.value.panes.find((item) => item.id === paneId)
     if (pane) {
       pane.activeTabId = tabId
     }
@@ -135,7 +240,7 @@ export const useSplitStore = defineStore('split', () => {
 
   /** Focus a specific pane */
   function focusPane(paneId: string) {
-    const pane = activeLayout.value?.panes.find((p) => p.id === paneId)
+    const pane = activeLayout.value?.panes.find((item) => item.id === paneId)
     if (!pane) return
 
     focusedPaneId.value = paneId
@@ -148,20 +253,18 @@ export const useSplitStore = defineStore('split', () => {
 
   /** Handle a tab click — route to the focused pane */
   function handleTabClick(tabId: string): boolean {
-    if (!isSplitActive.value) return false
+    if (!isSplitActive.value || !activeLayout.value) return false
 
-    const targetPaneId = focusedPaneId.value ?? activeLayout.value?.panes[0]?.id
+    const targetPaneId = focusedPaneId.value ?? activeLayout.value.panes[0]?.id
     if (!targetPaneId) return false
 
-    // If the tab is already active in another pane, just focus that pane
-    for (const pane of activeLayout.value!.panes) {
+    for (const pane of activeLayout.value.panes) {
       if (pane.activeTabId === tabId) {
         focusPane(pane.id)
         return true
       }
     }
 
-    // Otherwise assign to focused pane
     setPaneActiveTab(targetPaneId, tabId)
     focusPane(targetPaneId)
     return true
@@ -173,7 +276,7 @@ export const useSplitStore = defineStore('split', () => {
 
     for (const pane of activeLayout.value.panes) {
       if (pane.activeTabId === tabId) {
-        const remaining = tabStore.workspaceTabs.filter((t) => t.id !== tabId)
+        const remaining = tabStore.workspaceTabs.filter((tab) => tab.id !== tabId)
         pane.activeTabId = remaining[pane.order]?.id ?? remaining[0]?.id ?? null
       }
     }
@@ -181,24 +284,59 @@ export const useSplitStore = defineStore('split', () => {
 
   /** Handle new tab creation — assign to focused pane */
   function handleTabCreated(tabId: string) {
-    if (!isSplitActive.value) return
-    const targetPaneId = focusedPaneId.value ?? activeLayout.value?.panes[0]?.id
+    if (!isSplitActive.value || !activeLayout.value) return
+    const targetPaneId = focusedPaneId.value ?? activeLayout.value.panes[0]?.id
     if (targetPaneId) {
       setPaneActiveTab(targetPaneId, tabId)
+    }
+  }
+
+  function movePane(
+    sourcePaneId: string,
+    targetPaneId: string,
+    position: SplitDropPosition,
+    metrics?: { sourceSize?: number; targetSize?: number }
+  ) {
+    if (!activeLayout.value || sourcePaneId === targetPaneId && position !== 'center') return
+
+    const nextRoot = movePaneInTree(
+      activeLayout.value.root,
+      sourcePaneId,
+      targetPaneId,
+      position,
+      normalizeSizes([metrics?.sourceSize ?? 1, metrics?.targetSize ?? 1], 2)
+    )
+
+    applyLayout('custom', activeLayout.value.panes, nextRoot, focusedPaneId.value)
+  }
+
+  function updateBranchSizes(path: number[], sizes: number[]) {
+    if (!activeLayout.value) return
+
+    const nextRoot = updateBranchSizesAtPath(activeLayout.value.root, path, sizes)
+    activeLayout.value = {
+      ...activeLayout.value,
+      root: nextRoot,
+      direction: getLayoutDirection(nextRoot),
+      sizes: getLayoutSizes(nextRoot),
+      panes: reorderPanesByTree(activeLayout.value.panes, nextRoot)
     }
   }
 
   /** Save current layout as a custom scheme */
   async function saveScheme(name: string) {
     if (!activeLayout.value) return
+
     const scheme: SavedSplitScheme = {
       id: `scheme-${Date.now()}`,
       name,
-      presetType: activeLayout.value.presetType as SplitPresetType,
+      presetType: activeLayout.value.presetType,
       direction: activeLayout.value.direction,
-      paneCount: activeLayout.value.panes.length,
-      sizes: [...activeLayout.value.sizes]
+      paneCount: countSplitLeaves(activeLayout.value.root),
+      sizes: [...activeLayout.value.sizes],
+      root: cloneSplitNode(activeLayout.value.root)
     }
+
     await api.split.createScheme(scheme)
     savedSchemes.value.push(scheme)
   }
@@ -206,7 +344,7 @@ export const useSplitStore = defineStore('split', () => {
   /** Delete a saved scheme */
   async function deleteScheme(id: string) {
     await api.split.deleteScheme(id)
-    savedSchemes.value = savedSchemes.value.filter((s) => s.id !== id)
+    savedSchemes.value = savedSchemes.value.filter((scheme) => scheme.id !== id)
   }
 
   /** Load saved schemes from main process */
@@ -221,13 +359,14 @@ export const useSplitStore = defineStore('split', () => {
     if (activeLayout.value) {
       await api.split.setState(workspaceId, {
         presetType: activeLayout.value.presetType,
-        panes: activeLayout.value.panes.map((p) => ({
-          id: p.id,
-          activeTabId: p.activeTabId,
-          order: p.order
+        panes: activeLayout.value.panes.map((pane) => ({
+          id: pane.id,
+          activeTabId: pane.activeTabId,
+          order: pane.order
         })),
         direction: activeLayout.value.direction,
-        sizes: [...activeLayout.value.sizes]
+        sizes: [...activeLayout.value.sizes],
+        root: cloneSplitNode(activeLayout.value.root)
       })
     } else {
       await api.split.clearState(workspaceId)
@@ -237,30 +376,39 @@ export const useSplitStore = defineStore('split', () => {
   /** Restore split state for the current workspace */
   async function restoreState() {
     const data = await api.split.getState(workspaceStore.activeWorkspaceId)
+
+    manualAdjustEnabled.value = false
+
     if (data) {
-      const panes = data.panes.map((p) => ({
-        id: p.id,
-        activeTabId: p.activeTabId,
-        order: p.order
+      const panes = data.panes.map((pane) => ({
+        id: pane.id,
+        activeTabId: pane.activeTabId,
+        order: pane.order
       }))
 
+      const root = buildRuntimeRoot(data.presetType, panes, data.root as SplitNode | undefined)
+      const orderedPanes = reorderPanesByTree(panes, root)
+
       activeLayout.value = {
-        presetType: data.presetType as SplitPresetType | 'custom',
-        panes,
-        direction: data.direction,
-        sizes: [...data.sizes]
+        presetType: detectLayoutType(root),
+        panes: orderedPanes,
+        direction: getLayoutDirection(root),
+        sizes: getLayoutSizes(root),
+        root
       }
-      focusedPaneId.value = getInitialPaneId(panes)
+
+      focusedPaneId.value = getInitialPaneId(orderedPanes)
       bumpLayoutRevision()
 
       if (focusedPaneId.value) {
         focusPane(focusedPaneId.value)
       }
-    } else {
-      activeLayout.value = null
-      focusedPaneId.value = null
-      bumpLayoutRevision()
+      return
     }
+
+    activeLayout.value = null
+    focusedPaneId.value = null
+    bumpLayoutRevision()
   }
 
   watch(
@@ -271,6 +419,15 @@ export const useSplitStore = defineStore('split', () => {
       const pane = activeLayout.value?.panes.find((item) => item.activeTabId === tabId)
       if (pane && focusedPaneId.value !== pane.id) {
         focusedPaneId.value = pane.id
+      }
+    }
+  )
+
+  watch(
+    isSplitActive,
+    (active) => {
+      if (!active) {
+        manualAdjustEnabled.value = false
       }
     }
   )
@@ -291,6 +448,7 @@ export const useSplitStore = defineStore('split', () => {
     focusedPaneId,
     savedSchemes,
     layoutRevision,
+    manualAdjustEnabled,
     paneCount,
     isSplitActive,
     activePanes,
@@ -302,6 +460,9 @@ export const useSplitStore = defineStore('split', () => {
     handleTabClick,
     handleTabClosed,
     handleTabCreated,
+    movePane,
+    updateBranchSizes,
+    setManualAdjustEnabled,
     applyScheme,
     saveScheme,
     deleteScheme,

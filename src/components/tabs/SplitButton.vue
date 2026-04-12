@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
+  Check,
   Columns2,
+  GripVertical,
   Square,
   Rows2,
   LayoutGrid,
@@ -51,6 +53,11 @@ function handleSave() {
 function handleDeleteScheme(id: string) {
   splitStore.deleteScheme(id)
 }
+
+function toggleManualAdjust() {
+  if (!splitStore.isSplitActive) return
+  splitStore.setManualAdjustEnabled(!splitStore.manualAdjustEnabled)
+}
 </script>
 
 <template>
@@ -69,6 +76,18 @@ function handleDeleteScheme(id: string) {
       >
         <component :is="preset.icon" class="size-4 mr-2" />
         <span class="flex-1">{{ preset.label }}</span>
+      </DropdownMenuItem>
+
+      <DropdownMenuSeparator />
+
+      <DropdownMenuItem
+        class="cursor-pointer"
+        :disabled="!splitStore.isSplitActive"
+        @click="toggleManualAdjust"
+      >
+        <GripVertical class="size-4 mr-2" />
+        <span class="flex-1">手动调整</span>
+        <Check v-if="splitStore.manualAdjustEnabled" class="size-4 text-primary" />
       </DropdownMenuItem>
 
       <DropdownMenuSeparator />

@@ -2,7 +2,7 @@
  * 基于真实 DOM 浮层检测 WebContentsView 是否应隐藏。
  * 比事件计数器更稳，能覆盖 HMR 后局部状态丢失的场景。
  */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const BLOCKING_OVERLAY_SELECTOR = [
   '[data-slot="dialog-overlay"][data-state="open"]',
@@ -21,6 +21,8 @@ let rafId: number | null = null
 
 /** 当前是否有覆盖层（dialog/dropdown/context-menu/popover）遮挡了 webview */
 export const isOverlayActive = ref(false)
+export const isForcedWebviewBlocked = ref(false)
+export const isWebviewBlocked = computed(() => isOverlayActive.value || isForcedWebviewBlocked.value)
 
 function isElementVisible(element: Element): boolean {
   if (!(element instanceof HTMLElement)) return true
@@ -78,6 +80,11 @@ export function stopWebviewOverlayDetection(): void {
   }
 
   isOverlayActive.value = false
+  isForcedWebviewBlocked.value = false
+}
+
+export function setForcedWebviewBlocked(blocked: boolean): void {
+  isForcedWebviewBlocked.value = blocked
 }
 
 /**
