@@ -7,7 +7,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from '@/components/ui/collapsible'
-import { ChevronRight, Globe, Film, Music, Archive, Image, FileText } from 'lucide-vue-next'
+import { ChevronRight, Globe, Film, Music, Archive, Image, FileText, Package } from 'lucide-vue-next'
+import { getFaviconUrl } from '@/lib/utils'
 
 const props = defineProps<{
   tasks: DownloadTask[]
@@ -47,6 +48,11 @@ const FILE_CATEGORIES: Record<string, { label: string; icon: any; extensions: st
     label: '文档',
     icon: FileText,
     extensions: ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.csv', '.md', '.rtf']
+  },
+  installer: {
+    label: '安装包',
+    icon: Package,
+    extensions: ['.exe', '.msi', '.dmg', '.pkg', '.deb', '.rpm', '.apk', '.appx', '.msix']
   }
 }
 
@@ -69,18 +75,27 @@ function getFileCategory(filename: string): string | null {
 
 // ====== 站点列表 ======
 
+/** 取域名的后两部分，如 cdn.github.com → github.com */
+function toBaseDomain(hostname: string): string {
+  const parts = hostname.split('.')
+  return parts.length > 2 ? parts.slice(-2).join('.') : hostname
+}
+
 const siteList = computed(() => {
   const counts = new Map<string, number>()
+  const origins = new Map<string, string>()
   for (const task of props.tasks) {
     try {
       const hostname = new URL(task.url).hostname
-      counts.set(hostname, (counts.get(hostname) || 0) + 1)
+      const base = toBaseDomain(hostname)
+      counts.set(base, (counts.get(base) || 0) + 1)
+      if (!origins.has(base)) origins.set(base, hostname)
     } catch {
       counts.set('未知来源', (counts.get('未知来源') || 0) + 1)
     }
   }
   return Array.from(counts.entries())
-    .map(([site, count]) => ({ site, count }))
+    .map(([site, count]) => ({ site, count, origin: origins.get(site) || site }))
     .sort((a, b) => b.count - a.count)
 })
 
@@ -123,13 +138,16 @@ const categoryCounts = computed(() => {
                 <span class="text-muted-foreground">{{ tasks.length }}</span>
               </button>
               <button
-                v-for="{ site, count } in siteList"
+                v-for="{ site, count, origin } in siteList"
                 :key="site"
                 class="flex items-center justify-between w-full rounded px-2 py-1.5 text-xs transition-colors"
                 :class="selectedSite === site ? 'bg-accent text-accent-foreground' : 'hover:bg-muted/50'"
                 @click="emit('update:selectedSite', selectedSite === site ? null : site)"
               >
-                <span class="truncate mr-2">{{ site }}</span>
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                  <img :src="getFaviconUrl(`https://${origin}`)" class="w-3.5 h-3.5 shrink-0 rounded-sm" />
+                  <span class="truncate">{{ site }}</span>
+                </div>
                 <span class="text-muted-foreground shrink-0">{{ count }}</span>
               </button>
             </div>

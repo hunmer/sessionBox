@@ -3,6 +3,7 @@ import { MoreHorizontal, Pencil, Trash2, ExternalLink } from 'lucide-vue-next'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useTabStore } from '@/stores/tab'
+import { setDragData, useDragState } from '@/composables/useBookmarkDragDrop'
 import type { Bookmark } from '@/types'
 
 const props = defineProps<{
@@ -16,6 +17,7 @@ const emit = defineEmits<{
 
 const bookmarkStore = useBookmarkStore()
 const tabStore = useTabStore()
+const { startDrag } = useDragState()
 
 async function handleOpen() {
   await tabStore.createTabForSite(props.bookmark.url, props.bookmark.pageId)
@@ -24,12 +26,28 @@ async function handleOpen() {
 async function handleDelete() {
   await bookmarkStore.deleteBookmark(props.bookmark.id)
 }
+
+function onDragStart(event: DragEvent) {
+  const dragItem = { type: 'bookmark' as const, id: props.bookmark.id }
+  setDragData(event, dragItem)
+  startDrag(dragItem)
+  event.dataTransfer!.effectAllowed = 'move'
+  const el = (event.currentTarget as HTMLElement)
+  el.classList.add('opacity-40')
+  const cleanup = () => {
+    el.classList.remove('opacity-40')
+    document.removeEventListener('dragend', cleanup)
+  }
+  document.addEventListener('dragend', cleanup)
+}
 </script>
 
 <template>
   <div
-    class="group flex items-center gap-2 px-3 py-2 rounded-md hover:bg-secondary cursor-pointer transition-colors"
+    class="bookmark-item group flex items-center gap-2 px-3 py-2 rounded-md hover:bg-secondary cursor-pointer transition-colors"
+    draggable="true"
     @dblclick="handleOpen"
+    @dragstart="onDragStart"
   >
     <!-- 图标 -->
     <div class="w-4 h-4 flex-shrink-0">

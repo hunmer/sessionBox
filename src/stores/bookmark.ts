@@ -105,6 +105,72 @@ export const useBookmarkStore = defineStore('bookmark', () => {
     return bookmarks.value.find((b) => b.url === url)
   }
 
+  // ====== 移动操作 ======
+
+  /** 移动文件夹到新的父级下指定位置 */
+  async function moveFolder(folderId: string, targetParentId: string | null, targetIndex: number) {
+    const folder = folders.value.find((f) => f.id === folderId)
+    if (!folder) return
+
+    const oldParentId = folder.parentId
+
+    // 如果同父级下移动，直接重排
+    if (oldParentId === targetParentId) {
+      const siblings = getChildFolders(oldParentId)
+      const reordered = siblings.filter((f) => f.id !== folderId)
+      reordered.splice(targetIndex, 0, folder)
+      await reorderFolders(reordered.map((f) => f.id))
+      return
+    }
+
+    // 跨父级移动：先更新 parentId
+    await updateFolder(folderId, { parentId: targetParentId })
+
+    // 在旧父级下重排剩余子项
+    const oldSiblings = getChildFolders(oldParentId)
+    if (oldSiblings.length > 0) {
+      await reorderFolders(oldSiblings.map((f) => f.id))
+    }
+
+    // 在新父级下插入并重排
+    const newSiblings = getChildFolders(targetParentId)
+    const reordered = newSiblings.filter((f) => f.id !== folderId)
+    reordered.splice(targetIndex, 0, folder)
+    await reorderFolders(reordered.map((f) => f.id))
+  }
+
+  /** 移动书签到新文件夹下指定位置 */
+  async function moveBookmark(bookmarkId: string, targetFolderId: string, targetIndex: number) {
+    const bookmark = bookmarks.value.find((b) => b.id === bookmarkId)
+    if (!bookmark) return
+
+    const oldFolderId = bookmark.folderId
+
+    // 如果同文件夹下移动，直接重排
+    if (oldFolderId === targetFolderId) {
+      const siblings = getBookmarksByFolder(oldFolderId)
+      const reordered = siblings.filter((b) => b.id !== bookmarkId)
+      reordered.splice(targetIndex, 0, bookmark)
+      await reorderBookmarks(reordered.map((b) => b.id))
+      return
+    }
+
+    // 跨文件夹移动：先更新 folderId
+    await updateBookmark(bookmarkId, { folderId: targetFolderId })
+
+    // 在旧文件夹下重排剩余书签
+    const oldSiblings = getBookmarksByFolder(oldFolderId)
+    if (oldSiblings.length > 0) {
+      await reorderBookmarks(oldSiblings.map((b) => b.id))
+    }
+
+    // 在新文件夹下插入并重排
+    const newSiblings = getBookmarksByFolder(targetFolderId)
+    const reordered = newSiblings.filter((b) => b.id !== bookmarkId)
+    reordered.splice(targetIndex, 0, bookmark)
+    await reorderBookmarks(reordered.map((b) => b.id))
+  }
+
   // ====== 导入导出 ======
 
   /** 解析 Chrome/Netscape 书签 HTML，返回待创建的文件夹和书签 */
@@ -327,6 +393,8 @@ export const useBookmarkStore = defineStore('bookmark', () => {
     updateBookmark,
     deleteBookmark,
     reorderBookmarks,
+    moveFolder,
+    moveBookmark,
     getBookmarksByFolder,
     isBookmarked,
     findBookmarkByUrl,

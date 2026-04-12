@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Workspace } from '../types'
 
 const api = window.api
 
 const WORKSPACE_VIEW_KEY = 'sessionbox-workspace-view'
+const ACTIVE_WORKSPACE_KEY = 'sessionbox-active-workspace-id'
 const DEFAULT_WORKSPACE_ID = '__default__'
 
 export type WorkspaceViewMode = 'grid' | 'icon'
@@ -63,6 +64,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
+  // 激活工作区变化时持久化，以便重启后恢复
+  watch(activeWorkspaceId, (id) => {
+    localStorage.setItem(ACTIVE_WORKSPACE_KEY, id)
+  })
+
   /** 激活工作区，压入历史栈 */
   function activate(id: string) {
     if (activeWorkspaceId.value === id) return
@@ -95,6 +101,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   async function init() {
     await loadWorkspaces()
+    // 恢复上次激活的工作区
+    const savedId = localStorage.getItem(ACTIVE_WORKSPACE_KEY)
+    if (savedId && workspaces.value.some((w) => w.id === savedId)) {
+      activeWorkspaceId.value = savedId
+    }
   }
 
   return {

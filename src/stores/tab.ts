@@ -14,6 +14,7 @@ export type TabGroupMode = 'none' | 'group' | 'account'
 const TAB_LAYOUT_KEY = 'sessionbox-tab-layout'
 const BOOKMARK_BAR_KEY = 'sessionbox-bookmark-bar-visible'
 const TAB_GROUP_KEY = 'sessionbox-tab-group-mode'
+const ACTIVE_TAB_KEY = 'sessionbox-active-tab-id'
 
 export const useTabStore = defineStore('tab', () => {
   interface TabProxyInfo {
@@ -243,9 +244,23 @@ export const useTabStore = defineStore('tab', () => {
     return tab
   }
 
+  /** 找到当前工作区的第一个 page，用于为无 pageId 的 tab 关联工作区 */
+  function findPageInActiveWorkspace(): string | null {
+    const pageStore = usePageStore()
+    const containerStore = useContainerStore()
+    const workspaceStore = useWorkspaceStore()
+    const activeId = workspaceStore.activeWorkspaceId
+    const page = pageStore.pages.find((p) => {
+      const group = containerStore.getGroup(p.groupId)
+      return (group?.workspaceId || '__default__') === activeId
+    })
+    return page?.id ?? null
+  }
+
   /** 使用指定 URL 创建新 tab（用于快捷网站 / 新窗口拦截） */
   async function createTabForSite(url: string, pageId?: string) {
-    const tab = await api.tab.create(pageId || null, url)
+    const resolvedPageId = pageId || findPageInActiveWorkspace()
+    const tab = await api.tab.create(resolvedPageId, url)
     // tab 由主进程 tab:created 事件添加，或 tab:activated 事件激活已有 tab
     await nextTick() // 确保 tab 先添加到列表再切换
     await switchTab(tab.id)
@@ -492,26 +507,31 @@ export const useTabStore = defineStore('tab', () => {
     // 恢复保存的 tab（重建 WebContentsView）
     if (tabs.value.length > 0) {
       await api.tab.restoreAll()
-      const sorted = sortedTabs.value
-      await switchTab(sorted[0].id)
+      // 优先恢复上次激活的 tab，否则回退到第一个
+      const savedActiveId = localStorage.getItem(ACTIVE_TAB_KEY)
+      const targetTab = savedActiveId ? tabs.value.find((t) => t.id === savedActiveId) : null
+      await switchTab(targetTab?.id ?? sortedTabs.value[0].id)
     }
   }
+
+  // 激活标签变化时持久化，以便重启后恢复
+  watch(activeTabId, (id) => {
+    if (id) localStorage.setItem(ACTIVE_TAB_KEY, id)
+  })
 
   // 工作区切换时，自动激活当前工作区内的 tab
   watch(() => {
     const workspaceStore = useWorkspaceStore()
     return workspaceStore.activeWorkspaceId
   }, () => {
-    // 如果当前是内部页面 tab，不自动切换
-    const currentTab = tabs.value.find((t) => t.id === activeTabId.value)
-    if (currentTab?.url.startsWith('sessionbox://')) return
+    // tabs 未加载完成时跳过（初始化期间的 workspace 恢复由 tabStore.init() 处理）
+    if (tabs.value.length === 0) return
 
     const inWorkspace = workspaceTabs.value.some((t) => t.id === activeTabId.value)
     if (inWorkspace) return
     if (workspaceTabs.value.length > 0) {
       switchTab(workspaceTabs.value[0].id)
     } else {
-      // 新工作区无 tab，隐藏当前 browserview
       activeTabId.value = null
       api.tab.switch('')
     }

@@ -11,8 +11,10 @@ import BookmarkFolderDialog from './BookmarkFolderDialog.vue'
 import BookmarkDialog from './BookmarkDialog.vue'
 import BookmarkCheckDialog from './BookmarkCheckDialog.vue'
 import { useBookmarkStore } from '@/stores/bookmark'
+import { provideDragState } from '@/composables/useBookmarkDragDrop'
 
 const bookmarkStore = useBookmarkStore()
+provideDragState()
 
 const selectedFolderId = ref<string>('')
 
