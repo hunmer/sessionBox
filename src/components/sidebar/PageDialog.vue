@@ -17,11 +17,11 @@ import {
 import { cn } from '@/lib/utils'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import IconPickerDialog from './IconPickerDialog.vue'
-import ContainerDialog from './ContainerDialog.vue'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
+import { useTabStore } from '@/stores/tab'
 import type { Page } from '@/types'
 
 const props = defineProps<{
@@ -40,6 +40,7 @@ const pageStore = usePageStore()
 const containerStore = useContainerStore()
 const proxyStore = useProxyStore()
 const bookmarkStore = useBookmarkStore()
+const tabStore = useTabStore()
 
 const name = ref('')
 const icon = ref('📄')
@@ -55,9 +56,6 @@ const isImageIcon = computed(() => icon.value.startsWith('img:'))
 
 /** 图标选择器打开状态 */
 const iconPickerOpen = ref(false)
-
-/** 容器管理对话框打开状态 */
-const containerDialogOpen = ref(false)
 
 /** URL Combobox 状态 */
 const comboboxOpen = ref(false)
@@ -249,7 +247,7 @@ function handleDelete() {
                 </SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="icon" @click="containerDialogOpen = true" title="管理容器">
+            <Button variant="outline" size="icon" @click="tabStore.createTabForSite('sessionbox://containers')" title="管理容器">
               <Settings class="w-4 h-4" />
             </Button>
           </div>
@@ -293,11 +291,5 @@ function handleDelete() {
     :current-icon="icon"
     @update:open="iconPickerOpen = $event"
     @confirm="icon = $event"
-  />
-
-  <!-- 容器管理对话框 -->
-  <ContainerDialog
-    :open="containerDialogOpen"
-    @update:open="containerDialogOpen = $event"
   />
 </template>

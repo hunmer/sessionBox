@@ -29,11 +29,13 @@ import { markRaw, type Component } from 'vue'
 import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
 import HistoryPage from '@/components/history/HistoryPage.vue'
 import DownloadsPage from '@/components/download/DownloadsPage.vue'
+import ContainersPage from '@/components/containers/ContainersPage.vue'
 
 const INTERNAL_PAGES: Record<string, Component> = {
   bookmarks: markRaw(BookmarksPage),
   history: markRaw(HistoryPage),
-  downloads: markRaw(DownloadsPage)
+  downloads: markRaw(DownloadsPage),
+  containers: markRaw(ContainersPage)
 }
 
 const internalPageComponent = computed(() => {

@@ -8,7 +8,6 @@ import NavUser from '@/components/NavUser.vue'
 import SidebarGroups from './SidebarGroups.vue'
 import GroupDialog from './GroupDialog.vue'
 import PageDialog from './PageDialog.vue'
-import ContainerDialog from './ContainerDialog.vue'
 import {
   SidebarContent,
   SidebarHeader,
@@ -43,7 +42,6 @@ const editingGroup = ref<Group | null>(null)
 const pageDialogOpen = ref(false)
 const editingPage = ref<Page | null>(null)
 const newPageGroupId = ref<string>('')
-const containerDialogOpen = ref(false)
 
 // 分组操作
 function handleEditGroup(group: Group) {
@@ -209,10 +207,5 @@ const workspaceSwitcherItems = computed(() => {
     :group-id="newPageGroupId"
     @save="handleSavePage"
     @delete="handleDeletePage"
-  />
-
-  <!-- 容器管理面板 -->
-  <ContainerDialog
-    v-model:open="containerDialogOpen"
   />
 </template>

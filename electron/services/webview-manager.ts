@@ -471,10 +471,19 @@ class WebviewManager {
       })
     }
 
-    // 复制图片
+    // 复制图片 / 复制图片地址
     if (params.hasImageContents && params.srcURL) {
       items.push({
         label: '复制图片',
+        click: () => {
+          const entry = this.views.get(tabId)
+          if (entry && !entry.view.webContents.isDestroyed()) {
+            entry.view.webContents.copyImageAt(params.x, params.y)
+          }
+        }
+      })
+      items.push({
+        label: '复制图片地址',
         click: () => {
           clipboard.writeText(params.srcURL)
         }
