@@ -52,6 +52,14 @@
       "to": "icon.png"
     },
     {
+      "from": "resources/trayIcon.png",
+      "to": "trayIcon.png"
+    },
+    {
+      "from": "resources/trayIconTemplate@2x.png",
+      "to": "trayIconTemplate@2x.png"
+    },
+    {
       "from": "win_packages",
       "to": "win_packages",
       "filter": ["**/*"]
