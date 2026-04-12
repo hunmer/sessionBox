@@ -241,14 +241,22 @@ export const useTabStore = defineStore('tab', () => {
     tabs.value = await api.tab.list()
   }
 
-  async function createTab(pageId: string) {
-    const tab = await api.tab.create(pageId)
-    // tab 由主进程 tab:created 事件添加
-    await switchTab(tab.id)
-    // Notify split store of new tab
+  async function activateCreatedTab(tabId: string, targetPaneId?: string | null) {
     const { useSplitStore } = await import('./split')
     const splitStore = useSplitStore()
-    splitStore.handleTabCreated(tab.id)
+
+    if (splitStore.isSplitActive) {
+      splitStore.handleTabCreated(tabId, targetPaneId)
+      return
+    }
+
+    await switchTab(tabId)
+  }
+
+  async function createTab(pageId: string, targetPaneId?: string | null) {
+    const tab = await api.tab.create(pageId)
+    // tab 由主进程 tab:created 事件添加
+    await activateCreatedTab(tab.id, targetPaneId)
     return tab
   }
 
@@ -266,20 +274,20 @@ export const useTabStore = defineStore('tab', () => {
   }
 
   /** 使用指定 URL 创建新 tab（用于快捷网站 / 新窗口拦截） */
-  async function createTabForSite(url: string, pageId?: string) {
+  async function createTabForSite(url: string, pageId?: string, targetPaneId?: string | null) {
     const resolvedPageId = pageId || findPageInActiveWorkspace()
     const tab = await api.tab.create(resolvedPageId, url)
     // tab 由主进程 tab:created 事件添加，或 tab:activated 事件激活已有 tab
     await nextTick() // 确保 tab 先添加到列表再切换
-    await switchTab(tab.id)
+    await activateCreatedTab(tab.id, targetPaneId)
     return tab
   }
 
   /** 使用指定 URL 创建新 tab（用于新窗口拦截） */
-  async function createTabWithUrl(pageId: string, url: string) {
+  async function createTabWithUrl(pageId: string, url: string, targetPaneId?: string | null) {
     const tab = await api.tab.create(pageId, url)
     // tab 由主进程 tab:created 事件添加
-    await switchTab(tab.id)
+    await activateCreatedTab(tab.id, targetPaneId)
     return tab
   }
 

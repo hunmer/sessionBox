@@ -4,6 +4,8 @@ import type { SplitDropPosition, SplitPane } from '@/types'
 import { isWebviewBlocked, setForcedWebviewBlocked } from '@/lib/webview-overlay'
 import { useSplitStore } from '@/stores/split'
 import { useTabStore } from '@/stores/tab'
+import type { Page } from '@/types'
+import NewTabDialog from './NewTabDialog.vue'
 import SplitLayoutTree from './SplitLayoutTree.vue'
 
 const splitStore = useSplitStore()
@@ -11,6 +13,8 @@ const tabStore = useTabStore()
 
 const draggingPaneId = ref<string | null>(null)
 const preview = ref<{ targetPaneId: string; position: SplitDropPosition } | null>(null)
+const showAddDialog = ref(false)
+const pendingAddTabPaneId = ref<string | null>(null)
 
 const paneMap = computed<Record<string, SplitPane | undefined>>(() =>
   Object.fromEntries(splitStore.activePanes.map((pane) => [pane.id, pane]))
@@ -57,6 +61,27 @@ function sendPaneBounds() {
 function handlePaneClick(paneId?: string | null) {
   if (!paneId) return
   splitStore.focusPane(paneId)
+}
+
+function handleRequestAddTab(paneId: string) {
+  splitStore.focusPane(paneId)
+  pendingAddTabPaneId.value = paneId
+  showAddDialog.value = true
+}
+
+function handleAddDialogOpenChange(open: boolean) {
+  showAddDialog.value = open
+  if (!open) {
+    pendingAddTabPaneId.value = null
+  }
+}
+
+function handleAddAccount(page: Page) {
+  tabStore.createTab(page.id, pendingAddTabPaneId.value)
+}
+
+function handleNavigateUrl(url: string) {
+  tabStore.createTabForSite(url, undefined, pendingAddTabPaneId.value)
 }
 
 function handleBranchLayout(path: number[], sizes: number[]) {
@@ -208,25 +233,34 @@ onUnmounted(() => {
   />
 
   <template v-else>
-    <div v-if="splitStore.activeLayout?.root" class="absolute inset-0">
-      <SplitLayoutTree
-        :node="splitStore.activeLayout.root"
-        :pane-map="paneMap"
-        :pane-titles="paneTitles"
-        :focused-pane-id="splitStore.focusedPaneId"
-        :manual-adjust-enabled="splitStore.manualAdjustEnabled"
-        :dragging-pane-id="draggingPaneId"
-        :preview="preview"
-        @pane-click="handlePaneClick"
-        @branch-layout="handleBranchLayout"
-        @drag-start="handleDragStart"
-        @drag-end="endDrag"
-        @drag-enter-pane="handleDragEnterPane"
-        @drag-over-pane="handleDragOverPane"
-        @drop-pane="handleDropPane"
-        @exit-manual-adjust="splitStore.setManualAdjustEnabled(false)"
+    <template v-if="splitStore.activeLayout?.root">
+      <div class="absolute inset-0">
+        <SplitLayoutTree
+          :node="splitStore.activeLayout.root"
+          :pane-map="paneMap"
+          :pane-titles="paneTitles"
+          :focused-pane-id="splitStore.focusedPaneId"
+          :manual-adjust-enabled="splitStore.manualAdjustEnabled"
+          :dragging-pane-id="draggingPaneId"
+          :preview="preview"
+          @pane-click="handlePaneClick"
+          @request-add-tab="handleRequestAddTab"
+          @branch-layout="handleBranchLayout"
+          @drag-start="handleDragStart"
+          @drag-end="endDrag"
+          @drag-enter-pane="handleDragEnterPane"
+          @drag-over-pane="handleDragOverPane"
+          @drop-pane="handleDropPane"
+          @exit-manual-adjust="splitStore.setManualAdjustEnabled(false)"
+        />
+      </div>
+      <NewTabDialog
+        :open="showAddDialog"
+        @update:open="handleAddDialogOpenChange"
+        @select="handleAddAccount"
+        @navigate="handleNavigateUrl"
       />
-    </div>
+    </template>
     <div v-else id="webview-container" class="absolute inset-0" />
   </template>
 </template>

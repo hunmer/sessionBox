@@ -155,6 +155,22 @@ export const useSplitStore = defineStore('split', () => {
     return panes.find((pane) => pane.activeTabId)?.id ?? panes[0]?.id ?? null
   }
 
+  function resolveNewTabPaneId(preferredPaneId?: string | null): string | null {
+    const panes = activeLayout.value?.panes ?? []
+    if (panes.length === 0) return null
+
+    if (preferredPaneId && panes.some((pane) => pane.id === preferredPaneId)) {
+      return preferredPaneId
+    }
+
+    const focusedPane = panes.find((pane) => pane.id === focusedPaneId.value)
+    if (focusedPane && !focusedPane.activeTabId) {
+      return focusedPane.id
+    }
+
+    return panes.find((pane) => !pane.activeTabId)?.id ?? focusedPane?.id ?? panes[0]?.id ?? null
+  }
+
   function applyLayout(
     presetType: SplitLayoutType,
     panes: SplitPane[],
@@ -282,12 +298,13 @@ export const useSplitStore = defineStore('split', () => {
     }
   }
 
-  /** Handle new tab creation — assign to focused pane */
-  function handleTabCreated(tabId: string) {
+  /** Handle new tab creation — prefer requested or empty pane before falling back */
+  function handleTabCreated(tabId: string, preferredPaneId?: string | null) {
     if (!isSplitActive.value || !activeLayout.value) return
-    const targetPaneId = focusedPaneId.value ?? activeLayout.value.panes[0]?.id
+    const targetPaneId = resolveNewTabPaneId(preferredPaneId)
     if (targetPaneId) {
       setPaneActiveTab(targetPaneId, tabId)
+      focusPane(targetPaneId)
     }
   }
 

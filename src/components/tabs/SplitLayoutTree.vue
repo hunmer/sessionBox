@@ -25,6 +25,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'pane-click': [paneId: string]
+  'request-add-tab': [paneId: string]
   'branch-layout': [path: number[], sizes: number[]]
   'drag-start': [event: DragEvent, paneId: string]
   'drag-end': []
@@ -81,6 +82,7 @@ function hotspotClass(position: SplitDropPosition): string {
             :preview="preview"
             :branch-path="[...branchPath, index]"
             @pane-click="emit('pane-click', $event)"
+            @request-add-tab="emit('request-add-tab', $event)"
             @branch-layout="(path, sizes) => emit('branch-layout', path, sizes)"
             @drag-start="(event, paneId) => emit('drag-start', event, paneId)"
             @drag-end="emit('drag-end')"
@@ -143,9 +145,15 @@ function hotspotClass(position: SplitDropPosition): string {
     >
       <div
         v-if="!pane?.activeTabId"
-        class="flex h-full items-center justify-center text-xs text-muted-foreground"
+        class="flex h-full items-center justify-center px-4"
       >
-        空
+        <button
+          type="button"
+          class="rounded-lg border border-dashed border-border/70 bg-background/70 px-4 py-2 text-xs text-muted-foreground transition hover:border-primary/45 hover:text-foreground"
+          @click.stop="emit('request-add-tab', node.paneId)"
+        >
+          【点击打开新标签】
+        </button>
       </div>
     </div>
 
