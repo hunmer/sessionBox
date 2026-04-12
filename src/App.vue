@@ -17,6 +17,7 @@ import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import UpdateNotification from '@/components/common/UpdateNotification.vue'
 import RightPanel from '@/components/common/RightPanel.vue'
 import SplitView from '@/components/tabs/SplitView.vue'
+import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
 import { useSplitStore } from '@/stores/split'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
@@ -61,6 +62,7 @@ const settingsInitialTab = ref('general')
 const ready = ref(false)
 const isMaximized = ref(false)
 const verticalTabAddDialog = ref(false)
+const tabOverviewOpen = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
 const shouldShowWebContentsView = computed(() =>
   !!tabStore.activeTab && !tabStore.isInternalPage && !isWebviewBlocked.value
@@ -366,6 +368,9 @@ useIpcEvent('shortcut', (actionId) => {
     case 'toggle-fullscreen':
       window.api.window.toggleFullscreen()
       break
+    case 'tab-overview':
+      tabOverviewOpen.value = !tabOverviewOpen.value
+      break
   }
 })
 </script>
@@ -516,6 +521,9 @@ useIpcEvent('shortcut', (actionId) => {
 
     <!-- 设置弹窗 -->
     <SettingsDialog :open="settingsDialogOpen" :initial-tab="settingsInitialTab" @update:open="settingsDialogOpen = $event" />
+
+    <!-- 标签页概览弹窗 -->
+    <TabOverviewDialog :open="tabOverviewOpen" @update:open="tabOverviewOpen = $event" />
 
     <!-- 更新提示弹窗 -->
     <UpdateNotification />

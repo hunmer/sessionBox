@@ -135,6 +135,7 @@ const api = {
     setMuted: (tabId, muted) => electron.ipcRenderer.invoke("tab:set-muted", tabId, muted),
     openInNewWindow: (tabId) => electron.ipcRenderer.invoke("tab:open-in-new-window", tabId),
     openInBrowser: (tabId) => electron.ipcRenderer.invoke("tab:open-in-browser", tabId),
+    capture: (tabIds) => electron.ipcRenderer.invoke("tab:capture", tabIds),
     updateBounds: (rect) => electron.ipcRenderer.send("tab:update-bounds", rect),
     setOverlayVisible: (visible) => electron.ipcRenderer.send("tab:set-overlay-visible", visible),
     restoreAll: () => electron.ipcRenderer.invoke("tab:restore-all"),
