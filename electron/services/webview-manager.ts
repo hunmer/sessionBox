@@ -315,6 +315,28 @@ class WebviewManager {
     this.pendingViews.set(tabId, { url, pageId, containerId })
   }
 
+  private ensureViewReady(tabId: string): ViewEntry | null {
+    const existing = this.views.get(tabId)
+    if (existing) return existing
+
+    if (this.frozenTabUrls.has(tabId)) {
+      const frozen = this.frozenTabUrls.get(tabId)!
+      this.frozenTabUrls.delete(tabId)
+      this.createView(tabId, frozen.pageId, frozen.url)
+      this.mainWindow?.webContents.send('on:tab:frozen', tabId, false)
+      return this.views.get(tabId) ?? null
+    }
+
+    if (this.pendingViews.has(tabId)) {
+      const pending = this.pendingViews.get(tabId)!
+      this.pendingViews.delete(tabId)
+      this.createView(tabId, pending.pageId, pending.url)
+      return this.views.get(tabId) ?? null
+    }
+
+    return null
+  }
+
   private setupEventForwarding(tabId: string, view: WebContentsView): void {
     const wc = view.webContents
     const win = this.mainWindow
@@ -587,22 +609,7 @@ class WebviewManager {
   switchView(tabId: string): void {
     if (!this.mainWindow) return
 
-    // If target tab is frozen, thaw it first
-    if (this.frozenTabUrls.has(tabId)) {
-      const frozen = this.frozenTabUrls.get(tabId)!
-      this.frozenTabUrls.delete(tabId)
-      this.createView(tabId, frozen.pageId, frozen.url)
-      this.mainWindow.webContents.send('on:tab:frozen', tabId, false)
-    }
-
-    // If target tab hasn't been created yet (lazy load), create it
-    if (!this.views.has(tabId) && this.pendingViews.has(tabId)) {
-      const pending = this.pendingViews.get(tabId)!
-      this.pendingViews.delete(tabId)
-      this.createView(tabId, pending.pageId, pending.url)
-    }
-
-    const target = this.views.get(tabId)
+    const target = this.ensureViewReady(tabId)
     if (!target) {
       this.activeTabId = null
       return
@@ -652,7 +659,7 @@ class WebviewManager {
 
     // Show and position all pane views
     for (const { tabId, rect } of paneBounds) {
-      const entry = this.views.get(tabId)
+      const entry = this.ensureViewReady(tabId)
       if (entry) {
         visibleTabIds.add(tabId)
         entry.view.setBounds(rect)
