@@ -59,6 +59,7 @@ import { registerUpdaterIpc } from './updater'
 import { registerExtensionHandlers } from './extensions'
 import { registerShortcutIpcHandlers } from './shortcut'
 import { registerBookmarkCheckIpc } from './bookmark-check'
+import { registerSplitIpcHandlers } from './split'
 import { webviewManager } from '../services/webview-manager'
 
 /** 容器图标存储目录 */
@@ -245,6 +246,9 @@ $img.Dispose()`
 
   // ====== 书签健康检查 ======
   registerBookmarkCheckIpc()
+
+  // ====== 分屏 ======
+  registerSplitIpcHandlers()
 
   // ====== 书签 ======
   ipcMain.handle('bookmark:list', () => listBookmarks())
