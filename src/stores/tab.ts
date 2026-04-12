@@ -245,6 +245,10 @@ export const useTabStore = defineStore('tab', () => {
     const tab = await api.tab.create(pageId)
     // tab 由主进程 tab:created 事件添加
     await switchTab(tab.id)
+    // Notify split store of new tab
+    const { useSplitStore } = await import('./split')
+    const splitStore = useSplitStore()
+    splitStore.handleTabCreated(tab.id)
     return tab
   }
 
@@ -293,6 +297,11 @@ export const useTabStore = defineStore('tab', () => {
     favicons.value.delete(tabId)
     proxyInfos.value.delete(tabId)
 
+    // Notify split store
+    const { useSplitStore } = await import('./split')
+    const splitStore = useSplitStore()
+    splitStore.handleTabClosed(tabId)
+
     // 如果关闭的是当前激活标签，只在当前工作区内选择相邻标签
     if (closingActive) {
       if (nextWorkspaceTabId && workspaceTabs.value.some((t) => t.id === nextWorkspaceTabId)) {
@@ -305,6 +314,15 @@ export const useTabStore = defineStore('tab', () => {
   }
 
   async function switchTab(tabId: string) {
+    // Let split store handle tab routing if split is active
+    const { useSplitStore } = await import('./split')
+    const splitStore = useSplitStore()
+
+    if (splitStore.isSplitActive) {
+      splitStore.handleTabClick(tabId)
+      return
+    }
+
     activeTabId.value = tabId
     await api.tab.switch(tabId)
   }
