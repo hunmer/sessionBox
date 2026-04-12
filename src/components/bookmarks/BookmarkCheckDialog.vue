@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ShieldCheck, CheckCircle2, XCircle, Loader2, FolderX } from 'lucide-vue-next'
 import { useBookmarkStore } from '@/stores/bookmark'
+import { useNotification } from '@/composables/useNotification'
 
 const props = defineProps<{
   open: boolean
@@ -18,6 +19,7 @@ const emit = defineEmits<{
 }>()
 
 const bookmarkStore = useBookmarkStore()
+const notify = useNotification()
 const api = window.api
 
 // ====== 配置参数 ======
@@ -198,16 +200,24 @@ async function cleanEmptyFolders() {
   isCleaningEmptyFolders.value = true
   try {
     const deletedIds = await bookmarkStore.deleteEmptyFolders()
-    if (deletedIds.length === 0) return
-    // 从结果中也移除属于已删除文件夹的书签
-    const folderIdSet = new Set(deletedIds)
-    results.value = results.value.filter((r) => {
-      const bm = bookmarkStore.bookmarks.find((b) => b.id === r.bookmarkId)
-      return !bm || !folderIdSet.has(bm.folderId)
-    })
-    selectedInvalidIds.value = new Set(
-      invalidResults.value.map((r) => r.bookmarkId)
-    )
+    if (deletedIds.length === 0) {
+      notify.info('没有发现空文件夹')
+      return
+    }
+    notify.success({ title: '清理完成', description: `已删除 ${deletedIds.length} 个空文件夹` })
+    // 检查结果存在时，同步清理已删除文件夹的书签结果
+    if (results.value.length > 0) {
+      const folderIdSet = new Set(deletedIds)
+      results.value = results.value.filter((r) => {
+        const bm = bookmarkStore.bookmarks.find((b) => b.id === r.bookmarkId)
+        return !bm || !folderIdSet.has(bm.folderId)
+      })
+      selectedInvalidIds.value = new Set(
+        invalidResults.value.map((r) => r.bookmarkId)
+      )
+    }
+  } catch {
+    notify.error('清理空文件夹失败')
   } finally {
     isCleaningEmptyFolders.value = false
   }
@@ -348,6 +358,17 @@ watch(() => props.open, (val) => {
       <!-- ====== 底部按钮 ====== -->
       <DialogFooter>
         <template v-if="phase === 'setup'">
+          <Button
+            variant="ghost"
+            size="sm"
+            :disabled="isCleaningEmptyFolders"
+            @click="cleanEmptyFolders"
+          >
+            <Loader2 v-if="isCleaningEmptyFolders" class="w-3.5 h-3.5 mr-1 animate-spin" />
+            <FolderX v-else class="w-3.5 h-3.5 mr-1" />
+            清空空文件夹
+          </Button>
+          <div class="flex-1" />
           <Button variant="ghost" size="sm" @click="handleClose">取消</Button>
           <Button size="sm" :disabled="bookmarkStore.bookmarks.length === 0" @click="startCheck">
             开始检查
@@ -360,16 +381,6 @@ watch(() => props.open, (val) => {
           </Button>
         </template>
         <template v-else-if="phase === 'result'">
-          <Button
-            variant="ghost"
-            size="sm"
-            :disabled="isCleaningEmptyFolders"
-            @click="cleanEmptyFolders"
-          >
-            <Loader2 v-if="isCleaningEmptyFolders" class="w-3.5 h-3.5 mr-1 animate-spin" />
-            <FolderX v-else class="w-3.5 h-3.5 mr-1" />
-            清空空文件夹
-          </Button>
           <Button variant="ghost" size="sm" @click="handleClose">关闭</Button>
           <Button
             v-if="invalidResults.length > 0"

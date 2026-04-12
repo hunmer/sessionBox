@@ -91,9 +91,9 @@ async function handleExport() {
 </script>
 
 <template>
-  <div class="h-full bg-background text-foreground">
+  <div class="h-full flex flex-col bg-background text-foreground">
     <!-- 顶部工具栏 -->
-    <div class="flex items-center gap-2 px-4 py-2 border-b border-border">
+    <div class="flex items-center gap-2 px-4 py-2 border-b border-border flex-shrink-0">
       <h2 class="text-sm font-semibold flex-shrink-0">书签管理</h2>
       <div class="flex-1" />
       <div class="relative w-48">
@@ -127,7 +127,7 @@ async function handleExport() {
     </div>
 
     <!-- 左右分栏 -->
-    <ResizablePanelGroup direction="horizontal" class="h-[calc(100%-40px)]">
+    <ResizablePanelGroup direction="horizontal" class="flex-1 min-h-0">
       <!-- 左侧文件夹树 -->
       <ResizablePanel :default-size="220" :min-size="160" :max-size="360" size-unit="px">
         <ScrollArea class="h-full">

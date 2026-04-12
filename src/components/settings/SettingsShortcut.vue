@@ -14,7 +14,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
-import { toast } from 'vue-sonner'
+import { useNotification } from '@/composables/useNotification'
+
+const notify = useNotification()
 
 const store = useShortcutStore()
 
@@ -117,7 +119,7 @@ async function onKeyDown(e: KeyboardEvent) {
 
   // 必须包含修饰键
   if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-    toast.warning('快捷键需要包含 Ctrl、Alt 或 Shift 修饰键')
+    notify.warning('快捷键需要包含 Ctrl、Alt 或 Shift 修饰键')
     return
   }
 
@@ -135,7 +137,7 @@ async function onKeyDown(e: KeyboardEvent) {
     pendingConflict.value = { targetId: id, accelerator, conflictId: result.conflictId, isGlobal }
     conflictDialogOpen.value = true
   } else if (!result.success) {
-    toast.error(result.error || '设置快捷键失败')
+    notify.error(result.error || '设置快捷键失败')
   }
 }
 
@@ -147,7 +149,7 @@ async function confirmOverride() {
   await store.clearShortcut(conflictId)
   const result = await store.updateShortcut(targetId, accelerator, isGlobal)
   if (!result.success) {
-    toast.error(result.error || '设置快捷键失败')
+    notify.error(result.error || '设置快捷键失败')
   }
 }
 
@@ -158,7 +160,7 @@ async function onGlobalChange(id: string, value: boolean) {
   const result = await store.updateShortcut(id, item.accelerator || '', value)
   console.log('[Shortcut] Switch update result:', result)
   if (!result.success) {
-    toast.error(result.error || '更新失败')
+    notify.error(result.error || '更新失败')
   }
 }
 
