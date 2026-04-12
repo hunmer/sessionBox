@@ -4,6 +4,7 @@ import { Plus, Minus, Square, X, Copy, PanelLeftClose, ChevronRight } from 'luci
 import { Button } from '@/components/ui/button'
 import draggable from 'vuedraggable'
 import TabLayoutMenu from './TabLayoutMenu.vue'
+import SplitButton from './SplitButton.vue'
 import NewTabDialog from './NewTabDialog.vue'
 import TabItem from './TabItem.vue'
 import { useTabStore } from '@/stores/tab'
@@ -168,6 +169,9 @@ function handleNavigateUrl(url: string) {
         @select="handleAddAccount"
         @navigate="handleNavigateUrl"
       />
+
+      <!-- 分屏按钮 -->
+      <SplitButton />
 
       <!-- 更多选项 -->
       <TabLayoutMenu direction="horizontal" />
