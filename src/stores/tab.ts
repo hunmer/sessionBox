@@ -555,6 +555,17 @@ export const useTabStore = defineStore('tab', () => {
         await createTab(id)
       }
     })
+
+    // Tray 菜单打开页面
+    api.on('tray:openInApp', async (pageId: unknown) => {
+      const id = pageId as string
+      const existingTab = sortedTabs.value.find(t => t.pageId === id)
+      if (existingTab) {
+        await switchTab(existingTab.id)
+      } else {
+        await createTab(id)
+      }
+    })
   }
 
   /** 初始化 */
