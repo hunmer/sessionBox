@@ -6,6 +6,7 @@ import { useHomepageStore, type HomepageOpenMethod } from '@/stores/homepage'
 
 const homepageStore = useHomepageStore()
 const isDefaultBrowser = ref(false)
+const minimizeOnClose = ref(true)
 
 async function checkDefaultBrowser() {
   isDefaultBrowser.value = await window.api.settings.checkDefaultBrowser()
@@ -17,8 +18,15 @@ async function toggleDefaultBrowser() {
   isDefaultBrowser.value = next
 }
 
-onMounted(() => {
+async function toggleMinimizeOnClose() {
+  const next = !minimizeOnClose.value
+  await window.api.settings.setMinimizeOnClose(next)
+  minimizeOnClose.value = next
+}
+
+onMounted(async () => {
   checkDefaultBrowser()
+  minimizeOnClose.value = await window.api.settings.getMinimizeOnClose()
 })
 
 const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
@@ -90,6 +98,26 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
       <span
         class="pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-sm transition-transform"
         :class="isDefaultBrowser ? 'translate-x-4' : 'translate-x-0'"
+      />
+    </button>
+  </div>
+
+  <h3 class="text-sm font-medium mb-3 mt-6">窗口行为</h3>
+  <div class="flex items-center justify-between">
+    <div>
+      <label class="text-xs text-muted-foreground">关闭时最小化到托盘</label>
+      <p class="text-xs text-muted-foreground/60 mt-0.5">关闭后应用将继续在后台运行</p>
+    </div>
+    <button
+      role="switch"
+      :aria-checked="minimizeOnClose"
+      class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+      :class="minimizeOnClose ? 'bg-primary' : 'bg-input'"
+      @click="toggleMinimizeOnClose"
+    >
+      <span
+        class="pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-sm transition-transform"
+        :class="minimizeOnClose ? 'translate-x-4' : 'translate-x-0'"
       />
     </button>
   </div>

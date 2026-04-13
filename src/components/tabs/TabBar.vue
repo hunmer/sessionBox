@@ -179,13 +179,14 @@ function handleNavigateUrl(url: string) {
       <!-- 更多选项 -->
       <TabLayoutMenu direction="horizontal" />
 
-      <div class="ml-1 flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-2 py-1">
-        <span class="select-none text-[11px] text-muted-foreground">沉浸</span>
-        <Switch
-          :model-value="immersiveMode"
-          @update:model-value="$emit('update:immersive-mode', $event)"
-        />
-      </div>
+      <Toggle
+        class="ml-1 h-7 gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 text-[11px] text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+        :model-value="immersiveMode"
+        @update:model-value="$emit('update:immersive-mode', $event)"
+        aria-label="Toggle immersive mode"
+      >
+        沉浸
+      </Toggle>
     </template>
 
     <!-- 窗口控制按钮 -->

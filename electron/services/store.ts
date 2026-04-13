@@ -154,6 +154,7 @@ interface StoreSchema {
   containerExtensions: Record<string, string[]>  // containerId -> extensionIds
   windowState: WindowState
   tabFreezeMinutes: number
+  minimizeOnClose: boolean
   shortcuts: ShortcutBindingStore[]
   mutedSites: string[]  // 默认静音的网站域名列表
   splitStates: Record<string, SplitLayoutData>
@@ -177,6 +178,7 @@ const defaults: StoreSchema = {
   containerExtensions: {},
   windowState: { width: 1280, height: 800, isMaximized: false },
   tabFreezeMinutes: 0, // 0 = 禁用冻结
+  minimizeOnClose: true,
   shortcuts: [],
   mutedSites: [],
   splitStates: {},
@@ -837,6 +839,14 @@ export function getTabFreezeMinutes(): number {
 
 export function setTabFreezeMinutes(minutes: number): void {
   store.set('tabFreezeMinutes', minutes)
+}
+
+export function getMinimizeOnClose(): boolean {
+  return store.get('minimizeOnClose', true)
+}
+
+export function setMinimizeOnClose(enabled: boolean): void {
+  store.set('minimizeOnClose', enabled)
 }
 
 // ====== 快捷键绑定操作 ======

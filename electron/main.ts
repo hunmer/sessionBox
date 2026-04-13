@@ -4,7 +4,7 @@ import { setupUserAgent } from './utils/user-agent'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
-import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes } from './services/store'
+import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes, getMinimizeOnClose } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
 import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
 import { trayManager } from './services/tray'
@@ -189,23 +189,28 @@ if (!gotTheLock) {
     mainWindow.on('resize', saveWindowBounds)
     mainWindow.on('move', saveWindowBounds)
 
-    // 窗口关闭时隐藏到托盘（真正退出由 isQuitting 标志控制）
+    // 窗口关闭时隐藏到托盘或直接退出（取决于用户设置）
     mainWindow.on('close', (e) => {
       if (!isQuitting) {
-        e.preventDefault()
-        if (!mainWindow.isMaximized()) {
-          const bounds = mainWindow.getBounds()
-          const state = getWindowState()
-          setWindowState({
-            ...state,
-            x: bounds.x,
-            y: bounds.y,
-            width: bounds.width,
-            height: bounds.height
-          })
+        const shouldMinimize = getMinimizeOnClose()
+        if (shouldMinimize) {
+          e.preventDefault()
+          if (!mainWindow.isMaximized()) {
+            const bounds = mainWindow.getBounds()
+            const state = getWindowState()
+            setWindowState({
+              ...state,
+              x: bounds.x,
+              y: bounds.y,
+              width: bounds.width,
+              height: bounds.height
+            })
+          }
+          mainWindow.hide()
+          return
         }
-        mainWindow.hide()
-        return
+        // minimizeOnClose 为 false 时，允许默认关闭行为
+        // isQuitting 仍为 false，但窗口关闭后会触发 window-all-closed
       }
       // 真正退出时保存状态
       if (!mainWindow.isMaximized()) {
@@ -316,6 +321,10 @@ if (!gotTheLock) {
 
   app.on('window-all-closed', () => {
     unregisterGlobalShortcuts()
-    // 不再自动退出，用户通过 Tray 菜单退出
+    // 当 minimizeOnClose 关闭时，窗口关闭即退出应用
+    if (!getMinimizeOnClose()) {
+      app.quit()
+    }
+    // 最小化到托盘模式：用户通过 Tray 菜单退出
   })
 }

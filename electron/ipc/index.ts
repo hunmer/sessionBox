@@ -37,6 +37,8 @@ import {
   reorderWorkspaces,
   getTabFreezeMinutes,
   setTabFreezeMinutes,
+  getMinimizeOnClose,
+  setMinimizeOnClose,
   getMutedSites,
   setMutedSites,
   addMutedSite,
@@ -399,6 +401,9 @@ $img.Dispose()`
     setTabFreezeMinutes(minutes)
     webviewManager.setFreezeMinutes(minutes)
   })
+
+  ipcMain.handle('settings:getMinimizeOnClose', () => getMinimizeOnClose())
+  ipcMain.handle('settings:setMinimizeOnClose', (_e, enabled: boolean) => setMinimizeOnClose(enabled))
 
   // ====== 默认浏览器 ======
   ipcMain.handle('settings:setDefaultBrowser', (_e, enabled: boolean) => {

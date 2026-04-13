@@ -186,7 +186,9 @@ const api = {
     getTabFreezeMinutes: () => electron.ipcRenderer.invoke("settings:getTabFreezeMinutes"),
     setTabFreezeMinutes: (minutes) => electron.ipcRenderer.invoke("settings:setTabFreezeMinutes", minutes),
     setDefaultBrowser: (enabled) => electron.ipcRenderer.invoke("settings:setDefaultBrowser", enabled),
-    checkDefaultBrowser: () => electron.ipcRenderer.invoke("settings:checkDefaultBrowser")
+    checkDefaultBrowser: () => electron.ipcRenderer.invoke("settings:checkDefaultBrowser"),
+    getMinimizeOnClose: () => electron.ipcRenderer.invoke("settings:getMinimizeOnClose"),
+    setMinimizeOnClose: (enabled) => electron.ipcRenderer.invoke("settings:setMinimizeOnClose", enabled)
   },
   mutedSites: {
     list: () => electron.ipcRenderer.invoke("mutedSites:list"),
