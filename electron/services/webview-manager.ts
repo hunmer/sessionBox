@@ -381,7 +381,7 @@ class WebviewManager {
     const win = this.mainWindow
     if (!win) return
 
-    const isWebUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://')
+    const isWebUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://') || url.startsWith('file:///')
     const canSend = () => !win.isDestroyed()
 
     wc.setWindowOpenHandler(({ url }) => {

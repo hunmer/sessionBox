@@ -45,8 +45,8 @@ function navigate() {
     tabStore.navigate(tabStore.activeTabId, url)
     return
   }
-  // 自动补全协议
-  const finalUrl = url.match(/^https?:\/\//) ? url : `https://${url}`
+  // 自动补全协议（file:// 和 http/https 保持原样）
+  const finalUrl = url.match(/^(https?|file):\/\//) ? url : `https://${url}`
   tabStore.navigate(tabStore.activeTabId, finalUrl)
 }
 
