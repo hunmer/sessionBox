@@ -33,12 +33,14 @@ import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
 import HistoryPage from '@/components/history/HistoryPage.vue'
 import DownloadsPage from '@/components/download/DownloadsPage.vue'
 import ContainersPage from '@/components/containers/ContainersPage.vue'
+import PluginsPage from '@/components/plugins/PluginsPage.vue'
 
 const INTERNAL_PAGES: Record<string, Component> = {
   bookmarks: markRaw(BookmarksPage),
   history: markRaw(HistoryPage),
   downloads: markRaw(DownloadsPage),
-  containers: markRaw(ContainersPage)
+  containers: markRaw(ContainersPage),
+  plugins: markRaw(PluginsPage)
 }
 
 type ImmersiveEdge = 'top' | 'left' | 'right' | 'bottom'
