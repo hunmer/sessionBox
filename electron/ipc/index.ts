@@ -229,6 +229,40 @@ $img.Dispose()`
     return `img:${fileName}`
   })
 
+  /** 从在线 URL 下载图片并保存为容器图标，返回图标标识（img:文件名） */
+  ipcMain.handle('container:uploadIconFromUrl', async (_event, url: string) => {
+    if (!url || typeof url !== 'string') return null
+
+    try {
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/133.0.0.0' },
+        signal: AbortSignal.timeout(15000),
+      })
+      if (!response.ok) return null
+
+      const contentType = response.headers.get('content-type') || ''
+      const extMap: Record<string, string> = {
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+        'image/gif': 'gif',
+        'image/webp': 'webp',
+        'image/svg+xml': 'svg',
+      }
+      const ext = extMap[contentType] || 'png'
+
+      if (!existsSync(iconDir)) mkdirSync(iconDir, { recursive: true })
+
+      const fileName = `${randomUUID()}.${ext}`
+      const destPath = join(iconDir, fileName)
+      const buffer = Buffer.from(await response.arrayBuffer())
+      writeFileSync(destPath, buffer)
+
+      return `img:${fileName}`
+    } catch {
+      return null
+    }
+  })
+
   // ====== 代理（详细处理在 ipc/proxy.ts，含热更新） ======
   registerProxyIpcHandlers()
 

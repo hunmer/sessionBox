@@ -100,6 +100,7 @@ const api = {
     delete: (id) => electron.ipcRenderer.invoke("container:delete", id),
     reorder: (containerIds) => electron.ipcRenderer.invoke("container:reorder", containerIds),
     uploadIcon: () => electron.ipcRenderer.invoke("container:uploadIcon"),
+    uploadIconFromUrl: (url) => electron.ipcRenderer.invoke("container:uploadIconFromUrl", url),
     createDesktopShortcut: (containerId) => electron.ipcRenderer.invoke("container:createDesktopShortcut", containerId)
   },
   page: {

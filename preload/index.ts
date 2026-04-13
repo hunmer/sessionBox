@@ -175,6 +175,8 @@ const api = {
     reorder: (containerIds: string[]): Promise<void> =>
       ipcRenderer.invoke('container:reorder', containerIds),
     uploadIcon: (): Promise<string | null> => ipcRenderer.invoke('container:uploadIcon'),
+    uploadIconFromUrl: (url: string): Promise<string | null> =>
+      ipcRenderer.invoke('container:uploadIconFromUrl', url),
     createDesktopShortcut: (containerId: string): Promise<string> =>
       ipcRenderer.invoke('container:createDesktopShortcut', containerId)
   },

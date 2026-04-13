@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Camera, SmilePlus, Plus, Pencil, Trash2 } from 'lucide-vue-next'
+import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
-import IconPickerDialog from '@/components/sidebar/IconPickerDialog.vue'
+import IconSelector from '@/components/common/IconSelector.vue'
 import { useContainerStore } from '@/stores/container'
 import { useProxyStore } from '@/stores/proxy'
 import type { Container } from '@/types'
@@ -28,7 +28,6 @@ const isCreating = ref(false)
 const editName = ref('')
 const editIcon = ref('📦')
 const editProxyId = ref(NO_PROXY)
-const iconPickerOpen = ref(false)
 
 // 删除确认
 const deleteTarget = ref<Container | null>(null)
@@ -39,9 +38,6 @@ const containers = computed(() => containerStore.containers)
 const proxyOptions = computed(() => proxyStore.proxies)
 
 const isDefault = (id: string) => id === 'default'
-
-/** 当前图标是否为自定义图片 */
-const isImageIcon = computed(() => editIcon.value.startsWith('img:'))
 
 /** 当前正在编辑的容器 ID（编辑模式） */
 const editingContainerId = computed(() =>
@@ -108,17 +104,6 @@ async function confirmDelete() {
   if (editingContainer.value?.id === deleteTarget.value.id) cancelEdit()
   deleteTarget.value = null
 }
-
-/** 上传自定义图标 */
-async function handleUploadIcon() {
-  const result = await window.api.container.uploadIcon()
-  if (result) editIcon.value = result
-}
-
-/** 清除自定义图标 */
-function clearImageIcon() {
-  editIcon.value = '📦'
-}
 </script>
 
 <template>
@@ -184,36 +169,8 @@ function clearImageIcon() {
 
           <!-- 图标 + 名称 -->
           <div class="flex items-center gap-5">
-            <div class="relative group/icon shrink-0">
-              <!-- 圆形图标 -->
-              <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-border flex items-center justify-center bg-muted">
-                <img v-if="isImageIcon" :src="`account-icon://${editIcon.slice(4)}`" alt="图标" class="w-full h-full object-cover" />
-                <EmojiRenderer v-else :emoji="editIcon" class="text-3xl [&_img]:w-9 [&_img]:h-9 [&_*:not(img)]:text-3xl" />
-              </div>
-              <!-- 图片 hover 清除按钮 -->
-              <button
-                v-if="isImageIcon"
-                class="absolute inset-0 rounded-full flex items-center justify-center bg-black/40 opacity-0 group-hover/icon:opacity-100 transition-opacity text-white text-xs"
-                @click="clearImageIcon"
-              >
-                ✕
-              </button>
-              <!-- 左下：选择图标 -->
-              <button
-                class="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center hover:bg-accent transition-colors"
-                title="选择图标"
-                @click="iconPickerOpen = true"
-              >
-                <SmilePlus class="w-3.5 h-3.5" />
-              </button>
-              <!-- 右下：上传图片 -->
-              <button
-                class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground shadow-sm flex items-center justify-center hover:bg-primary/90 transition-colors"
-                title="上传图片"
-                @click="handleUploadIcon"
-              >
-                <Camera class="w-3.5 h-3.5" />
-              </button>
+            <div class="shrink-0">
+              <IconSelector v-model="editIcon" :size="64" default-emoji="📦" emoji-class="text-3xl [&_img]:w-9 [&_img]:h-9 [&_*:not(img)]:text-3xl" />
             </div>
 
             <!-- 名称输入 -->
@@ -247,14 +204,6 @@ function clearImageIcon() {
         </div>
       </div>
     </div>
-
-    <!-- 图标选择器 -->
-    <IconPickerDialog
-      :open="iconPickerOpen"
-      :current-icon="editIcon"
-      @update:open="iconPickerOpen = $event"
-      @confirm="editIcon = $event"
-    />
 
     <!-- 删除确认 -->
     <AlertDialog :open="deleteAlertOpen" @update:open="deleteAlertOpen = $event">

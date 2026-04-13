@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
-import { Camera, SmilePlus, Settings, CheckIcon, ChevronsUpDownIcon, Box, ArrowRight } from 'lucide-vue-next'
+import { Settings, CheckIcon, ChevronsUpDownIcon, Box, ArrowRight } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
-import IconPickerDialog from './IconPickerDialog.vue'
+import IconSelector from '@/components/common/IconSelector.vue'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useProxyStore } from '@/stores/proxy'
@@ -62,12 +62,6 @@ const newContainerName = ref('')
 const newContainerProxyId = ref(NO_PROXY)
 const isContainerNameManual = ref(false)
 
-/** 当前图标是否为自定义图片 */
-const isImageIcon = computed(() => icon.value.startsWith('img:'))
-
-/** 图标选择器打开状态 */
-const iconPickerOpen = ref(false)
-
 /** URL Combobox 状态 */
 const comboboxOpen = ref(false)
 const comboboxSearch = ref('')
@@ -108,17 +102,6 @@ watch(() => props.open, (val) => {
     isContainerNameManual.value = false
   }
 })
-
-/** 上传自定义图标 */
-async function handleUploadIcon() {
-  const result = await window.api.container.uploadIcon()
-  if (result) icon.value = result
-}
-
-/** 清除自定义图标，恢复为 emoji */
-function clearImageIcon() {
-  icon.value = '📄'
-}
 
 function isCustomImageIcon(iconStr?: string): boolean {
   return !!iconStr?.startsWith('img:')
@@ -205,39 +188,7 @@ function handleDelete() {
 
       <div class="flex flex-col gap-5 py-2 min-w-0">
         <!-- 图标 -->
-        <div class="flex flex-col items-center gap-3">
-          <div class="relative group/icon">
-            <!-- 圆形图标 -->
-            <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-border flex items-center justify-center bg-muted">
-              <img v-if="isImageIcon" :src="`account-icon://${icon.slice(4)}`" alt="图标" class="w-full h-full object-cover" />
-              <EmojiRenderer v-else :emoji="icon" class="text-4xl [&_img]:w-10 [&_img]:h-10 [&_*:not(img)]:text-4xl" />
-            </div>
-            <!-- 图片 hover 清除按钮 -->
-            <button
-              v-if="isImageIcon"
-              class="absolute inset-0 rounded-full flex items-center justify-center bg-black/40 opacity-0 group-hover/icon:opacity-100 transition-opacity text-white text-sm"
-              @click="clearImageIcon"
-            >
-              ✕
-            </button>
-            <!-- 左下：选择 lucide 图标 -->
-            <button
-              class="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center hover:bg-accent transition-colors"
-              title="选择图标"
-              @click="iconPickerOpen = true"
-            >
-              <SmilePlus class="w-3.5 h-3.5" />
-            </button>
-            <!-- 右下：上传图片 -->
-            <button
-              class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground shadow-sm flex items-center justify-center hover:bg-primary/90 transition-colors"
-              title="上传图片"
-              @click="handleUploadIcon"
-            >
-              <Camera class="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+        <IconSelector v-model="icon" :size="80" default-emoji="📄" />
 
         <!-- 名称 -->
         <div class="flex flex-col gap-1.5">
@@ -448,12 +399,4 @@ function handleDelete() {
       </DialogFooter>
     </DialogContent>
   </Dialog>
-
-  <!-- 图标选择器 -->
-  <IconPickerDialog
-    :open="iconPickerOpen"
-    :current-icon="icon"
-    @update:open="iconPickerOpen = $event"
-    @confirm="icon = $event"
-  />
 </template>
