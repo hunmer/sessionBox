@@ -1,28 +1,29 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import {
   Radar,
   Copy,
-  ExternalLink,
   Download,
   Trash2,
-  Video,
   Music,
-  ImageIcon,
   Power,
-  Globe
+  Globe,
+  Play
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Waterfall } from 'vue-waterfall-plugin-next'
+import 'vue-waterfall-plugin-next/dist/style.css'
 import { useSnifferStore } from '@/stores/sniffer'
 import { useTabStore } from '@/stores/tab'
 import { toast } from 'vue-sonner'
 
 const snifferStore = useSnifferStore()
 const tabStore = useTabStore()
+const waterfallRef = ref<InstanceType<typeof Waterfall>>()
 
 onMounted(async () => {
   await snifferStore.init()
@@ -66,6 +67,18 @@ const resourceCount = computed(() => {
   return snifferStore.getResourceCount(tid)
 })
 
+/** 瀑布流列表：仅视频 + 图片 */
+const waterfallList = computed(() => {
+  return filteredResources.value
+    .filter(r => r.type === 'video' || r.type === 'image')
+    .map(r => ({ ...r, src: r.url }))
+})
+
+/** 音频列表：保持简单列表 */
+const audioResources = computed(() => {
+  return filteredResources.value.filter(r => r.type === 'audio')
+})
+
 function formatSize(bytes?: number): string {
   if (!bytes || bytes === 0) return ''
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -73,22 +86,26 @@ function formatSize(bytes?: number): string {
   return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i]
 }
 
-function typeIcon(type: 'video' | 'audio' | 'image') {
-  if (type === 'video') return Video
-  if (type === 'audio') return Music
-  return ImageIcon
+/** 图片加载完成 → 触发瀑布流重新布局 */
+function handleImgLoad() {
+  waterfallRef.value?.renderer()
 }
 
-function typeColor(type: 'video' | 'audio' | 'image'): string {
-  if (type === 'video') return 'text-blue-500'
-  if (type === 'audio') return 'text-green-500'
-  return 'text-orange-500'
+/** 卡片 hover → 播放视频 */
+function handleCardMouseEnter(e: MouseEvent) {
+  const card = e.currentTarget as HTMLElement
+  const video = card.querySelector('video')
+  video?.play().catch(() => {})
 }
 
-function typeBgColor(type: 'video' | 'audio' | 'image'): string {
-  if (type === 'video') return 'bg-blue-500/10'
-  if (type === 'audio') return 'bg-green-500/10'
-  return 'bg-orange-500/10'
+/** 卡片 leave → 暂停并重置视频 */
+function handleCardMouseLeave(e: MouseEvent) {
+  const card = e.currentTarget as HTMLElement
+  const video = card.querySelector('video')
+  if (video) {
+    video.pause()
+    video.currentTime = 0
+  }
 }
 
 async function handleToggleSniffing(val: boolean) {
@@ -118,10 +135,6 @@ async function handleCopy(url: string) {
   } catch {
     toast.error('复制失败')
   }
-}
-
-function handleOpenInNewWindow(url: string) {
-  tabStore.createTab(null, url)
 }
 
 async function handleDownload(url: string) {
@@ -188,7 +201,7 @@ async function handleClear() {
         size="sm"
         :class="[
           'h-6 text-[10px] px-2',
-          isFilterActive(ft) ? typeBgColor(ft) : 'opacity-50'
+          isFilterActive(ft) ? 'bg-primary/10' : 'opacity-50'
         ]"
         @click="handleToggleFilter(ft)"
       >
@@ -197,44 +210,118 @@ async function handleClear() {
     </div>
     <Separator />
 
-    <!-- 资源列表 -->
-    <ScrollArea class="h-[280px]">
+    <!-- 资源展示区 -->
+    <ScrollArea class="h-[320px]">
+      <!-- 空状态 -->
       <div v-if="filteredResources.length === 0" class="flex items-center justify-center py-8">
         <p class="text-xs text-muted-foreground">
           {{ isSniffing ? '等待捕获资源...' : '开启嗅探以捕获资源' }}
         </p>
       </div>
-      <div v-else class="py-1">
-        <div
-          v-for="res in filteredResources"
-          :key="res.id"
-          class="px-3 py-1.5 hover:bg-muted/50 rounded-sm transition-colors"
+
+      <div v-else class="p-1">
+        <!-- 双列瀑布流：视频 + 图片 -->
+        <Waterfall
+          v-if="waterfallList.length > 0"
+          ref="waterfallRef"
+          :list="waterfallList"
+          :gutter="4"
+          :has-around-gutter="false"
+          :breakpoints="{ 1200: { rowPerView: 2 }, 500: { rowPerView: 2 }, 300: { rowPerView: 2 } }"
+          :animation-cancel="true"
+          background-color="transparent"
         >
-          <div class="flex items-start gap-2">
-            <!-- 类型图标 -->
-            <div :class="['shrink-0 w-5 h-5 rounded flex items-center justify-center mt-0.5', typeBgColor(res.type)]">
-              <component :is="typeIcon(res.type)" :class="['h-3 w-3', typeColor(res.type)]" />
-            </div>
-            <!-- 信息 -->
-            <div class="flex-1 min-w-0 space-y-0.5">
-              <div class="flex items-center gap-1">
-                <span class="text-[10px] text-muted-foreground shrink-0">{{ res.mimeType }}</span>
-                <span v-if="res.size" class="text-[10px] text-muted-foreground">{{ formatSize(res.size) }}</span>
+          <template #default="{ item }">
+            <div
+              class="relative group rounded-md overflow-hidden cursor-pointer bg-muted/30"
+              @mouseenter="handleCardMouseEnter"
+              @mouseleave="handleCardMouseLeave"
+            >
+              <!-- 图片：直接用 URL 展示 -->
+              <img
+                v-if="item.type === 'image'"
+                :src="item.url"
+                class="w-full block rounded-md min-h-[60px]"
+                loading="lazy"
+                @load="handleImgLoad"
+              />
+              <!-- 视频：hover 播放，leave 暂停 -->
+              <video
+                v-else
+                :src="item.url"
+                muted
+                loop
+                preload="metadata"
+                class="w-full block rounded-md aspect-video bg-black/5"
+              />
+
+              <!-- 视频播放指示器（hover 时隐藏） -->
+              <div
+                v-if="item.type === 'video'"
+                class="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity"
+              >
+                <div class="bg-black/40 rounded-full p-1.5">
+                  <Play class="h-3 w-3 text-white" fill="white" />
+                </div>
               </div>
-              <p class="text-xs truncate text-foreground/80" :title="res.url">{{ res.url }}</p>
-              <!-- 操作按钮 -->
-              <div class="flex items-center gap-1">
-                <Button variant="ghost" size="sm" class="h-5 px-1.5 text-[10px]" @click="handleCopy(res.url)">
-                  <Copy class="h-2.5 w-2.5 mr-0.5" />
-                  复制
+
+              <!-- 文件大小标签 -->
+              <div
+                v-if="item.size"
+                class="absolute top-1 left-1 bg-black/50 rounded px-1"
+              >
+                <span class="text-[8px] text-white/80">{{ formatSize(item.size) }}</span>
+              </div>
+
+              <!-- Hover 操作按钮层 -->
+              <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="flex items-center justify-end gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="h-5 w-5 p-0 text-white hover:text-white hover:bg-white/20"
+                    @click.stop="handleCopy(item.url)"
+                  >
+                    <Copy class="h-2.5 w-2.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="h-5 w-5 p-0 text-white hover:text-white hover:bg-white/20"
+                    @click.stop="handleDownload(item.url)"
+                  >
+                    <Download class="h-2.5 w-2.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </Waterfall>
+
+        <!-- 音频：保持简洁列表 -->
+        <div v-if="audioResources.length > 0" class="mt-1 space-y-0.5">
+          <div
+            v-for="res in audioResources"
+            :key="res.id"
+            class="px-2 py-1.5 hover:bg-muted/50 rounded-sm transition-colors group"
+          >
+            <div class="flex items-center gap-2">
+              <div class="shrink-0 w-4 h-4 rounded flex items-center justify-center bg-green-500/10">
+                <Music class="h-2.5 w-2.5 text-green-500" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[10px] text-muted-foreground">
+                  {{ res.mimeType }}
+                  <span v-if="res.size">{{ formatSize(res.size) }}</span>
+                </p>
+                <p class="text-xs truncate text-foreground/80" :title="res.url">{{ res.url }}</p>
+              </div>
+              <div class="shrink-0 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="sm" class="h-5 px-1 text-[10px]" @click="handleCopy(res.url)">
+                  <Copy class="h-2.5 w-2.5" />
                 </Button>
-                <Button variant="ghost" size="sm" class="h-5 px-1.5 text-[10px]" @click="handleOpenInNewWindow(res.url)">
-                  <ExternalLink class="h-2.5 w-2.5 mr-0.5" />
-                  打开
-                </Button>
-                <Button variant="ghost" size="sm" class="h-5 px-1.5 text-[10px]" @click="handleDownload(res.url)">
-                  <Download class="h-2.5 w-2.5 mr-0.5" />
-                  下载
+                <Button variant="ghost" size="sm" class="h-5 px-1 text-[10px]" @click="handleDownload(res.url)">
+                  <Download class="h-2.5 w-2.5" />
                 </Button>
               </div>
             </div>

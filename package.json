@@ -22,6 +22,7 @@
     "dexie": "^4.4.2",
     "electron-chrome-extensions": "^4.9.0",
     "electron-store": "^8.2.0",
+    "eventemitter2": "^6.4.9",
     "lucide-vue-next": "^0.460.0",
     "pinia": "^2.3.0",
     "queue": "^7.0.0",
