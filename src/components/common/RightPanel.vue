@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -22,6 +22,8 @@ import ProxyMiniPopover from './ProxyMiniPopover.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import ContainerMiniPopover from './ContainerMiniPopover.vue'
 import SnifferMiniPopover from './SnifferMiniPopover.vue'
+import PluginMiniPopover from './PluginMiniPopover.vue'
+import PluginSettings from '@/components/plugins/PluginSettings.vue'
 
 const tabStore = useTabStore()
 const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
@@ -39,6 +41,7 @@ const proxyOpen = ref(false)
 const proxyDialogOpen = ref(false)
 const containerOpen = ref(false)
 const snifferOpen = ref(false)
+const pluginOpen = ref(false)
 
 function openFullPage(site: string) {
   bookmarkOpen.value = false
@@ -47,6 +50,7 @@ function openFullPage(site: string) {
   proxyOpen.value = false
   containerOpen.value = false
   snifferOpen.value = false
+  pluginOpen.value = false
   tabStore.createTabForSite(site)
 }
 </script>
@@ -128,6 +132,18 @@ function openFullPage(site: string) {
               <SnifferMiniPopover />
             </PopoverContent>
           </Popover>
+
+          <!-- 插件 -->
+          <Popover v-model:open="pluginOpen">
+            <PopoverTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-8 w-8">
+                <Puzzle class="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+              <PluginMiniPopover @open-full="openFullPage('sessionbox://plugins')" />
+            </PopoverContent>
+          </Popover>
         </div>
       </ResizablePanel>
 
@@ -163,5 +179,8 @@ function openFullPage(site: string) {
 
     <!-- 代理管理对话框 -->
     <ProxyDialog v-model:open="proxyDialogOpen" />
+
+    <!-- 插件设置对话框 -->
+    <PluginSettings />
   </div>
 </template>

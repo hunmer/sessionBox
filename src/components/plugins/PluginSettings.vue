@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -21,15 +21,7 @@ async function mountDynamicView(pluginId: string) {
 
   const viewContent = await pluginStore.loadViewContent(pluginId)
 
-  // 等待 DOM 更新
-  await new Promise<void>((resolve) => {
-    const stop = watch(containerRef, (el) => {
-      if (el) {
-        stop()
-        resolve()
-      }
-    }, { immediate: true })
-  })
+  await nextTick()
 
   if (!viewContent || !containerRef.value) return
 
