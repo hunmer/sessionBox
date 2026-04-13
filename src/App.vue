@@ -27,7 +27,7 @@ import { useBookmarkStore } from '@/stores/bookmark'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useHomepageStore } from '@/stores/homepage'
 import { useIpcEvent } from '@/composables/useIpc'
-import { isOverlayActive, isWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
+import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
 import { markRaw, type Component } from 'vue'
 import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
 import HistoryPage from '@/components/history/HistoryPage.vue'
@@ -40,6 +40,8 @@ const INTERNAL_PAGES: Record<string, Component> = {
   downloads: markRaw(DownloadsPage),
   containers: markRaw(ContainersPage)
 }
+
+type ImmersiveEdge = 'top' | 'left' | 'right' | 'bottom'
 
 const internalPageComponent = computed(() => {
   const path = tabStore.internalPagePath
@@ -61,6 +63,8 @@ const settingsDialogOpen = ref(false)
 const settingsInitialTab = ref('general')
 const ready = ref(false)
 const isMaximized = ref(false)
+const IMMERSIVE_STORAGE_KEY = 'sessionbox-immersive-mode'
+const immersiveMode = ref(localStorage.getItem(IMMERSIVE_STORAGE_KEY) === '1')
 const verticalTabAddDialog = ref(false)
 const tabOverviewOpen = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
@@ -173,6 +177,13 @@ const SIDEBAR_DEFAULT_SIZE = 260
 // ====== 垂直标签栏面板控制 ======
 const VERTICAL_TAB_STORAGE_KEY = 'sessionbox-vertical-tab-width'
 const VERTICAL_TAB_DEFAULT_SIZE = 180
+const IMMERSIVE_HIDE_DELAY = 900
+const IMMERSIVE_EDGE_TRIGGER_SIZE = 16
+const RIGHT_PANEL_WIDTH = 50
+const TAB_BAR_HEIGHT = 42
+const TOOLBAR_HEIGHT = 42
+const BOOKMARK_BAR_HEIGHT = 34
+const BOTTOM_PANEL_HEIGHT = 30
 
 const sidebarPanelRef = ref<InstanceType<typeof ResizablePanel>>()
 
@@ -185,13 +196,108 @@ const sidebarCollapsed = ref(savedWidth ? Number(savedWidth) <= SIDEBAR_COLLAPSE
 // 从 localStorage 恢复垂直标签栏宽度
 const savedVerticalTabWidth = localStorage.getItem(VERTICAL_TAB_STORAGE_KEY)
 const verticalTabDefaultSize = savedVerticalTabWidth ? Number(savedVerticalTabWidth) : VERTICAL_TAB_DEFAULT_SIZE
+const sidebarCurrentSize = ref(sidebarDefaultSize)
+const sidebarExpandedSize = ref(sidebarDefaultSize)
+const verticalTabCurrentSize = ref(verticalTabDefaultSize)
+const immersivePanelVisible = ref<Record<ImmersiveEdge, boolean>>({
+  top: false,
+  left: false,
+  right: false,
+  bottom: false
+})
+const immersiveHideTimers: Partial<Record<ImmersiveEdge, ReturnType<typeof setTimeout>>> = {}
+const immersiveSidebarSize = computed(() => Math.max(sidebarExpandedSize.value, SIDEBAR_MIN_SIZE))
+const immersiveVerticalTabSize = computed(() => Math.max(verticalTabCurrentSize.value, 120))
+const immersiveLeftPanelWidth = computed(() =>
+  immersiveSidebarSize.value + (tabStore.tabLayout === 'vertical' ? immersiveVerticalTabSize.value : 0)
+)
+const immersiveContentInsetStyle = computed(() => {
+  if (!immersiveMode.value) return undefined
+
+  const baseInset = IMMERSIVE_EDGE_TRIGGER_SIZE
+  const topInset = baseInset + (immersivePanelVisible.value.top
+    ? TAB_BAR_HEIGHT + (tabStore.activeTab ? TOOLBAR_HEIGHT : 0) + (tabStore.bookmarkBarVisible ? BOOKMARK_BAR_HEIGHT : 0)
+    : 0)
+  const rightInset = baseInset + (immersivePanelVisible.value.right ? RIGHT_PANEL_WIDTH : 0)
+  const bottomInset = baseInset + (immersivePanelVisible.value.bottom ? BOTTOM_PANEL_HEIGHT : 0)
+  const leftInset = baseInset + (immersivePanelVisible.value.left ? immersiveLeftPanelWidth.value : 0)
+
+  return {
+    top: `${topInset}px`,
+    right: `${rightInset}px`,
+    bottom: `${bottomInset}px`,
+    left: `${leftInset}px`
+  }
+})
 
 /** 节流保存面板宽度 + 同步 webview bounds */
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+function clearImmersiveHideTimer(edge: ImmersiveEdge) {
+  const timer = immersiveHideTimers[edge]
+  if (timer) {
+    clearTimeout(timer)
+    delete immersiveHideTimers[edge]
+  }
+}
+
+function setImmersivePanelVisible(edge: ImmersiveEdge, visible: boolean) {
+  immersivePanelVisible.value = {
+    ...immersivePanelVisible.value,
+    [edge]: visible
+  }
+}
+
+function showImmersivePanel(edge: ImmersiveEdge) {
+  if (!immersiveMode.value) return
+  clearImmersiveHideTimer(edge)
+  setImmersivePanelVisible(edge, true)
+}
+
+function hideImmersivePanel(edge: ImmersiveEdge) {
+  clearImmersiveHideTimer(edge)
+  setImmersivePanelVisible(edge, false)
+}
+
+function scheduleHideImmersivePanel(edge: ImmersiveEdge, delay = IMMERSIVE_HIDE_DELAY) {
+  if (!immersiveMode.value) return
+  clearImmersiveHideTimer(edge)
+  immersiveHideTimers[edge] = setTimeout(() => {
+    hideImmersivePanel(edge)
+  }, delay)
+}
+
+function closeAllImmersivePanels() {
+  ;(['top', 'left', 'right', 'bottom'] as ImmersiveEdge[]).forEach((edge) => {
+    clearImmersiveHideTimer(edge)
+  })
+  immersivePanelVisible.value = {
+    top: false,
+    left: false,
+    right: false,
+    bottom: false
+  }
+}
+
+function handleImmersiveModeChange(enabled: boolean) {
+  immersiveMode.value = enabled
+  if (enabled) {
+    showImmersivePanel('top')
+    scheduleHideImmersivePanel('top', 1500)
+  } else {
+    closeAllImmersivePanels()
+  }
+}
 function handleLayout(sizes: number[]) {
   // 从布局尺寸变化同步侧边栏折叠状态（比依赖 collapse/expand 事件更可靠）
   if (sizes.length > 0) {
+    sidebarCurrentSize.value = Math.max(Math.round(sizes[0]), SIDEBAR_MIN_SIZE)
+    if (Math.round(sizes[0]) > SIDEBAR_COLLAPSED_SIZE) {
+      sidebarExpandedSize.value = Math.max(Math.round(sizes[0]), SIDEBAR_MIN_SIZE)
+    }
     sidebarCollapsed.value = Math.round(sizes[0]) <= SIDEBAR_COLLAPSED_SIZE
+  }
+  if (tabStore.tabLayout === 'vertical' && sizes.length >= 3) {
+    verticalTabCurrentSize.value = Math.max(Math.round(sizes[1]), 120)
   }
   nextTick(() => sendBounds())
   if (saveTimer) clearTimeout(saveTimer)
@@ -209,15 +315,18 @@ function handleLayout(sizes: number[]) {
 function toggleSidebar() {
   const panel = sidebarPanelRef.value as any
   if (!panel) return
+  const currentSize = panel.getSize?.()
   if (sidebarCollapsed.value) {
-    // 展开到默认宽度
-    panel.resize(SIDEBAR_DEFAULT_SIZE)
+    panel.resize(Math.max(sidebarExpandedSize.value, SIDEBAR_MIN_SIZE))
     sidebarCollapsed.value = false
-  } else {
-    // 折叠到最小宽度
-    panel.resize(SIDEBAR_MIN_SIZE)
-    sidebarCollapsed.value = true
+    return
   }
+
+  if (currentSize != null && Math.round(currentSize) > SIDEBAR_COLLAPSED_SIZE) {
+    sidebarExpandedSize.value = Math.max(Math.round(currentSize), SIDEBAR_MIN_SIZE)
+  }
+  panel.resize(SIDEBAR_MIN_SIZE)
+  sidebarCollapsed.value = true
 }
 
 // 窗口最大化状态
@@ -294,6 +403,10 @@ onMounted(async () => {
       if (panel) {
         const size = panel.getSize?.()
         if (size != null) {
+          sidebarCurrentSize.value = Math.max(Math.round(size), SIDEBAR_MIN_SIZE)
+          if (Math.round(size) > SIDEBAR_COLLAPSED_SIZE) {
+            sidebarExpandedSize.value = Math.max(Math.round(size), SIDEBAR_MIN_SIZE)
+          }
           sidebarCollapsed.value = Math.round(size) <= SIDEBAR_COLLAPSED_SIZE
         }
       }
@@ -305,6 +418,8 @@ onMounted(async () => {
 onUnmounted(() => {
   resizeObserver?.disconnect()
   if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
+  closeAllImmersivePanels()
+  setForcedWebviewBlocked(false)
   window.removeEventListener('beforeunload', handleBeforeUnload)
   stopWebviewOverlayDetection()
 })
@@ -327,6 +442,24 @@ watch(() => splitStore.layoutRevision, () => {
 watch(() => tabStore.bookmarkBarVisible, () => {
   nextTick(() => sendBounds())
 })
+
+watch(immersiveMode, (enabled) => {
+  localStorage.setItem(IMMERSIVE_STORAGE_KEY, enabled ? '1' : '0')
+  if (!enabled) {
+    closeAllImmersivePanels()
+  }
+  nextTick(() => sendBounds())
+}, { flush: 'post' })
+
+watch(() => ({
+  top: immersivePanelVisible.value.top,
+  right: immersivePanelVisible.value.right,
+  bottom: immersivePanelVisible.value.bottom,
+  left: immersivePanelVisible.value.left
+}), () => {
+  setForcedWebviewBlocked(false)
+  nextTick(() => syncWebContentsViewVisibility())
+}, { flush: 'post' })
 
 useIpcEvent('tab:request-bounds', () => {
   nextTick(() => syncWebContentsViewVisibility())
@@ -363,7 +496,15 @@ useIpcEvent('shortcut', (actionId) => {
       break
     }
     case 'toggle-sidebar':
-      toggleSidebar()
+      if (immersiveMode.value) {
+        if (immersivePanelVisible.value.left) {
+          hideImmersivePanel('left')
+        } else {
+          showImmersivePanel('left')
+        }
+      } else {
+        toggleSidebar()
+      }
       break
     case 'new-container':
       // 由 Sidebar 内部处理，此处通过全局事件通知
@@ -401,7 +542,8 @@ useIpcEvent('shortcut', (actionId) => {
     >
       <!-- 全宽窗口悬浮拖拽条 -->
       <div class="absolute top-0 inset-x-0 h-[12px] z-50" style="-webkit-app-region: drag" />
-      <ResizablePanelGroup :key="tabStore.tabLayout" direction="horizontal" @layout="handleLayout">
+      <ResizablePanelGroup v-if="!immersiveMode" :key="tabStore.tabLayout" direction="horizontal" @layout="handleLayout">
+        <template v-if="!immersiveMode">
         <!-- 侧边栏面板 -->
         <ResizablePanel
           ref="sidebarPanelRef"
@@ -428,17 +570,24 @@ useIpcEvent('shortcut', (actionId) => {
         </template>
 
         <!-- 主内容区面板 -->
+        </template>
         <ResizablePanel>
           <div class="flex flex-col h-full min-w-0">
             <template v-if="ready">
               <!-- 水平标签栏 -->
-              <TabBar :is-maximized="isMaximized" @toggle-sidebar="toggleSidebar" />
+              <TabBar
+                v-if="!immersiveMode"
+                :is-maximized="isMaximized"
+                :immersive-mode="immersiveMode"
+                @toggle-sidebar="toggleSidebar"
+                @update:immersive-mode="handleImmersiveModeChange"
+              />
 
                <!-- 工具栏 -->
-              <BrowserToolbar v-if="tabStore.activeTab" />
+              <BrowserToolbar v-if="tabStore.activeTab && !immersiveMode" />
 
               <!-- 快捷网站栏 -->
-              <BookmarkBar v-if="tabStore.bookmarkBarVisible" />
+              <BookmarkBar v-if="tabStore.bookmarkBarVisible && !immersiveMode" />
              
               <!-- WebContentsView 占位区域 -->
               <div class="flex-1 relative bg-background">
@@ -446,6 +595,7 @@ useIpcEvent('shortcut', (actionId) => {
                 <div
                   v-show="tabStore.isInternalPage"
                   class="absolute inset-x-0 top-0 bottom-2 z-20 overflow-auto"
+                  :style="immersiveContentInsetStyle"
                 >
                   <KeepAlive>
                     <component
@@ -480,9 +630,15 @@ useIpcEvent('shortcut', (actionId) => {
                   <p class="text-sm text-muted-foreground/60">页面已暂停</p>
                 </div>
                 <!-- 主进程在此区域叠加 WebContentsView -->
-                <SplitView :key="splitStore.layoutRevision" class="absolute inset-x-0 top-0 bottom-7" />
+                <div
+                  class="absolute inset-x-0 top-0"
+                  :class="immersiveMode ? 'bottom-0' : 'bottom-7'"
+                  :style="immersiveContentInsetStyle"
+                >
+                  <SplitView :key="splitStore.layoutRevision" class="absolute inset-0" />
+                </div>
                 <!-- 页面加载进度条 -->
-                <div class="absolute bottom-[3px] inset-x-0 z-20">
+                <div v-if="!immersiveMode" class="absolute bottom-[3px] inset-x-0 z-20">
                   <div class="h-6 w-full border-t bg-background/95 backdrop-blur-sm px-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                     <span class="truncate">
                       {{ tabStore.activeTab?.url || '就绪' }}
@@ -510,7 +666,7 @@ useIpcEvent('shortcut', (actionId) => {
                   enter-active-class="transition-opacity duration-200"
                   leave-active-class="transition-opacity duration-300"
                 >
-                  <div v-if="showProgress" class="absolute bottom-0 inset-x-0 z-30">
+                  <div v-if="showProgress && !immersiveMode" class="absolute bottom-0 inset-x-0 z-30">
                     <Progress :model-value="loadingProgress" class="h-[3px] rounded-none" />
                   </div>
                 </Transition>
@@ -525,13 +681,183 @@ useIpcEvent('shortcut', (actionId) => {
         </ResizablePanel>
 
         <!-- 右侧面板（固定 50px） -->
-        <div class="w-[50px] shrink-0 h-full border-l border-border">
+        <div v-if="!immersiveMode" class="w-[50px] shrink-0 h-full border-l border-border">
           <RightPanel
             @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
             @open-proxy="proxyDialogOpen = true"
           />
         </div>
       </ResizablePanelGroup>
+
+      <div v-else class="flex h-full min-w-0 flex-col">
+        <template v-if="ready">
+          <div class="relative flex-1 bg-background">
+            <div
+              v-show="tabStore.isInternalPage"
+              class="absolute inset-x-0 top-0 bottom-2 z-20 overflow-auto"
+              :style="immersiveContentInsetStyle"
+            >
+              <KeepAlive>
+                <component
+                  :is="internalPageComponent"
+                  v-if="internalPageComponent"
+                  @open-download-settings="settingsDialogOpen = true; settingsInitialTab = 'download'"
+                />
+              </KeepAlive>
+              <div v-if="!internalPageComponent && tabStore.isInternalPage" class="flex h-full items-center justify-center">
+                <p class="text-sm text-muted-foreground">未知页面</p>
+              </div>
+            </div>
+
+            <div
+              v-if="!tabStore.activeTab"
+              class="flex h-full flex-col items-center justify-center gap-4"
+            >
+              <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
+                <svg class="h-8 w-8 text-muted-foreground/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5a17.92 17.92 0 0 1-8.716-2.247m0 0A8.966 8.966 0 0 1 3 12c0-1.264.26-2.466.73-3.555" />
+                </svg>
+              </div>
+              <div class="text-center">
+                <p class="text-sm text-muted-foreground">点击左侧容器或使用标签栏 + 按钮打开新标签页</p>
+              </div>
+            </div>
+
+            <div
+              v-else-if="isOverlayActive"
+              class="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            >
+              <p class="text-sm text-muted-foreground/60">页面已暂停</p>
+            </div>
+
+            <div class="absolute inset-0" :style="immersiveContentInsetStyle">
+              <SplitView :key="splitStore.layoutRevision" class="absolute inset-0" />
+            </div>
+          </div>
+        </template>
+
+        <div v-else class="flex flex-1 items-center justify-center">
+          <p class="text-sm text-muted-foreground">加载中...</p>
+        </div>
+      </div>
+
+      <template v-if="ready && immersiveMode">
+        <div
+          class="absolute left-0 top-0 bottom-0 z-30"
+          :style="{ width: `${IMMERSIVE_EDGE_TRIGGER_SIZE}px` }"
+          @mouseenter="showImmersivePanel('left')"
+        />
+        <div
+          class="absolute right-0 top-0 bottom-0 z-30"
+          :style="{ width: `${IMMERSIVE_EDGE_TRIGGER_SIZE}px` }"
+          @mouseenter="showImmersivePanel('right')"
+        />
+        <div
+          class="absolute left-0 right-0 z-30"
+          :style="{ top: '12px', height: `${IMMERSIVE_EDGE_TRIGGER_SIZE}px` }"
+          @mouseenter="showImmersivePanel('top')"
+        />
+        <div
+          class="absolute bottom-0 left-0 right-0 z-30"
+          :style="{ height: `${IMMERSIVE_EDGE_TRIGGER_SIZE}px` }"
+          @mouseenter="showImmersivePanel('bottom')"
+        />
+
+        <div
+          class="absolute inset-x-0 top-0 z-40 transition-all duration-300 ease-out"
+          :class="immersivePanelVisible.top ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'"
+          @mouseenter="showImmersivePanel('top')"
+          @mouseleave="scheduleHideImmersivePanel('top')"
+        >
+          <TabBar
+            :is-maximized="isMaximized"
+            :immersive-mode="immersiveMode"
+            @toggle-sidebar="showImmersivePanel('left')"
+            @update:immersive-mode="handleImmersiveModeChange"
+          />
+          <BrowserToolbar v-if="tabStore.activeTab" />
+          <BookmarkBar v-if="tabStore.bookmarkBarVisible" />
+        </div>
+
+        <div
+          class="absolute left-0 top-0 bottom-0 z-40 flex transition-all duration-300 ease-out"
+          :class="immersivePanelVisible.left ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 pointer-events-none'"
+          :style="{ width: `${immersiveLeftPanelWidth}px` }"
+          @mouseenter="showImmersivePanel('left')"
+          @mouseleave="scheduleHideImmersivePanel('left')"
+        >
+          <div class="h-full border-r border-border bg-background/96 shadow-2xl backdrop-blur-sm" :style="{ width: `${immersiveSidebarSize}px` }">
+            <SidebarProvider :open="true">
+              <Sidebar
+                :collapsed="false"
+                @open-settings="settingsDialogOpen = true; settingsInitialTab = 'user'"
+              />
+            </SidebarProvider>
+          </div>
+          <div
+            v-if="tabStore.tabLayout === 'vertical'"
+            class="h-full border-r border-border bg-background/96 shadow-2xl backdrop-blur-sm"
+            :style="{ width: `${immersiveVerticalTabSize}px` }"
+          >
+            <TabBarVertical v-model:show-add-dialog="verticalTabAddDialog" />
+          </div>
+        </div>
+
+        <div
+          class="absolute right-0 top-0 bottom-0 z-40 transition-all duration-300 ease-out"
+          :class="immersivePanelVisible.right ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'"
+          :style="{ width: `${RIGHT_PANEL_WIDTH}px` }"
+          @mouseenter="showImmersivePanel('right')"
+          @mouseleave="scheduleHideImmersivePanel('right')"
+        >
+          <div class="h-full border-l border-border bg-background/96 shadow-2xl backdrop-blur-sm">
+            <RightPanel
+              @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
+              @open-proxy="proxyDialogOpen = true"
+            />
+          </div>
+        </div>
+
+        <div
+          class="absolute inset-x-0 bottom-0 z-40 transition-all duration-300 ease-out"
+          :class="immersivePanelVisible.bottom ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'"
+          @mouseenter="showImmersivePanel('bottom')"
+          @mouseleave="scheduleHideImmersivePanel('bottom')"
+        >
+          <div class="relative pb-[3px]">
+            <div class="h-6 w-full border-t bg-background/95 px-3 text-[11px] text-muted-foreground backdrop-blur-sm flex items-center justify-between gap-2">
+              <span class="truncate">
+                {{ tabStore.activeTab?.url || '就绪' }}
+              </span>
+              <div v-if="tabStore.activeProxyInfo" class="flex max-w-[45%] shrink-0 items-center gap-2">
+                <Switch
+                  :model-value="proxyApplied"
+                  :disabled="!tabStore.activeProxyInfo?.enabled"
+                  @update:model-value="handleToggleProxy"
+                />
+                <Badge
+                  v-if="activeProxyBadgeText"
+                  variant="outline"
+                  class="max-w-full truncate select-none"
+                  :class="activeProxyBadgeClass"
+                  :title="tabStore.activeProxyInfo?.error || tabStore.activeProxyInfo?.ip || activeProxyBadgeText"
+                  @click="handleDetectProxy"
+                >
+                  {{ activeProxyBadgeText }}
+                </Badge>
+              </div>
+            </div>
+          </div>
+          <Transition
+            enter-active-class="transition-opacity duration-200"
+            leave-active-class="transition-opacity duration-300"
+          >
+            <div v-if="showProgress" class="absolute bottom-0 inset-x-0">
+              <Progress :model-value="loadingProgress" class="h-[3px] rounded-none" />
+            </div>
+          </Transition>
+        </div>
+      </template>
     </div>
 
     <!-- 代理管理弹窗 -->

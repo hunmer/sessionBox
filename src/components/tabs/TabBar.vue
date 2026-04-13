@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { Plus, Minus, Square, X, Copy, PanelLeftClose, ChevronRight } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import draggable from 'vuedraggable'
 import TabLayoutMenu from './TabLayoutMenu.vue'
 import SplitButton from './SplitButton.vue'
@@ -12,10 +13,12 @@ import type { Page } from '@/types'
 
 defineProps<{
   isMaximized: boolean
+  immersiveMode: boolean
 }>()
 
 defineEmits<{
   'toggle-sidebar': []
+  'update:immersive-mode': [value: boolean]
 }>()
 
 const tabStore = useTabStore()
@@ -175,6 +178,14 @@ function handleNavigateUrl(url: string) {
 
       <!-- 更多选项 -->
       <TabLayoutMenu direction="horizontal" />
+
+      <div class="ml-1 flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-2 py-1">
+        <span class="select-none text-[11px] text-muted-foreground">沉浸</span>
+        <Switch
+          :model-value="immersiveMode"
+          @update:model-value="$emit('update:immersive-mode', $event)"
+        />
+      </div>
     </template>
 
     <!-- 窗口控制按钮 -->
