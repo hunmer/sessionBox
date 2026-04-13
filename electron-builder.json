@@ -68,6 +68,11 @@
       "from": "mac_packages",
       "to": "mac_packages",
       "filter": ["**/*"]
+    },
+    {
+      "from": "resources/plugins",
+      "to": "plugins",
+      "filter": ["**/*"]
     }
   ],
   "compression": "store",
