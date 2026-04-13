@@ -19,6 +19,30 @@ export interface PluginInfo {
   hasView?: boolean
 }
 
+/** 插件运行时实例 */
+export interface PluginInstance {
+  id: string
+  dir: string
+  info: PluginInfo
+  enabled: boolean
+  module: any
+  context: PluginContext
+  storage: import('./plugin-storage').PluginStorage
+}
+
+/** 插件列表展示用的元信息 */
+export interface PluginMeta {
+  id: string
+  name: string
+  version: string
+  description: string
+  author: PluginInfo['author']
+  tags: string[]
+  hasView: boolean
+  enabled: boolean
+  iconPath: string
+}
+
 /** 插件上下文 API */
 export interface PluginContext {
   events: {
