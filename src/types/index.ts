@@ -130,3 +130,5 @@ export type {
   SavedSplitScheme,
   PaneBounds
 } from './split'
+
+export type { PluginInfo, PluginMeta, PluginContext, PluginInstance } from './plugin'
