@@ -1,5 +1,6 @@
 import Store from 'electron-store'
 import { randomUUID } from 'crypto'
+import { pluginEventBus } from './plugin-event-bus'
 
 // 数据模型类型定义
 export interface Proxy {
@@ -237,6 +238,7 @@ export function createWorkspace(title: string, color: string): Workspace {
   }
   workspaces.push(workspace)
   setCollection('workspaces', workspaces)
+  try { pluginEventBus.emit('workspace:created', workspace) } catch {}
   return workspace
 }
 
@@ -246,6 +248,7 @@ export function updateWorkspace(id: string, data: Partial<Omit<Workspace, 'id'>>
   if (idx === -1) throw new Error(`工作区 ${id} 不存在`)
   workspaces[idx] = { ...workspaces[idx], ...data }
   setCollection('workspaces', workspaces)
+  try { pluginEventBus.emit('workspace:updated', { id, ...data }) } catch {}
 }
 
 export function deleteWorkspace(id: string): void {
@@ -257,6 +260,7 @@ export function deleteWorkspace(id: string): void {
   setCollection('groups', groups)
   const workspaces = getCollection('workspaces').filter((w) => w.id !== id)
   setCollection('workspaces', workspaces)
+  try { pluginEventBus.emit('workspace:deleted', id) } catch {}
 }
 
 export function reorderWorkspaces(workspaceIds: string[]): void {
@@ -266,6 +270,7 @@ export function reorderWorkspaces(workspaceIds: string[]): void {
     if (w) w.order = order
   })
   setCollection('workspaces', workspaces)
+  try { pluginEventBus.emit('workspace:reordered', workspaceIds) } catch {}
 }
 
 // ====== 分组操作 ======
@@ -287,6 +292,7 @@ export function createGroup(name: string, color?: string, workspaceId?: string, 
   }
   groups.push(group)
   setCollection('groups', groups)
+  try { pluginEventBus.emit('group:created', group) } catch {}
   return group
 }
 
@@ -296,11 +302,14 @@ export function updateGroup(id: string, data: Partial<Omit<Group, 'id'>>): void 
   if (idx === -1) throw new Error(`分组 ${id} 不存在`)
   groups[idx] = { ...groups[idx], ...data }
   setCollection('groups', groups)
+  try { pluginEventBus.emit('group:updated', { id, ...data }) } catch {}
 }
 
 export function deleteGroup(id: string): void {
   const groups = getCollection('groups')
+  const group = groups.find((g) => g.id === id)
   setCollection('groups', groups.filter((g) => g.id !== id))
+  try { pluginEventBus.emit('group:deleted', group) } catch {}
 }
 
 export function reorderGroups(groupIds: string[]): void {
@@ -310,6 +319,7 @@ export function reorderGroups(groupIds: string[]): void {
     if (g) g.order = order
   })
   setCollection('groups', groups)
+  try { pluginEventBus.emit('group:reordered', groupIds) } catch {}
 }
 
 // ====== 容器操作 ======
@@ -323,6 +333,7 @@ export function createContainer(data: Omit<Container, 'id'>): Container {
   const container: Container = { ...data, id: randomUUID() }
   containers.push(container)
   setCollection('containers', containers)
+  try { pluginEventBus.emit('container:created', container) } catch {}
   return container
 }
 
@@ -332,11 +343,13 @@ export function updateContainer(id: string, data: Partial<Omit<Container, 'id'>>
   if (idx === -1) throw new Error(`容器 ${id} 不存在`)
   containers[idx] = { ...containers[idx], ...data }
   setCollection('containers', containers)
+  try { pluginEventBus.emit('container:updated', { id, ...data }) } catch {}
 }
 
 export function deleteContainer(id: string): void {
   const containers = getCollection('containers').filter((c) => c.id !== id)
   setCollection('containers', containers)
+  try { pluginEventBus.emit('container:deleted', id) } catch {}
 }
 
 export function reorderContainers(containerIds: string[]): void {
@@ -346,6 +359,7 @@ export function reorderContainers(containerIds: string[]): void {
     if (c) c.order = order
   })
   setCollection('containers', containers)
+  try { pluginEventBus.emit('container:reordered', containerIds) } catch {}
 }
 
 // ====== 页面操作 ======
@@ -359,6 +373,7 @@ export function createPage(data: Omit<Page, 'id'>): Page {
   const page: Page = { ...data, id: randomUUID() }
   pages.push(page)
   setCollection('pages', pages)
+  try { pluginEventBus.emit('page:created', page) } catch {}
   return page
 }
 
@@ -368,12 +383,14 @@ export function updatePage(id: string, data: Partial<Omit<Page, 'id'>>): void {
   if (idx !== -1) {
     pages[idx] = { ...pages[idx], ...data }
     setCollection('pages', pages)
+    try { pluginEventBus.emit('page:updated', { id, ...data }) } catch {}
   }
 }
 
 export function deletePage(id: string): void {
   const pages = getCollection<Page>('pages').filter(p => p.id !== id)
   setCollection('pages', pages)
+  try { pluginEventBus.emit('page:deleted', id) } catch {}
 }
 
 export function reorderPages(pageIds: string[]): void {
@@ -383,6 +400,7 @@ export function reorderPages(pageIds: string[]): void {
     if (p) p.order = order
   })
   setCollection('pages', pages)
+  try { pluginEventBus.emit('page:reordered', pageIds) } catch {}
 }
 
 export function getPageById(id: string): Page | undefined {
@@ -491,6 +509,7 @@ export function createProxy(data: Omit<Proxy, 'id'>): Proxy {
   const proxy: Proxy = { ...data, id: randomUUID() }
   proxies.push(proxy)
   setCollection('proxies', proxies)
+  try { pluginEventBus.emit('proxy:created', proxy) } catch {}
   return proxy
 }
 
@@ -500,6 +519,7 @@ export function updateProxy(id: string, data: Partial<Omit<Proxy, 'id'>>): void 
   if (idx === -1) throw new Error(`代理 ${id} 不存在`)
   proxies[idx] = { ...proxies[idx], ...data }
   setCollection('proxies', proxies)
+  try { pluginEventBus.emit('proxy:updated', { id, ...data }) } catch {}
 }
 
 export function deleteProxy(id: string): void {
@@ -516,6 +536,7 @@ export function deleteProxy(id: string): void {
 
   const proxies = getCollection('proxies').filter((p) => p.id !== id)
   setCollection('proxies', proxies)
+  try { pluginEventBus.emit('proxy:deleted', id) } catch {}
 }
 
 // ====== 辅助查询 ======
@@ -585,6 +606,7 @@ export function createBookmark(data: Omit<Bookmark, 'id'>): Bookmark {
   const site: Bookmark = { ...data, id: randomUUID() }
   sites.push(site)
   setCollection('bookmarks', sites)
+  try { pluginEventBus.emit('bookmark:created', site) } catch {}
   return site
 }
 
@@ -594,17 +616,20 @@ export function updateBookmark(id: string, data: Partial<Omit<Bookmark, 'id'>>):
   if (idx === -1) throw new Error(`书签 ${id} 不存在`)
   sites[idx] = { ...sites[idx], ...data }
   setCollection('bookmarks', sites)
+  try { pluginEventBus.emit('bookmark:updated', { id, ...data }) } catch {}
 }
 
 export function deleteBookmark(id: string): void {
   const sites = getCollection('bookmarks').filter((s) => s.id !== id)
   setCollection('bookmarks', sites)
+  try { pluginEventBus.emit('bookmark:deleted', id) } catch {}
 }
 
 export function batchDeleteBookmarks(ids: string[]): void {
   const idSet = new Set(ids)
   const sites = getCollection('bookmarks').filter((s) => !idSet.has(s.id))
   setCollection('bookmarks', sites)
+  try { pluginEventBus.emit('bookmark:batch-deleted', ids) } catch {}
 }
 
 export function reorderBookmarks(ids: string[]): void {
@@ -627,6 +652,7 @@ export function createBookmarkFolder(data: Omit<BookmarkFolder, 'id'>): Bookmark
   const folder: BookmarkFolder = { ...data, id: randomUUID() }
   folders.push(folder)
   setCollection('bookmarkFolders', folders)
+  try { pluginEventBus.emit('bookmark-folder:created', folder) } catch {}
   return folder
 }
 
@@ -636,6 +662,7 @@ export function updateBookmarkFolder(id: string, data: Partial<Omit<BookmarkFold
   if (idx === -1) throw new Error(`文件夹 ${id} 不存在`)
   folders[idx] = { ...folders[idx], ...data }
   setCollection('bookmarkFolders', folders)
+  try { pluginEventBus.emit('bookmark-folder:updated', { id, ...data }) } catch {}
 }
 
 export function deleteBookmarkFolder(id: string): void {
@@ -647,6 +674,7 @@ export function deleteBookmarkFolder(id: string): void {
   // 级联删除文件夹内的书签
   const sites = getCollection('bookmarks').filter((s) => !idsToDelete.includes(s.folderId))
   setCollection('bookmarks', sites)
+  try { pluginEventBus.emit('bookmark-folder:deleted', id) } catch {}
 }
 
 /** 批量删除空文件夹（无书签且无子文件夹），返回被删除的文件夹 ID */
