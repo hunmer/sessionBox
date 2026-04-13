@@ -1,0 +1,11 @@
+{
+  "id": "sessionbox.test-plugin",
+  "name": "Test Plugin",
+  "version": "1.0.0",
+  "description": "SessionBox 插件系统测试插件，监听并输出所有事件到控制台",
+  "author": {
+    "name": "SessionBox"
+  },
+  "tags": ["测试", "开发"],
+  "hasView": true
+}
