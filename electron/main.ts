@@ -270,10 +270,11 @@ if (!gotTheLock) {
     // 初始化标签冻结定时器
     webviewManager.setFreezeMinutes(getTabFreezeMinutes())
 
-    // 注册 account-icon:// 协议，从 userData/account-icons/ 目录提供文件
-    const iconDir = join(app.getPath('userData'), 'account-icons')
+    // 注册 account-icon:// 协议，从 userData/container-icons/ 目录提供文件
+    const iconDir = join(app.getPath('userData'), 'container-icons')
     protocol.handle('account-icon', (request) => {
-      const fileName = decodeURIComponent(request.url.replace('account-icon://', ''))
+      const url = new URL(request.url)
+      const fileName = decodeURIComponent(url.host + url.pathname).replace(/\/+$/, '')
       return net.fetch(`file://${join(iconDir, fileName).replace(/\\/g, '/')}`)
     })
 

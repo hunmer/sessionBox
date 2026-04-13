@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, computed, watchEffect } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
-import { Camera, SmilePlus, Settings, CheckIcon, ChevronsUpDownIcon } from 'lucide-vue-next'
+import { Camera, SmilePlus, Settings, CheckIcon, ChevronsUpDownIcon, Box, ArrowRight } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,8 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import IconPickerDialog from './IconPickerDialog.vue'
 import { useContainerStore } from '@/stores/container'
@@ -50,6 +52,15 @@ const NO_PROXY = '__none__'
 const DEFAULT_CONTAINER = '__default__'
 const proxyId = ref(NO_PROXY)
 const userAgent = ref('')
+
+/** 容器选择 Popover */
+const containerPopoverOpen = ref(false)
+
+/** 自动创建容器 */
+const autoCreateContainer = ref(false)
+const newContainerName = ref('')
+const newContainerProxyId = ref(NO_PROXY)
+const isContainerNameManual = ref(false)
 
 /** 当前图标是否为自定义图片 */
 const isImageIcon = computed(() => icon.value.startsWith('img:'))
@@ -91,6 +102,10 @@ watch(() => props.open, (val) => {
     containerId.value = props.page?.containerId || DEFAULT_CONTAINER
     proxyId.value = props.page?.proxyId || NO_PROXY
     userAgent.value = props.page?.userAgent ?? ''
+    autoCreateContainer.value = false
+    newContainerName.value = ''
+    newContainerProxyId.value = NO_PROXY
+    isContainerNameManual.value = false
   }
 })
 
@@ -105,12 +120,64 @@ function clearImageIcon() {
   icon.value = '📄'
 }
 
-function handleSave() {
+function isCustomImageIcon(iconStr?: string): boolean {
+  return !!iconStr?.startsWith('img:')
+}
+
+/** 页面名称变更时同步容器名称 */
+watch(name, (val) => {
+  if (autoCreateContainer.value && !isContainerNameManual.value) {
+    newContainerName.value = val
+  }
+})
+
+/** 手动修改容器名称时标记为手动 */
+function onNewContainerNameInput() {
+  isContainerNameManual.value = true
+}
+
+/** 勾选自动创建时初始化容器名称 */
+watch(autoCreateContainer, (val) => {
+  if (val) {
+    newContainerName.value = name.value.trim() || '新容器'
+    isContainerNameManual.value = false
+    newContainerProxyId.value = NO_PROXY
+  }
+})
+
+/** 选择容器（从 Popover） */
+function selectContainer(id: string) {
+  containerId.value = id
+  containerPopoverOpen.value = false
+}
+
+/** 清除容器选择 */
+function clearContainer() {
+  containerId.value = DEFAULT_CONTAINER
+  containerPopoverOpen.value = false
+}
+
+async function handleSave() {
   const trimmed = name.value.trim()
   if (!trimmed) return
+
+  let resolvedContainerId = containerId.value === DEFAULT_CONTAINER ? undefined : containerId.value
+
+  // 自动创建容器
+  if (autoCreateContainer.value) {
+    const containerName = newContainerName.value.trim() || trimmed
+    const container = await containerStore.createContainer({
+      name: containerName,
+      icon: '📦',
+      proxyId: newContainerProxyId.value === NO_PROXY ? undefined : newContainerProxyId.value,
+      order: containerStore.containers.length,
+    })
+    resolvedContainerId = container.id
+  }
+
   emit('save', {
     groupId: props.page?.groupId ?? props.groupId ?? '',
-    containerId: containerId.value === DEFAULT_CONTAINER ? undefined : containerId.value,
+    containerId: resolvedContainerId,
     name: trimmed,
     icon: icon.value,
     url: url.value.trim() || 'about:blank',
@@ -131,12 +198,12 @@ function handleDelete() {
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="sm:max-w-[420px]">
+    <DialogContent class="sm:max-w-[420px] max-h-[85vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>{{ page ? '编辑页面' : '新建页面' }}</DialogTitle>
       </DialogHeader>
 
-      <div class="flex flex-col gap-5 py-2">
+      <div class="flex flex-col gap-5 py-2 min-w-0">
         <!-- 图标 -->
         <div class="flex flex-col items-center gap-3">
           <div class="relative group/icon">
@@ -235,10 +302,23 @@ function handleDelete() {
 
         <!-- 容器 -->
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-medium text-muted-foreground">容器</label>
-          <div class="flex gap-2">
-            <Select v-model="containerId">
-              <SelectTrigger class="flex-1">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-medium text-muted-foreground">容器</label>
+            <div class="flex items-center gap-1.5">
+              <Checkbox
+                id="auto-create-container"
+                :checked="autoCreateContainer"
+                @update:checked="autoCreateContainer = $event"
+                class="h-3.5 w-3.5"
+              />
+              <label for="auto-create-container" class="text-[11px] text-muted-foreground cursor-pointer">自动创建</label>
+            </div>
+          </div>
+
+          <!-- 选择已有容器 -->
+          <div v-if="!autoCreateContainer" class="flex gap-2">
+            <Select v-model="containerId" class="min-w-0 flex-1">
+              <SelectTrigger class="flex-1 min-w-0">
                 <SelectValue placeholder="默认容器" />
               </SelectTrigger>
               <SelectContent>
@@ -247,9 +327,93 @@ function handleDelete() {
                 </SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="icon" @click="tabStore.createTabForSite('sessionbox://containers')" title="管理容器">
-              <Settings class="w-4 h-4" />
-            </Button>
+            <Popover v-model:open="containerPopoverOpen">
+              <PopoverTrigger as-child>
+                <Button variant="outline" size="icon" title="管理容器">
+                  <Settings class="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" class="w-64 p-0">
+                <div class="px-3 pt-2 pb-1.5 flex items-center justify-between">
+                  <span class="text-xs font-medium flex items-center gap-1.5">
+                    <Box class="h-3.5 w-3.5 text-muted-foreground" />
+                    容器列表
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="h-5 gap-1 text-[10px] text-primary hover:text-primary px-1"
+                    @click="emit('update:open', false); tabStore.createTabForSite('sessionbox://containers')"
+                  >
+                    管理
+                    <ArrowRight class="h-3 w-3" />
+                  </Button>
+                </div>
+                <ScrollArea class="h-[240px]">
+                  <div class="py-1">
+                    <!-- 默认容器 -->
+                    <div
+                      class="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                      :class="{ 'bg-muted/30': containerId === DEFAULT_CONTAINER }"
+                      @click="clearContainer"
+                    >
+                      <div class="shrink-0 w-4 h-4 flex items-center justify-center">
+                        <CheckIcon v-if="containerId === DEFAULT_CONTAINER" class="h-3 w-3 text-primary" />
+                      </div>
+                      <span class="text-xs">默认容器</span>
+                    </div>
+                    <!-- 容器列表 -->
+                    <div
+                      v-for="c in containers"
+                      :key="c.id"
+                      class="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                      :class="{ 'bg-muted/30': containerId === c.id }"
+                      @click="selectContainer(c.id)"
+                    >
+                      <div class="shrink-0 w-4 h-4 flex items-center justify-center">
+                        <CheckIcon v-if="containerId === c.id" class="h-3 w-3 text-primary" />
+                      </div>
+                      <span class="shrink-0 w-5 h-5 flex items-center justify-center overflow-hidden">
+                        <img v-if="isCustomImageIcon(c.icon)" :src="`account-icon://${c.icon.slice(4)}`" alt="" class="w-full h-full rounded-sm object-cover" />
+                        <EmojiRenderer v-else-if="c.icon" :emoji="c.icon" class="text-sm" />
+                        <Box v-else class="h-3.5 w-3.5 text-muted-foreground" />
+                      </span>
+                      <span class="text-xs truncate">{{ c.name }}</span>
+                    </div>
+                    <div v-if="containers.length === 0" class="py-4 text-center text-xs text-muted-foreground">
+                      暂无容器
+                    </div>
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <!-- 自动创建新容器编辑区 -->
+          <div v-else class="flex flex-col gap-2 p-3 rounded-md border bg-muted/20">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[11px] text-muted-foreground">容器名称</label>
+              <Input
+                v-model="newContainerName"
+                placeholder="默认与页面同名"
+                class="h-8 text-sm"
+                @input="onNewContainerNameInput"
+              />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[11px] text-muted-foreground">容器代理</label>
+              <Select v-model="newContainerProxyId">
+                <SelectTrigger class="h-8 text-sm">
+                  <SelectValue placeholder="不绑定代理" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem :value="NO_PROXY">不绑定代理</SelectItem>
+                  <SelectItem v-for="p in proxyOptions" :key="p.id" :value="p.id">
+                    {{ p.name }} ({{ p.type }}://{{ p.host }}:{{ p.port }})
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
