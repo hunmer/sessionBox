@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { Plus, Minus, Square, X, Copy, PanelLeftClose, ChevronRight } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Toggle } from '@/components/ui/toggle'
 import draggable from 'vuedraggable'
 import TabLayoutMenu from './TabLayoutMenu.vue'
 import SplitButton from './SplitButton.vue'
