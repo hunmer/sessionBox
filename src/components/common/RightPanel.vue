@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -19,6 +19,7 @@ import BookmarkMiniPopover from './BookmarkMiniPopover.vue'
 import HistoryMiniPopover from './HistoryMiniPopover.vue'
 import DownloadMiniPopover from './DownloadMiniPopover.vue'
 import ProxyMiniPopover from './ProxyMiniPopover.vue'
+import ContainerMiniPopover from './ContainerMiniPopover.vue'
 
 const tabStore = useTabStore()
 const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
@@ -33,12 +34,14 @@ const bookmarkOpen = ref(false)
 const historyOpen = ref(false)
 const downloadOpen = ref(false)
 const proxyOpen = ref(false)
+const containerOpen = ref(false)
 
 function openFullPage(site: string) {
   bookmarkOpen.value = false
   historyOpen.value = false
   downloadOpen.value = false
   proxyOpen.value = false
+  containerOpen.value = false
   tabStore.createTabForSite(site)
 }
 </script>
@@ -94,6 +97,18 @@ function openFullPage(site: string) {
             </PopoverTrigger>
             <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
               <ProxyMiniPopover @open-full="proxyOpen = false" />
+            </PopoverContent>
+          </Popover>
+
+          <!-- 容器切换 -->
+          <Popover v-model:open="containerOpen">
+            <PopoverTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-8 w-8">
+                <Box class="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+              <ContainerMiniPopover @open-full="openFullPage('sessionbox://containers')" />
             </PopoverContent>
           </Popover>
         </div>
