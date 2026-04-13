@@ -1,78 +1,100 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { X } from 'lucide-vue-next'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { ref, watch, onBeforeUnmount } from 'vue'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { usePluginStore } from '@/stores/plugin'
 import { createApp, defineComponent } from 'vue'
 
 const pluginStore = usePluginStore()
 
-const plugin = ref(
-  pluginStore.plugins.find((p) => p.id === pluginStore.activeViewPluginId)
-)
-
 const containerRef = ref<HTMLElement | null>(null)
 let dynamicApp: any = null
 
-onMounted(async () => {
-  if (!plugin.value) return
+async function mountDynamicView(pluginId: string) {
+  cleanupDynamicApp()
+  const plugin = pluginStore.plugins.find((p) => p.id === pluginId)
+  if (!plugin) return
 
-  const viewContent = await pluginStore.loadViewContent(plugin.value.id)
+  const viewContent = await pluginStore.loadViewContent(pluginId)
+
+  // 等待 DOM 更新
+  await new Promise<void>((resolve) => {
+    const stop = watch(containerRef, (el) => {
+      if (el) {
+        stop()
+        resolve()
+      }
+    }, { immediate: true })
+  })
+
   if (!viewContent || !containerRef.value) return
 
   try {
-    const moduleExports = new Function('module', 'exports', 'require', `
-      const module = { exports: {} };
-      const exports = module.exports;
+    const wrappedCode = `
+      var module = { exports: {} };
+      var exports = module.exports;
       ${viewContent}
       return module.exports;
-    `)()
+    `
+    const result = new Function(wrappedCode)()
 
-    if (!moduleExports || !moduleExports.template) return
+    if (!result || !result.template) return
 
     const componentDef = {
-      ...moduleExports,
+      ...result,
       props: {
-        ...(typeof moduleExports.props === 'object' && !Array.isArray(moduleExports.props) ? moduleExports.props : {}),
-        pluginInfo: { type: Object, default: () => plugin.value }
+        ...(typeof result.props === 'object' && !Array.isArray(result.props) ? result.props : {}),
+        pluginInfo: { type: Object, default: () => plugin }
       }
     }
 
     const DynamicComponent = defineComponent(componentDef)
     dynamicApp = createApp(DynamicComponent, {
-      pluginInfo: {
-        id: plugin.value.id,
-        name: plugin.value.name,
-        version: plugin.value.version,
-        description: plugin.value.description
-      }
+      pluginInfo: plugin
     })
 
     dynamicApp.mount(containerRef.value)
   } catch (err) {
     console.error('[PluginSettings] 动态组件编译失败:', err)
   }
-})
+}
 
-onBeforeUnmount(() => {
+function cleanupDynamicApp() {
   if (dynamicApp) {
     dynamicApp.unmount()
     dynamicApp = null
   }
+}
+
+watch(
+  () => pluginStore.activeViewPluginId,
+  (pluginId) => {
+    if (pluginId) {
+      mountDynamicView(pluginId)
+    } else {
+      cleanupDynamicApp()
+    }
+  }
+)
+
+onBeforeUnmount(() => {
+  cleanupDynamicApp()
 })
 </script>
 
 <template>
-  <div v-if="plugin" class="border-t border-border bg-muted/30">
-    <div class="flex items-center justify-between px-4 py-2 border-b border-border">
-      <h3 class="text-sm font-medium">{{ plugin.name }} - 设置</h3>
-      <Button variant="ghost" size="icon" class="h-7 w-7" @click="pluginStore.closeView()">
-        <X class="w-4 h-4" />
-      </Button>
-    </div>
-    <ScrollArea class="max-h-80">
-      <div ref="containerRef" class="p-4" />
-    </ScrollArea>
-  </div>
+  <Dialog :open="pluginStore.activeViewPluginId !== null" @update:open="(val) => { if (!val) pluginStore.closeView() }">
+    <DialogContent class="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>
+          {{ pluginStore.plugins.find(p => p.id === pluginStore.activeViewPluginId)?.name }} - 设置
+        </DialogTitle>
+      </DialogHeader>
+      <div ref="containerRef" class="min-h-[120px]" />
+    </DialogContent>
+  </Dialog>
 </template>

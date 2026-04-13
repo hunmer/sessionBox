@@ -52,7 +52,7 @@ onMounted(async () => {
         </div>
       </div>
       <div class="flex flex-col items-end gap-2 shrink-0">
-        <Switch :checked="plugin.enabled" @update:checked="emit('toggle', plugin.id)" />
+        <Switch :model-value="plugin.enabled" @update:model-value="emit('toggle', plugin.id)" />
         <Button v-if="plugin.hasView" variant="ghost" size="icon" class="h-7 w-7" title="设置" @click="emit('open-settings', plugin.id)">
           <Settings class="w-4 h-4" />
         </Button>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeftClose, PanelLeftOpen, ChevronRight } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeftClose, PanelLeftOpen, ChevronRight, Eye, EyeOff } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import draggable from 'vuedraggable'
@@ -182,12 +182,13 @@ function handleNavigateUrl(url: string) {
       <TabLayoutMenu direction="horizontal" />
 
       <Toggle
-        class="ml-1 h-7 gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 text-[11px] text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+        class="ml-1 h-7 w-7 rounded-full bg-background/70 text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
         :model-value="immersiveMode"
         @update:model-value="$emit('update:immersive-mode', $event)"
         aria-label="Toggle immersive mode"
       >
-        沉浸
+        <Eye v-if="!immersiveMode" class="w-3.5 h-3.5" />
+        <EyeOff v-else class="w-3.5 h-3.5" />
       </Toggle>
     </template>
 

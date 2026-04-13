@@ -8,7 +8,6 @@ import { usePluginStore } from '@/stores/plugin'
 
 const pluginStore = usePluginStore()
 const hasPlugins = computed(() => pluginStore.plugins.length > 0)
-const showSettings = computed(() => pluginStore.activeViewPluginId !== null)
 
 onMounted(async () => {
   await pluginStore.init()
@@ -48,8 +47,8 @@ function handleOpenSettings(pluginId: string) {
       </Button>
     </div>
     <div class="flex-1 min-h-0 overflow-auto">
-      <div class="max-w-3xl mx-auto p-6">
-        <div v-if="hasPlugins" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="w-full p-6">
+        <div v-if="hasPlugins" class="grid grid-cols-2 md:grid-cols-3 gap-4">
           <PluginCard
             v-for="plugin in pluginStore.plugins"
             :key="plugin.id"
@@ -64,6 +63,6 @@ function handleOpenSettings(pluginId: string) {
         </div>
       </div>
     </div>
-    <PluginSettings v-if="showSettings" />
+    <PluginSettings />
   </div>
 </template>

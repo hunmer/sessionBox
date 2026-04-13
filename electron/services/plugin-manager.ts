@@ -14,7 +14,10 @@ class PluginManager {
 
   constructor() {
     this.userDataPath = app.getPath('userData')
-    this.pluginsDir = join(this.userDataPath, 'plugins')
+    // 开发环境从项目 resources/plugins/ 加载，生产环境从 {userData}/plugins/ 加载
+    this.pluginsDir = app.isPackaged
+      ? join(this.userDataPath, 'plugins')
+      : join(__dirname, '../../resources/plugins')
     this.loadDisabledList()
   }
 
