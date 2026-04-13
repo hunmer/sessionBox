@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { ExternalLink, RefreshCw, Plus, Trash2, Check, Loader2 } from 'lucide-vue-next'
+import { ExternalLink, RefreshCw, Plus, Trash2, Check, Loader2, Settings2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import appIcon from '../../../resources/icon.png'
 
 // ====== 类型定义 ======
@@ -199,7 +204,113 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col items-center py-8 gap-6">
+  <div class="relative flex flex-col items-center py-8 gap-6">
+    <!-- 右上角更新源设置 -->
+    <div class="absolute top-4 right-4">
+      <Popover>
+        <PopoverTrigger as-child>
+          <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground">
+            <Settings2 class="w-4 h-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent class="w-80 p-4" align="end">
+          <div class="flex flex-col gap-3">
+            <label class="text-sm font-medium">更新源</label>
+
+            <Select :model-value="activeSourceId" @update:model-value="switchSource">
+              <SelectTrigger class="w-full">
+                <SelectValue placeholder="选择更新源" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="source in sources"
+                  :key="source.id"
+                  :value="source.id"
+                >
+                  {{ source.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <!-- 当前源信息 -->
+            <p v-if="activeSource" class="text-xs text-muted-foreground">
+              <template v-if="activeSource.type === 'github'">
+                GitHub: {{ activeSource.owner }}/{{ activeSource.repo }}
+              </template>
+              <template v-else>
+                {{ activeSource.url }}
+              </template>
+            </p>
+
+            <!-- 已添加的自定义源列表 -->
+            <div v-if="customSources.length > 0" class="flex flex-col gap-1.5">
+              <div
+                v-for="source in customSources"
+                :key="source.id"
+                class="flex items-center justify-between rounded-md border px-3 py-1.5"
+              >
+                <div class="flex flex-col min-w-0">
+                  <span class="text-sm truncate">{{ source.name }}</span>
+                  <span class="text-xs text-muted-foreground truncate">{{ source.url }}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                  @click="removeSource(source.id)"
+                >
+                  <Trash2 class="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <!-- 添加自定义源 -->
+            <Button
+              v-if="!showAddForm"
+              variant="ghost"
+              size="sm"
+              class="w-full gap-1 text-muted-foreground"
+              @click="showAddForm = true"
+            >
+              <Plus class="w-3.5 h-3.5" />
+              添加自定义源
+            </Button>
+
+            <div v-if="showAddForm" class="flex flex-col gap-2 rounded-md border p-3">
+              <Input
+                v-model="newSourceName"
+                placeholder="名称（如：镜像站）"
+                class="h-8 text-sm"
+              />
+              <Input
+                v-model="newSourceUrl"
+                placeholder="更新源 URL"
+                class="h-8 text-sm"
+              />
+              <div class="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="flex-1"
+                  @click="showAddForm = false; newSourceName = ''; newSourceUrl = ''"
+                >
+                  取消
+                </Button>
+                <Button
+                  size="sm"
+                  class="flex-1"
+                  :disabled="!newSourceUrl.trim()"
+                  @click="addCustomSource"
+                >
+                  添加
+                </Button>
+              </div>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+
     <!-- 应用图标与版本 -->
     <img :src="appIcon" alt="SessionBox" class="w-20 h-20 rounded-xl" />
     <div class="text-center">
@@ -243,104 +354,6 @@ onUnmounted(() => {
           <Check v-if="checkResult.type === 'success'" class="w-3 h-3" />
           {{ checkResult.message }}
         </Badge>
-      </div>
-    </div>
-
-    <!-- 分割线 -->
-    <div class="w-full max-w-sm border-t" />
-
-    <!-- 更新源选择 -->
-    <div class="flex flex-col gap-3 w-full max-w-sm">
-      <label class="text-sm font-medium">更新源</label>
-
-      <Select :model-value="activeSourceId" @update:model-value="switchSource">
-        <SelectTrigger class="w-full">
-          <SelectValue placeholder="选择更新源" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem
-            v-for="source in sources"
-            :key="source.id"
-            :value="source.id"
-          >
-            {{ source.name }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
-
-      <!-- 当前源信息 -->
-      <p v-if="activeSource" class="text-xs text-muted-foreground">
-        <template v-if="activeSource.type === 'github'">
-          GitHub: {{ activeSource.owner }}/{{ activeSource.repo }}
-        </template>
-        <template v-else>
-          {{ activeSource.url }}
-        </template>
-      </p>
-
-      <!-- 已添加的自定义源列表 -->
-      <div v-if="customSources.length > 0" class="flex flex-col gap-1.5">
-        <div
-          v-for="source in customSources"
-          :key="source.id"
-          class="flex items-center justify-between rounded-md border px-3 py-1.5"
-        >
-          <div class="flex flex-col min-w-0">
-            <span class="text-sm truncate">{{ source.name }}</span>
-            <span class="text-xs text-muted-foreground truncate">{{ source.url }}</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-            @click="removeSource(source.id)"
-          >
-            <Trash2 class="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      <!-- 添加自定义源 -->
-      <Button
-        v-if="!showAddForm"
-        variant="ghost"
-        size="sm"
-        class="w-full gap-1 text-muted-foreground"
-        @click="showAddForm = true"
-      >
-        <Plus class="w-3.5 h-3.5" />
-        添加自定义源
-      </Button>
-
-      <div v-if="showAddForm" class="flex flex-col gap-2 rounded-md border p-3">
-        <Input
-          v-model="newSourceName"
-          placeholder="名称（如：镜像站）"
-          class="h-8 text-sm"
-        />
-        <Input
-          v-model="newSourceUrl"
-          placeholder="更新源 URL"
-          class="h-8 text-sm"
-        />
-        <div class="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            class="flex-1"
-            @click="showAddForm = false; newSourceName = ''; newSourceUrl = ''"
-          >
-            取消
-          </Button>
-          <Button
-            size="sm"
-            class="flex-1"
-            :disabled="!newSourceUrl.trim()"
-            @click="addCustomSource"
-          >
-            添加
-          </Button>
-        </div>
       </div>
     </div>
   </div>
