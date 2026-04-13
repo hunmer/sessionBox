@@ -240,6 +240,13 @@ const api = {
     openFile: (filePath) => electron.ipcRenderer.invoke("download:openFile", filePath),
     pickDirectory: (defaultPath) => electron.ipcRenderer.invoke("download:pickDirectory", defaultPath)
   },
+  plugin: {
+    list: () => electron.ipcRenderer.invoke("plugin:list"),
+    enable: (pluginId) => electron.ipcRenderer.invoke("plugin:enable", pluginId),
+    disable: (pluginId) => electron.ipcRenderer.invoke("plugin:disable", pluginId),
+    getView: (pluginId) => electron.ipcRenderer.invoke("plugin:get-view", pluginId),
+    getIcon: (pluginId) => electron.ipcRenderer.invoke("plugin:get-icon", pluginId)
+  },
   // 自动更新
   updater: {
     check: () => electron.ipcRenderer.invoke("updater:check"),

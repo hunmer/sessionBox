@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted } from 'vue'
 import {
   Radar,
   Copy,
   Download,
   Trash2,
-  Music,
   Power,
   Globe,
-  Play
+  Play,
+  Pause
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -149,8 +149,83 @@ async function handleDownload(url: string) {
 async function handleClear() {
   const tid = activeTabId.value
   if (!tid) return
+  stopAudio()
   await snifferStore.clearResources(tid)
 }
+
+// ── 音频播放控制 ──
+
+const audioState = reactive({
+  playingId: null as string | null,
+  currentTime: 0,
+  duration: 0,
+  progress: 0
+})
+
+let audioElement: HTMLAudioElement | null = null
+
+function handleAudioToggle(res: { id: string; url: string }) {
+  if (audioState.playingId === res.id) {
+    if (audioElement?.paused) {
+      audioElement.play().catch(() => {})
+    } else {
+      audioElement?.pause()
+    }
+    return
+  }
+  stopAudio()
+  audioElement = new Audio(res.url)
+  audioState.playingId = res.id
+  audioState.currentTime = 0
+  audioState.duration = 0
+  audioState.progress = 0
+
+  audioElement.addEventListener('loadedmetadata', () => {
+    audioState.duration = audioElement!.duration
+  })
+  audioElement.addEventListener('timeupdate', () => {
+    if (!audioElement) return
+    audioState.currentTime = audioElement.currentTime
+    audioState.progress = audioElement.duration
+      ? (audioElement.currentTime / audioElement.duration) * 100
+      : 0
+  })
+  audioElement.addEventListener('ended', () => {
+    audioState.playingId = null
+    audioState.currentTime = 0
+    audioState.progress = 0
+  })
+  audioElement.play().catch(() => {})
+}
+
+function stopAudio() {
+  if (audioElement) {
+    audioElement.pause()
+    audioElement.src = ''
+    audioElement = null
+  }
+  audioState.playingId = null
+  audioState.currentTime = 0
+  audioState.duration = 0
+  audioState.progress = 0
+}
+
+function handleAudioSeek(e: MouseEvent) {
+  if (!audioElement || !audioState.duration) return
+  const bar = e.currentTarget as HTMLElement
+  const rect = bar.getBoundingClientRect()
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+  audioElement.currentTime = ratio * audioState.duration
+}
+
+function formatTime(seconds: number): string {
+  if (!seconds || !isFinite(seconds)) return '0:00'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+onUnmounted(() => stopAudio())
 </script>
 
 <template>
@@ -298,7 +373,7 @@ async function handleClear() {
           </template>
         </Waterfall>
 
-        <!-- 音频：保持简洁列表 -->
+        <!-- 音频：带播放控制的列表 -->
         <div v-if="audioResources.length > 0" class="mt-1 space-y-0.5">
           <div
             v-for="res in audioResources"
@@ -306,21 +381,42 @@ async function handleClear() {
             class="px-2 py-1.5 hover:bg-muted/50 rounded-sm transition-colors group"
           >
             <div class="flex items-center gap-2">
-              <div class="shrink-0 w-4 h-4 rounded flex items-center justify-center bg-green-500/10">
-                <Music class="h-2.5 w-2.5 text-green-500" />
-              </div>
+              <!-- 播放/暂停按钮 -->
+              <button
+                class="shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-green-500/10 hover:bg-green-500/20 transition-colors"
+                @click="handleAudioToggle(res)"
+              >
+                <Play v-if="audioState.playingId !== res.id" class="h-2.5 w-2.5 text-green-500 ml-px" />
+                <Pause v-else class="h-2.5 w-2.5 text-green-500" />
+              </button>
               <div class="flex-1 min-w-0">
-                <p class="text-[10px] text-muted-foreground">
-                  {{ res.mimeType }}
-                  <span v-if="res.size">{{ formatSize(res.size) }}</span>
-                </p>
-                <p class="text-xs truncate text-foreground/80" :title="res.url">{{ res.url }}</p>
+                <div class="flex items-center gap-1">
+                  <span class="text-[10px] text-muted-foreground">{{ res.mimeType }}</span>
+                  <span v-if="res.size" class="text-[10px] text-muted-foreground">{{ formatSize(res.size) }}</span>
+                </div>
+                <!-- 进度条（仅当前播放时展示） -->
+                <div v-if="audioState.playingId === res.id" class="mt-1">
+                  <div class="flex items-center gap-1">
+                    <span class="text-[8px] text-muted-foreground w-6 text-right tabular-nums">{{ formatTime(audioState.currentTime) }}</span>
+                    <div
+                      class="flex-1 h-1 bg-muted rounded-full overflow-hidden cursor-pointer"
+                      @click="handleAudioSeek"
+                    >
+                      <div
+                        class="h-full bg-green-500 rounded-full"
+                        :style="{ width: audioState.progress + '%' }"
+                      />
+                    </div>
+                    <span class="text-[8px] text-muted-foreground w-6 tabular-nums">{{ formatTime(audioState.duration) }}</span>
+                  </div>
+                </div>
               </div>
+              <!-- 操作按钮：hover 才展示 -->
               <div class="shrink-0 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" class="h-5 px-1 text-[10px]" @click="handleCopy(res.url)">
+                <Button variant="ghost" size="sm" class="h-5 px-1" @click="handleCopy(res.url)">
                   <Copy class="h-2.5 w-2.5" />
                 </Button>
-                <Button variant="ghost" size="sm" class="h-5 px-1 text-[10px]" @click="handleDownload(res.url)">
+                <Button variant="ghost" size="sm" class="h-5 px-1" @click="handleDownload(res.url)">
                   <Download class="h-2.5 w-2.5" />
                 </Button>
               </div>
