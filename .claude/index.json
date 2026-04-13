@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-04-09T02:12:31+08:00",
+  "timestamp": "2026-04-13T10:44:52+08:00",
   "project": "sessionBox",
-  "version": "0.0.1",
-  "description": "多账号浏览器工具，支持 partition 隔离、代理管理、拖拽排序",
+  "version": "0.0.6",
+  "description": "多账号浏览器工具，支持 partition 隔离、代理管理、拖拽排序、分屏、下载管理、Chrome 扩展",
   "language_distribution": {
-    "TypeScript": "75%",
-    "Vue SFC": "20%",
-    "CSS": "3%",
-    "JavaScript": "2%"
+    "TypeScript": "60%",
+    "Vue SFC": "30%",
+    "CSS": "5%",
+    "JavaScript": "5%"
   },
   "modules": [
     {
@@ -18,7 +18,13 @@
       "interfaces": [
         "electron/ipc/index.ts",
         "electron/ipc/tab.ts",
-        "electron/ipc/proxy.ts"
+        "electron/ipc/proxy.ts",
+        "electron/ipc/split.ts",
+        "electron/ipc/download.ts",
+        "electron/ipc/extensions.ts",
+        "electron/ipc/updater.ts",
+        "electron/ipc/shortcut.ts",
+        "electron/ipc/bookmark-check.ts"
       ],
       "data_models": [
         "electron/services/store.ts"
@@ -26,7 +32,16 @@
       "services": [
         "electron/services/store.ts",
         "electron/services/webview-manager.ts",
-        "electron/services/proxy.ts"
+        "electron/services/proxy.ts",
+        "electron/services/extensions.ts",
+        "electron/services/aria2.ts",
+        "electron/services/tray.ts",
+        "electron/services/tray-window.ts",
+        "electron/services/shortcut-manager.ts",
+        "electron/services/bookmark-checker.ts"
+      ],
+      "composables": [
+        "electron/composables/useAutoUpdater.ts"
       ],
       "utils": [
         "electron/utils/user-agent.ts"
@@ -34,8 +49,8 @@
       "tests": [],
       "config_files": [],
       "claude_md": "electron/CLAUDE.md",
-      "file_count": 8,
-      "scanned_files": 8,
+      "file_count": 21,
+      "scanned_files": 21,
       "coverage": "100%"
     },
     {
@@ -50,8 +65,8 @@
       "tests": [],
       "config_files": [],
       "claude_md": "preload/CLAUDE.md",
-      "file_count": 2,
-      "scanned_files": 2,
+      "file_count": 3,
+      "scanned_files": 3,
       "coverage": "100%"
     },
     {
@@ -61,29 +76,45 @@
       "entry": "src/main.ts",
       "interfaces": [
         "src/types/index.ts",
+        "src/types/split.ts",
         "src/env.d.ts"
       ],
       "data_models": [
-        "src/types/index.ts"
+        "src/types/index.ts",
+        "src/types/split.ts"
       ],
       "services": [
-        "src/stores/account.ts",
+        "src/stores/workspace.ts",
+        "src/stores/container.ts",
+        "src/stores/page.ts",
         "src/stores/tab.ts",
         "src/stores/proxy.ts",
         "src/stores/bookmark.ts",
-        "src/stores/theme.ts"
+        "src/stores/theme.ts",
+        "src/stores/download.ts",
+        "src/stores/split.ts",
+        "src/stores/shortcut.ts",
+        "src/stores/extension.ts",
+        "src/stores/history.ts",
+        "src/stores/homepage.ts",
+        "src/stores/userProfile.ts"
       ],
       "utils": [
         "src/lib/utils.ts",
         "src/lib/webview-overlay.ts",
+        "src/lib/split-layout.ts",
+        "src/lib/db.ts",
+        "src/lib/lucide-resolver.ts",
         "src/composables/useDragSort.ts",
-        "src/composables/useIpc.ts"
+        "src/composables/useIpc.ts",
+        "src/composables/useBookmarkDragDrop.ts",
+        "src/composables/useNotification.ts"
       ],
       "tests": [],
       "config_files": [],
       "claude_md": "src/CLAUDE.md",
-      "file_count": 107,
-      "scanned_files": 107,
+      "file_count": 150,
+      "scanned_files": 150,
       "coverage": "100%"
     },
     {
@@ -112,11 +143,27 @@
   ],
   "resource_files": [
     "resources/icon.png",
-    "resources/icon.icns"
+    "resources/icon.icns",
+    "resources/trayIcon.png",
+    "resources/trayIconTemplate@2x.png"
+  ],
+  "docs_files": [
+    "docs/superpowers/specs/2026-04-08-session-box-design.md",
+    "docs/superpowers/specs/2026-04-11-bookmark-health-check-design.md",
+    "docs/superpowers/specs/2026-04-11-bookmark-import-export-design.md",
+    "docs/superpowers/specs/2026-04-11-page-container-model-design.md",
+    "docs/superpowers/specs/2026-04-12-right-panel-mini-popovers-design.md",
+    "docs/superpowers/specs/2026-04-12-split-view-design.md",
+    "docs/superpowers/specs/2026-04-12-tray-menu-design.md",
+    "docs/superpowers/plans/2026-04-11-bookmark-health-check.md",
+    "docs/superpowers/plans/2026-04-11-page-container-model.md",
+    "docs/superpowers/plans/2026-04-12-split-view.md",
+    "docs/superpowers/plans/2026-04-12-tray-menu.md",
+    "docs/page-container-model.md"
   ],
   "coverage": {
-    "total_source_files_estimated": 118,
-    "scanned_files": 118,
+    "total_source_files_estimated": 175,
+    "scanned_files": 175,
     "coverage_percent": 100,
     "modules_with_claude_md": 3,
     "modules_total": 4,
@@ -130,16 +177,18 @@
     "notes": [
       "项目无任何测试文件（无单元测试、集成测试、E2E 测试）",
       "项目无 lint/format 配置（无 ESLint、Prettier 等）",
-      "数据模型类型在三处重复定义（src/types/index.ts、electron/services/store.ts、preload/index.ts），建议统一维护"
+      "数据模型类型在三处重复定义（src/types/index.ts、electron/services/store.ts、preload/index.ts），建议统一维护",
+      "proxy.ts (services/proxy.ts) 包含大量底层网络代码（SOCKS5/HTTP 隧道测试），可考虑独立为子模块"
     ]
   },
   "ignored": {
     "patterns": [
       "node_modules/",
       "out/",
-      "dist-app/"
+      "dist-app/",
+      ".git/"
     ],
-    "source": ".gitignore"
+    "source": ".gitignore + defaults"
   },
   "scan_history": [
     {
@@ -147,6 +196,12 @@
       "phase": "A+B+C",
       "trigger": "initialization",
       "notes": "首次全量扫描，仓库规模较小，三阶段一次性完成"
+    },
+    {
+      "timestamp": "2026-04-13T10:44:52+08:00",
+      "phase": "A+B+C",
+      "trigger": "incremental_update",
+      "notes": "增量更新扫描：项目从 118 文件增长到 175 文件，新增工作区/页面/容器模型、分屏、下载、扩展、托盘、更新、快捷键、书签健康检查、主题预设、历史记录(Dexie)等功能。所有源码文件已完整扫描。"
     }
   ]
 }
