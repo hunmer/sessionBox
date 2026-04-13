@@ -56,6 +56,9 @@ importers:
       vue-sonner:
         specifier: ^2.0.9
         version: 2.0.9
+      vue-waterfall-plugin-next:
+        specifier: ^3.0.1
+        version: 3.0.1
       vue3-emoji-picker:
         specifier: ^1.1.8
         version: 1.1.8(typescript@5.7.3)
@@ -2527,6 +2530,9 @@ packages:
         optional: true
       nuxt:
         optional: true
+
+  vue-waterfall-plugin-next@3.0.1:
+    resolution: {integrity: sha512-ggtP0LkDRKABsTflya9l0YE/D2S6MYG+VBgvkVmCwqLanJy6STYCPFumYCujV9/ansxd81GBgwPe6DUegRDT+w==}
 
   vue3-emoji-picker@1.1.8:
     resolution: {integrity: sha512-k9tVHeQEBVLzVCLYAkFaI1nib3FJFQwdPhWD5khJkhks3ktg3g12z5wPGOSDpIuSLNtelRGvq1qdmZuJu5khfA==}
@@ -5195,6 +5201,8 @@ snapshots:
       vue: 3.5.32(typescript@5.7.3)
 
   vue-sonner@2.0.9: {}
+
+  vue-waterfall-plugin-next@3.0.1: {}
 
   vue3-emoji-picker@1.1.8(typescript@5.7.3):
     dependencies:

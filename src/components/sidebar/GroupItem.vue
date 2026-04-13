@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { reactive, computed } from 'vue'
-import { ChevronRight, MoreHorizontal } from "lucide-vue-next"
+import { ChevronRight, MoreHorizontal, X } from "lucide-vue-next"
 import draggable from 'vuedraggable'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 import {
   Collapsible,
@@ -25,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Pencil, Trash2, Plus } from "lucide-vue-next"
-import type { Group, Page } from '@/types'
+import type { Group, Page, Tab } from '@/types'
 
 interface PageItem {
   page: Page
@@ -70,6 +75,31 @@ const pageTabCounts = computed(() => {
   }
   return counts
 })
+
+// 获取每个页面的标签页列表
+const pageTabs = computed(() => {
+  const map: Record<string, Tab[]> = {}
+  for (const tab of tabStore.tabs) {
+    if (tab.pageId) {
+      if (!map[tab.pageId]) map[tab.pageId] = []
+      map[tab.pageId].push(tab)
+    }
+  }
+  return map
+})
+
+// 关闭页面的单个标签页
+async function closePageTab(tabId: string) {
+  await tabStore.closeTab(tabId)
+}
+
+// 关闭页面的所有标签页
+async function closeAllPageTabs(pageId: string) {
+  const tabs = pageTabs.value[pageId] || []
+  for (const tab of tabs) {
+    await tabStore.closeTab(tab.id)
+  }
+}
 
 // 为每个 workspace 维护独立的折叠状态
 const openStates = reactive<Record<string, boolean>>({})
@@ -184,16 +214,57 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                       >
                         <EmojiRenderer :emoji="pageItem.emoji" />
                         <span>{{ pageItem.name }}</span>
-                        <span
-                          v-if="pageTabCounts[pageItem.id]"
-                          class="ml-auto inline-flex items-center justify-center rounded-full text-[10px] leading-none min-w-4 h-4 px-1"
-                          :style="workspace.color
-                            ? { backgroundColor: workspace.color + '30', color: workspace.color }
-                            : undefined"
-                          :class="!workspace.color && 'bg-primary/20 text-primary'"
-                        >{{ pageTabCounts[pageItem.id] > 1 ? pageTabCounts[pageItem.id] : '' }}</span>
                       </a>
                     </SidebarMenuSubButton>
+                    <!-- 标签页关闭按钮 -->
+                    <template v-if="pageTabCounts[pageItem.id]">
+                      <!-- 单个标签页：直接关闭 -->
+                      <button
+                        v-if="pageTabCounts[pageItem.id] === 1"
+                        class="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        @click.stop="closePageTab(pageTabs[pageItem.id][0].id)"
+                      >
+                        <X class="w-3.5 h-3.5" />
+                      </button>
+                      <!-- 多个标签页：弹出 Popover 列表 -->
+                      <Popover v-else>
+                        <PopoverTrigger as-child>
+                          <button
+                            class="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0 inline-flex items-center gap-0.5"
+                            @click.stop
+                          >
+                            <span class="text-[10px] leading-none">{{ pageTabCounts[pageItem.id] }}</span>
+                            <X class="w-3 h-3" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" class="p-2 w-56" @click.stop>
+                          <div class="flex items-center justify-between mb-1.5 px-1">
+                            <span class="text-xs font-medium text-muted-foreground">打开的标签页</span>
+                            <button
+                              class="text-xs text-destructive hover:underline"
+                              @click="closeAllPageTabs(pageItem.id)"
+                            >
+                              全部关闭
+                            </button>
+                          </div>
+                          <div class="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
+                            <div
+                              v-for="tab in pageTabs[pageItem.id]"
+                              :key="tab.id"
+                              class="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted group/tab-item"
+                            >
+                              <span class="flex-1 text-xs truncate" :title="tab.title || tab.url">{{ tab.title || tab.url }}</span>
+                              <button
+                                class="opacity-0 group-hover/tab-item:opacity-100 p-0.5 rounded hover:bg-destructive/10 text-destructive transition-opacity shrink-0"
+                                @click="closePageTab(tab.id)"
+                              >
+                                <X class="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </template>
                     <DropdownMenu>
                       <DropdownMenuTrigger as-child>
                         <button

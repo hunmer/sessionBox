@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { SniffedResource } from '@/types'
 
@@ -6,10 +6,10 @@ const MAX_RESOURCES_PER_TAB = 500
 
 export const useSnifferStore = defineStore('sniffer', () => {
   /** 每个标签页的资源列表 */
-  const resources = ref<Map<string, SniffedResource[]>>(new Map())
+  const resources = reactive(new Map<string, SniffedResource[]>())
 
   /** 每个标签页的嗅探启用状态 */
-  const enabled = ref<Map<string, boolean>>(new Map())
+  const enabled = reactive(new Map<string, boolean>())
 
   /** 过滤器：显示哪些类型 */
   const filterTypes = ref<Set<'video' | 'audio' | 'image'>>(new Set(['video', 'audio', 'image']))
@@ -33,10 +33,10 @@ export const useSnifferStore = defineStore('sniffer', () => {
     window.api.on('sniffer:resource', (tabId: unknown, resource: unknown) => {
       const tid = tabId as string
       const res = resource as SniffedResource
-      if (!resources.value.has(tid)) {
-        resources.value.set(tid, [])
+      if (!resources.has(tid)) {
+        resources.set(tid, [])
       }
-      const list = resources.value.get(tid)!
+      const list = resources.get(tid)!
       list.unshift(res)
       // FIFO 淘汰
       if (list.length > MAX_RESOURCES_PER_TAB) {
@@ -51,7 +51,7 @@ export const useSnifferStore = defineStore('sniffer', () => {
 
   /** 获取指定标签页的过滤后资源列表 */
   function getFilteredResources(tabId: string): SniffedResource[] {
-    const list = resources.value.get(tabId) ?? []
+    const list = resources.get(tabId) ?? []
     const filters = filterTypes.value
     if (filters.size === 3) return list
     return list.filter(r => filters.has(r.type))
@@ -59,12 +59,12 @@ export const useSnifferStore = defineStore('sniffer', () => {
 
   /** 获取指定标签页的资源总数 */
   function getResourceCount(tabId: string): number {
-    return resources.value.get(tabId)?.length ?? 0
+    return resources.get(tabId)?.length ?? 0
   }
 
   /** 切换嗅探开关 */
   async function toggle(tabId: string, isEnabled: boolean) {
-    enabled.value.set(tabId, isEnabled)
+    enabled.set(tabId, isEnabled)
     await window.api.sniffer.toggle(tabId, isEnabled)
   }
 
@@ -87,13 +87,13 @@ export const useSnifferStore = defineStore('sniffer', () => {
 
   /** 清空指定标签页的资源 */
   function clearResources(tabId: string) {
-    resources.value.set(tabId, [])
+    resources.set(tabId, [])
   }
 
   /** 标签关闭时清理 */
   function onTabClosed(tabId: string) {
-    resources.value.delete(tabId)
-    enabled.value.delete(tabId)
+    resources.delete(tabId)
+    enabled.delete(tabId)
   }
 
   /** 切换过滤器类型 */
