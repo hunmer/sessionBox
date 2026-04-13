@@ -64,6 +64,8 @@ import { registerBookmarkCheckIpc } from './bookmark-check'
 import { registerSplitIpcHandlers } from './split'
 import { webviewManager } from '../services/webview-manager'
 import { registerSnifferIpcHandlers } from './sniffer'
+import { pluginEventBus } from '../services/plugin-event-bus'
+import { registerPluginIpcHandlers } from './plugin'
 
 /** 容器图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'container-icons')
@@ -73,6 +75,19 @@ const iconDir = join(app.getPath('userData'), 'container-icons')
  * 在 app ready 后调用
  */
 export function registerIpcHandlers(): void {
+  // ====== IPC 调用广播代理 ======
+  const originalHandle = ipcMain.handle.bind(ipcMain)
+  ipcMain.handle = function(channel: string, handler: (...args: any[]) => any) {
+    const wrappedHandler = async (event: Electron.IpcMainInvokeEvent, ...args: any[]) => {
+      const result = await handler(event, ...args)
+      try {
+        pluginEventBus.emit(`ipc:${channel}`, { channel, args, result })
+      } catch { /* 忽略事件广播错误 */ }
+      return result
+    }
+    return originalHandle(channel, wrappedHandler)
+  } as typeof ipcMain.handle
+
   // ====== Page 数据迁移 ======
   migrateContainersToPages()
   migrateTabContainerIdToPageId()
@@ -428,4 +443,7 @@ $img.Dispose()`
   ipcMain.handle('mutedSites:set', (_e, sites: string[]) => setMutedSites(sites))
   ipcMain.handle('mutedSites:add', (_e, hostname: string) => addMutedSite(hostname))
   ipcMain.handle('mutedSites:remove', (_e, hostname: string) => removeMutedSite(hostname))
+
+  // ====== 插件管理 ======
+  registerPluginIpcHandlers()
 }
