@@ -64,4 +64,6 @@ export interface PluginContext {
     warn(msg: string, ...args: any[]): void
     error(msg: string, ...args: any[]): void
   }
+  /** 向渲染进程发送消息（通过 mainWindow.webContents.send） */
+  sendToRenderer(channel: string, ...args: any[]): void
 }

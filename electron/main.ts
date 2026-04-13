@@ -307,6 +307,7 @@ if (!gotTheLock) {
     const mainWindow = BrowserWindow.getAllWindows()[0]
     if (mainWindow) {
       trayManager.init(mainWindow)
+      pluginManager.setMainWindow(mainWindow)
     }
 
     // 注册全局快捷键

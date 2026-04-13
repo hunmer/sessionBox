@@ -33,6 +33,7 @@ export const useTabStore = defineStore('tab', () => {
   // ====== 状态 ======
   const tabs = ref<Tab[]>([])
   const activeTabId = ref<string | null>(null)
+  const tabGroupFilterId = ref<string | null>(null)
   const navStates = ref<Map<string, NavState>>(new Map())
   const favicons = ref<Map<string, string>>(new Map())
   const frozenTabIds = ref<Set<string>>(new Set())
@@ -72,6 +73,16 @@ export const useTabStore = defineStore('tab', () => {
   function setTabGroupMode(mode: TabGroupMode) {
     tabGroupMode.value = mode
     localStorage.setItem(TAB_GROUP_KEY, mode)
+  }
+
+  /** 设置标签分组过滤（仅展示指定分组的标签，null 表示不过滤） */
+  function setTabGroupFilter(groupId: string | null) {
+    tabGroupFilterId.value = groupId
+  }
+
+  /** 清除标签分组过滤 */
+  function clearTabGroupFilter() {
+    tabGroupFilterId.value = null
   }
 
   /** 是否启用了任意分组 */
@@ -153,7 +164,19 @@ export const useTabStore = defineStore('tab', () => {
         .map((p) => p.id)
     )
     // 包含 page 匹配的 tab 以及无 page 的内部页面 tab
-    return sortedTabs.value.filter((t) => pageIds.has(t.pageId) || !t.pageId)
+    let result = sortedTabs.value.filter((t) => pageIds.has(t.pageId) || !t.pageId)
+
+    // 如果设置了分组过滤，只保留对应分组的标签
+    if (tabGroupFilterId.value) {
+      const filteredPageIds = new Set(
+        pageStore.pages
+          .filter((p) => p.groupId === tabGroupFilterId.value)
+          .map((p) => p.id)
+      )
+      result = result.filter((t) => filteredPageIds.has(t.pageId) || !t.pageId)
+    }
+
+    return result
   })
 
   /** 工作区内带分组标记的标签列表 */
@@ -486,6 +509,11 @@ export const useTabStore = defineStore('tab', () => {
       activeTabId.value = tabId as string
     })
 
+    // 插件设置的分组过滤
+    api.on('tab:set-group-filter', (groupId: unknown) => {
+      tabGroupFilterId.value = groupId as string | null
+    })
+
     api.on('tab:title-updated', (tabId: unknown, title: unknown) => {
       const t = tabs.value.find((t) => t.id === tabId)
       if (t) {
@@ -623,6 +651,7 @@ export const useTabStore = defineStore('tab', () => {
   return {
     tabs,
     activeTabId,
+    tabGroupFilterId,
     navStates,
     favicons,
     frozenTabIds,
@@ -641,6 +670,8 @@ export const useTabStore = defineStore('tab', () => {
     tabGroupEnabled,
     tabGroupMode,
     setTabGroupMode,
+    setTabGroupFilter,
+    clearTabGroupFilter,
     groupedSortedTabs,
     loadTabs,
     createTab,

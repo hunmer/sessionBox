@@ -1,0 +1,11 @@
+{
+  "id": "sessionbox.group-tab-filter",
+  "name": "Group Tab Filter",
+  "version": "1.0.0",
+  "description": "激活标签页时，自动过滤标签栏只展示同分组下的标签",
+  "author": {
+    "name": "SessionBox"
+  },
+  "tags": ["标签", "分组", "过滤"],
+  "hasView": true
+}

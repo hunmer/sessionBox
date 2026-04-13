@@ -1,3 +1,4 @@
+import { BrowserWindow } from 'electron'
 import { pluginEventBus } from './plugin-event-bus'
 import { PluginStorage } from './plugin-storage'
 import type { PluginContext, PluginInfo } from './plugin-types'
@@ -5,7 +6,8 @@ import type { PluginContext, PluginInfo } from './plugin-types'
 export function createPluginContext(
   pluginInfo: PluginInfo,
   storage: PluginStorage,
-  eventBus: typeof pluginEventBus
+  eventBus: typeof pluginEventBus,
+  getMainWindow: () => BrowserWindow | null
 ): PluginContext {
   const prefix = `plugin:${pluginInfo.id}:`
 
@@ -46,6 +48,12 @@ export function createPluginContext(
       error(msg: string, ...args: any[]): void {
         console.error(`[Plugin:${pluginInfo.name}] ${msg}`, ...args)
       }
+    },
+
+    sendToRenderer(channel: string, ...args: any[]): void {
+      const win = getMainWindow()
+      if (!win || win.isDestroyed()) return
+      win.webContents.send(channel, ...args)
     }
   }
 }

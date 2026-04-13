@@ -698,7 +698,8 @@ class WebviewManager {
     extensions.selectTab(target.view.webContents)
 
     broadcastToRenderer('on:tab:activated', tabId)
-    pluginEventBus.emit('tab:activated', { tabId })
+    const activatedPage = getPageById(target.pageId)
+    pluginEventBus.emit('tab:activated', { tabId, pageId: target.pageId, groupId: activatedPage?.groupId ?? null })
     this.mainWindow.webContents.send('on:tab:activated', tabId)
     this.mainWindow.webContents.send('on:tab:request-bounds')
     void this.refreshProxyInfo(tabId)

@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { app } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { pluginEventBus } from './plugin-event-bus'
 import { PluginStorage } from './plugin-storage'
 import { createPluginContext } from './plugin-context'
@@ -11,6 +11,7 @@ class PluginManager {
   private disabledIds: Set<string> = new Set()
   private userDataPath: string
   private pluginsDir: string
+  private mainWindow: BrowserWindow | null = null
 
   constructor() {
     this.userDataPath = app.getPath('userData')
@@ -55,6 +56,11 @@ class PluginManager {
     }
   }
 
+  /** 设置主窗口引用（供插件 sendToRenderer 使用） */
+  setMainWindow(win: BrowserWindow): void {
+    this.mainWindow = win
+  }
+
   /** 加载单个插件目录 */
   load(pluginDir: string): void {
     const infoPath = join(pluginDir, 'info.json')
@@ -85,7 +91,7 @@ class PluginManager {
     }
 
     const storage = new PluginStorage(info.id, this.userDataPath)
-    const context = createPluginContext(info, storage, pluginEventBus)
+    const context = createPluginContext(info, storage, pluginEventBus, () => this.mainWindow)
     const isDisabled = this.disabledIds.has(info.id)
     const pluginModule = require(mainPath)
 
@@ -117,7 +123,7 @@ class PluginManager {
     if (!instance) return
     if (instance.enabled && typeof instance.module.deactivate === 'function') {
       try {
-        instance.module.deactivate()
+        instance.module.deactivate(instance.context)
       } catch (err) {
         console.error(`[PluginManager] 插件停用失败: ${instance.info.name}`, err)
       }
@@ -150,7 +156,7 @@ class PluginManager {
     if (!instance || !instance.enabled) return
     if (typeof instance.module.deactivate === 'function') {
       try {
-        instance.module.deactivate()
+        instance.module.deactivate(instance.context)
       } catch (err) {
         console.error(`[PluginManager] 插件停用失败: ${instance.info.name}`, err)
       }
