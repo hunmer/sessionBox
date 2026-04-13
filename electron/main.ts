@@ -9,6 +9,7 @@ import { getAutoUpdater } from './composables/useAutoUpdater'
 import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
 import { trayManager } from './services/tray'
 import { trayWindowManager } from './services/tray-window'
+import { pluginManager } from './services/plugin-manager'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 
 // 节流函数
@@ -117,6 +118,7 @@ if (!gotTheLock) {
 
   app.on('before-quit', () => {
     isQuitting = true
+    pluginManager.shutdown()
     trayWindowManager.destroyAll()
   })
 
@@ -271,6 +273,9 @@ if (!gotTheLock) {
     // 注册所有 IPC 处理器
     registerIpcHandlers()
     registerDownloadIpcHandlers()
+
+    // 初始化插件系统
+    pluginManager.loadAll()
 
     // 初始化标签冻结定时器
     webviewManager.setFreezeMinutes(getTabFreezeMinutes())

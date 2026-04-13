@@ -107,6 +107,19 @@ export interface ShortcutItem {
   defaultAccelerator: string
 }
 
+// 插件相关类型
+export interface PluginMeta {
+  id: string
+  name: string
+  version: string
+  description: string
+  author: { name: string; email?: string; url?: string }
+  tags: string[]
+  hasView: boolean
+  enabled: boolean
+  iconPath: string
+}
+
 // 分屏相关类型
 export interface SplitPaneData {
   id: string
@@ -391,6 +404,14 @@ const api = {
     startDrag: (filePath: string): void => ipcRenderer.send('download:startDrag', filePath),
     openFile: (filePath: string): Promise<void> => ipcRenderer.invoke('download:openFile', filePath),
     pickDirectory: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('download:pickDirectory', defaultPath)
+  },
+
+  plugin: {
+    list: (): Promise<PluginMeta[]> => ipcRenderer.invoke('plugin:list'),
+    enable: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugin:enable', pluginId),
+    disable: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugin:disable', pluginId),
+    getView: (pluginId: string): Promise<string | null> => ipcRenderer.invoke('plugin:get-view', pluginId),
+    getIcon: (pluginId: string): Promise<string | null> => ipcRenderer.invoke('plugin:get-icon', pluginId)
   },
 
   // 自动更新
