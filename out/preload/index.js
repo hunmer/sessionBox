@@ -197,6 +197,13 @@ const api = {
     remove: (hostname) => electron.ipcRenderer.invoke("mutedSites:remove", hostname)
   },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
+  sniffer: {
+    toggle: (tabId, enabled) => electron.ipcRenderer.invoke("sniffer:toggle", tabId, enabled),
+    setDomainEnabled: (domain, enabled) => electron.ipcRenderer.invoke("sniffer:setDomainEnabled", domain, enabled),
+    getDomainList: () => electron.ipcRenderer.invoke("sniffer:getDomainList"),
+    clearResources: (tabId) => electron.ipcRenderer.invoke("sniffer:clearResources", tabId),
+    getState: (tabId) => electron.ipcRenderer.invoke("sniffer:getState", tabId)
+  },
   shortcut: {
     list: () => electron.ipcRenderer.invoke("shortcut:list"),
     update: (id, accelerator, isGlobal) => electron.ipcRenderer.invoke("shortcut:update", id, accelerator, isGlobal),

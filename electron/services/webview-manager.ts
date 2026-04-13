@@ -1,6 +1,6 @@
 import { BrowserWindow, Menu, Session, WebContentsView, clipboard, nativeImage } from 'electron'
 import { ensureExtensionsLoadedForContainer, getExtensionsForContainer } from './extensions'
-import { getPageById, getContainerById, getGroupById, getProxyById, getMutedSites, type Proxy } from './store'
+import { getPageById, getContainerById, getGroupById, getProxyById, getMutedSites, getSnifferDomains, type Proxy } from './store'
 import { applyProxyToSession, fetchSessionExitIp } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
@@ -58,10 +58,12 @@ class WebviewManager {
   private overlayVisible = true
   private multiBoundsActive = false
   private freezeTimer: ReturnType<typeof setInterval> | null = null
-  private frozenTabUrls = new Map<string, { url: string; pageId: string; containerId: string }>() // 冻结的 tab 信息
+  private frozenTabUrls = new Map<string, { url: string; pageId: string; containerId: string; snifferEnabled?: boolean }>() // 冻结的 tab 信息
   private pendingViews = new Map<string, { url: string; pageId: string; containerId: string }>() // 未激活的 tab（尚未创建 WebContentsView）
   private _freezeMinutes = 0
   private aria2Enabled = false // 缓存 aria2 接管下载的状态
+  private snifferEnabled = new Map<string, boolean>() // tabId -> 嗅探是否启用
+  private sessionSnifferInstalled = new Set<string>()  // 已注册嗅探 listener 的 session partition
 
   setMainWindow(win: BrowserWindow): void {
     this.mainWindow = win
@@ -362,6 +364,11 @@ class WebviewManager {
       const frozen = this.frozenTabUrls.get(tabId)!
       this.frozenTabUrls.delete(tabId)
       this.createView(tabId, frozen.pageId, frozen.url)
+      // 恢复嗅探状态
+      if (frozen.snifferEnabled) {
+        this.snifferEnabled.set(tabId, true)
+        this.startSniffing(tabId)
+      }
       this.mainWindow?.webContents.send('on:tab:frozen', tabId, false)
       return this.views.get(tabId) ?? null
     }
@@ -383,6 +390,21 @@ class WebviewManager {
 
     const isWebUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://') || url.startsWith('file:///')
     const canSend = () => !win.isDestroyed()
+
+    // 自动嗅探：域名匹配自动启用列表时自动开启
+    const autoSniff = (url: string) => {
+      if (this.snifferEnabled.get(tabId)) return
+      try {
+        const hostname = new URL(url).hostname
+        const domains: string[] = getSnifferDomains()
+        if (domains.some(d => hostname === d || hostname.endsWith(`.${d}`))) {
+          this.snifferEnabled.set(tabId, true)
+          this.startSniffing(tabId)
+        }
+      } catch {
+        // URL 解析失败，忽略
+      }
+    }
 
     wc.setWindowOpenHandler(({ url }) => {
       if (!isWebUrl(url)) return { action: 'deny' }
@@ -411,12 +433,14 @@ class WebviewManager {
       if (canSend()) win.webContents.send('on:tab:url-updated', tabId, url)
       this.sendNavState(tabId)
       this.checkAutoMute(tabId, url)
+      autoSniff(url)
     })
 
     wc.on('did-navigate-in-page', (_event, url) => {
       if (canSend()) win.webContents.send('on:tab:url-updated', tabId, url)
       this.sendNavState(tabId)
       this.checkAutoMute(tabId, url)
+      autoSniff(url)
     })
 
     wc.on('did-start-loading', () => {
@@ -604,6 +628,7 @@ class WebviewManager {
     this.pendingViews.delete(tabId)
     this.tabProxyOverride.delete(tabId)
     this.visibleTabIds.delete(tabId)
+    this.snifferEnabled.delete(tabId)
 
     const entry = this.views.get(tabId)
     if (!entry) {
@@ -634,6 +659,9 @@ class WebviewManager {
       if (!entry.view.webContents.isDestroyed()) {
         entry.view.webContents.close()
       }
+
+      // 清理该 session 上的嗅探 listener（如果没有其他 tab 在使用）
+      this.cleanupSessionSniffer(entry.containerId)
     } catch {
       // 关闭过程中忽略 Electron 已销毁异常。
     }
@@ -1037,7 +1065,7 @@ class WebviewManager {
       if (url.startsWith('sessionbox://')) continue
 
       // 记录冻结信息（用于后续解冻重建）
-      this.frozenTabUrls.set(tabId, { url, pageId: entry.pageId, containerId: entry.containerId })
+      this.frozenTabUrls.set(tabId, { url, pageId: entry.pageId, containerId: entry.containerId, snifferEnabled: this.snifferEnabled.get(tabId) ?? false })
 
       // 销毁 view 但保留 tab 数据
       try {
@@ -1061,6 +1089,8 @@ class WebviewManager {
       }
 
       this.views.delete(tabId)
+      this.snifferEnabled.delete(tabId)
+      this.stopSniffing(tabId)
       this.mainWindow!.webContents.send('on:tab:frozen', tabId, true)
     }
   }
@@ -1093,6 +1123,113 @@ class WebviewManager {
     if (entry && !entry.view.webContents.isDestroyed()) {
       entry.view.webContents.setAudioMuted(muted)
     }
+  }
+
+  // ====== 网络嗅探 ======
+
+  /** 切换标签页的嗅探开关 */
+  toggleSniffer(tabId: string, enabled: boolean): void {
+    this.snifferEnabled.set(tabId, enabled)
+    if (enabled) {
+      this.startSniffing(tabId)
+    } else {
+      this.stopSniffing(tabId)
+    }
+  }
+
+  /** 为标签页启动网络请求嗅探 */
+  private startSniffing(tabId: string): void {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) return
+
+    const win = this.mainWindow
+    if (!win || win.isDestroyed()) return
+
+    // 使用 containerId 标识 session（partition = persist:container-{containerId}）
+    const sessionKey = entry.containerId || '__default__'
+
+    if (!this.sessionSnifferInstalled.has(sessionKey)) {
+      const session = entry.view.webContents.session
+
+      const listener = (details: Electron.OnCompletedListenerDetails) => {
+        // 跳过主框架请求
+        if (!details.resourceType || details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') return
+
+        const contentType = details.responseHeaders?.['content-type']?.[0]
+          || details.responseHeaders?.['Content-Type']?.[0]
+          || ''
+
+        let resourceType: 'video' | 'audio' | 'image' | null = null
+        if (/^video\//i.test(contentType)) resourceType = 'video'
+        else if (/^audio\//i.test(contentType)) resourceType = 'audio'
+        else if (/^image\//i.test(contentType)) resourceType = 'image'
+
+        if (!resourceType) return
+
+        const contentLength = details.responseHeaders?.['content-length']?.[0]
+          || details.responseHeaders?.['Content-Length']?.[0]
+
+        const resource = {
+          id: `sniff-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          url: details.url,
+          type: resourceType,
+          mimeType: contentType.split(';')[0].trim(),
+          size: contentLength ? parseInt(contentLength, 10) : undefined,
+          timestamp: Date.now()
+        }
+
+        if (!win.isDestroyed()) {
+          // 遍历该 session 下所有启用嗅探的 tab，分别推送
+          for (const [tid, enabled] of this.snifferEnabled) {
+            if (!enabled) continue
+            const e = this.views.get(tid)
+            if (!e || e.view.webContents.isDestroyed()) continue
+            if (e.containerId !== entry.containerId) continue
+            win.webContents.send('on:sniffer:resource', tid, resource)
+          }
+        }
+      }
+
+      session.webRequest.onCompleted(listener)
+      this.sessionSnifferInstalled.add(sessionKey)
+    }
+  }
+
+  /** 停止标签页的网络请求嗅探（仅清理 enabled 状态） */
+  private stopSniffing(_tabId: string): void {
+    // per-session 的 listener 通过 snifferEnabled Map 控制，
+    // 当没有活跃的嗅探 tab 时在 destroyView 中清理
+  }
+
+  /** 获取标签页的嗅探启用状态 */
+  isSnifferEnabled(tabId: string): boolean {
+    return this.snifferEnabled.get(tabId) ?? false
+  }
+
+  /** 清理 session 级嗅探 listener（当没有活跃嗅探 tab 时） */
+  private cleanupSessionSniffer(containerId: string): void {
+    const sessionKey = containerId || '__default__'
+    if (!this.sessionSnifferInstalled.has(sessionKey)) return
+
+    // 检查是否还有该 container 的 tab 在嗅探
+    for (const [tid, enabled] of this.snifferEnabled) {
+      if (!enabled) continue
+      const e = this.views.get(tid)
+      if (e && (e.containerId || '') === containerId) return // 仍有活跃嗅探
+    }
+
+    // 没有活跃嗅探了，卸载 session listener
+    for (const [, e] of this.views) {
+      if ((e.containerId || '') === containerId && !e.view.webContents.isDestroyed()) {
+        try {
+          e.view.webContents.session.webRequest.onCompleted(() => {})
+        } catch {
+          // 忽略
+        }
+        break
+      }
+    }
+    this.sessionSnifferInstalled.delete(sessionKey)
   }
 }
 

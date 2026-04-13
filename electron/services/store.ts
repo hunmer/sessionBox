@@ -174,6 +174,7 @@ interface StoreSchema {
   trayWindowSizes: TrayWindowSizes
   updateSources: UpdateSource[]
   activeUpdateSourceId: string
+  snifferDomains: string[]
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -205,7 +206,8 @@ const defaults: StoreSchema = {
   updateSources: [
     { id: 'github', name: 'GitHub', type: 'github', owner: 'hunmer', repo: 'sessionBox' }
   ],
-  activeUpdateSourceId: 'github'
+  activeUpdateSourceId: 'github',
+  snifferDomains: []
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -1004,4 +1006,23 @@ export function updateUpdateSource(id: string, data: Partial<Omit<UpdateSource, 
   if (idx === -1) throw new Error(`更新源 ${id} 不存在`)
   sources[idx] = { ...sources[idx], ...data }
   store.set('updateSources', sources)
+}
+
+// ====== 嗅探器域名规则 ======
+
+export function getSnifferDomains(): string[] {
+  return store.get('snifferDomains', defaults.snifferDomains)
+}
+
+export function addSnifferDomain(domain: string): void {
+  const domains = getSnifferDomains()
+  if (!domains.includes(domain)) {
+    domains.push(domain)
+    store.set('snifferDomains', domains)
+  }
+}
+
+export function removeSnifferDomain(domain: string): void {
+  const domains = getSnifferDomains().filter(d => d !== domain)
+  store.set('snifferDomains', domains)
 }

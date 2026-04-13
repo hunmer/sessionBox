@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import type { Tab, NavState } from '../types'
 import { useContainerStore } from './container'
 import { usePageStore } from './page'
+import { useSnifferStore } from './sniffer'
 import { useWorkspaceStore } from './workspace'
 import { useHistoryStore } from './history'
 
@@ -302,6 +303,9 @@ export const useTabStore = defineStore('tab', () => {
     await api.tab.close(tabId)
     tabs.value = tabs.value.filter((t) => t.id !== tabId)
     navStates.value.delete(tabId)
+
+    // 清理嗅探器数据
+    useSnifferStore().onTabClosed(tabId)
     favicons.value.delete(tabId)
     proxyInfos.value.delete(tabId)
 

@@ -107,6 +107,16 @@ export interface Extension {
   icon?: string
 }
 
+// 嗅探到的网络资源
+export interface SniffedResource {
+  id: string
+  url: string
+  type: 'video' | 'audio' | 'image'
+  mimeType: string
+  size?: number
+  timestamp: number
+}
+
 export type {
   SplitPane,
   SplitPresetType,

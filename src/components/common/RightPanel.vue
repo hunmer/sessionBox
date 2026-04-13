@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -21,6 +21,7 @@ import DownloadMiniPopover from './DownloadMiniPopover.vue'
 import ProxyMiniPopover from './ProxyMiniPopover.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import ContainerMiniPopover from './ContainerMiniPopover.vue'
+import SnifferMiniPopover from './SnifferMiniPopover.vue'
 
 const tabStore = useTabStore()
 const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
@@ -37,6 +38,7 @@ const downloadOpen = ref(false)
 const proxyOpen = ref(false)
 const proxyDialogOpen = ref(false)
 const containerOpen = ref(false)
+const snifferOpen = ref(false)
 
 function openFullPage(site: string) {
   bookmarkOpen.value = false
@@ -44,6 +46,7 @@ function openFullPage(site: string) {
   downloadOpen.value = false
   proxyOpen.value = false
   containerOpen.value = false
+  snifferOpen.value = false
   tabStore.createTabForSite(site)
 }
 </script>
@@ -111,6 +114,18 @@ function openFullPage(site: string) {
             </PopoverTrigger>
             <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
               <ContainerMiniPopover @open-full="openFullPage('sessionbox://containers')" />
+            </PopoverContent>
+          </Popover>
+
+          <!-- 网络嗅探 -->
+          <Popover v-model:open="snifferOpen">
+            <PopoverTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-8 w-8">
+                <Radar class="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+              <SnifferMiniPopover />
             </PopoverContent>
           </Popover>
         </div>

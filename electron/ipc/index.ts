@@ -63,6 +63,7 @@ import { registerShortcutIpcHandlers } from './shortcut'
 import { registerBookmarkCheckIpc } from './bookmark-check'
 import { registerSplitIpcHandlers } from './split'
 import { webviewManager } from '../services/webview-manager'
+import { registerSnifferIpcHandlers } from './sniffer'
 
 /** 容器图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'container-icons')
@@ -79,6 +80,9 @@ export function registerIpcHandlers(): void {
 
   // ====== 书签数据迁移 ======
   migrateBookmarks()
+
+  // ====== 嗅探器 ======
+  registerSnifferIpcHandlers()
 
   // ====== 工作区 ======
   ipcMain.handle('workspace:list', () => listWorkspaces())

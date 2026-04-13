@@ -332,6 +332,19 @@ const api = {
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),
 
+  sniffer: {
+    toggle: (tabId: string, enabled: boolean): Promise<void> =>
+      ipcRenderer.invoke('sniffer:toggle', tabId, enabled),
+    setDomainEnabled: (domain: string, enabled: boolean): Promise<void> =>
+      ipcRenderer.invoke('sniffer:setDomainEnabled', domain, enabled),
+    getDomainList: (): Promise<string[]> =>
+      ipcRenderer.invoke('sniffer:getDomainList'),
+    clearResources: (tabId: string): Promise<void> =>
+      ipcRenderer.invoke('sniffer:clearResources', tabId),
+    getState: (tabId: string): Promise<{ enabled: boolean }> =>
+      ipcRenderer.invoke('sniffer:getState', tabId),
+  },
+
   shortcut: {
     list: (): Promise<ShortcutItem[]> => ipcRenderer.invoke('shortcut:list'),
     update: (id: string, accelerator: string, isGlobal: boolean): Promise<{ success: boolean; error?: string; conflictId?: string }> =>
