@@ -5,6 +5,7 @@ import { applyProxyToSession, fetchSessionExitIp } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
 import { handleBeforeInputEvent } from './shortcut-manager'
+import { broadcastToRenderer, pluginEventBus } from './plugin-event-bus'
 
 export const BLOCKED_SCHEMES = [
   'bitbrowser',
@@ -322,6 +323,7 @@ class WebviewManager {
     view.setVisible(false)
     this.mainWindow.contentView.addChildView(view)
     this.views.set(tabId, { view, tabId, pageId, containerId, lastActiveAt: Date.now() })
+    pluginEventBus.emit('tab:created', { tabId, pageId, url })
     this.setupEventForwarding(tabId, view)
 
     // 拦截 tab 内的快捷键（Ctrl+R、Ctrl+W 等）
@@ -369,6 +371,8 @@ class WebviewManager {
         this.snifferEnabled.set(tabId, true)
         this.startSniffing(tabId)
       }
+      broadcastToRenderer('on:tab:frozen', tabId, false)
+      pluginEventBus.emit('tab:unfrozen', { tabId })
       this.mainWindow?.webContents.send('on:tab:frozen', tabId, false)
       return this.views.get(tabId) ?? null
     }
@@ -430,6 +434,7 @@ class WebviewManager {
     })
 
     wc.on('did-navigate', (_event, url) => {
+      pluginEventBus.emit('tab:navigated', { tabId, url })
       if (canSend()) win.webContents.send('on:tab:url-updated', tabId, url)
       this.sendNavState(tabId)
       this.checkAutoMute(tabId, url)
@@ -624,6 +629,7 @@ class WebviewManager {
   }
 
   destroyView(tabId: string): void {
+    pluginEventBus.emit('tab:closed', { tabId })
     // 清理待激活记录
     this.pendingViews.delete(tabId)
     this.tabProxyOverride.delete(tabId)
@@ -691,6 +697,8 @@ class WebviewManager {
     const extensions = getExtensionsForContainer(target.containerId || null)
     extensions.selectTab(target.view.webContents)
 
+    broadcastToRenderer('on:tab:activated', tabId)
+    pluginEventBus.emit('tab:activated', { tabId })
     this.mainWindow.webContents.send('on:tab:activated', tabId)
     this.mainWindow.webContents.send('on:tab:request-bounds')
     void this.refreshProxyInfo(tabId)
@@ -1091,6 +1099,8 @@ class WebviewManager {
       this.views.delete(tabId)
       this.snifferEnabled.delete(tabId)
       this.stopSniffing(tabId)
+      broadcastToRenderer('on:tab:frozen', tabId, true)
+      pluginEventBus.emit('tab:frozen', { tabId, frozen: true })
       this.mainWindow!.webContents.send('on:tab:frozen', tabId, true)
     }
   }
