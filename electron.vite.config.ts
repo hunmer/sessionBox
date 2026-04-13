@@ -69,7 +69,8 @@ export default defineConfig({
     root: '.',
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src')
+        '@': resolve(__dirname, 'src'),
+        'vue': 'vue/dist/vue.esm-bundler.js'
       }
     },
     optimizeDeps: {
@@ -78,7 +79,9 @@ export default defineConfig({
       ]
     },
     plugins: [
-      vue(),
+      vue({
+        isProduction: false
+      }),
       tailwindcss(),
       // 仅开发环境启用 Vue DevTools
       ...(isProduction ? [] : [vueDevTools({ launchEditor: getEditor() })])
