@@ -245,7 +245,9 @@ const api = {
     enable: (pluginId) => electron.ipcRenderer.invoke("plugin:enable", pluginId),
     disable: (pluginId) => electron.ipcRenderer.invoke("plugin:disable", pluginId),
     getView: (pluginId) => electron.ipcRenderer.invoke("plugin:get-view", pluginId),
-    getIcon: (pluginId) => electron.ipcRenderer.invoke("plugin:get-icon", pluginId)
+    getIcon: (pluginId) => electron.ipcRenderer.invoke("plugin:get-icon", pluginId),
+    importZip: () => electron.ipcRenderer.invoke("plugin:import-zip"),
+    openFolder: () => electron.ipcRenderer.invoke("plugin:open-folder")
   },
   // 自动更新
   updater: {

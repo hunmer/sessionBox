@@ -21,4 +21,12 @@ export function registerPluginIpcHandlers(): void {
   ipcMain.handle('plugin:get-icon', (_e, pluginId: string) => {
     return pluginManager.getIconBase64(pluginId)
   })
+
+  ipcMain.handle('plugin:import-zip', async () => {
+    return pluginManager.importFromZip()
+  })
+
+  ipcMain.handle('plugin:open-folder', () => {
+    pluginManager.openPluginsFolder()
+  })
 }

@@ -411,7 +411,10 @@ const api = {
     enable: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugin:enable', pluginId),
     disable: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugin:disable', pluginId),
     getView: (pluginId: string): Promise<string | null> => ipcRenderer.invoke('plugin:get-view', pluginId),
-    getIcon: (pluginId: string): Promise<string | null> => ipcRenderer.invoke('plugin:get-icon', pluginId)
+    getIcon: (pluginId: string): Promise<string | null> => ipcRenderer.invoke('plugin:get-icon', pluginId),
+    importZip: (): Promise<{ success: boolean; pluginName?: string; error?: string }> =>
+      ipcRenderer.invoke('plugin:import-zip'),
+    openFolder: (): Promise<void> => ipcRenderer.invoke('plugin:open-folder')
   },
 
   // 自动更新

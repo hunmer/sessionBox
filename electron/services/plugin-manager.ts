@@ -1,6 +1,7 @@
-import { join } from 'path'
+import { join, basename } from 'path'
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, shell, dialog } from 'electron'
+import AdmZip from 'adm-zip'
 import { pluginEventBus } from './plugin-event-bus'
 import { PluginStorage } from './plugin-storage'
 import { createPluginContext } from './plugin-context'
@@ -210,6 +211,85 @@ class PluginManager {
     } catch {
       return null
     }
+  }
+
+  /** 从 ZIP 文件导入插件 */
+  async importFromZip(): Promise<{ success: boolean; pluginName?: string; error?: string }> {
+    const result = await dialog.showOpenDialog({
+      title: '选择插件 ZIP 文件',
+      filters: [{ name: 'ZIP', extensions: ['zip'] }],
+      properties: ['openFile']
+    })
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, error: '已取消' }
+    }
+
+    const zipPath = result.filePaths[0]
+    const zipFileName = basename(zipPath, '.zip')
+
+    try {
+      const zip = new AdmZip(zipPath)
+      const entries = zip.getEntries()
+
+      // 查找 info.json 所在的目录（插件根目录）
+      const infoEntry = entries.find((e) => !e.isDirectory && e.entryName.endsWith('info.json'))
+      if (!infoEntry) {
+        return { success: false, error: 'ZIP 中未找到 info.json，不是有效的插件包' }
+      }
+
+      // 插件目录名：info.json 所在的顶级目录，或 ZIP 文件名
+      const relativePath = infoEntry.entryName
+      const topDir = relativePath.split('/')[0]
+      const pluginDirName = relativePath.includes('/') ? topDir : zipFileName
+
+      // 确保插件目录存在
+      if (!existsSync(this.pluginsDir)) {
+        mkdirSync(this.pluginsDir, { recursive: true })
+      }
+
+      const targetDir = join(this.pluginsDir, pluginDirName)
+
+      // 如果插件已存在，先卸载
+      const existingPlugin = Array.from(this.plugins.values()).find((p) => p.dir === targetDir)
+      if (existingPlugin) {
+        this.unload(existingPlugin.id)
+      }
+
+      // 解压到临时目录后校验，再移入目标
+      zip.extractAllTo(targetDir, true)
+
+      // 校验解压结果
+      const infoPath = join(targetDir, 'info.json')
+      const mainPath = join(targetDir, 'main.js')
+      if (!existsSync(infoPath) || !existsSync(mainPath)) {
+        // 清理无效解压
+        const { rmSync } = await import('node:fs')
+        rmSync(targetDir, { recursive: true, force: true })
+        return { success: false, error: '插件缺少 info.json 或 main.js，导入失败' }
+      }
+
+      // 加载插件
+      this.load(targetDir)
+
+      const instance = Array.from(this.plugins.values()).find((p) => p.dir === targetDir)
+      if (!instance) {
+        return { success: false, error: '插件加载失败' }
+      }
+
+      return { success: true, pluginName: instance.info.name }
+    } catch (err: any) {
+      return { success: false, error: `导入失败: ${err.message}` }
+    }
+  }
+
+  /** 在系统文件管理器中打开插件目录 */
+  openPluginsFolder(): void {
+    const dir = this.pluginsDir
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true })
+    }
+    shell.openPath(dir)
   }
 
   shutdown(): void {

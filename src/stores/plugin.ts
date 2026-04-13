@@ -56,6 +56,18 @@ export const usePluginStore = defineStore('plugin', () => {
     activeViewPluginId.value = null
   }
 
+  async function importPlugin(): Promise<{ success: boolean; pluginName?: string; error?: string }> {
+    const result = await window.api.plugin.importZip()
+    if (result.success) {
+      await init()
+    }
+    return result
+  }
+
+  async function openPluginsFolder(): Promise<void> {
+    await window.api.plugin.openFolder()
+  }
+
   return {
     plugins,
     isLoading,
@@ -69,6 +81,8 @@ export const usePluginStore = defineStore('plugin', () => {
     loadViewContent,
     loadIcon,
     openView,
-    closeView
+    closeView,
+    importPlugin,
+    openPluginsFolder
   }
 })

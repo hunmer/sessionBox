@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue'
-import { RefreshCw, Search } from 'lucide-vue-next'
+import { RefreshCw, Search, FolderOpen, PackagePlus } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -98,6 +98,19 @@ async function handleToggle(pluginId: string) {
 function handleOpenSettings(pluginId: string) {
   pluginStore.openView(pluginId)
 }
+
+async function handleImportPlugin() {
+  const result = await pluginStore.importPlugin()
+  if (result.success) {
+    // toast 会自动显示
+  } else if (result.error && result.error !== '已取消') {
+    console.error('插件导入失败:', result.error)
+  }
+}
+
+function handleOpenFolder() {
+  pluginStore.openPluginsFolder()
+}
 </script>
 
 <template>
@@ -106,6 +119,14 @@ function handleOpenSettings(pluginId: string) {
     <div class="flex items-center gap-2 px-4 py-2 border-b border-border flex-shrink-0">
       <h2 class="text-sm font-semibold flex-shrink-0">插件管理</h2>
       <div class="flex-1" />
+      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleImportPlugin">
+        <PackagePlus class="w-3.5 h-3.5" />
+        导入插件
+      </Button>
+      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleOpenFolder">
+        <FolderOpen class="w-3.5 h-3.5" />
+        打开文件夹
+      </Button>
       <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleRefresh">
         <RefreshCw class="w-3.5 h-3.5" />
         刷新
