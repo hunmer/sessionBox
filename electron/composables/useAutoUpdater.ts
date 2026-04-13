@@ -2,6 +2,10 @@ import { autoUpdater } from 'electron-updater'
 import { BrowserWindow, app } from 'electron'
 import { join } from 'path'
 import { readFileSync } from 'fs'
+import {
+  getActiveUpdateSource,
+  type UpdateSource
+} from '../services/store'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -27,6 +31,38 @@ export function useAutoUpdater() {
   const sendToRenderer = (channel: string, data?: unknown) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(channel, data)
+    }
+  }
+
+  /**
+   * 根据更新源配置设置 autoUpdater 的 feed URL
+   */
+  const applyUpdateSource = (source: UpdateSource): void => {
+    if (source.type === 'github' && source.owner && source.repo) {
+      autoUpdater.setFeedURL({
+        provider: 'github',
+        owner: source.owner,
+        repo: source.repo
+      })
+      console.log(`[AutoUpdater] 更新源设为 GitHub: ${source.owner}/${source.repo}`)
+    } else if (source.type === 'generic' && source.url) {
+      autoUpdater.setFeedURL({
+        provider: 'generic',
+        url: source.url
+      })
+      console.log(`[AutoUpdater] 更新源设为 Generic: ${source.url}`)
+    } else {
+      console.warn('[AutoUpdater] 无效的更新源配置:', source)
+    }
+  }
+
+  /**
+   * 初始化更新源（启动时调用）
+   */
+  const initUpdateSource = (): void => {
+    const source = getActiveUpdateSource()
+    if (source) {
+      applyUpdateSource(source)
     }
   }
 
@@ -85,10 +121,16 @@ export function useAutoUpdater() {
   })
 
   /**
-   * 检查更新
+   * 检查更新（先应用当前激活的更新源）
    */
   const checkForUpdates = async () => {
     try {
+      // 每次检查前刷新更新源配置
+      const source = getActiveUpdateSource()
+      if (source) {
+        applyUpdateSource(source)
+      }
+
       const result = await autoUpdater.checkForUpdates()
       return {
         success: true,
@@ -165,7 +207,9 @@ export function useAutoUpdater() {
     downloadUpdate,
     quitAndInstall,
     getCurrentVersion,
-    getUpdateInfo
+    getUpdateInfo,
+    initUpdateSource,
+    applyUpdateSource
   }
 }
 

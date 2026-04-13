@@ -240,6 +240,13 @@ const api = {
     install: (isSilent = false) => electron.ipcRenderer.invoke("updater:install", isSilent),
     getVersion: () => electron.ipcRenderer.invoke("updater:get-version"),
     getInfo: () => electron.ipcRenderer.invoke("updater:get-info"),
+    // 更新源管理
+    listSources: () => electron.ipcRenderer.invoke("updater:list-sources"),
+    getActiveSource: () => electron.ipcRenderer.invoke("updater:get-active-source"),
+    setActiveSource: (id) => electron.ipcRenderer.invoke("updater:set-active-source", id),
+    addSource: (source) => electron.ipcRenderer.invoke("updater:add-source", source),
+    removeSource: (id) => electron.ipcRenderer.invoke("updater:remove-source", id),
+    updateSource: (id, data) => electron.ipcRenderer.invoke("updater:update-source", id, data),
     onChecking: (callback) => {
       const handler = () => callback();
       electron.ipcRenderer.on("update:checking", handler);

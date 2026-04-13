@@ -310,6 +310,7 @@ if (!gotTheLock) {
     // 启动 3 秒后自动检查更新
     setTimeout(() => {
       const autoUpdater = getAutoUpdater()
+      autoUpdater.initUpdateSource()
       console.log('[Main] 开始检查更新...')
       autoUpdater.checkForUpdates()
     }, 3000)

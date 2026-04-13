@@ -141,6 +141,18 @@ export interface TrayWindowSizes {
   mobile: { width: number; height: number }
 }
 
+// 更新源配置
+export interface UpdateSource {
+  id: string
+  name: string
+  type: 'github' | 'generic'
+  // GitHub 源字段
+  owner?: string
+  repo?: string
+  // Generic 源字段
+  url?: string
+}
+
 interface StoreSchema {
   workspaces: Workspace[]
   groups: Group[]
@@ -160,6 +172,8 @@ interface StoreSchema {
   splitStates: Record<string, SplitLayoutData>
   splitSchemes: SavedSplitSchemeData[]
   trayWindowSizes: TrayWindowSizes
+  updateSources: UpdateSource[]
+  activeUpdateSourceId: string
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -187,7 +201,11 @@ const defaults: StoreSchema = {
     newWindow: { width: 1280, height: 800 },
     desktop: { width: 480, height: 270 },
     mobile: { width: 270, height: 480 }
-  }
+  },
+  updateSources: [
+    { id: 'github', name: 'GitHub', type: 'github', owner: 'hunmer', repo: 'sessionBox' }
+  ],
+  activeUpdateSourceId: 'github'
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -934,4 +952,56 @@ export function updateTrayWindowSize(
   const sizes = getTrayWindowSizes()
   sizes[type] = size
   store.set('trayWindowSizes', sizes)
+}
+
+// ====== 更新源操作 ======
+
+export function listUpdateSources(): UpdateSource[] {
+  return store.get('updateSources', defaults.updateSources)
+}
+
+export function getActiveUpdateSourceId(): string {
+  return store.get('activeUpdateSourceId', defaults.activeUpdateSourceId)
+}
+
+export function getActiveUpdateSource(): UpdateSource | undefined {
+  const sources = listUpdateSources()
+  const activeId = getActiveUpdateSourceId()
+  return sources.find((s) => s.id === activeId)
+}
+
+export function setActiveUpdateSourceId(id: string): void {
+  const sources = listUpdateSources()
+  if (!sources.find((s) => s.id === id)) {
+    throw new Error(`更新源 ${id} 不存在`)
+  }
+  store.set('activeUpdateSourceId', id)
+}
+
+export function addUpdateSource(source: UpdateSource): void {
+  const sources = listUpdateSources()
+  if (sources.find((s) => s.id === source.id)) {
+    throw new Error(`更新源 ${source.id} 已存在`)
+  }
+  sources.push(source)
+  store.set('updateSources', sources)
+}
+
+export function removeUpdateSource(id: string): void {
+  // 不允许删除默认 GitHub 源
+  if (id === 'github') return
+  const sources = listUpdateSources().filter((s) => s.id !== id)
+  store.set('updateSources', sources)
+  // 如果删除的是当前激活源，切回 GitHub
+  if (getActiveUpdateSourceId() === id) {
+    store.set('activeUpdateSourceId', 'github')
+  }
+}
+
+export function updateUpdateSource(id: string, data: Partial<Omit<UpdateSource, 'id'>>): void {
+  const sources = listUpdateSources()
+  const idx = sources.findIndex((s) => s.id === id)
+  if (idx === -1) throw new Error(`更新源 ${id} 不存在`)
+  sources[idx] = { ...sources[idx], ...data }
+  store.set('updateSources', sources)
 }

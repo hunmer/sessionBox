@@ -387,6 +387,15 @@ const api = {
     install: (isSilent = false) => ipcRenderer.invoke('updater:install', isSilent),
     getVersion: () => ipcRenderer.invoke('updater:get-version'),
     getInfo: () => ipcRenderer.invoke('updater:get-info'),
+    // 更新源管理
+    listSources: () => ipcRenderer.invoke('updater:list-sources'),
+    getActiveSource: () => ipcRenderer.invoke('updater:get-active-source'),
+    setActiveSource: (id: string) => ipcRenderer.invoke('updater:set-active-source', id),
+    addSource: (source: { id: string; name: string; type: 'github' | 'generic'; url?: string; owner?: string; repo?: string }) =>
+      ipcRenderer.invoke('updater:add-source', source),
+    removeSource: (id: string) => ipcRenderer.invoke('updater:remove-source', id),
+    updateSource: (id: string, data: { name?: string; type?: 'github' | 'generic'; url?: string; owner?: string; repo?: string }) =>
+      ipcRenderer.invoke('updater:update-source', id, data),
     onChecking: (callback: () => void) => {
       const handler = () => callback()
       ipcRenderer.on('update:checking', handler)

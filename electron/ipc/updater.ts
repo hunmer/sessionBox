@@ -1,5 +1,15 @@
 import type { IpcMainInvokeEvent } from 'electron'
+import { ipcMain } from 'electron'
 import { getAutoUpdater } from '../composables/useAutoUpdater'
+import {
+  listUpdateSources,
+  getActiveUpdateSourceId,
+  setActiveUpdateSourceId,
+  addUpdateSource,
+  removeUpdateSource,
+  updateUpdateSource,
+  type UpdateSource
+} from '../services/store'
 
 /**
  * 注册自动更新 IPC 处理器
@@ -36,7 +46,53 @@ export function registerUpdaterIpc() {
     return updater.getUpdateInfo()
   })
 
+  // ====== 更新源管理 ======
+
+  // 获取所有更新源
+  ipcMain.handle('updater:list-sources', () => {
+    return listUpdateSources()
+  })
+
+  // 获取当前激活的更新源 ID
+  ipcMain.handle('updater:get-active-source', () => {
+    return getActiveUpdateSourceId()
+  })
+
+  // 设置激活的更新源
+  ipcMain.handle('updater:set-active-source', (_event: IpcMainInvokeEvent, id: string) => {
+    try {
+      setActiveUpdateSourceId(id)
+      return { success: true }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  // 添加更新源
+  ipcMain.handle('updater:add-source', (_event: IpcMainInvokeEvent, source: UpdateSource) => {
+    try {
+      addUpdateSource(source)
+      return { success: true }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  // 删除更新源
+  ipcMain.handle('updater:remove-source', (_event: IpcMainInvokeEvent, id: string) => {
+    removeUpdateSource(id)
+    return { success: true }
+  })
+
+  // 更新更新源
+  ipcMain.handle('updater:update-source', (_event: IpcMainInvokeEvent, id: string, data: Partial<Omit<UpdateSource, 'id'>>) => {
+    try {
+      updateUpdateSource(id, data)
+      return { success: true }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
   console.log('[AutoUpdater] IPC 处理器已注册')
 }
-
-import { ipcMain } from 'electron'
