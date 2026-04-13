@@ -1,6 +1,7 @@
 // electron/services/tray.ts
 import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { existsSync } from 'fs'
 import { listGroups, listPages } from './store'
 import { trayWindowManager } from './tray-window'
 import type { Page } from './store'
@@ -10,7 +11,17 @@ class TrayManager {
 
   init(mainWindow: BrowserWindow): void {
     const iconPath = this.getIconPath()
-    const icon = nativeImage.createFromPath(iconPath)
+    let icon = nativeImage.createFromPath(iconPath)
+
+    // 图标加载失败时，回退到应用主图标
+    if (icon.isEmpty()) {
+      console.warn('[Tray] 图标为空，尝试使用应用主图标作为回退')
+      const fallbackName = process.platform === 'darwin' ? 'icon.icns' : 'icon.png'
+      const fallbackPath = app.isPackaged
+        ? join(process.resourcesPath, fallbackName)
+        : join(__dirname, '../../resources', fallbackName)
+      icon = nativeImage.createFromPath(fallbackPath)
+    }
 
     // macOS 使用模板图标自动适配主题
     if (process.platform === 'darwin') {
@@ -34,12 +45,24 @@ class TrayManager {
   }
 
   private getIconPath(): string {
-    if (app.isPackaged) {
-      const name = process.platform === 'darwin' ? 'trayIconTemplate@2x.png' : 'trayIcon.png'
-      return join(process.resourcesPath, name)
-    }
     const name = process.platform === 'darwin' ? 'trayIconTemplate@2x.png' : 'trayIcon.png'
-    return join(__dirname, '../../resources', name)
+
+    const candidates = app.isPackaged
+      ? [
+          join(process.resourcesPath, name), // extraResources 标准位置
+          join(process.resourcesPath, 'resources', name), // 某些打包配置的子目录
+          join(__dirname, '..', '..', 'resources', name), // asar 内相对路径
+          join(process.resourcesPath, 'app.asar.unpacked', 'resources', name) // asar 外解压路径
+        ]
+      : [join(__dirname, '../../resources', name)]
+
+    for (const p of candidates) {
+      if (existsSync(p)) return p
+    }
+
+    console.warn('[Tray] 图标文件未找到，已尝试路径:', candidates)
+    // 回退到第一个候选路径，让 nativeImage.createFromPath 尝试加载
+    return candidates[0]
   }
 
   private buildMenu(mainWindow: BrowserWindow): Menu {

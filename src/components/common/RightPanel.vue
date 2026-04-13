@@ -19,6 +19,7 @@ import BookmarkMiniPopover from './BookmarkMiniPopover.vue'
 import HistoryMiniPopover from './HistoryMiniPopover.vue'
 import DownloadMiniPopover from './DownloadMiniPopover.vue'
 import ProxyMiniPopover from './ProxyMiniPopover.vue'
+import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import ContainerMiniPopover from './ContainerMiniPopover.vue'
 
 const tabStore = useTabStore()
@@ -34,6 +35,7 @@ const bookmarkOpen = ref(false)
 const historyOpen = ref(false)
 const downloadOpen = ref(false)
 const proxyOpen = ref(false)
+const proxyDialogOpen = ref(false)
 const containerOpen = ref(false)
 
 function openFullPage(site: string) {
@@ -96,7 +98,7 @@ function openFullPage(site: string) {
               </Button>
             </PopoverTrigger>
             <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
-              <ProxyMiniPopover @open-full="proxyOpen = false" />
+              <ProxyMiniPopover @open-full="proxyOpen = false; proxyDialogOpen = true" />
             </PopoverContent>
           </Popover>
 
@@ -143,5 +145,8 @@ function openFullPage(site: string) {
 
     <!-- 扩展管理对话框 -->
     <ExtensionManager ref="extensionManagerRef" />
+
+    <!-- 代理管理对话框 -->
+    <ProxyDialog v-model:open="proxyDialogOpen" />
   </div>
 </template>

@@ -113,10 +113,28 @@ async function handleToggleProxy(enabled: boolean): Promise<void> {
   const page = pageStore.getPage(tab.pageId)
   const container = page?.containerId ? containerStore.getContainer(page.containerId) : undefined
   if (!container) return
+  const previousEnabled = container.autoProxyEnabled === true
+  console.log('[App] handleToggleProxy', {
+    tabId: tabStore.activeTabId,
+    pageId: tab.pageId,
+    containerId: container.id,
+    previousEnabled,
+    nextEnabled: enabled
+  })
   // 1. 更新容器的 autoProxyEnabled（持久化）
   await containerStore.updateContainer(container.id, { autoProxyEnabled: enabled })
   // 2. 立即生效：对当前 session 应用/移除代理
-  await tabStore.setProxyEnabled(tabStore.activeTabId, enabled)
+  await containerStore.updateContainer(container.id, { autoProxyEnabled: enabled })
+  const result = await tabStore.setProxyEnabled(tabStore.activeTabId, enabled)
+  if (!result.ok) {
+    console.error('[App] handleToggleProxy failed', {
+      tabId: tabStore.activeTabId,
+      containerId: container.id,
+      enabled,
+      error: result.error
+    })
+    await containerStore.updateContainer(container.id, { autoProxyEnabled: previousEnabled })
+  }
 }
 
 // ====== 页面加载进度条 ======

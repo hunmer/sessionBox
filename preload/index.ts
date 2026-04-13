@@ -39,6 +39,7 @@ export interface Container {
   name: string
   icon: string
   proxyId?: string
+  autoProxyEnabled?: boolean
   order: number
 }
 

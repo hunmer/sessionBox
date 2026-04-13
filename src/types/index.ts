@@ -44,6 +44,7 @@ export interface Container {
   name: string
   icon: string
   proxyId?: string // 容器级代理（优先于分组代理）
+  autoProxyEnabled?: boolean // 是否自动将绑定代理应用到当前容器 session
   order: number
 }
 

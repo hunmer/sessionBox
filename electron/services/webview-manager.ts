@@ -91,7 +91,49 @@ class WebviewManager {
   }
 
   private isSessionProxyEnabled(containerId: string): boolean {
-    return this.sessionProxyEnabled.get(containerId) ?? true
+    return this.sessionProxyEnabled.get(containerId) ?? false
+  }
+
+  private resolveProxyRuntimeState(tabId: string, entry: ViewEntry): {
+    proxy?: Proxy
+    isOverride: boolean
+    proxyEnabled: boolean
+    applied: boolean
+    bindingText?: string
+  } {
+    const overrideProxyId = this.tabProxyOverride.get(tabId)
+    let proxy: Proxy | undefined
+    let isOverride = false
+
+    if (overrideProxyId) {
+      proxy = getProxyById(overrideProxyId)
+      isOverride = !!proxy
+    }
+
+    if (!proxy) {
+      proxy = this.getEffectiveProxy(entry.pageId)
+    }
+
+    if (!proxy) {
+      return {
+        isOverride: false,
+        proxyEnabled: false,
+        applied: false
+      }
+    }
+
+    const proxyEnabled = proxy.enabled !== false
+    const applied = isOverride
+      ? proxyEnabled
+      : proxyEnabled && this.isSessionProxyEnabled(entry.containerId)
+
+    return {
+      proxy,
+      isOverride,
+      proxyEnabled,
+      applied,
+      bindingText: this.getProxyBindingText(proxy)
+    }
   }
 
   private getProxyBindingText(proxy: Proxy): string {
@@ -114,31 +156,30 @@ class WebviewManager {
     }
 
     // 优先使用临时代理覆盖
-    const overrideProxyId = this.tabProxyOverride.get(tabId)
-    let proxy: Proxy | undefined
-    let isOverride = false
-
-    if (overrideProxyId) {
-      proxy = getProxyById(overrideProxyId)
-      isOverride = !!proxy
-    }
-
-    if (!proxy) {
-      proxy = this.getEffectiveProxy(entry.pageId)
-    }
+    const { proxy, isOverride, proxyEnabled, applied, bindingText } = this.resolveProxyRuntimeState(tabId, entry)
 
     if (!proxy) {
       this.sendProxyInfo(tabId, null)
       return
     }
 
-    const proxyEnabled = proxy.enabled !== false
+    console.log('[WebviewManager] refreshProxyInfo', {
+      tabId,
+      pageId: entry.pageId,
+      containerId: entry.containerId,
+      proxyId: proxy.id,
+      proxyName: proxy.name,
+      proxyEnabled,
+      applied,
+      isOverride,
+      sessionProxyEnabled: this.isSessionProxyEnabled(entry.containerId)
+    })
 
     this.sendProxyInfo(tabId, {
       enabled: proxyEnabled,
-      applied: true,
+      applied,
       name: proxy.name,
-      text: this.getProxyBindingText(proxy),
+      text: bindingText,
       status: 'idle',
       proxyMode: proxy.proxyMode ?? 'global',
       proxyId: proxy.id,
@@ -154,30 +195,16 @@ class WebviewManager {
     }
 
     // 优先使用临时代理覆盖
-    const overrideProxyId = this.tabProxyOverride.get(tabId)
-    let proxy: Proxy | undefined
-    let isOverride = false
-
-    if (overrideProxyId) {
-      proxy = getProxyById(overrideProxyId)
-      isOverride = !!proxy
-    }
-
-    if (!proxy) {
-      proxy = this.getEffectiveProxy(entry.pageId)
-    }
+    const { proxy, isOverride, proxyEnabled, applied, bindingText } = this.resolveProxyRuntimeState(tabId, entry)
 
     if (!proxy) {
       this.sendProxyInfo(tabId, null)
       return { ok: false, error: '当前标签页未绑定代理' }
     }
 
-    const proxyEnabled = proxy.enabled !== false
-
-    const bindingText = this.getProxyBindingText(proxy)
     this.sendProxyInfo(tabId, {
       enabled: proxyEnabled,
-      applied: true,
+      applied,
       name: proxy.name,
       text: bindingText,
       status: 'checking',
@@ -190,7 +217,7 @@ class WebviewManager {
       const ip = await fetchSessionExitIp(entry.view.webContents.session)
       this.sendProxyInfo(tabId, {
         enabled: proxyEnabled,
-        applied: true,
+        applied,
         name: proxy.name,
         text: bindingText,
         ip,
@@ -204,7 +231,7 @@ class WebviewManager {
       const message = error instanceof Error ? error.message : String(error)
       this.sendProxyInfo(tabId, {
         enabled: proxyEnabled,
-        applied: true,
+        applied,
         name: proxy.name,
         text: bindingText,
         error: message,
@@ -247,6 +274,19 @@ class WebviewManager {
     const shouldAutoApplyProxy = proxy
       && proxy.enabled !== false
       && container?.autoProxyEnabled === true
+
+    console.log('[WebviewManager] createView proxy decision', {
+      tabId,
+      pageId,
+      containerId,
+      partition: partition || 'default',
+      proxyId: proxy?.id ?? null,
+      proxyName: proxy?.name ?? null,
+      hasProxy: !!proxy,
+      proxyEnabled: proxy?.enabled !== false,
+      autoProxyEnabled: container?.autoProxyEnabled === true,
+      shouldAutoApplyProxy
+    })
 
     if (shouldAutoApplyProxy) {
       this.sessionProxyEnabled.set(containerId, true)
@@ -747,6 +787,16 @@ class WebviewManager {
     const relatedTabIds = this.getTabIdsByContainer(entry.containerId)
     this.sessionProxyEnabled.set(entry.containerId, enabled)
 
+    console.log('[WebviewManager] setProxyEnabledForTab', {
+      tabId,
+      pageId: entry.pageId,
+      containerId: entry.containerId,
+      proxyId: proxy.id,
+      proxyName: proxy.name,
+      enabled,
+      relatedTabIds
+    })
+
     try {
       await applyProxyToSession(entry.view.webContents.session, enabled ? proxy : null)
       for (const relatedTabId of relatedTabIds) {
@@ -784,11 +834,26 @@ class WebviewManager {
         if (!proxy) {
           return { ok: false, error: '代理不存在' }
         }
+        console.log('[WebviewManager] applyProxyToTab override', {
+          tabId,
+          pageId: entry.pageId,
+          containerId: entry.containerId,
+          proxyId,
+          proxyName: proxy.name
+        })
         this.tabProxyOverride.set(tabId, proxyId)
         await applyProxyToSession(session, proxy)
       } else {
         this.tabProxyOverride.delete(tabId)
         const effectiveProxy = this.getEffectiveProxy(entry.pageId)
+        console.log('[WebviewManager] applyProxyToTab reset', {
+          tabId,
+          pageId: entry.pageId,
+          containerId: entry.containerId,
+          effectiveProxyId: effectiveProxy?.id ?? null,
+          effectiveProxyName: effectiveProxy?.name ?? null,
+          sessionProxyEnabled: this.isSessionProxyEnabled(entry.containerId)
+        })
         if (effectiveProxy && this.isSessionProxyEnabled(entry.containerId)) {
           await applyProxyToSession(session, effectiveProxy)
         } else {
