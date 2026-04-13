@@ -579,6 +579,7 @@ useIpcEvent('shortcut', (actionId) => {
                 v-if="!immersiveMode"
                 :is-maximized="isMaximized"
                 :immersive-mode="immersiveMode"
+                :sidebar-collapsed="sidebarCollapsed"
                 @toggle-sidebar="toggleSidebar"
                 @update:immersive-mode="handleImmersiveModeChange"
               />
@@ -772,6 +773,7 @@ useIpcEvent('shortcut', (actionId) => {
           <TabBar
             :is-maximized="isMaximized"
             :immersive-mode="immersiveMode"
+            :sidebar-collapsed="sidebarCollapsed"
             @toggle-sidebar="showImmersivePanel('left')"
             @update:immersive-mode="handleImmersiveModeChange"
           />

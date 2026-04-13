@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeftClose, ChevronRight } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeftClose, PanelLeftOpen, ChevronRight } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import draggable from 'vuedraggable'
@@ -14,6 +14,7 @@ import type { Page } from '@/types'
 defineProps<{
   isMaximized: boolean
   immersiveMode: boolean
+  sidebarCollapsed: boolean
 }>()
 
 defineEmits<{
@@ -95,7 +96,8 @@ function handleNavigateUrl(url: string) {
       class="h-7 w-7 flex-shrink-0 rounded-full"
       @click="$emit('toggle-sidebar')"
     >
-      <PanelLeftClose class="w-3.5 h-3.5" />
+      <PanelLeftOpen v-if="sidebarCollapsed" class="w-3.5 h-3.5" />
+      <PanelLeftClose v-else class="w-3.5 h-3.5" />
     </Button>
 
     <!-- 标签列表 - 分组模式（每个 tab 独立可拖拽） -->

@@ -162,8 +162,8 @@ async function handleClear() {
           <span>启用嗅探</span>
         </div>
         <Switch
-          :checked="isSniffing"
-          @update:checked="handleToggleSniffing"
+          :model-value="isSniffing"
+          @update:model-value="handleToggleSniffing"
         />
       </div>
       <div v-if="currentDomain" class="flex items-center justify-between">
@@ -172,8 +172,8 @@ async function handleClear() {
           <span class="truncate max-w-[160px]">自动启用 *.{{ currentDomain }}</span>
         </div>
         <Switch
-          :checked="isDomainAutoEnabled"
-          @update:checked="handleToggleDomain"
+          :model-value="isDomainAutoEnabled"
+          @update:model-value="handleToggleDomain"
         />
       </div>
     </div>
