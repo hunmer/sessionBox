@@ -4,24 +4,39 @@ import { Settings } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import type { PluginMeta } from '@/types'
+import type { PluginMeta, RemotePlugin } from '@/types'
 
 const props = defineProps<{
-  plugin: PluginMeta
+  plugin: PluginMeta | RemotePlugin
+  /** 是否为在线商店模式 */
+  storeMode?: boolean
+  /** 商店模式下是否已安装 */
+  installed?: boolean
+  /** 安装/卸载操作进行中 */
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'toggle', pluginId: string): void
   (e: 'open-settings', pluginId: string): void
+  (e: 'install', plugin: RemotePlugin): void
+  (e: 'uninstall', pluginId: string): void
 }>()
 
 const iconDataUrl = ref<string | null>(null)
 
+const isRemote = (p: PluginMeta | RemotePlugin): p is RemotePlugin => 'downloadUrl' in p
+
 onMounted(async () => {
-  try {
-    iconDataUrl.value = await window.api.plugin.getIcon(props.plugin.id)
-  } catch {
-    iconDataUrl.value = null
+  // 商店模式使用 iconUrl，本地模式使用 IPC 获取图标
+  if (props.storeMode && isRemote(props.plugin) && props.plugin.iconUrl) {
+    iconDataUrl.value = props.plugin.iconUrl
+  } else if (!props.storeMode) {
+    try {
+      iconDataUrl.value = await window.api.plugin.getIcon(props.plugin.id)
+    } catch {
+      iconDataUrl.value = null
+    }
   }
 })
 </script>
@@ -29,7 +44,7 @@ onMounted(async () => {
 <template>
   <div
     class="rounded-lg border border-border bg-card p-4 transition-all hover:shadow-md hover:border-primary/30"
-    :class="{ 'opacity-60': !plugin.enabled }"
+    :class="{ 'opacity-60': !storeMode && !plugin.enabled }"
   >
     <div class="flex gap-4">
       <div class="shrink-0">
@@ -52,10 +67,35 @@ onMounted(async () => {
         </div>
       </div>
       <div class="flex flex-col items-end gap-2 shrink-0">
-        <Switch :model-value="plugin.enabled" @update:model-value="emit('toggle', plugin.id)" />
-        <Button v-if="plugin.hasView" variant="ghost" size="icon" class="h-7 w-7" title="设置" @click="emit('open-settings', plugin.id)">
-          <Settings class="w-4 h-4" />
-        </Button>
+        <!-- 本地模式：Switch 启用/禁用 -->
+        <template v-if="!storeMode">
+          <Switch :model-value="plugin.enabled" @update:model-value="emit('toggle', plugin.id)" />
+          <Button v-if="plugin.hasView" variant="ghost" size="icon" class="h-7 w-7" title="设置" @click="emit('open-settings', plugin.id)">
+            <Settings class="w-4 h-4" />
+          </Button>
+        </template>
+        <!-- 商店模式：安装/卸载按钮 -->
+        <template v-else>
+          <Button
+            v-if="installed"
+            variant="outline"
+            size="sm"
+            class="h-7 text-xs"
+            :disabled="loading"
+            @click="emit('uninstall', plugin.id)"
+          >
+            {{ loading ? '卸载中...' : '卸载' }}
+          </Button>
+          <Button
+            v-else
+            size="sm"
+            class="h-7 text-xs"
+            :disabled="loading"
+            @click="emit('install', plugin as RemotePlugin)"
+          >
+            {{ loading ? '安装中...' : '安装' }}
+          </Button>
+        </template>
       </div>
     </div>
   </div>

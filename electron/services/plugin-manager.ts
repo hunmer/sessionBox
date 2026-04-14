@@ -292,6 +292,91 @@ class PluginManager {
     shell.openPath(dir)
   }
 
+  /** 从 URL 下载并安装插件 ZIP */
+  async installFromUrl(url: string): Promise<{ success: boolean; pluginName?: string; error?: string }> {
+    try {
+      const { net } = await import('electron')
+      const response = await net.fetch(url)
+      if (!response.ok) {
+        return { success: false, error: `下载失败: HTTP ${response.status}` }
+      }
+      const arrayBuffer = await response.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+
+      // 确保插件目录存在
+      if (!existsSync(this.pluginsDir)) {
+        mkdirSync(this.pluginsDir, { recursive: true })
+      }
+
+      // 写入临时 ZIP 文件
+      const tmpZipPath = join(this.pluginsDir, `_tmp_${Date.now()}.zip`)
+      writeFileSync(tmpZipPath, buffer)
+
+      try {
+        const zip = new AdmZip(tmpZipPath)
+        const entries = zip.getEntries()
+        const infoEntry = entries.find((e) => !e.isDirectory && e.entryName.endsWith('info.json'))
+        if (!infoEntry) {
+          return { success: false, error: 'ZIP 中未找到 info.json，不是有效的插件包' }
+        }
+
+        const relativePath = infoEntry.entryName
+        const topDir = relativePath.split('/')[0]
+        const pluginDirName = relativePath.includes('/') ? topDir : `plugin-${Date.now()}`
+
+        const targetDir = join(this.pluginsDir, pluginDirName)
+
+        // 如果插件已存在，先卸载
+        const existingPlugin = Array.from(this.plugins.values()).find((p) => p.dir === targetDir)
+        if (existingPlugin) {
+          this.unload(existingPlugin.id)
+        }
+
+        zip.extractAllTo(targetDir, true)
+
+        const infoPath = join(targetDir, 'info.json')
+        const mainPath = join(targetDir, 'main.js')
+        if (!existsSync(infoPath) || !existsSync(mainPath)) {
+          const { rmSync } = await import('node:fs')
+          rmSync(targetDir, { recursive: true, force: true })
+          return { success: false, error: '插件缺少 info.json 或 main.js，安装失败' }
+        }
+
+        this.load(targetDir)
+        const instance = Array.from(this.plugins.values()).find((p) => p.dir === targetDir)
+        if (!instance) {
+          return { success: false, error: '插件加载失败' }
+        }
+
+        return { success: true, pluginName: instance.info.name }
+      } finally {
+        // 清理临时 ZIP
+        if (existsSync(tmpZipPath)) {
+          const { rmSync } = await import('node:fs')
+          rmSync(tmpZipPath, { force: true })
+        }
+      }
+    } catch (err: any) {
+      return { success: false, error: `安装失败: ${err.message}` }
+    }
+  }
+
+  /** 卸载插件（从磁盘删除目录） */
+  async uninstallPlugin(pluginId: string): Promise<{ success: boolean; error?: string }> {
+    const instance = this.plugins.get(pluginId)
+    if (!instance) {
+      return { success: false, error: '插件未找到' }
+    }
+    try {
+      this.unload(pluginId)
+      const { rmSync } = await import('node:fs')
+      rmSync(instance.dir, { recursive: true, force: true })
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: `卸载失败: ${err.message}` }
+    }
+  }
+
   shutdown(): void {
     for (const [id] of this.plugins) {
       this.unload(id)

@@ -29,4 +29,12 @@ export function registerPluginIpcHandlers(): void {
   ipcMain.handle('plugin:open-folder', () => {
     pluginManager.openPluginsFolder()
   })
+
+  ipcMain.handle('plugin:install', async (_e, url: string) => {
+    return pluginManager.installFromUrl(url)
+  })
+
+  ipcMain.handle('plugin:uninstall', async (_e, pluginId: string) => {
+    return pluginManager.uninstallPlugin(pluginId)
+  })
 }

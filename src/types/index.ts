@@ -131,4 +131,4 @@ export type {
   PaneBounds
 } from './split'
 
-export type { PluginInfo, PluginMeta, PluginContext, PluginInstance } from './plugin'
+export type { PluginInfo, PluginMeta, PluginContext, PluginInstance, RemotePlugin } from './plugin'

@@ -27,6 +27,19 @@ export interface PluginMeta {
   iconPath: string
 }
 
+/** 在线插件商店条目 */
+export interface RemotePlugin {
+  id: string
+  name: string
+  version: string
+  description: string
+  author: { name: string; email?: string; url?: string }
+  tags: string[]
+  hasView: boolean
+  downloadUrl: string
+  iconUrl?: string
+}
+
 /** 插件运行时实例 */
 export interface PluginInstance {
   id: string

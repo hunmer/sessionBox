@@ -414,7 +414,11 @@ const api = {
     getIcon: (pluginId: string): Promise<string | null> => ipcRenderer.invoke('plugin:get-icon', pluginId),
     importZip: (): Promise<{ success: boolean; pluginName?: string; error?: string }> =>
       ipcRenderer.invoke('plugin:import-zip'),
-    openFolder: (): Promise<void> => ipcRenderer.invoke('plugin:open-folder')
+    openFolder: (): Promise<void> => ipcRenderer.invoke('plugin:open-folder'),
+    install: (url: string): Promise<{ success: boolean; pluginName?: string; error?: string }> =>
+      ipcRenderer.invoke('plugin:install', url),
+    uninstall: (pluginId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('plugin:uninstall', pluginId)
   },
 
   // 自动更新

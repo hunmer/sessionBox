@@ -1,0 +1,9 @@
+{
+  "name": "sessionbox-scripts",
+  "private": true,
+  "description": "SessionBox 构建/开发辅助脚本",
+  "scripts": {
+    "plugins:server": "node plugins-server.js",
+    "plugins:build": "node plugins-build.js"
+  }
+}

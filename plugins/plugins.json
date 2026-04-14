@@ -1,0 +1,35 @@
+[
+  {
+    "id": "sessionbox.group-tab-filter",
+    "name": "Group Tab Filter",
+    "version": "1.0.0",
+    "description": "激活标签页时，自动过滤标签栏只展示同分组下的标签",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "标签",
+      "分组",
+      "过滤"
+    ],
+    "hasView": true,
+    "downloadUrl": "group-tab-filter.zip",
+    "iconUrl": "group-tab-filter/icon.png"
+  },
+  {
+    "id": "sessionbox.test-plugin",
+    "name": "Test Plugin",
+    "version": "1.0.0",
+    "description": "SessionBox 插件系统测试插件，监听并输出所有事件到控制台",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "测试",
+      "开发"
+    ],
+    "hasView": true,
+    "downloadUrl": "test-plugin.zip",
+    "iconUrl": "test-plugin/icon.png"
+  }
+]
