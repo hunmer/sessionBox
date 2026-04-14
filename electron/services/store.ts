@@ -248,7 +248,8 @@ const defaults: StoreSchema = {
     { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q=%s', icon: 'Search' },
     { id: 'duckduckgo', name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s', icon: 'Search' },
     { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=%s', icon: 'Search' },
-  ]
+  ],
+  defaultSearchEngineId: 'google'
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -1136,4 +1137,12 @@ export function listSearchEngines(): SearchEngine[] {
 
 export function setSearchEngines(engines: SearchEngine[]): void {
   setCollection('searchEngines', engines)
+}
+
+export function getDefaultSearchEngineId(): string {
+  return store.get('defaultSearchEngineId', defaults.defaultSearchEngineId)
+}
+
+export function setDefaultSearchEngineId(id: string): void {
+  store.set('defaultSearchEngineId', id)
 }

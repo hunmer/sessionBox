@@ -206,7 +206,9 @@ const api = {
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   searchEngine: {
     list: () => electron.ipcRenderer.invoke("searchEngine:list"),
-    set: (engines) => electron.ipcRenderer.invoke("searchEngine:set", engines)
+    set: (engines) => electron.ipcRenderer.invoke("searchEngine:set", engines),
+    getDefault: () => electron.ipcRenderer.invoke("searchEngine:getDefault"),
+    setDefault: (id) => electron.ipcRenderer.invoke("searchEngine:setDefault", id)
   },
   sniffer: {
     toggle: (tabId, enabled) => electron.ipcRenderer.invoke("sniffer:toggle", tabId, enabled),

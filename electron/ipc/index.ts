@@ -63,7 +63,9 @@ import {
 } from '../services/store'
 import {
   listSearchEngines,
-  setSearchEngines
+  setSearchEngines,
+  getDefaultSearchEngineId,
+  setDefaultSearchEngineId
 } from '../services/store'
 import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder, Page, PasswordEntry, SearchEngine } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
@@ -470,4 +472,6 @@ $img.Dispose()`
   // ====== 搜索引擎 ======
   ipcMain.handle('searchEngine:list', () => listSearchEngines())
   ipcMain.handle('searchEngine:set', (_e, engines: SearchEngine[]) => setSearchEngines(engines))
+  ipcMain.handle('searchEngine:getDefault', () => getDefaultSearchEngineId())
+  ipcMain.handle('searchEngine:setDefault', (_e, id: string) => setDefaultSearchEngineId(id))
 }

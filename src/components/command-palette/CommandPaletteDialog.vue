@@ -1,7 +1,7 @@
 <!-- src/components/command-palette/CommandPaletteDialog.vue -->
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from 'vue'
+import { ref, watch, computed, nextTick, onBeforeUnmount } from 'vue'
 import CommandDialog from '@/components/ui/command/CommandDialog.vue'
 import CommandList from '@/components/ui/command/CommandList.vue'
 import CommandEmpty from '@/components/ui/command/CommandEmpty.vue'
@@ -50,6 +50,20 @@ registerProviders(
 // skipNextWatch: 标记下一次 localInput watch 应跳过（被消费后自动重置）
 let skipNextWatch = false
 
+let focusTimer: ReturnType<typeof setTimeout> | null = null
+
+function focusInput() {
+  if (focusTimer) clearTimeout(focusTimer)
+
+  nextTick(() => {
+    focusTimer = setTimeout(() => {
+      focusTimer = null
+      if (!props.open) return
+      inputRef.value?.focus()
+    }, 1)
+  })
+}
+
 // 输入变化时搜索
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 watch(localInput, (val) => {
@@ -70,7 +84,7 @@ watch(localInput, (val) => {
       if (activeProvider.value) {
         skipNextWatch = true
         localInput.value = ''
-        nextTick(() => inputRef.value?.focus())
+        focusInput()
       }
     })
   }
@@ -82,13 +96,17 @@ watch(() => props.open, (val) => {
     skipNextWatch = true
     localInput.value = ''
     search('')
+    focusInput()
+  } else if (focusTimer) {
+    clearTimeout(focusTimer)
+    focusTimer = null
   }
 })
 
 // 接管 reka-ui FocusScope 的自动焦点，聚焦到输入框
 function handleOpenAutoFocus(e: Event) {
   e.preventDefault()
-  nextTick(() => inputRef.value?.focus())
+  focusInput()
 }
 
 // 选中项目
@@ -107,7 +125,7 @@ function handleProviderSelect(item: CommandItemType) {
     activateProvider(target)
     skipNextWatch = true
     localInput.value = ''
-    nextTick(() => inputRef.value?.focus())
+    focusInput()
   }
 }
 
@@ -173,7 +191,7 @@ function handleKeydown(e: KeyboardEvent) {
     deactivateProvider()
     skipNextWatch = true
     localInput.value = ''
-    nextTick(() => inputRef.value?.focus())
+    focusInput()
     return
   }
 
@@ -185,7 +203,7 @@ function handleKeydown(e: KeyboardEvent) {
       activateProvider(matches[0])
       skipNextWatch = true
       localInput.value = ''
-      nextTick(() => inputRef.value?.focus())
+      focusInput()
     }
   }
 }
@@ -195,7 +213,7 @@ function clearProvider() {
   deactivateProvider()
   skipNextWatch = true
   localInput.value = ''
-  nextTick(() => inputRef.value?.focus())
+  focusInput()
 }
 
 // 获取 Provider 的分组标题（排除无搜索结果的分组）
@@ -210,6 +228,11 @@ const providerItems = computed(() => results.value.get('__providers__') || [])
 const placeholder = computed(() =>
   activeProvider.value ? `搜索${activeProvider.value.label}...` : '输入命令或搜索...'
 )
+
+onBeforeUnmount(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  if (focusTimer) clearTimeout(focusTimer)
+})
 </script>
 
 <template>
