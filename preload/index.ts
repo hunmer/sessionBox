@@ -88,6 +88,27 @@ export interface Bookmark {
   order: number
 }
 
+// 密码/笔记字段
+export interface PasswordField {
+  id: string
+  name: string
+  type: 'text' | 'textarea' | 'checkbox'
+  value: string
+  protected?: boolean
+}
+
+// 密码/笔记条目
+export interface PasswordEntry {
+  id: string
+  siteOrigin: string
+  siteName?: string
+  name: string
+  fields: PasswordField[]
+  order: number
+  createdAt: number
+  updatedAt: number
+}
+
 // 扩展配置
 export interface Extension {
   id: string
@@ -341,6 +362,18 @@ const api = {
     set: (sites: string[]): Promise<void> => ipcRenderer.invoke('mutedSites:set', sites),
     add: (hostname: string): Promise<void> => ipcRenderer.invoke('mutedSites:add', hostname),
     remove: (hostname: string): Promise<void> => ipcRenderer.invoke('mutedSites:remove', hostname)
+  },
+
+  password: {
+    list: (): Promise<PasswordEntry[]> => ipcRenderer.invoke('password:list'),
+    listBySite: (siteOrigin: string): Promise<PasswordEntry[]> =>
+      ipcRenderer.invoke('password:listBySite', siteOrigin),
+    create: (data: Omit<PasswordEntry, 'id'>): Promise<PasswordEntry> =>
+      ipcRenderer.invoke('password:create', data),
+    update: (id: string, data: Partial<Omit<PasswordEntry, 'id'>>): Promise<void> =>
+      ipcRenderer.invoke('password:update', id, data),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke('password:delete', id),
   },
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),

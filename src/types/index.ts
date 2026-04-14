@@ -117,6 +117,27 @@ export interface SniffedResource {
   timestamp: number
 }
 
+// 密码/笔记字段
+export interface PasswordField {
+  id: string
+  name: string
+  type: 'text' | 'textarea' | 'checkbox'
+  value: string
+  protected?: boolean  // 密码类字段，显示遮罩
+}
+
+// 密码/笔记条目
+export interface PasswordEntry {
+  id: string
+  siteOrigin: string   // 站点 origin，如 "https://github.com"
+  siteName?: string    // 站点显示名
+  name: string         // 条目名称，如 "个人账号"
+  fields: PasswordField[]
+  order: number
+  createdAt: number
+  updatedAt: number
+}
+
 export type {
   SplitPane,
   SplitPresetType,

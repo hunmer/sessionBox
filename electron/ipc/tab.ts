@@ -44,6 +44,7 @@ export function registerTabIpcHandlers(): void {
       'bookmarks': '书签管理',
       'history': '历史记录',
       'downloads': '下载管理',
+      'passwords': '密码管理',
     }
     const pageKey = isInternalPage ? url!.replace('sessionbox://', '') : null
     const internalPageTitle = pageKey ? (internalPageTitles[pageKey] || pageKey) : null

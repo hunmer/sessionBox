@@ -142,6 +142,27 @@ export interface TrayWindowSizes {
   mobile: { width: number; height: number }
 }
 
+// 密码/笔记字段
+export interface PasswordField {
+  id: string
+  name: string
+  type: 'text' | 'textarea' | 'checkbox'
+  value: string
+  protected?: boolean
+}
+
+// 密码/笔记条目
+export interface PasswordEntry {
+  id: string
+  siteOrigin: string
+  siteName?: string
+  name: string
+  fields: PasswordField[]
+  order: number
+  createdAt: number
+  updatedAt: number
+}
+
 // 更新源配置
 export interface UpdateSource {
   id: string
@@ -176,6 +197,7 @@ interface StoreSchema {
   updateSources: UpdateSource[]
   activeUpdateSourceId: string
   snifferDomains: string[]
+  passwords: PasswordEntry[]
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -208,7 +230,8 @@ const defaults: StoreSchema = {
     { id: 'github', name: 'GitHub', type: 'github', owner: 'hunmer', repo: 'sessionBox' }
   ],
   activeUpdateSourceId: 'github',
-  snifferDomains: []
+  snifferDomains: [],
+  passwords: []
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -1053,4 +1076,37 @@ export function addSnifferDomain(domain: string): void {
 export function removeSnifferDomain(domain: string): void {
   const domains = getSnifferDomains().filter(d => d !== domain)
   store.set('snifferDomains', domains)
+}
+
+// ====== 密码/笔记管理 ======
+
+export function listPasswords(): PasswordEntry[] {
+  return getCollection('passwords').sort((a, b) => a.order - b.order)
+}
+
+export function listPasswordsBySite(siteOrigin: string): PasswordEntry[] {
+  return getCollection('passwords')
+    .filter((p) => p.siteOrigin === siteOrigin)
+    .sort((a, b) => a.order - b.order)
+}
+
+export function createPassword(data: Omit<PasswordEntry, 'id'>): PasswordEntry {
+  const passwords = getCollection('passwords')
+  const entry: PasswordEntry = { ...data, id: randomUUID() }
+  passwords.push(entry)
+  setCollection('passwords', passwords)
+  return entry
+}
+
+export function updatePassword(id: string, data: Partial<Omit<PasswordEntry, 'id'>>): void {
+  const passwords = getCollection('passwords')
+  const idx = passwords.findIndex((p) => p.id === id)
+  if (idx === -1) throw new Error(`密码条目 ${id} 不存在`)
+  passwords[idx] = { ...passwords[idx], ...data, updatedAt: Date.now() }
+  setCollection('passwords', passwords)
+}
+
+export function deletePassword(id: string): void {
+  const passwords = getCollection('passwords').filter((p) => p.id !== id)
+  setCollection('passwords', passwords)
 }

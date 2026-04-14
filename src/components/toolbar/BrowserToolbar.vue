@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star, KeyRound } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useTabStore } from '@/stores/tab'
 import { useBookmarkStore } from '@/stores/bookmark'
 import AddBookmarkDialog from '@/components/bookmarks/AddBookmarkDialog.vue'
+import PasswordPopover from './PasswordPopover.vue'
 
 const tabStore = useTabStore()
 const bookmarkStore = useBookmarkStore()
@@ -72,6 +74,9 @@ const isBookmarked = computed(() => {
 // 收藏对话框
 const bookmarkDialogOpen = ref(false)
 const editSite = ref<{ id: string; title: string; url: string; pageId?: string } | null>(null)
+
+// 密码 popover
+const passwordPopoverOpen = ref(false)
 
 /** 当前 tab 关联的页面 ID */
 const activePageId = computed(() => tabStore.activeTab?.pageId)
@@ -150,6 +155,21 @@ function toggleBookmark() {
     >
       <Code2 class="w-4 h-4" />
     </Button>
+
+    <!-- 密码/笔记 -->
+    <Popover v-model:open="passwordPopoverOpen">
+      <PopoverTrigger as-child>
+        <Button
+          variant="ghost" size="icon" class="h-7 w-7"
+          :disabled="!tabStore.activeTabId"
+        >
+          <KeyRound class="w-4 h-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" :side-offset="4" class="p-0 w-auto overflow-hidden">
+        <PasswordPopover @open-full="passwordPopoverOpen = false" />
+      </PopoverContent>
+    </Popover>
 
     <!-- 扩展图标列表已移至右侧面板 -->
   </div>

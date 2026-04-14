@@ -54,7 +54,14 @@ import {
   migrateTabContainerIdToPageId,
   migrateBookmarkContainerIdToPageId
 } from '../services/store'
-import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder, Page } from '../services/store'
+import {
+  listPasswords,
+  listPasswordsBySite,
+  createPassword,
+  updatePassword,
+  deletePassword
+} from '../services/store'
+import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder, Page, PasswordEntry } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
@@ -446,4 +453,13 @@ $img.Dispose()`
 
   // ====== 插件管理 ======
   registerPluginIpcHandlers()
+
+  // ====== 密码/笔记管理 ======
+  ipcMain.handle('password:list', () => listPasswords())
+  ipcMain.handle('password:listBySite', (_e, siteOrigin: string) => listPasswordsBySite(siteOrigin))
+  ipcMain.handle('password:create', (_e, data: Omit<PasswordEntry, 'id'>) => createPassword(data))
+  ipcMain.handle('password:update', (_e, id: string, data: Partial<Omit<PasswordEntry, 'id'>>) =>
+    updatePassword(id, data)
+  )
+  ipcMain.handle('password:delete', (_e, id: string) => deletePassword(id))
 }

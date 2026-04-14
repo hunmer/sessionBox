@@ -27,6 +27,7 @@ import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useHomepageStore } from '@/stores/homepage'
+import { usePasswordStore } from '@/stores/password'
 import { useIpcEvent } from '@/composables/useIpc'
 import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
 
@@ -39,6 +40,7 @@ const proxyStore = useProxyStore()
 const bookmarkStore = useBookmarkStore()
 const workspaceStore = useWorkspaceStore()
 const homepageStore = useHomepageStore()
+const passwordStore = usePasswordStore()
 const splitStore = useSplitStore()
 
 const proxyDialogOpen = ref(false)
@@ -359,7 +361,8 @@ onMounted(async () => {
     tabStore.init(),
     proxyStore.init(),
     bookmarkStore.init(),
-    splitStore.loadSchemes()
+    splitStore.loadSchemes(),
+    passwordStore.init()
   ])
   await splitStore.restoreState()
   ready.value = true

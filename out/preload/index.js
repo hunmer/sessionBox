@@ -196,6 +196,13 @@ const api = {
     add: (hostname) => electron.ipcRenderer.invoke("mutedSites:add", hostname),
     remove: (hostname) => electron.ipcRenderer.invoke("mutedSites:remove", hostname)
   },
+  password: {
+    list: () => electron.ipcRenderer.invoke("password:list"),
+    listBySite: (siteOrigin) => electron.ipcRenderer.invoke("password:listBySite", siteOrigin),
+    create: (data) => electron.ipcRenderer.invoke("password:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("password:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("password:delete", id)
+  },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   sniffer: {
     toggle: (tabId, enabled) => electron.ipcRenderer.invoke("sniffer:toggle", tabId, enabled),
