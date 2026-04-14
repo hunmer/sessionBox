@@ -53,6 +53,7 @@ const IMMERSIVE_STORAGE_KEY = 'sessionbox-immersive-mode'
 const immersiveMode = ref(localStorage.getItem(IMMERSIVE_STORAGE_KEY) === '1')
 const verticalTabAddDialog = ref(false)
 const tabOverviewOpen = ref(false)
+const commandPaletteOpen = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
 const shouldShowWebContentsView = computed(() =>
   !!tabStore.activeTab && !tabStore.isInternalPage && !isWebviewBlocked.value
@@ -517,6 +518,9 @@ useIpcEvent('shortcut', (actionId) => {
     case 'tab-overview':
       tabOverviewOpen.value = !tabOverviewOpen.value
       break
+    case 'command-palette':
+      commandPaletteOpen.value = !commandPaletteOpen.value
+      break
   }
 })
 </script>
@@ -835,8 +839,10 @@ useIpcEvent('shortcut', (actionId) => {
 
     <!-- 命令面板 -->
     <CommandPaletteDialog
+      :open="commandPaletteOpen"
       :toggle-sidebar="toggleSidebar"
       :open-settings="() => { settingsDialogOpen = true; settingsInitialTab = 'general' }"
+      @update:open="commandPaletteOpen = $event"
     />
 
     <!-- 更新提示弹窗 -->

@@ -2,7 +2,6 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { useMagicKeys, whenever } from '@vueuse/core'
 import CommandDialog from '@/components/ui/command/CommandDialog.vue'
 import CommandInput from '@/components/ui/command/CommandInput.vue'
 import CommandList from '@/components/ui/command/CommandList.vue'
@@ -14,15 +13,16 @@ import { createAllProviders } from './providers'
 import type { CommandItem as CommandItemType } from '@/types/command'
 
 const props = defineProps<{
+  open: boolean
   toggleSidebar: () => void
   openSettings: () => void
 }>()
 
 const emit = defineEmits<{
+  (e: 'update:open', value: boolean): void
   (e: 'run'): void
 }>()
 
-const open = ref(false)
 const input = ref('')
 
 const { providers, results, loading, search, registerProviders } = useCommandPalette()
@@ -35,15 +35,6 @@ registerProviders(
   })
 )
 
-// 快捷键 Cmd/Ctrl+K
-const { meta_k, ctrl_k } = useMagicKeys()
-whenever(meta_k!, () => {
-  open.value = true
-})
-whenever(ctrl_k!, () => {
-  open.value = true
-})
-
 // 输入变化时搜索（防抖 150ms）
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 watch(input, (val) => {
@@ -54,7 +45,7 @@ watch(input, (val) => {
 })
 
 // 打开时初始化搜索
-watch(open, (val) => {
+watch(() => props.open, (val) => {
   if (val) {
     input.value = ''
     search('')
@@ -63,7 +54,7 @@ watch(open, (val) => {
 
 // 选中项目
 function handleSelect(item: CommandItemType) {
-  open.value = false
+  emit('update:open', false)
   item.run()
   emit('run')
 }
@@ -75,7 +66,7 @@ const visibleGroups = computed(() => {
 </script>
 
 <template>
-  <CommandDialog v-model:open="open" title="命令面板" description="搜索书签、页面、标签页或输入命令...">
+  <CommandDialog :open="open" @update:open="emit('update:open', $event)" title="命令面板" description="搜索书签、页面、标签页或输入命令...">
     <CommandInput v-model="input" placeholder="输入命令或搜索..." />
     <CommandList>
       <CommandEmpty v-if="!loading && input.trim() && visibleGroups.length === 0">
