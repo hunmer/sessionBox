@@ -85,16 +85,25 @@ function openDevTools() {
 }
 
 function navigate() {
-  const url = urlInput.value.trim()
-  if (!url || !tabStore.activeTabId) return
-  // 内部页面直接导航，不补全协议
-  if (url.startsWith('sessionbox://')) {
-    tabStore.navigate(tabStore.activeTabId, url)
+  const text = urlInput.value.trim()
+  if (!text || !tabStore.activeTabId) return
+  // 内部页面直接导航
+  if (text.startsWith('sessionbox://')) {
+    tabStore.navigate(tabStore.activeTabId, text)
     return
   }
-  // 自动补全协议（file:// 和 http/https 保持原样）
-  const finalUrl = url.match(/^(https?|file):\/\//) ? url : `https://${url}`
-  tabStore.navigate(tabStore.activeTabId, finalUrl)
+  // 已有协议或像域名 → 直接导航
+  if (text.match(/^(https?|file):\/\//) || looksLikeUrl(text)) {
+    const finalUrl = text.match(/^(https?|file):\/\//) ? text : `https://${text}`
+    tabStore.navigate(tabStore.activeTabId, finalUrl)
+    return
+  }
+  // 非 URL 文本 → 用默认搜索引擎搜索
+  const engine = engines.value.find((e) => e.id === defaultEngineId.value) || engines.value[0]
+  if (engine) {
+    const searchUrl = engine.url.replace('%s', encodeURIComponent(text))
+    tabStore.navigate(tabStore.activeTabId, searchUrl)
+  }
 }
 
 /** 选择搜索引擎候选 */
