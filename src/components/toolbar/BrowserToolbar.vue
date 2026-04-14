@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star, KeyRound, Search, CornerDownLeft } from 'lucide-vue-next'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUpdate } from 'vue'
+import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star, KeyRound, CornerDownLeft } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -22,6 +22,18 @@ const tabStore = useTabStore()
 const bookmarkStore = useBookmarkStore()
 const urlInput = ref('')
 const isFocused = ref(false)
+const activeIndex = ref(-1)
+const triggerRef = ref<HTMLElement | null>(null)
+const popoverWidth = ref(0)
+
+function syncWidth() {
+  if (triggerRef.value) {
+    popoverWidth.value = triggerRef.value.offsetWidth
+  }
+}
+
+onMounted(syncWidth)
+onBeforeUpdate(syncWidth)
 
 // 搜索引擎候选
 const engines = ref<SearchEngine[]>([])
@@ -52,6 +64,11 @@ const searchCandidates = computed(() => {
     engine,
     url: engine.url.replace('%s', encodeURIComponent(text)),
   }))
+})
+
+// 候选列表变化时重置索引
+watch(searchCandidates, () => {
+  activeIndex.value = -1
 })
 
 async function loadSearchEngines() {
@@ -110,22 +127,64 @@ function navigate() {
 function selectSearchCandidate(url: string) {
   if (!tabStore.activeTabId) return
   isFocused.value = false
+  activeIndex.value = -1
   tabStore.navigate(tabStore.activeTabId, url)
 }
 
 function onFocus() {
   isFocused.value = true
-  // 聚焦时全选
   const input = document.querySelector<HTMLInputElement>('.toolbar-url-input input')
   input?.select()
 }
 
 function onBlur() {
-  // 延迟关闭，以便点击候选项时能先触发
   setTimeout(() => {
     isFocused.value = false
+    activeIndex.value = -1
     urlInput.value = tabStore.activeTab?.url ?? ''
   }, 150)
+}
+
+/** 键盘导航 */
+function handleInputKeydown(e: KeyboardEvent) {
+  const list = searchCandidates.value
+  if (!list.length) return
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    activeIndex.value = (activeIndex.value + 1) % list.length
+    scrollIntoView(activeIndex.value)
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    activeIndex.value = activeIndex.value <= 0 ? list.length - 1 : activeIndex.value - 1
+    scrollIntoView(activeIndex.value)
+  } else if (e.key === 'Tab' && !e.shiftKey) {
+    e.preventDefault()
+    activeIndex.value = (activeIndex.value + 1) % list.length
+    scrollIntoView(activeIndex.value)
+  } else if (e.key === 'Tab' && e.shiftKey) {
+    e.preventDefault()
+    activeIndex.value = activeIndex.value <= 0 ? list.length - 1 : activeIndex.value - 1
+    scrollIntoView(activeIndex.value)
+  } else if (e.key === 'Enter') {
+    if (activeIndex.value >= 0 && activeIndex.value < list.length) {
+      e.preventDefault()
+      selectSearchCandidate(list[activeIndex.value].url)
+    } else {
+      navigate()
+    }
+  } else if (e.key === 'Escape') {
+    isFocused.value = false
+    activeIndex.value = -1
+  }
+}
+
+/** 滚动到可见区域 */
+function scrollIntoView(index: number) {
+  nextTick(() => {
+    const el = document.querySelector(`[data-suggest-idx="${index}"]`)
+    el?.scrollIntoView({ block: 'nearest' })
+  })
 }
 
 /** 当前 URL 是否已收藏 */
@@ -194,7 +253,7 @@ loadSearchEngines()
     <!-- 地址栏 + 搜索候选 -->
     <Popover :open="showSearchSuggestion">
       <PopoverTrigger as-child>
-        <div class="relative flex-1 flex items-center">
+        <div ref="triggerRef" class="relative flex-1 flex items-center">
           <Button
             variant="ghost"
             size="icon"
@@ -210,7 +269,7 @@ loadSearchEngines()
             class="toolbar-url-input flex-1 h-7 text-xs bg-secondary/60 border-transparent focus:border-ring pl-7"
             placeholder="输入网址或搜索..."
             :disabled="!tabStore.activeTabId"
-            @keydown.enter="navigate"
+            @keydown="handleInputKeydown"
             @focus="onFocus"
             @blur="onBlur"
           />
@@ -219,14 +278,19 @@ loadSearchEngines()
       <PopoverContent
         :side-offset="4"
         align="start"
-        class="w-[var(--radix-popover-trigger-width)] p-1"
+        :style="{ width: popoverWidth + 'px' }"
+        class="p-1"
+        @open-auto-focus.prevent
+        @close-auto-focus.prevent
       >
         <button
           v-for="({ engine, url }, idx) in searchCandidates"
           :key="engine.id"
-          class="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs hover:bg-accent transition-colors"
-          :class="idx === 0 && 'bg-accent/50'"
+          :data-suggest-idx="idx"
+          class="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs transition-colors"
+          :class="idx === activeIndex ? 'bg-accent' : 'hover:bg-accent/50'"
           @mousedown.prevent="selectSearchCandidate(url)"
+          @mouseenter="activeIndex = idx"
         >
           <img
             :src="getFaviconUrl(engine.url)"
@@ -238,7 +302,7 @@ loadSearchEngines()
             <span class="text-muted-foreground">{{ engine.name }}</span>
             {{ urlInput.trim() }}
           </span>
-          <CornerDownLeft v-if="idx === 0" class="w-3 h-3 shrink-0 text-muted-foreground" />
+          <CornerDownLeft v-if="idx === activeIndex" class="w-3 h-3 shrink-0 text-muted-foreground" />
         </button>
       </PopoverContent>
     </Popover>
