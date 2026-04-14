@@ -15,8 +15,13 @@ jobs:
         include:
           - os: macos-latest
             platform: mac
+            arch: arm64
+          - os: macos-13
+            platform: mac
+            arch: x64
           - os: windows-latest
             platform: win
+            arch: x64
 
     runs-on: ${{ matrix.os }}
 
@@ -41,7 +46,7 @@ jobs:
 
       - name: Package (macOS)
         if: matrix.platform == 'mac'
-        run: npx electron-builder --config electron-builder.json --mac
+        run: npx electron-builder --config electron-builder.json --mac --${{ matrix.arch }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -54,7 +59,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: SessionBox-${{ matrix.platform }}
+          name: SessionBox-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
             dist-app/*.dmg
             dist-app/*.exe
