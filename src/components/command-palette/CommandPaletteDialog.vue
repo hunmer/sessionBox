@@ -1,13 +1,13 @@
 <!-- src/components/command-palette/CommandPaletteDialog.vue -->
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import CommandDialog from '@/components/ui/command/CommandDialog.vue'
-import CommandInput from '@/components/ui/command/CommandInput.vue'
 import CommandList from '@/components/ui/command/CommandList.vue'
 import CommandEmpty from '@/components/ui/command/CommandEmpty.vue'
 import CommandGroup from '@/components/ui/command/CommandGroup.vue'
 import CommandItem from '@/components/ui/command/CommandItem.vue'
+import { Search, X } from 'lucide-vue-next'
 import { useCommandPalette } from '@/composables/useCommandPalette'
 import { createAllProviders } from './providers'
 import type { CommandItem as CommandItemType } from '@/types/command'
@@ -23,9 +23,20 @@ const emit = defineEmits<{
   (e: 'run'): void
 }>()
 
-const input = ref('')
+const inputRef = ref<HTMLInputElement | null>(null)
+const localInput = ref('')
 
-const { providers, results, loading, search, registerProviders } = useCommandPalette()
+const {
+  providers,
+  results,
+  loading,
+  activeProvider,
+  search,
+  searchWithProvider,
+  registerProviders,
+  activateProvider,
+  deactivateProvider,
+} = useCommandPalette()
 
 // 注册所有 Provider（只执行一次）
 registerProviders(
@@ -35,20 +46,31 @@ registerProviders(
   })
 )
 
+// 防止 activateProvider/deactivateProvider 触发 watch 时覆盖状态
+let skipWatch = false
+
 // 输入变化时搜索（防抖 150ms）
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
-watch(input, (val) => {
+watch(localInput, (val) => {
+  if (skipWatch) return
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
-    search(val)
+    if (activeProvider.value) {
+      searchWithProvider(activeProvider.value, val)
+    } else {
+      search(val)
+    }
   }, 150)
 })
 
 // 打开时初始化搜索
 watch(() => props.open, (val) => {
   if (val) {
-    input.value = ''
+    skipWatch = true
+    localInput.value = ''
+    skipWatch = false
     search('')
+    nextTick(() => inputRef.value?.focus())
   }
 })
 
@@ -59,19 +81,97 @@ function handleSelect(item: CommandItemType) {
   emit('run')
 }
 
+// 选中 Provider 工具项：激活该 Provider
+function handleProviderSelect(item: CommandItemType) {
+  const target = providers.value.find(
+    (p) => `provider-${p.id}` === item.id
+  )
+  if (target) {
+    skipWatch = true
+    activateProvider(target)
+    localInput.value = ''
+    skipWatch = false
+    nextTick(() => inputRef.value?.focus())
+  }
+}
+
+// 处理键盘事件：Backspace 在激活态空输入时回退
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Backspace' && activeProvider.value && !localInput.value) {
+    e.preventDefault()
+    skipWatch = true
+    deactivateProvider()
+    localInput.value = ''
+    skipWatch = false
+    nextTick(() => inputRef.value?.focus())
+  }
+}
+
+// 取消激活
+function clearProvider() {
+  skipWatch = true
+  deactivateProvider()
+  localInput.value = ''
+  skipWatch = false
+  nextTick(() => inputRef.value?.focus())
+}
+
 // 获取 Provider 的分组标题（排除无搜索结果的分组）
 const visibleGroups = computed(() => {
   return providers.value.filter((p) => results.value.has(p.id))
 })
+
+// Provider 工具列表（无前缀搜索时展示）
+const providerItems = computed(() => results.value.get('__providers__') || [])
+
+// 输入占位文本
+const placeholder = computed(() =>
+  activeProvider.value ? `搜索${activeProvider.value.label}...` : '输入命令或搜索...'
+)
 </script>
 
 <template>
   <CommandDialog :open="open" @update:open="emit('update:open', $event)" title="命令面板" description="搜索书签、页面、标签页或输入命令...">
-    <CommandInput v-model="input" placeholder="输入命令或搜索..." />
+    <!-- 自定义搜索输入区域 -->
+    <div class="flex h-9 items-center gap-2 border-b px-3">
+      <component :is="activeProvider?.icon ?? Search" class="size-4 shrink-0 opacity-50" />
+      <div v-if="activeProvider" class="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+        <span>{{ activeProvider.label }}</span>
+        <button class="hover:text-destructive" @click="clearProvider">
+          <X class="size-3" />
+        </button>
+      </div>
+      <input
+        ref="inputRef"
+        v-model="localInput"
+        :placeholder="placeholder"
+        class="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+        @keydown="handleKeydown"
+      />
+    </div>
     <CommandList>
-      <CommandEmpty v-if="!loading && input.trim() && visibleGroups.length === 0">
+      <CommandEmpty v-if="!loading && localInput.trim() && visibleGroups.length === 0 && providerItems.length === 0">
         未找到结果
       </CommandEmpty>
+      <CommandGroup
+        v-if="providerItems.length"
+        heading="搜索工具"
+      >
+        <CommandItem
+          v-for="item in providerItems"
+          :key="item.id"
+          :value="item.label + ' ' + (item.description || '') + ' ' + (item.keywords?.join(' ') || '')"
+          @select="handleProviderSelect(item)"
+        >
+          <component :is="item.icon" class="mr-2 h-4 w-4 shrink-0" />
+          <div class="flex flex-1 flex-col overflow-hidden">
+            <span class="truncate text-sm">{{ item.label }}</span>
+            <span v-if="item.description" class="truncate text-xs text-muted-foreground">
+              {{ item.description }}
+            </span>
+          </div>
+        </CommandItem>
+      </CommandGroup>
       <CommandGroup
         v-for="provider in visibleGroups"
         :key="provider.id"
