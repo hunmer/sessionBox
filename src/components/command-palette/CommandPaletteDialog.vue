@@ -46,29 +46,40 @@ registerProviders(
   })
 )
 
-// 防止 activateProvider/deactivateProvider 触发 watch 时覆盖状态
-let skipWatch = false
+// skipNextWatch: 标记下一次 localInput watch 应跳过（被消费后自动重置）
+let skipNextWatch = false
 
-// 输入变化时搜索（防抖 150ms）
+// 输入变化时搜索
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 watch(localInput, (val) => {
-  if (skipWatch) return
+  if (skipNextWatch) {
+    skipNextWatch = false
+    return
+  }
   if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    if (activeProvider.value) {
-      searchWithProvider(activeProvider.value, val)
-    } else {
-      search(val)
-    }
-  }, 150)
+
+  if (activeProvider.value) {
+    // 激活态：防抖搜索（避免频繁请求）
+    debounceTimer = setTimeout(() => {
+      searchWithProvider(activeProvider.value!, val)
+    }, 150)
+  } else {
+    // 未激活：立即搜索（保证工具列表实时更新，空格自动激活依赖最新数据）
+    search(val).then(() => {
+      if (activeProvider.value) {
+        skipNextWatch = true
+        localInput.value = ''
+        nextTick(() => inputRef.value?.focus())
+      }
+    })
+  }
 })
 
 // 打开时初始化搜索
 watch(() => props.open, (val) => {
   if (val) {
-    skipWatch = true
+    skipNextWatch = true
     localInput.value = ''
-    skipWatch = false
     search('')
     nextTick(() => inputRef.value?.focus())
   }
@@ -87,32 +98,56 @@ function handleProviderSelect(item: CommandItemType) {
     (p) => `provider-${p.id}` === item.id
   )
   if (target) {
-    skipWatch = true
     activateProvider(target)
+    skipNextWatch = true
     localInput.value = ''
-    skipWatch = false
     nextTick(() => inputRef.value?.focus())
   }
 }
 
-// 处理键盘事件：Backspace 在激活态空输入时回退
+// 同步计算匹配当前输入的 Provider 列表（不依赖异步 search 结果）
+function findMatchingProviders(query: string) {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  return providers.value.filter(
+    (p) =>
+      p.prefix !== '' &&
+      (p.prefix.toLowerCase().includes(q) ||
+        (p.prefixShort && p.prefixShort.toLowerCase().includes(q)) ||
+        p.label.toLowerCase().includes(q))
+  )
+}
+
+// 处理键盘事件
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Backspace' && activeProvider.value && !localInput.value) {
+    // 激活态空输入时 Backspace 回退
     e.preventDefault()
-    skipWatch = true
     deactivateProvider()
+    skipNextWatch = true
     localInput.value = ''
-    skipWatch = false
     nextTick(() => inputRef.value?.focus())
+    return
+  }
+
+  if (e.key === ' ' && !activeProvider.value && localInput.value.trim()) {
+    // 空格时同步检查：只有一个候选项或精确匹配前缀 → 自动激活
+    const matches = findMatchingProviders(localInput.value)
+    if (matches.length === 1) {
+      e.preventDefault()
+      activateProvider(matches[0])
+      skipNextWatch = true
+      localInput.value = ''
+      nextTick(() => inputRef.value?.focus())
+    }
   }
 }
 
 // 取消激活
 function clearProvider() {
-  skipWatch = true
   deactivateProvider()
+  skipNextWatch = true
   localInput.value = ''
-  skipWatch = false
   nextTick(() => inputRef.value?.focus())
 }
 
