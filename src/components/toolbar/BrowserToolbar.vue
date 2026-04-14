@@ -166,7 +166,7 @@ function toggleBookmark() {
           <KeyRound class="w-4 h-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent side="bottom" :side-offset="4" class="p-0 w-auto overflow-hidden">
+      <PopoverContent side="bottom" :side-offset="4" class="w-80 p-0">
         <PasswordPopover @open-full="passwordPopoverOpen = false" />
       </PopoverContent>
     </Popover>
