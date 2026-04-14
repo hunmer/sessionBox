@@ -31,7 +31,17 @@ export function createBookmarkProvider(): CommandProvider {
         keywords: [b.title, b.url],
         run: () => {
           const tab = tabStore.activeTab
-          if (tab) tabStore.navigate(tab.id, b.url)
+          if (tab) {
+            tabStore.navigate(tab.id, b.url)
+          } else {
+            const firstPageId = tabStore.tabs[0]?.pageId
+            if (firstPageId) {
+              tabStore.createTab(firstPageId).then(() => {
+                const newTab = tabStore.activeTab
+                if (newTab) tabStore.navigate(newTab.id, b.url)
+              })
+            }
+          }
         },
       }))
     },

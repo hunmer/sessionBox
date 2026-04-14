@@ -3,6 +3,33 @@ import { History } from 'lucide-vue-next'
 import { useHistoryStore } from '@/stores/history'
 import { useTabStore } from '@/stores/tab'
 
+function navigateToUrl(url: string) {
+  const tabStore = useTabStore()
+  const tab = tabStore.activeTab
+  if (tab) {
+    tabStore.navigate(tab.id, url)
+  } else {
+    const firstPageId = tabStore.tabs[0]?.pageId
+    if (firstPageId) {
+      tabStore.createTab(firstPageId).then(() => {
+        const newTab = tabStore.activeTab
+        if (newTab) tabStore.navigate(newTab.id, url)
+      })
+    }
+  }
+}
+
+function toCommandItem(e: { id?: number; title: string; url: string }): CommandItem {
+  return {
+    id: `history-${e.id}`,
+    label: e.title || e.url,
+    description: e.url,
+    icon: History,
+    keywords: [e.title, e.url],
+    run: () => navigateToUrl(e.url),
+  }
+}
+
 export function createHistoryProvider(): CommandProvider {
   return {
     id: 'history',
@@ -12,35 +39,14 @@ export function createHistoryProvider(): CommandProvider {
     icon: History,
     async search(query: string): Promise<CommandItem[]> {
       const historyStore = useHistoryStore()
-      const tabStore = useTabStore()
 
       if (!query) {
         const recent = await historyStore.getRecentHistory(20)
-        return recent.map((e) => ({
-          id: `history-${e.id}`,
-          label: e.title || e.url,
-          description: e.url,
-          icon: History,
-          keywords: [e.title, e.url],
-          run: () => {
-            const tab = tabStore.activeTab
-            if (tab) tabStore.navigate(tab.id, e.url)
-          },
-        }))
+        return recent.map(toCommandItem)
       }
 
       const entries = await historyStore.searchHistory(query, 20)
-      return entries.map((e) => ({
-        id: `history-${e.id}`,
-        label: e.title || e.url,
-        description: e.url,
-        icon: History,
-        keywords: [e.title, e.url],
-        run: () => {
-          const tab = tabStore.activeTab
-          if (tab) tabStore.navigate(tab.id, e.url)
-        },
-      }))
+      return entries.map(toCommandItem)
     },
   }
 }

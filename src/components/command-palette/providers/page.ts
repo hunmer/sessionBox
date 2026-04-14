@@ -31,7 +31,11 @@ export function createPageProvider(): CommandProvider {
         keywords: [p.name, p.url],
         run: () => {
           const tab = tabStore.activeTab
-          if (tab) tabStore.navigate(tab.id, p.url)
+          if (tab) {
+            tabStore.navigate(tab.id, p.url)
+          } else {
+            tabStore.createTab(p.id)
+          }
         },
       }))
     },
