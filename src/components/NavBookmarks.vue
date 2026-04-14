@@ -43,7 +43,7 @@ const { isMobile } = useSidebar()
       <SidebarMenuItem v-for="item in bookmarks" :key="item.name">
         <SidebarMenuButton as-child>
           <a :href="item.url" :title="item.name">
-            <EmojiRenderer :emoji="item.emoji" />
+            <EmojiRenderer :emoji="item.emoji" :url="item.url" />
             <span>{{ item.name }}</span>
           </a>
         </SidebarMenuButton>

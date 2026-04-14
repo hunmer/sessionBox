@@ -27,6 +27,7 @@ defineProps<{
     pages: {
       name: string
       emoji: string
+      url?: string
     }[]
   }[]
 }>()
@@ -61,7 +62,7 @@ defineProps<{
                 <SidebarMenuSubItem v-for="page in workspace.pages" :key="page.name">
                   <SidebarMenuSubButton as-child>
                     <a href="#">
-                      <EmojiRenderer :emoji="page.emoji" />
+                      <EmojiRenderer :emoji="page.emoji" :url="page.url" />
                       <span>{{ page.name }}</span>
                     </a>
                   </SidebarMenuSubButton>

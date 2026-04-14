@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Camera, SmilePlus, Upload, Link } from 'lucide-vue-next'
+import { Camera, SmilePlus, Upload, Link, X } from 'lucide-vue-next'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<{
   emojiClass?: string
 }>(), {
   size: 80,
-  defaultEmoji: '📄',
+  defaultEmoji: '',
   emojiClass: 'text-4xl [&_img]:w-10 [&_img]:h-10 [&_*:not(img)]:text-4xl',
 })
 
@@ -60,7 +60,7 @@ async function handleConfirmUrl() {
 
 /** 清除自定义图标 */
 function clearImageIcon() {
-  emit('update:modelValue', props.defaultEmoji)
+  emit('update:modelValue', '')
 }
 
 /** 更新图标值 */
@@ -90,13 +90,15 @@ function handleIconConfirm(val: string) {
         />
       </div>
 
-      <!-- 图片 hover 清除按钮 -->
+      <!-- 右上角清除按钮 -->
       <button
-        v-if="isImageIcon"
-        class="absolute inset-0 rounded-full flex items-center justify-center bg-black/40 opacity-0 group-hover/icon:opacity-100 transition-opacity text-white text-sm"
+        v-if="modelValue"
+        class="absolute -top-1 -right-1 rounded-full bg-destructive text-destructive-foreground shadow-sm flex items-center justify-center opacity-0 group-hover/icon:opacity-100 transition-opacity hover:bg-destructive/90"
+        :style="{ width: `${actionBtnSize}px`, height: `${actionBtnSize}px` }"
+        title="清除图标"
         @click="clearImageIcon"
       >
-        ✕
+        <X :style="{ width: `${actionIconSize}px`, height: `${actionIconSize}px` }" />
       </button>
 
       <!-- 左下：选择图标 -->

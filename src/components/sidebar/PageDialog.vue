@@ -45,7 +45,7 @@ const bookmarkStore = useBookmarkStore()
 const tabStore = useTabStore()
 
 const name = ref('')
-const icon = ref('📄')
+const icon = ref('')
 const url = ref('about:blank')
 const containerId = ref('')
 const NO_PROXY = '__none__'
@@ -91,7 +91,7 @@ const containers = computed(() => containerStore.containers)
 watch(() => props.open, (val) => {
   if (val) {
     name.value = props.page?.name ?? ''
-    icon.value = props.page?.icon ?? '📄'
+    icon.value = props.page?.icon ?? ''
     url.value = props.page?.url ?? 'about:blank'
     containerId.value = props.page?.containerId || DEFAULT_CONTAINER
     proxyId.value = props.page?.proxyId || NO_PROXY
@@ -188,7 +188,7 @@ function handleDelete() {
 
       <div class="flex flex-col gap-5 py-2 min-w-0">
         <!-- 图标 -->
-        <IconSelector v-model="icon" :size="80" default-emoji="📄" />
+        <IconSelector v-model="icon" :size="80" default-emoji="" />
 
         <!-- 名称 -->
         <div class="flex flex-col gap-1.5">

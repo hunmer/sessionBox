@@ -212,7 +212,7 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                         class="flex items-center gap-2 w-full text-left"
                         @click.prevent="handlePageClick(pageItem.id)"
                       >
-                        <EmojiRenderer :emoji="pageItem.emoji" />
+                        <EmojiRenderer :emoji="pageItem.emoji" :url="pageItem.url" />
                         <span>{{ pageItem.name }}</span>
                       </a>
                     </SidebarMenuSubButton>

@@ -49,7 +49,8 @@ const workspaces = computed(() => {
         page: p,
         id: p.id,
         name: p.name,
-        emoji: p.icon || '📄',
+        emoji: p.icon || '',
+        url: p.url,
       })),
   }))
 })
@@ -75,7 +76,7 @@ const workspaces = computed(() => {
               :key="pageItem.id"
               @click="emit('selectPage', pageItem.id)"
             >
-              <EmojiRenderer :emoji="pageItem.emoji" class="mr-2" />
+              <EmojiRenderer :emoji="pageItem.emoji" :url="pageItem.url" class="mr-2" />
               {{ pageItem.name }}
             </DropdownMenuItem>
             <template v-if="workspace.pages.length > 0">

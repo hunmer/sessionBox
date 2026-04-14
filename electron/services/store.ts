@@ -437,7 +437,7 @@ export function migrateContainersToPages(): void {
         groupId: c.groupId,
         containerId: c.id === 'default' ? undefined : c.id,
         name: c.name || '未命名页面',
-        icon: c.icon || '📄',
+        icon: c.icon || '',
         url: c.defaultUrl || 'https://www.baidu.com',
         order: c.order ?? 0,
         proxyId: c.proxyId,
