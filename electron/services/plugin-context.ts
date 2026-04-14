@@ -8,18 +8,25 @@ export function createPluginContext(
   storage: PluginStorage,
   eventBus: typeof pluginEventBus,
   getMainWindow: () => BrowserWindow | null
-): PluginContext {
+): { context: PluginContext; cleanupEvents: () => void } {
   const prefix = `plugin:${pluginInfo.id}:`
 
-  return {
+  // 追踪所有通过 context.events 注册的监听器，卸载时逐一移除
+  const registeredHandlers: Array<{ event: string; handler: (...args: any[]) => void }> = []
+
+  const context: PluginContext = {
     events: {
       on(event: string, handler: (...args: any[]) => void): void {
+        registeredHandlers.push({ event, handler })
         eventBus.on(event, handler)
       },
       once(event: string, handler: (...args: any[]) => void): void {
+        registeredHandlers.push({ event, handler })
         eventBus.once(event, handler)
       },
       off(event: string, handler: (...args: any[]) => void): void {
+        const idx = registeredHandlers.findIndex((h) => h.event === event && h.handler === handler)
+        if (idx !== -1) registeredHandlers.splice(idx, 1)
         eventBus.off(event, handler)
       },
       emit(event: string, ...args: any[]): void {
@@ -56,4 +63,13 @@ export function createPluginContext(
       win.webContents.send(channel, ...args)
     }
   }
+
+  const cleanupEvents = () => {
+    for (const { event, handler } of registeredHandlers) {
+      eventBus.off(event, handler)
+    }
+    registeredHandlers.length = 0
+  }
+
+  return { context, cleanupEvents }
 }

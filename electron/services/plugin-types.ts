@@ -28,6 +28,8 @@ export interface PluginInstance {
   module: any
   context: PluginContext
   storage: import('./plugin-storage').PluginStorage
+  /** 清理该插件注册的所有事件监听器 */
+  cleanupEvents: () => void
 }
 
 /** 插件列表展示用的元信息 */

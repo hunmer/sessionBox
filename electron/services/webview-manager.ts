@@ -679,12 +679,23 @@ class WebviewManager {
     this.sendProxyInfo(tabId, null)
   }
 
+  private hideAllViews(): void {
+    this.visibleTabIds.clear()
+    this.multiBoundsActive = false
+
+    for (const [, entry] of this.views) {
+      entry.view.setVisible(false)
+      entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+    }
+  }
+
   switchView(tabId: string): void {
     if (!this.mainWindow) return
 
     const target = this.ensureViewReady(tabId)
     if (!target) {
       this.activeTabId = null
+      this.hideAllViews()
       return
     }
 

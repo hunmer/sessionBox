@@ -613,8 +613,18 @@ export const useTabStore = defineStore('tab', () => {
       await api.tab.restoreAll()
       // 优先恢复上次激活的 tab，否则回退到第一个
       const savedActiveId = localStorage.getItem(ACTIVE_TAB_KEY)
-      const targetTab = savedActiveId ? tabs.value.find((t) => t.id === savedActiveId) : null
-      await switchTab(targetTab?.id ?? sortedTabs.value[0].id)
+      const targetTab = savedActiveId
+        ? workspaceTabs.value.find((t) => t.id === savedActiveId)
+        : null
+
+      if (targetTab) {
+        await switchTab(targetTab.id)
+      } else if (workspaceTabs.value.length > 0) {
+        await switchTab(workspaceTabs.value[0].id)
+      } else {
+        activeTabId.value = null
+        await api.tab.switch('')
+      }
     }
 
     restoreReady = true

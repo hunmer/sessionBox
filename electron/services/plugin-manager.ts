@@ -1,5 +1,5 @@
 import { join, basename } from 'path'
-import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { app, BrowserWindow, shell, dialog } from 'electron'
 import AdmZip from 'adm-zip'
 import { pluginEventBus } from './plugin-event-bus'
@@ -92,7 +92,7 @@ class PluginManager {
     }
 
     const storage = new PluginStorage(info.id, this.userDataPath)
-    const context = createPluginContext(info, storage, pluginEventBus, () => this.mainWindow)
+    const { context, cleanupEvents } = createPluginContext(info, storage, pluginEventBus, () => this.mainWindow)
     const isDisabled = this.disabledIds.has(info.id)
     const pluginModule = require(mainPath)
 
@@ -103,7 +103,8 @@ class PluginManager {
       enabled: !isDisabled,
       module: pluginModule,
       context,
-      storage
+      storage,
+      cleanupEvents
     }
 
     this.plugins.set(info.id, instance)
@@ -118,7 +119,7 @@ class PluginManager {
     }
   }
 
-  /** 卸载插件 */
+  /** 卸载插件（从内存移除） */
   unload(pluginId: string): void {
     const instance = this.plugins.get(pluginId)
     if (!instance) return
@@ -129,7 +130,8 @@ class PluginManager {
         console.error(`[PluginManager] 插件停用失败: ${instance.info.name}`, err)
       }
     }
-    pluginEventBus.removeAllListeners(`plugin:${pluginId}:**`)
+    // 清理该插件注册的所有事件监听器
+    instance.cleanupEvents()
     this.plugins.delete(pluginId)
     console.log(`[PluginManager] 插件已卸载: ${instance.info.name}`)
   }
@@ -162,7 +164,8 @@ class PluginManager {
         console.error(`[PluginManager] 插件停用失败: ${instance.info.name}`, err)
       }
     }
-    pluginEventBus.removeAllListeners(`plugin:${pluginId}:**`)
+    // 清理该插件注册的所有事件监听器
+    instance.cleanupEvents()
     instance.enabled = false
     this.disabledIds.add(pluginId)
     this.saveDisabledList()
@@ -213,6 +216,24 @@ class PluginManager {
     }
   }
 
+  /** 解压后根据 info.json 的 id 确定最终目录，必要时重命名 */
+  private resolveFinalDir(extractedDir: string, infoPath: string): string | null {
+    const raw = readFileSync(infoPath, 'utf-8')
+    const info = JSON.parse(raw)
+    if (!info.id) return null
+
+    const finalDir = join(this.pluginsDir, info.id)
+    if (extractedDir === finalDir) return finalDir
+
+    // 卸载已存在的同名插件（按目录路径匹配）
+    const existing = Array.from(this.plugins.values()).find((p) => p.dir === finalDir)
+    if (existing) this.unload(existing.id)
+
+    if (existsSync(finalDir)) rmSync(finalDir, { recursive: true, force: true })
+    renameSync(extractedDir, finalDir)
+    return finalDir
+  }
+
   /** 从 ZIP 文件导入插件 */
   async importFromZip(): Promise<{ success: boolean; pluginName?: string; error?: string }> {
     const result = await dialog.showOpenDialog({
@@ -256,23 +277,27 @@ class PluginManager {
         this.unload(existingPlugin.id)
       }
 
-      // 解压到临时目录后校验，再移入目标
+      // 解压到初始目录
       zip.extractAllTo(targetDir, true)
 
       // 校验解压结果
       const infoPath = join(targetDir, 'info.json')
       const mainPath = join(targetDir, 'main.js')
       if (!existsSync(infoPath) || !existsSync(mainPath)) {
-        // 清理无效解压
-        const { rmSync } = await import('node:fs')
         rmSync(targetDir, { recursive: true, force: true })
         return { success: false, error: '插件缺少 info.json 或 main.js，导入失败' }
       }
 
-      // 加载插件
-      this.load(targetDir)
+      // 使用 info.json 中的 id 作为最终目录名
+      const finalDir = this.resolveFinalDir(targetDir, infoPath)
+      if (!finalDir) {
+        rmSync(targetDir, { recursive: true, force: true })
+        return { success: false, error: '插件的 info.json 缺少 id 字段' }
+      }
 
-      const instance = Array.from(this.plugins.values()).find((p) => p.dir === targetDir)
+      this.load(finalDir)
+
+      const instance = Array.from(this.plugins.values()).find((p) => p.dir === finalDir)
       if (!instance) {
         return { success: false, error: '插件加载失败' }
       }
@@ -337,13 +362,19 @@ class PluginManager {
         const infoPath = join(targetDir, 'info.json')
         const mainPath = join(targetDir, 'main.js')
         if (!existsSync(infoPath) || !existsSync(mainPath)) {
-          const { rmSync } = await import('node:fs')
           rmSync(targetDir, { recursive: true, force: true })
           return { success: false, error: '插件缺少 info.json 或 main.js，安装失败' }
         }
 
-        this.load(targetDir)
-        const instance = Array.from(this.plugins.values()).find((p) => p.dir === targetDir)
+        // 使用 info.json 中的 id 作为最终目录名
+        const finalDir = this.resolveFinalDir(targetDir, infoPath)
+        if (!finalDir) {
+          rmSync(targetDir, { recursive: true, force: true })
+          return { success: false, error: '插件的 info.json 缺少 id 字段' }
+        }
+
+        this.load(finalDir)
+        const instance = Array.from(this.plugins.values()).find((p) => p.dir === finalDir)
         if (!instance) {
           return { success: false, error: '插件加载失败' }
         }
@@ -352,7 +383,6 @@ class PluginManager {
       } finally {
         // 清理临时 ZIP
         if (existsSync(tmpZipPath)) {
-          const { rmSync } = await import('node:fs')
           rmSync(tmpZipPath, { force: true })
         }
       }
@@ -369,7 +399,6 @@ class PluginManager {
     }
     try {
       this.unload(pluginId)
-      const { rmSync } = await import('node:fs')
       rmSync(instance.dir, { recursive: true, force: true })
       return { success: true }
     } catch (err: any) {
