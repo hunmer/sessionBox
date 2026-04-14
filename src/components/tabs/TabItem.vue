@@ -153,7 +153,7 @@ function handleTriggerEnter() {
   hoverTimer = setTimeout(() => {
     previewOpen.value = true
     capturePreview()
-  }, 400)
+  }, 1500)
 }
 
 function handleTriggerLeave() {

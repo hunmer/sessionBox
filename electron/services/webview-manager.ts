@@ -481,10 +481,6 @@ class WebviewManager {
       if (!entry || !canSend()) return
 
       entry.lastActiveAt = Date.now()
-      this.activeTabId = tabId
-
-      win.webContents.send('on:tab:activated', tabId)
-      void this.refreshProxyInfo(tabId)
     })
 
     // 右键菜单

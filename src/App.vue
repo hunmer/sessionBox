@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, nextTick, ref, watch, computed, shallowRef } from 'vue'
+import { onMounted, onUnmounted, nextTick, ref, watch, computed } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { Progress } from '@/components/ui/progress'
@@ -16,6 +16,7 @@ import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import UpdateNotification from '@/components/common/UpdateNotification.vue'
 import RightPanel from '@/components/common/RightPanel.vue'
+import InternalPageHost from '@/components/common/InternalPageHost.vue'
 import SplitView from '@/components/tabs/SplitView.vue'
 import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
 import { useSplitStore } from '@/stores/split'
@@ -28,28 +29,8 @@ import { useWorkspaceStore } from '@/stores/workspace'
 import { useHomepageStore } from '@/stores/homepage'
 import { useIpcEvent } from '@/composables/useIpc'
 import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
-import { markRaw, type Component } from 'vue'
-import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
-import HistoryPage from '@/components/history/HistoryPage.vue'
-import DownloadsPage from '@/components/download/DownloadsPage.vue'
-import ContainersPage from '@/components/containers/ContainersPage.vue'
-import PluginsPage from '@/components/plugins/PluginsPage.vue'
-
-const INTERNAL_PAGES: Record<string, Component> = {
-  bookmarks: markRaw(BookmarksPage),
-  history: markRaw(HistoryPage),
-  downloads: markRaw(DownloadsPage),
-  containers: markRaw(ContainersPage),
-  plugins: markRaw(PluginsPage)
-}
 
 type ImmersiveEdge = 'top' | 'left' | 'right' | 'bottom'
-
-const internalPageComponent = computed(() => {
-  const path = tabStore.internalPagePath
-  if (!path) return null
-  return INTERNAL_PAGES[path] ?? null
-})
 
 const containerStore = useContainerStore()
 const pageStore = usePageStore()
@@ -594,23 +575,10 @@ useIpcEvent('shortcut', (actionId) => {
              
               <!-- WebContentsView 占位区域 -->
               <div class="flex-1 relative bg-background">
-                <!-- 内部页面渲染（v-show + KeepAlive 保留状态，避免切换 tab 时销毁重建） -->
-                <div
-                  v-show="tabStore.isInternalPage"
-                  class="absolute inset-x-0 top-0 bottom-2 z-20 overflow-auto"
-                  :style="immersiveContentInsetStyle"
-                >
-                  <KeepAlive>
-                    <component
-                      :is="internalPageComponent"
-                      v-if="internalPageComponent"
-                      @open-download-settings="settingsDialogOpen = true; settingsInitialTab = 'download'"
-                    />
-                  </KeepAlive>
-                  <div v-if="!internalPageComponent && tabStore.isInternalPage" class="flex items-center justify-center h-full">
-                    <p class="text-muted-foreground text-sm">未知页面</p>
-                  </div>
-                </div>
+                <InternalPageHost
+                  :content-inset-style="immersiveContentInsetStyle"
+                  @open-download-settings="settingsDialogOpen = true; settingsInitialTab = 'download'"
+                />
                 <!-- 无标签页时的空状态 -->
                 <div
                   v-if="!tabStore.activeTab"
@@ -695,22 +663,10 @@ useIpcEvent('shortcut', (actionId) => {
       <div v-else class="flex h-full min-w-0 flex-col">
         <template v-if="ready">
           <div class="relative flex-1 bg-background">
-            <div
-              v-show="tabStore.isInternalPage"
-              class="absolute inset-x-0 top-0 bottom-2 z-20 overflow-auto"
-              :style="immersiveContentInsetStyle"
-            >
-              <KeepAlive>
-                <component
-                  :is="internalPageComponent"
-                  v-if="internalPageComponent"
-                  @open-download-settings="settingsDialogOpen = true; settingsInitialTab = 'download'"
-                />
-              </KeepAlive>
-              <div v-if="!internalPageComponent && tabStore.isInternalPage" class="flex h-full items-center justify-center">
-                <p class="text-sm text-muted-foreground">未知页面</p>
-              </div>
-            </div>
+            <InternalPageHost
+              :content-inset-style="immersiveContentInsetStyle"
+              @open-download-settings="settingsDialogOpen = true; settingsInitialTab = 'download'"
+            />
 
             <div
               v-if="!tabStore.activeTab"

@@ -127,9 +127,9 @@ async function handleExport() {
     </div>
 
     <!-- 左右分栏 -->
-    <ResizablePanelGroup direction="horizontal" class="flex-1 min-h-0">
+    <ResizablePanelGroup direction="horizontal" class="flex-1 min-h-0" unit="pixel">
       <!-- 左侧文件夹树 -->
-      <ResizablePanel :default-size="220" :min-size="160" :max-size="360" size-unit="px">
+      <ResizablePanel :default-size="220" :min-size="160" :max-size="360">
         <ScrollArea class="h-full">
           <FolderTree
             v-model:selected-folder-id="selectedFolderId"
