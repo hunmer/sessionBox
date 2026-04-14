@@ -204,6 +204,10 @@ const api = {
     delete: (id) => electron.ipcRenderer.invoke("password:delete", id)
   },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
+  searchEngine: {
+    list: () => electron.ipcRenderer.invoke("searchEngine:list"),
+    set: (engines) => electron.ipcRenderer.invoke("searchEngine:set", engines)
+  },
   sniffer: {
     toggle: (tabId, enabled) => electron.ipcRenderer.invoke("sniffer:toggle", tabId, enabled),
     setDomainEnabled: (domain, enabled) => electron.ipcRenderer.invoke("sniffer:setDomainEnabled", domain, enabled),

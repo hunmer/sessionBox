@@ -163,6 +163,14 @@ export interface PasswordEntry {
   updatedAt: number
 }
 
+// 搜索引擎
+export interface SearchEngine {
+  id: string
+  name: string
+  url: string  // 搜索 URL，用 %s 占位代表用户输入
+  icon?: string
+}
+
 // 更新源配置
 export interface UpdateSource {
   id: string
@@ -198,6 +206,8 @@ interface StoreSchema {
   activeUpdateSourceId: string
   snifferDomains: string[]
   passwords: PasswordEntry[]
+  searchEngines: SearchEngine[]
+  defaultSearchEngineId: string
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -231,7 +241,14 @@ const defaults: StoreSchema = {
   ],
   activeUpdateSourceId: 'github',
   snifferDomains: [],
-  passwords: []
+  passwords: [],
+  searchEngines: [
+    { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=%s', icon: 'Search' },
+    { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=%s', icon: 'Search' },
+    { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q=%s', icon: 'Search' },
+    { id: 'duckduckgo', name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s', icon: 'Search' },
+    { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=%s', icon: 'Search' },
+  ]
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -1109,4 +1126,14 @@ export function updatePassword(id: string, data: Partial<Omit<PasswordEntry, 'id
 export function deletePassword(id: string): void {
   const passwords = getCollection('passwords').filter((p) => p.id !== id)
   setCollection('passwords', passwords)
+}
+
+// ====== 搜索引擎操作 ======
+
+export function listSearchEngines(): SearchEngine[] {
+  return getCollection('searchEngines')
+}
+
+export function setSearchEngines(engines: SearchEngine[]): void {
+  setCollection('searchEngines', engines)
 }

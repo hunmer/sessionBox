@@ -24,6 +24,7 @@ const emit = defineEmits<{
 }>()
 
 const inputRef = ref<HTMLInputElement | null>(null)
+const listRef = ref<InstanceType<typeof CommandList> | null>(null)
 const localInput = ref('')
 
 const {
@@ -81,9 +82,14 @@ watch(() => props.open, (val) => {
     skipNextWatch = true
     localInput.value = ''
     search('')
-    nextTick(() => inputRef.value?.focus())
   }
 })
+
+// 接管 reka-ui FocusScope 的自动焦点，聚焦到输入框
+function handleOpenAutoFocus(e: Event) {
+  e.preventDefault()
+  nextTick(() => inputRef.value?.focus())
+}
 
 // 选中项目
 function handleSelect(item: CommandItemType) {
@@ -118,8 +124,49 @@ function findMatchingProviders(query: string) {
   )
 }
 
+// 获取所有可见的候选项 DOM 元素
+function getVisibleItems(): HTMLElement[] {
+  const listEl = listRef.value?.$el as HTMLElement | undefined
+  if (!listEl) return []
+  return Array.from(listEl.querySelectorAll('[role="option"]:not([hidden])')) as HTMLElement[]
+}
+
 // 处理键盘事件
 function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const items = getVisibleItems()
+    if (items.length === 0) return
+
+    e.preventDefault()
+
+    const currentHighlight = document.activeElement as HTMLElement
+    const currentIndex = items.indexOf(currentHighlight)
+
+    let nextIndex: number
+    if (e.key === 'ArrowDown') {
+      nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0
+    } else {
+      nextIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1
+    }
+
+    items[nextIndex]?.focus()
+    return
+  }
+
+  // 可打印字符：从候选项回到输入框继续输入
+  if (document.activeElement !== inputRef.value && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    inputRef.value?.focus()
+    // 不 preventDefault，让字符正常输入
+    return
+  }
+
+  // Escape / Backspace 从候选项回到输入框
+  if ((e.key === 'Escape' || e.key === 'Backspace') && document.activeElement !== inputRef.value) {
+    e.preventDefault()
+    inputRef.value?.focus()
+    return
+  }
+
   if (e.key === 'Backspace' && activeProvider.value && !localInput.value) {
     // 激活态空输入时 Backspace 回退
     e.preventDefault()
@@ -166,16 +213,17 @@ const placeholder = computed(() =>
 </script>
 
 <template>
-  <CommandDialog :open="open" @update:open="emit('update:open', $event)" title="命令面板" description="搜索书签、页面、标签页或输入命令...">
+  <CommandDialog :open="open" @update:open="emit('update:open', $event)" title="命令面板" description="搜索书签、页面、标签页或输入命令..." @open-auto-focus="handleOpenAutoFocus">
     <!-- 自定义搜索输入区域 -->
     <div class="flex h-9 items-center gap-2 border-b px-3">
-      <component :is="activeProvider?.icon ?? Search" class="size-4 shrink-0 opacity-50" />
-      <div v-if="activeProvider" class="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+      <div v-if="activeProvider" class="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs text-primary whitespace-nowrap">
+        <component :is="activeProvider.icon" class="size-3.5 shrink-0" />
         <span>{{ activeProvider.label }}</span>
-        <button class="hover:text-destructive" @click="clearProvider">
+        <button class="ml-0.5 rounded-sm hover:bg-primary/20 hover:text-destructive" @click="clearProvider">
           <X class="size-3" />
         </button>
       </div>
+      <Search v-else class="size-4 shrink-0 opacity-50" />
       <input
         ref="inputRef"
         v-model="localInput"
@@ -184,7 +232,7 @@ const placeholder = computed(() =>
         @keydown="handleKeydown"
       />
     </div>
-    <CommandList>
+    <CommandList ref="listRef" @keydown="handleKeydown">
       <CommandEmpty v-if="!loading && localInput.trim() && visibleGroups.length === 0 && providerItems.length === 0">
         未找到结果
       </CommandEmpty>

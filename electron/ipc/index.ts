@@ -61,7 +61,11 @@ import {
   updatePassword,
   deletePassword
 } from '../services/store'
-import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder, Page, PasswordEntry } from '../services/store'
+import {
+  listSearchEngines,
+  setSearchEngines
+} from '../services/store'
+import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder, Page, PasswordEntry, SearchEngine } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
 import { registerProxyIpcHandlers } from './proxy'
 import { registerUpdaterIpc } from './updater'
@@ -462,4 +466,8 @@ $img.Dispose()`
     updatePassword(id, data)
   )
   ipcMain.handle('password:delete', (_e, id: string) => deletePassword(id))
+
+  // ====== 搜索引擎 ======
+  ipcMain.handle('searchEngine:list', () => listSearchEngines())
+  ipcMain.handle('searchEngine:set', (_e, engines: SearchEngine[]) => setSearchEngines(engines))
 }

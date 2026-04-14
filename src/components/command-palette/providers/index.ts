@@ -3,6 +3,8 @@ import { createBookmarkProvider } from './bookmark'
 import { createPageProvider } from './page'
 import { createTabProvider } from './tab'
 import { createHistoryProvider } from './history'
+import { createWorkspaceProvider } from './workspace'
+import { createSearchProvider } from './search'
 import { createGlobalCommandProvider } from './global'
 
 interface GlobalCallbacks {
@@ -14,6 +16,8 @@ interface GlobalCallbacks {
 export function createAllProviders(callbacks: GlobalCallbacks): CommandProvider[] {
   return [
     createGlobalCommandProvider(callbacks),
+    createWorkspaceProvider(),
+    createSearchProvider(),
     createBookmarkProvider(),
     createPageProvider(),
     createTabProvider(),

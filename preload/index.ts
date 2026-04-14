@@ -141,6 +141,14 @@ export interface PluginMeta {
   iconPath: string
 }
 
+// 搜索引擎
+export interface SearchEngine {
+  id: string
+  name: string
+  url: string
+  icon?: string
+}
+
 // 分屏相关类型
 export interface SplitPaneData {
   id: string
@@ -377,6 +385,11 @@ const api = {
   },
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),
+
+  searchEngine: {
+    list: (): Promise<SearchEngine[]> => ipcRenderer.invoke('searchEngine:list'),
+    set: (engines: SearchEngine[]): Promise<void> => ipcRenderer.invoke('searchEngine:set', engines)
+  },
 
   sniffer: {
     toggle: (tabId: string, enabled: boolean): Promise<void> =>
