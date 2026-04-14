@@ -19,6 +19,7 @@ import RightPanel from '@/components/common/RightPanel.vue'
 import InternalPageHost from '@/components/common/InternalPageHost.vue'
 import SplitView from '@/components/tabs/SplitView.vue'
 import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
+import CommandPaletteDialog from '@/components/command-palette/CommandPaletteDialog.vue'
 import { useSplitStore } from '@/stores/split'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
@@ -831,6 +832,12 @@ useIpcEvent('shortcut', (actionId) => {
 
     <!-- 标签页概览弹窗 -->
     <TabOverviewDialog :open="tabOverviewOpen" @update:open="tabOverviewOpen = $event" />
+
+    <!-- 命令面板 -->
+    <CommandPaletteDialog
+      :toggle-sidebar="toggleSidebar"
+      :open-settings="() => { settingsDialogOpen = true; settingsInitialTab = 'general' }"
+    />
 
     <!-- 更新提示弹窗 -->
     <UpdateNotification />
