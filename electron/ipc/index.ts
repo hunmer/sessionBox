@@ -87,6 +87,8 @@ import { registerSnifferIpcHandlers } from './sniffer'
 import { pluginEventBus } from '../services/plugin-event-bus'
 import { registerPluginIpcHandlers } from './plugin'
 import { registerMcpIpcHandlers } from './mcp'
+import { registerChatIpcHandlers } from './chat'
+import { registerAIProviderIpcHandlers } from './ai-provider'
 import { isDefaultBrowser, setDefaultBrowser } from '../services/default-browser'
 
 /** 容器图标存储目录 */
@@ -471,6 +473,12 @@ $img.Dispose()`
 
   // ====== MCP Server ======
   registerMcpIpcHandlers()
+
+  // ====== AI Chat ======
+  registerChatIpcHandlers()
+
+  // ====== AI Provider ======
+  registerAIProviderIpcHandlers()
 
   // ====== 密码/笔记管理 ======
   ipcMain.handle('password:list', () => listPasswords())
