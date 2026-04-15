@@ -86,6 +86,7 @@ import { webviewManager } from '../services/webview-manager'
 import { registerSnifferIpcHandlers } from './sniffer'
 import { pluginEventBus } from '../services/plugin-event-bus'
 import { registerPluginIpcHandlers } from './plugin'
+import { registerMcpIpcHandlers } from './mcp'
 import { isDefaultBrowser, setDefaultBrowser } from '../services/default-browser'
 
 /** 容器图标存储目录 */
@@ -467,6 +468,9 @@ $img.Dispose()`
 
   // ====== 插件管理 ======
   registerPluginIpcHandlers()
+
+  // ====== MCP Server ======
+  registerMcpIpcHandlers()
 
   // ====== 密码/笔记管理 ======
   ipcMain.handle('password:list', () => listPasswords())
