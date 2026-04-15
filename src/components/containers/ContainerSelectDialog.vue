@@ -1,16 +1,23 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
 } from '@/components/ui/dialog'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import { useTabStore } from '@/stores/tab'
 import { useContainerStore } from '@/stores/container'
+import { useWorkspaceStore } from '@/stores/workspace'
 
 const tabStore = useTabStore()
 const containerStore = useContainerStore()
+const workspaceStore = useWorkspaceStore()
+
+const selectedWorkspaceId = ref(containerStore.defaultWorkspaceId)
 
 const open = computed({
   get: () => tabStore.pendingExternalUrl !== null,
@@ -26,7 +33,7 @@ async function selectContainer(containerId: string) {
   const url = tabStore.pendingExternalUrl
   if (!url) return
   tabStore.cancelExternalUrl()
-  await tabStore.openExternalUrlInContainer(url, containerId)
+  await tabStore.openExternalUrlInContainer(url, containerId, selectedWorkspaceId.value)
 }
 
 /** 使用默认容器打开 */
@@ -34,7 +41,7 @@ async function useDefault() {
   const url = tabStore.pendingExternalUrl
   if (!url) return
   tabStore.cancelExternalUrl()
-  await tabStore.openExternalUrlInContainer(url, containerStore.defaultContainerId)
+  await tabStore.openExternalUrlInContainer(url, containerStore.defaultContainerId, selectedWorkspaceId.value)
 }
 </script>
 
@@ -48,7 +55,23 @@ async function useDefault() {
         </DialogDescription>
       </DialogHeader>
 
-      <ScrollArea class="max-h-[60vh]">
+      <!-- 工作区选择 -->
+      <div>
+        <label class="text-xs text-muted-foreground mb-1 block">目标工作区</label>
+        <Select v-model="selectedWorkspaceId">
+          <SelectTrigger class="w-full">
+            <SelectValue placeholder="选择工作区" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__default__">默认工作区</SelectItem>
+            <SelectItem v-for="w in workspaceStore.sortedWorkspaces" :key="w.id" :value="w.id">
+              {{ w.title }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <ScrollArea class="max-h-[45vh]">
         <div class="flex flex-col gap-1 pr-2">
           <button
             v-for="container in containerStore.containers"

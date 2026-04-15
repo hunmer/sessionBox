@@ -43,6 +43,8 @@ import {
   setMinimizeOnClose,
   getAskContainerOnOpen,
   setAskContainerOnOpen,
+  getDefaultWorkspaceId,
+  setDefaultWorkspaceId,
   getMutedSites,
   setMutedSites,
   addMutedSite,
@@ -448,6 +450,9 @@ $img.Dispose()`
 
   ipcMain.handle('settings:getAskContainerOnOpen', () => getAskContainerOnOpen())
   ipcMain.handle('settings:setAskContainerOnOpen', (_e, enabled: boolean) => setAskContainerOnOpen(enabled))
+
+  ipcMain.handle('settings:getDefaultWorkspaceId', () => getDefaultWorkspaceId())
+  ipcMain.handle('settings:setDefaultWorkspaceId', (_e, id: string) => setDefaultWorkspaceId(id))
 
   // ====== 默认浏览器 ======
   ipcMain.handle('settings:setDefaultBrowser', (_e, enabled: boolean) => setDefaultBrowser(enabled))

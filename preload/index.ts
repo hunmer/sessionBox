@@ -377,7 +377,9 @@ const api = {
     getDefaultContainerId: (): Promise<string> => ipcRenderer.invoke('settings:getDefaultContainerId'),
     setDefaultContainerId: (id: string): Promise<void> => ipcRenderer.invoke('settings:setDefaultContainerId', id),
     getAskContainerOnOpen: (): Promise<boolean> => ipcRenderer.invoke('settings:getAskContainerOnOpen'),
-    setAskContainerOnOpen: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setAskContainerOnOpen', enabled)
+    setAskContainerOnOpen: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setAskContainerOnOpen', enabled),
+    getDefaultWorkspaceId: (): Promise<string> => ipcRenderer.invoke('settings:getDefaultWorkspaceId'),
+    setDefaultWorkspaceId: (id: string): Promise<void> => ipcRenderer.invoke('settings:setDefaultWorkspaceId', id)
   },
 
   mutedSites: {

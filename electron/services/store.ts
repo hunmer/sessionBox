@@ -958,6 +958,14 @@ export function setAskContainerOnOpen(enabled: boolean): void {
   store.set('askContainerOnOpen', enabled)
 }
 
+export function getDefaultWorkspaceId(): string {
+  return store.get('defaultWorkspaceId', '__default__')
+}
+
+export function setDefaultWorkspaceId(id: string): void {
+  store.set('defaultWorkspaceId', id)
+}
+
 // ====== 快捷键绑定操作 ======
 
 export function getShortcutBindings(): ShortcutBindingStore[] {

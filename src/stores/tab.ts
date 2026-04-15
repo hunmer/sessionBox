@@ -757,8 +757,8 @@ export const useTabStore = defineStore('tab', () => {
         return
       }
 
-      // 未开启询问：使用默认容器打开，不持久化 Page
-      await openExternalUrlInContainer(externalUrl, containerStore.defaultContainerId)
+      // 未开启询问：使用默认容器和工作区打开，不持久化 Page
+      await openExternalUrlInContainer(externalUrl, containerStore.defaultContainerId, containerStore.defaultWorkspaceId)
     })
   }
 
@@ -816,12 +816,18 @@ export const useTabStore = defineStore('tab', () => {
   })
 
   /** 使用指定容器打开外部 URL（不持久化 Page 到分组） */
-  async function openExternalUrlInContainer(url: string, containerId: string) {
+  async function openExternalUrlInContainer(url: string, containerId: string, workspaceId?: string) {
     const pageStore = usePageStore()
     const containerStore = useContainerStore()
+    const workspaceStore = useWorkspaceStore()
+    const targetWorkspaceId = workspaceId || workspaceStore.activeWorkspaceId
 
-    // 优先查找该容器下的已有 page，复用其 partition
-    const existingPage = pageStore.pages.find(p => p.containerId === containerId)
+    // 优先在目标工作区中查找该容器下的已有 page
+    const existingPage = pageStore.pages.find((p) => {
+      if (p.containerId !== containerId) return false
+      const group = containerStore.getGroup(p.groupId)
+      return (group?.workspaceId || '__default__') === targetWorkspaceId
+    })
     if (existingPage) {
       const tab = await api.tab.create(existingPage.id, url)
       await nextTick()
@@ -829,12 +835,10 @@ export const useTabStore = defineStore('tab', () => {
       return
     }
 
-    // 容器下无已有 page：查找当前工作区的任意 page 作为宿主
-    const workspaceStore = useWorkspaceStore()
-    const activeId = workspaceStore.activeWorkspaceId
+    // 查找目标工作区中的任意 page 作为宿主
     const fallbackPage = pageStore.pages.find((p) => {
       const group = containerStore.getGroup(p.groupId)
-      return (group?.workspaceId || '__default__') === activeId
+      return (group?.workspaceId || '__default__') === targetWorkspaceId
     })
 
     if (fallbackPage) {
