@@ -30,6 +30,7 @@ import { useBookmarkStore } from '@/stores/bookmark'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useHomepageStore } from '@/stores/homepage'
 import { usePasswordStore } from '@/stores/password'
+import { useMcpStore } from '@/stores/mcp'
 import { useIpcEvent } from '@/composables/useIpc'
 import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
 
@@ -44,6 +45,7 @@ const workspaceStore = useWorkspaceStore()
 const homepageStore = useHomepageStore()
 const passwordStore = usePasswordStore()
 const splitStore = useSplitStore()
+const mcpStore = useMcpStore()
 
 const proxyDialogOpen = ref(false)
 const settingsDialogOpen = ref(false)
@@ -368,6 +370,7 @@ onMounted(async () => {
     passwordStore.init()
   ])
   await splitStore.restoreState()
+  await mcpStore.init()
   ready.value = true
 
   // 启动时自动打开主页
