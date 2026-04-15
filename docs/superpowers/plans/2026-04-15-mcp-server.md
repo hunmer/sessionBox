@@ -646,7 +646,7 @@ export function registerCdpTools(server: McpServer, ctx: ToolContext): number {
   server.tool('cdp_command', '发送 Chrome DevTools Protocol 指令', {
     tabId: z.string().describe('标签页 ID'),
     method: z.string().describe('CDP 方法名，如 Network.getAllCookies'),
-    params: z.record(z.any()).optional().describe('CDP 参数')
+    params: z.record(z.string(), z.any()).optional().describe('CDP 参数')
   }, async ({ tabId, method, params }) => {
     try {
       const attached = await ensureDebuggerAttached(ctx, tabId)

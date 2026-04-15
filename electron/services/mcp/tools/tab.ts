@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { ToolContext } from '../types'
 
 /** 成功响应 */
-function ok(data: unknown) {
+function ok(data: Record<string, unknown>) {
   return {
     content: [{ type: 'text' as const, text: JSON.stringify({ success: true, ...data }, null, 2) }]
   }

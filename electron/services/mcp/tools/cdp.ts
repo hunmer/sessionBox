@@ -29,7 +29,7 @@ function ensureDebuggerAttached(ctx: ToolContext, tabId: string): any {
 }
 
 /** 成功响应 */
-function ok(data: unknown) {
+function ok(data: Record<string, unknown>) {
   return {
     content: [{ type: 'text' as const, text: JSON.stringify({ success: true, ...data }, null, 2) }]
   }
@@ -78,7 +78,8 @@ export function registerCdpTools(server: McpServer, ctx: ToolContext): number {
     {
       tabId: z.string().describe('Tab ID to send CDP command to'),
       method: z.string().describe('CDP method name (e.g. "Runtime.evaluate", "Page.captureScreenshot")'),
-      params: z.record(z.any()).optional().describe('CDP command parameters')
+      // Zod 4's JSON Schema conversion crashes on single-argument z.record(valueSchema)
+      params: z.record(z.string(), z.any()).optional().describe('CDP command parameters')
     },
     async ({ tabId, method, params }) => {
       try {
