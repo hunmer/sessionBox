@@ -164,6 +164,26 @@ export interface PasswordEntry {
   updatedAt: number
 }
 
+// AI Provider
+export interface AIProviderStore {
+  id: string
+  name: string
+  apiBase: string
+  apiKey: string
+  models: AIModelStore[]
+  enabled: boolean
+  createdAt: number
+}
+
+export interface AIModelStore {
+  id: string
+  name: string
+  providerId: string
+  maxTokens: number
+  supportsVision: boolean
+  supportsThinking: boolean
+}
+
 // 搜索引擎
 export interface SearchEngine {
   id: string
@@ -211,6 +231,7 @@ interface StoreSchema {
   defaultSearchEngineId: string
   defaultContainerId: string  // 默认容器 ID，用于外部链接打开
   zoomPreferences: Record<string, number>  // pageId -> zoomLevel 缩放偏好持久化
+  aiProviders: AIProviderStore[]
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -254,7 +275,8 @@ const defaults: StoreSchema = {
   ],
   defaultSearchEngineId: 'google',
   defaultContainerId: 'default',
-  zoomPreferences: {}
+  zoomPreferences: {},
+  aiProviders: []
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -1205,4 +1227,44 @@ export function setZoomPreference(pageId: string, level: number): void {
     prefs[pageId] = level
   }
   store.set('zoomPreferences', prefs)
+}
+
+// ===== AI Provider CRUD =====
+
+export function listAIProviders(): AIProviderStore[] {
+  return store.get('aiProviders', [])
+}
+
+export function getAIProvider(id: string): AIProviderStore | undefined {
+  return store.get('aiProviders', []).find((p) => p.id === id)
+}
+
+export function createAIProvider(data: Omit<AIProviderStore, 'id' | 'createdAt'>): AIProviderStore {
+  const providers = store.get('aiProviders', [])
+  const provider: AIProviderStore = {
+    ...data,
+    id: randomUUID(),
+    createdAt: Date.now(),
+  }
+  providers.push(provider)
+  store.set('aiProviders', providers)
+  return provider
+}
+
+export function updateAIProvider(id: string, updates: Partial<AIProviderStore>): AIProviderStore | undefined {
+  const providers = store.get('aiProviders', [])
+  const index = providers.findIndex((p) => p.id === id)
+  if (index === -1) return undefined
+  providers[index] = { ...providers[index], ...updates }
+  store.set('aiProviders', providers)
+  return providers[index]
+}
+
+export function deleteAIProvider(id: string): boolean {
+  const providers = store.get('aiProviders', [])
+  const index = providers.findIndex((p) => p.id === id)
+  if (index === -1) return false
+  providers.splice(index, 1)
+  store.set('aiProviders', providers)
+  return true
 }
