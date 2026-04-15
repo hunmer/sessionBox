@@ -368,7 +368,9 @@ const api = {
     setDefaultBrowser: (enabled: boolean): Promise<DefaultBrowserResult> => ipcRenderer.invoke('settings:setDefaultBrowser', enabled),
     checkDefaultBrowser: (): Promise<boolean> => ipcRenderer.invoke('settings:checkDefaultBrowser'),
     getMinimizeOnClose: (): Promise<boolean> => ipcRenderer.invoke('settings:getMinimizeOnClose'),
-    setMinimizeOnClose: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setMinimizeOnClose', enabled)
+    setMinimizeOnClose: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setMinimizeOnClose', enabled),
+    getDefaultContainerId: (): Promise<string> => ipcRenderer.invoke('settings:getDefaultContainerId'),
+    setDefaultContainerId: (id: string): Promise<void> => ipcRenderer.invoke('settings:setDefaultContainerId', id)
   },
 
   mutedSites: {
@@ -394,6 +396,13 @@ const api = {
       ipcRenderer.invoke('password:importOpenFile'),
     exportSaveFile: (csv: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('password:exportSaveFile', csv),
+  },
+
+  theme: {
+    importOpenFile: (): Promise<{ json: string } | null> =>
+      ipcRenderer.invoke('theme:importOpenFile'),
+    exportSaveFile: (json: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('theme:exportSaveFile', json),
   },
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),

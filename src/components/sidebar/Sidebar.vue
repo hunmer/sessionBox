@@ -129,10 +129,13 @@ function handleSelectPage(pageId: string) {
   }
 }
 
-/** 打开主页 */
+/** 打开主页，未配置时弹出设置对话框并定位到「常规」 */
 function openHomepage() {
   const { url, openMethod } = homepageStore.settings
-  if (!url?.trim()) return
+  if (!url?.trim()) {
+    emit('openSettings', 'general')
+    return
+  }
   if (openMethod === 'newTab' || !tabStore.activeTab) {
     tabStore.createTabForSite(url)
   } else {

@@ -188,7 +188,9 @@ const api = {
     setDefaultBrowser: (enabled) => electron.ipcRenderer.invoke("settings:setDefaultBrowser", enabled),
     checkDefaultBrowser: () => electron.ipcRenderer.invoke("settings:checkDefaultBrowser"),
     getMinimizeOnClose: () => electron.ipcRenderer.invoke("settings:getMinimizeOnClose"),
-    setMinimizeOnClose: (enabled) => electron.ipcRenderer.invoke("settings:setMinimizeOnClose", enabled)
+    setMinimizeOnClose: (enabled) => electron.ipcRenderer.invoke("settings:setMinimizeOnClose", enabled),
+    getDefaultContainerId: () => electron.ipcRenderer.invoke("settings:getDefaultContainerId"),
+    setDefaultContainerId: (id) => electron.ipcRenderer.invoke("settings:setDefaultContainerId", id)
   },
   mutedSites: {
     list: () => electron.ipcRenderer.invoke("mutedSites:list"),
@@ -205,6 +207,10 @@ const api = {
     clearAll: () => electron.ipcRenderer.invoke("password:clearAll"),
     importOpenFile: () => electron.ipcRenderer.invoke("password:importOpenFile"),
     exportSaveFile: (csv) => electron.ipcRenderer.invoke("password:exportSaveFile", csv)
+  },
+  theme: {
+    importOpenFile: () => electron.ipcRenderer.invoke("theme:importOpenFile"),
+    exportSaveFile: (json) => electron.ipcRenderer.invoke("theme:exportSaveFile", json)
   },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   searchEngine: {

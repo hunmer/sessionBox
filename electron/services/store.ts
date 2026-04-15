@@ -208,6 +208,7 @@ interface StoreSchema {
   passwords: PasswordEntry[]
   searchEngines: SearchEngine[]
   defaultSearchEngineId: string
+  defaultContainerId: string  // 默认容器 ID，用于外部链接打开
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -249,7 +250,8 @@ const defaults: StoreSchema = {
     { id: 'duckduckgo', name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s', icon: 'Search' },
     { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=%s', icon: 'Search' },
   ],
-  defaultSearchEngineId: 'google'
+  defaultSearchEngineId: 'google',
+  defaultContainerId: 'default'
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -928,6 +930,14 @@ export function getTabFreezeMinutes(): number {
 
 export function setTabFreezeMinutes(minutes: number): void {
   store.set('tabFreezeMinutes', minutes)
+}
+
+export function getDefaultContainerId(): string {
+  return store.get('defaultContainerId', 'default')
+}
+
+export function setDefaultContainerId(id: string): void {
+  store.set('defaultContainerId', id)
 }
 
 export function getMinimizeOnClose(): boolean {

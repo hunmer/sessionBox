@@ -634,6 +634,33 @@ export const useTabStore = defineStore('tab', () => {
         await createTab(id)
       }
     })
+
+    // 外部链接 → 使用默认容器在当前工作区打开新 tab
+    api.on('open-external-url', async (url: unknown) => {
+      const externalUrl = url as string
+      const containerStore = useContainerStore()
+      const pageStore = usePageStore()
+      const workspaceStore = useWorkspaceStore()
+
+      // 找到当前工作区中的一个分组
+      const activeWorkspaceId = workspaceStore.activeWorkspaceId
+      const targetGroup = containerStore.workspaceGroups.find((g) =>
+        (g.workspaceId || '__default__') === activeWorkspaceId
+      )
+
+      // 创建临时 page，使用默认容器
+      const page = await pageStore.createPage({
+        groupId: targetGroup?.id ?? '',
+        containerId: containerStore.defaultContainerId,
+        name: externalUrl,
+        icon: '🌐',
+        url: externalUrl,
+        order: pageStore.pages.length
+      })
+
+      // 基于 page 创建 tab
+      await createTab(page.id)
+    })
   }
 
   /** 初始化 */

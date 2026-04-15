@@ -87,10 +87,8 @@ function handleExternalUrl(url: string): void {
   if (!win) return
   if (win.isMinimized()) win.restore()
   win.focus()
-  const activeTabId = webviewManager.getActiveTabId()
-  if (activeTabId) {
-    webviewManager.navigate(activeTabId, url)
-  }
+  // 通知渲染进程使用默认容器打开新 tab
+  win.webContents.send('on:open-external-url', url)
 }
 
 // 单实例锁：防止多开，同时用于接收深度链接

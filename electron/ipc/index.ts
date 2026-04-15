@@ -37,6 +37,8 @@ import {
   reorderWorkspaces,
   getTabFreezeMinutes,
   setTabFreezeMinutes,
+  getDefaultContainerId,
+  setDefaultContainerId,
   getMinimizeOnClose,
   setMinimizeOnClose,
   getMutedSites,
@@ -439,6 +441,9 @@ $img.Dispose()`
   ipcMain.handle('settings:getMinimizeOnClose', () => getMinimizeOnClose())
   ipcMain.handle('settings:setMinimizeOnClose', (_e, enabled: boolean) => setMinimizeOnClose(enabled))
 
+  ipcMain.handle('settings:getDefaultContainerId', () => getDefaultContainerId())
+  ipcMain.handle('settings:setDefaultContainerId', (_e, id: string) => setDefaultContainerId(id))
+
   // ====== 默认浏览器 ======
   ipcMain.handle('settings:setDefaultBrowser', (_e, enabled: boolean) => setDefaultBrowser(enabled))
 
@@ -487,6 +492,39 @@ $img.Dispose()`
     if (canceled || !filePath) return { success: false }
     const { writeFileSync } = await import('node:fs')
     writeFileSync(filePath, csv, 'utf-8')
+    return { success: true }
+  })
+
+  // ====== 主题导入导出 ======
+  ipcMain.handle('theme:importOpenFile', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return null
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: '导入主题',
+      filters: [{ name: 'ZIP 主题包', extensions: ['zip'] }],
+      properties: ['openFile']
+    })
+    if (canceled || filePaths.length === 0) return null
+    const AdmZip = (await import('adm-zip')).default
+    const zip = new AdmZip(filePaths[0])
+    const entry = zip.getEntry('theme.json')
+    if (!entry) return null
+    return { json: entry.getData().toString('utf-8') }
+  })
+
+  ipcMain.handle('theme:exportSaveFile', async (e, json: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return { success: false }
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: '导出主题',
+      defaultPath: 'custom-theme.zip',
+      filters: [{ name: 'ZIP 主题包', extensions: ['zip'] }]
+    })
+    if (canceled || !filePath) return { success: false }
+    const AdmZip = (await import('adm-zip')).default
+    const zip = new AdmZip()
+    zip.addFile('theme.json', Buffer.from(json, 'utf-8'))
+    zip.writeZip(filePath)
     return { success: true }
   })
 

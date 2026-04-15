@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
+import { Plus, Pencil, Trash2, Star } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -37,7 +37,8 @@ const deleteAlertOpen = ref(false)
 const containers = computed(() => containerStore.containers)
 const proxyOptions = computed(() => proxyStore.proxies)
 
-const isDefault = (id: string) => id === 'default'
+const isDefault = (id: string) => id === containerStore.defaultContainerId
+const isBuiltIn = (id: string) => id === 'default'
 
 /** 当前正在编辑的容器 ID（编辑模式） */
 const editingContainerId = computed(() =>
@@ -92,7 +93,7 @@ async function saveEdit() {
 
 /** 请求删除容器（弹出确认） */
 function requestDelete(container: Container) {
-  if (isDefault(container.id)) return
+  if (isBuiltIn(container.id)) return
   deleteTarget.value = container
   deleteAlertOpen.value = true
 }
@@ -138,11 +139,21 @@ async function confirmDelete() {
 
               <!-- 操作按钮 -->
               <div class="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8"
+                  :class="isDefault(container.id) ? 'text-amber-500' : 'text-muted-foreground'"
+                  :title="isDefault(container.id) ? '当前默认容器' : '设为默认容器'"
+                  @click="containerStore.setDefaultContainer(container.id)"
+                >
+                  <Star class="w-4 h-4" :class="isDefault(container.id) ? 'fill-current' : ''" />
+                </Button>
                 <Button variant="ghost" size="icon" class="h-8 w-8" title="编辑" @click="startEdit(container)">
                   <Pencil class="w-4 h-4" />
                 </Button>
                 <Button
-                  v-if="!isDefault(container.id)"
+                  v-if="!isBuiltIn(container.id)"
                   variant="ghost"
                   size="icon"
                   class="h-8 w-8 text-destructive hover:text-destructive"

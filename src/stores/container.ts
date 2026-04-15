@@ -9,6 +9,7 @@ export const useContainerStore = defineStore('container', () => {
   // ====== 状态 ======
   const groups = ref<Group[]>([])
   const containers = ref<Container[]>([])
+  const defaultContainerId = ref('default')
 
   // ====== 计算属性 ======
 
@@ -115,11 +116,19 @@ export const useContainerStore = defineStore('container', () => {
   /** 初始化：加载所有分组和容器数据 */
   async function init() {
     await Promise.all([loadGroups(), loadContainers()])
+    defaultContainerId.value = await api.settings.getDefaultContainerId()
+  }
+
+  /** 设置默认容器 */
+  async function setDefaultContainer(id: string) {
+    await api.settings.setDefaultContainerId(id)
+    defaultContainerId.value = id
   }
 
   return {
     groups,
     containers,
+    defaultContainerId,
     containersByGroup,
     sortedGroups,
     workspaceGroups,
@@ -135,6 +144,7 @@ export const useContainerStore = defineStore('container', () => {
     updateContainer,
     deleteContainer,
     reorderContainers,
+    setDefaultContainer,
     init
   }
 })

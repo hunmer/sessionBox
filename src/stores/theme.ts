@@ -13,9 +13,10 @@ export interface ThemePreset {
 
 const THEME_KEY = 'sessionbox-theme'
 const PRESET_KEY = 'sessionbox-theme-preset'
+const CUSTOM_PRESET_KEY = 'sessionbox-theme-custom'
 
 // 主题预设需要覆盖的 CSS 变量列表
-const THEME_VARS = [
+export const THEME_VARS = [
   '--background', '--foreground', '--card', '--card-foreground',
   '--popover', '--popover-foreground', '--primary', '--primary-foreground',
   '--primary-light', '--secondary', '--secondary-foreground',
@@ -25,6 +26,11 @@ const THEME_VARS = [
   '--sidebar-primary-foreground', '--sidebar-accent', '--sidebar-accent-foreground',
   '--sidebar-hover', '--sidebar-border'
 ]
+
+/** 生成空白的自定义主题模板 */
+export function createEmptyThemeVars(): Record<string, string> {
+  return Object.fromEntries(THEME_VARS.map(v => [v, '']))
+}
 
 export const themePresets: ThemePreset[] = [
   {
@@ -345,6 +351,14 @@ export const useThemeStore = defineStore('theme', () => {
   const theme = ref<Theme>((localStorage.getItem(THEME_KEY) as Theme) || 'light')
   const preset = ref(localStorage.getItem(PRESET_KEY) || 'default')
 
+  /** 自定义主题数据（light + dark 两组 CSS 变量） */
+  const customTheme = ref<{ light: Record<string, string>; dark: Record<string, string> }>(
+    JSON.parse(localStorage.getItem(CUSTOM_PRESET_KEY) || 'null') || {
+      light: createEmptyThemeVars(),
+      dark: createEmptyThemeVars(),
+    }
+  )
+
   function applyThemeMode(t: Theme) {
     document.documentElement.classList.toggle('dark', t === 'dark')
     document.documentElement.classList.toggle('light', t === 'light')
@@ -352,9 +366,16 @@ export const useThemeStore = defineStore('theme', () => {
 
   function applyPresetVars() {
     const el = document.documentElement
-    // 清除所有预设覆盖变量
     THEME_VARS.forEach(v => el.style.removeProperty(v))
-    // 应用当前预设
+
+    if (preset.value === 'custom') {
+      const vars = theme.value === 'dark' ? customTheme.value.dark : customTheme.value.light
+      Object.entries(vars).forEach(([k, v]) => {
+        if (v) el.style.setProperty(k, v)
+      })
+      return
+    }
+
     const p = themePresets.find(t => t.key === preset.value)
     if (p) {
       const vars = theme.value === 'dark' ? p.dark : p.light
@@ -375,11 +396,26 @@ export const useThemeStore = defineStore('theme', () => {
     applyPresetVars()
   }
 
+  /** 应用自定义主题 CSS 变量 */
+  function applyCustomTheme(vars: { light: Record<string, string>; dark: Record<string, string> }) {
+    customTheme.value = vars
+    localStorage.setItem(CUSTOM_PRESET_KEY, JSON.stringify(vars))
+    setPreset('custom')
+  }
+
+  /** 导出自定义主题为 JSON（供 zip 打包用） */
+  function exportCustomTheme(): { light: Record<string, string>; dark: Record<string, string> } {
+    return JSON.parse(JSON.stringify(customTheme.value))
+  }
+
   // 初始化
   applyThemeMode(theme.value)
   applyPresetVars()
 
   watch(theme, () => applyPresetVars())
 
-  return { theme, preset, setTheme, setPreset }
+  return {
+    theme, preset, customTheme,
+    setTheme, setPreset, applyCustomTheme, exportCustomTheme
+  }
 })
