@@ -4,7 +4,6 @@ import { useTabStore } from '@/stores/tab'
 import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
 import HistoryPage from '@/components/history/HistoryPage.vue'
 import DownloadsPage from '@/components/download/DownloadsPage.vue'
-import ContainersPage from '@/components/containers/ContainersPage.vue'
 import PluginsPage from '@/components/plugins/PluginsPage.vue'
 import PasswordsPage from '@/components/passwords/PasswordsPage.vue'
 
@@ -22,7 +21,6 @@ const INTERNAL_PAGES: Record<string, Component> = {
   bookmarks: markRaw(BookmarksPage),
   history: markRaw(HistoryPage),
   downloads: markRaw(DownloadsPage),
-  containers: markRaw(ContainersPage),
   plugins: markRaw(PluginsPage),
   passwords: markRaw(PasswordsPage)
 }
