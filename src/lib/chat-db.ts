@@ -1,0 +1,107 @@
+import Dexie, { type Table } from 'dexie'
+import type { ChatSession, ChatMessage } from '@/types'
+
+class ChatDB extends Dexie {
+  sessions!: Table<ChatSession, string>
+  messages!: Table<ChatMessage, string>
+
+  constructor() {
+    super('sessionbox-chat')
+    this.version(1).stores({
+      sessions: 'id, updatedAt, createdAt',
+      messages: 'id, sessionId, createdAt, [sessionId+createdAt]',
+    })
+  }
+}
+
+export const chatDb = new ChatDB()
+export const MAX_MESSAGES_PER_SESSION = 5000
+
+// ===== 会话操作 =====
+
+export async function createSession(
+  modelId: string,
+  providerId: string,
+  browserViewId: string | null = null,
+): Promise<ChatSession> {
+  const id = crypto.randomUUID()
+  const now = Date.now()
+  const session: ChatSession = {
+    id,
+    title: '新对话',
+    browserViewId,
+    modelId,
+    providerId,
+    createdAt: now,
+    updatedAt: now,
+    messageCount: 0,
+  }
+  await chatDb.sessions.add(session)
+  return session
+}
+
+export async function listSessions(): Promise<ChatSession[]> {
+  return chatDb.sessions.orderBy('updatedAt').reverse().toArray()
+}
+
+export async function deleteSession(id: string): Promise<void> {
+  await chatDb.messages.where('sessionId').equals(id).delete()
+  await chatDb.sessions.delete(id)
+}
+
+export async function updateSessionTitle(id: string, title: string): Promise<void> {
+  await chatDb.sessions.update(id, { title, updatedAt: Date.now() })
+}
+
+export async function updateSessionBrowserView(id: string, browserViewId: string | null): Promise<void> {
+  await chatDb.sessions.update(id, { browserViewId, updatedAt: Date.now() })
+}
+
+// ===== 消息操作 =====
+
+export async function addMessage(message: Omit<ChatMessage, 'id'>): Promise<ChatMessage> {
+  const id = crypto.randomUUID()
+  const msg: ChatMessage = { ...message, id }
+  await chatDb.messages.add(msg)
+
+  // 更新会话的 updatedAt 和 messageCount
+  const session = await chatDb.sessions.get(message.sessionId)
+  if (session) {
+    await chatDb.sessions.update(message.sessionId, {
+      updatedAt: Date.now(),
+      messageCount: session.messageCount + 1,
+    })
+  }
+
+  // 超过上限时删除最早的消息
+  const count = await chatDb.messages.where('sessionId').equals(message.sessionId).count()
+  if (count > MAX_MESSAGES_PER_SESSION) {
+    const oldest = await chatDb.messages
+      .where('sessionId')
+      .equals(message.sessionId)
+      .sortBy('createdAt')
+    const toDelete = oldest.slice(0, count - MAX_MESSAGES_PER_SESSION).map((m) => m.id!)
+    await chatDb.messages.bulkDelete(toDelete)
+  }
+
+  return msg
+}
+
+export async function listMessages(sessionId: string): Promise<ChatMessage[]> {
+  return chatDb.messages
+    .where('sessionId')
+    .equals(sessionId)
+    .sortBy('createdAt')
+}
+
+export async function updateMessage(id: string, updates: Partial<ChatMessage>): Promise<void> {
+  await chatDb.messages.update(id, updates)
+}
+
+export async function clearMessages(sessionId: string): Promise<void> {
+  await chatDb.messages.where('sessionId').equals(sessionId).delete()
+  await chatDb.sessions.update(sessionId, {
+    messageCount: 0,
+    updatedAt: Date.now(),
+  })
+}
