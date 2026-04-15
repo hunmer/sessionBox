@@ -80,6 +80,7 @@ import { webviewManager } from '../services/webview-manager'
 import { registerSnifferIpcHandlers } from './sniffer'
 import { pluginEventBus } from '../services/plugin-event-bus'
 import { registerPluginIpcHandlers } from './plugin'
+import { isDefaultBrowser, setDefaultBrowser } from '../services/default-browser'
 
 /** 容器图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'container-icons')
@@ -439,18 +440,9 @@ $img.Dispose()`
   ipcMain.handle('settings:setMinimizeOnClose', (_e, enabled: boolean) => setMinimizeOnClose(enabled))
 
   // ====== 默认浏览器 ======
-  ipcMain.handle('settings:setDefaultBrowser', (_e, enabled: boolean) => {
-    const protocols = ['http', 'https'] as const
-    if (enabled) {
-      for (const p of protocols) app.setAsDefaultProtocolClient(p)
-    } else {
-      for (const p of protocols) app.removeAsDefaultProtocolClient(p)
-    }
-  })
+  ipcMain.handle('settings:setDefaultBrowser', (_e, enabled: boolean) => setDefaultBrowser(enabled))
 
-  ipcMain.handle('settings:checkDefaultBrowser', () => {
-    return app.isDefaultProtocolClient('http') && app.isDefaultProtocolClient('https')
-  })
+  ipcMain.handle('settings:checkDefaultBrowser', () => isDefaultBrowser())
 
   // ====== 默认静音网站 ======
   ipcMain.handle('mutedSites:list', () => getMutedSites())

@@ -2,11 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useNotification } from '@/composables/useNotification'
 import { useHomepageStore, type HomepageOpenMethod } from '@/stores/homepage'
 
 const homepageStore = useHomepageStore()
+const notify = useNotification()
 const isDefaultBrowser = ref(false)
 const minimizeOnClose = ref(true)
+const isWindows = navigator.userAgent.includes('Windows')
 
 async function checkDefaultBrowser() {
   isDefaultBrowser.value = await window.api.settings.checkDefaultBrowser()
@@ -14,8 +17,24 @@ async function checkDefaultBrowser() {
 
 async function toggleDefaultBrowser() {
   const next = !isDefaultBrowser.value
-  await window.api.settings.setDefaultBrowser(next)
-  isDefaultBrowser.value = next
+  const result = await window.api.settings.setDefaultBrowser(next)
+  await checkDefaultBrowser()
+
+  if (result.requiresSystemSelection) {
+    notify.info({
+      title: result.openedSystemSettings ? '已打开系统默认应用设置' : '请手动打开系统默认应用设置',
+      description: next
+        ? '请在 Windows 的“默认应用 > Web 浏览器”中将 SessionBox 设为默认浏览器。'
+        : '请在 Windows 的“默认应用 > Web 浏览器”中改选其他浏览器。'
+    })
+    return
+  }
+
+  if (result.isDefault) {
+    notify.success('SessionBox 已设为默认浏览器')
+  } else {
+    notify.warning('系统未接受默认浏览器变更')
+  }
 }
 
 async function toggleMinimizeOnClose() {
@@ -25,7 +44,7 @@ async function toggleMinimizeOnClose() {
 }
 
 onMounted(async () => {
-  checkDefaultBrowser()
+  await checkDefaultBrowser()
   minimizeOnClose.value = await window.api.settings.getMinimizeOnClose()
 })
 
@@ -38,7 +57,6 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
 <template>
   <h3 class="text-sm font-medium mb-3">主页设置</h3>
   <div class="space-y-3">
-    <!-- 主页 URL -->
     <div>
       <label class="text-xs text-muted-foreground mb-1 block">主页地址</label>
       <Input
@@ -48,7 +66,6 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
       />
     </div>
 
-    <!-- 打开方式 -->
     <div>
       <label class="text-xs text-muted-foreground mb-1 block">打开方式</label>
       <div class="flex gap-2">
@@ -64,7 +81,6 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
       </div>
     </div>
 
-    <!-- 启动自动打开 -->
     <div class="flex items-center justify-between">
       <label class="text-xs text-muted-foreground">启动时自动打开主页</label>
       <button
@@ -86,7 +102,9 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
   <div class="flex items-center justify-between">
     <div>
       <label class="text-xs text-muted-foreground">将 SessionBox 设为默认浏览器</label>
-      <p class="text-xs text-muted-foreground/60 mt-0.5">外部链接将在当前标签页中打开</p>
+      <p class="text-xs text-muted-foreground/60 mt-0.5">
+        {{ isWindows ? 'Windows 需要在系统默认应用里确认 SessionBox 作为 Web 浏览器。' : '外部链接将优先在 SessionBox 中打开。' }}
+      </p>
     </div>
     <button
       role="switch"
@@ -101,6 +119,9 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
       />
     </button>
   </div>
+  <p v-if="isWindows && !isDefaultBrowser" class="text-xs text-muted-foreground/60 mt-2">
+    如果系统“默认应用”的 Web 浏览器列表里没有 SessionBox，重新安装此版本后会自动补齐浏览器注册信息。
+  </p>
 
   <h3 class="text-sm font-medium mb-3 mt-6">窗口行为</h3>
   <div class="flex items-center justify-between">

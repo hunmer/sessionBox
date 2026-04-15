@@ -138,6 +138,12 @@ export interface PasswordEntry {
   updatedAt: number
 }
 
+export interface DefaultBrowserResult {
+  isDefault: boolean
+  requiresSystemSelection: boolean
+  openedSystemSettings: boolean
+}
+
 export type {
   SplitPane,
   SplitPresetType,

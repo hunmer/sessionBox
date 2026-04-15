@@ -183,6 +183,12 @@ export interface SavedSplitSchemeData {
   root?: SplitNodeData
 }
 
+export interface DefaultBrowserResult {
+  isDefault: boolean
+  requiresSystemSelection: boolean
+  openedSystemSettings: boolean
+}
+
 // IPC API 定义
 const api = {
   workspace: {
@@ -359,7 +365,7 @@ const api = {
   settings: {
     getTabFreezeMinutes: (): Promise<number> => ipcRenderer.invoke('settings:getTabFreezeMinutes'),
     setTabFreezeMinutes: (minutes: number): Promise<void> => ipcRenderer.invoke('settings:setTabFreezeMinutes', minutes),
-    setDefaultBrowser: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setDefaultBrowser', enabled),
+    setDefaultBrowser: (enabled: boolean): Promise<DefaultBrowserResult> => ipcRenderer.invoke('settings:setDefaultBrowser', enabled),
     checkDefaultBrowser: (): Promise<boolean> => ipcRenderer.invoke('settings:checkDefaultBrowser'),
     getMinimizeOnClose: (): Promise<boolean> => ipcRenderer.invoke('settings:getMinimizeOnClose'),
     setMinimizeOnClose: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setMinimizeOnClose', enabled)

@@ -10,6 +10,7 @@ import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEv
 import { trayManager } from './services/tray'
 import { trayWindowManager } from './services/tray-window'
 import { pluginManager } from './services/plugin-manager'
+import { ensureWindowsBrowserRegistration } from './services/default-browser'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 
 // 节流函数
@@ -56,6 +57,10 @@ protocol.registerSchemesAsPrivileged([
 
 // 注册 sessionbox:// 深度链接协议
 app.setAsDefaultProtocolClient('sessionbox')
+
+if (process.platform === 'win32') {
+  ensureWindowsBrowserRegistration()
+}
 
 /** 处理 sessionbox:// 协议 URL */
 function handleProtocolUrl(url: string): void {
@@ -265,6 +270,8 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     electronApp.setAppUserModelId('com.session-box')
+
+    ensureWindowsBrowserRegistration()
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
