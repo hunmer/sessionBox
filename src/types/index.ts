@@ -160,3 +160,115 @@ export type {
 } from './split'
 
 export type { PluginInfo, PluginMeta, PluginContext, PluginInstance, RemotePlugin } from './plugin'
+
+// ==================== AI Chat 类型 ====================
+
+export interface ChatSession {
+  id: string
+  title: string
+  browserViewId: string | null
+  modelId: string
+  providerId: string
+  createdAt: number
+  updatedAt: number
+  messageCount: number
+}
+
+export interface ToolCall {
+  id: string
+  name: string
+  args: Record<string, unknown>
+  status: 'pending' | 'running' | 'completed' | 'error'
+  result?: unknown
+  error?: string
+  startedAt?: number
+  completedAt?: number
+}
+
+export interface ChatMessage {
+  id: string
+  sessionId: string
+  role: 'user' | 'assistant' | 'tool' | 'system'
+  content: string
+  toolCalls?: ToolCall[]
+  toolResult?: unknown
+  thinking?: string
+  images?: string[]
+  modelId?: string
+  createdAt: number
+}
+
+export interface AIProvider {
+  id: string
+  name: string
+  apiBase: string
+  apiKey: string
+  models: AIModel[]
+  enabled: boolean
+  createdAt: number
+}
+
+export interface AIModel {
+  id: string
+  name: string
+  providerId: string
+  maxTokens: number
+  supportsVision: boolean
+  supportsThinking: boolean
+}
+
+// API 代理请求参数
+export interface ChatCompletionParams {
+  providerId: string
+  modelId: string
+  messages: Array<{ role: string; content: string | Array<Record<string, unknown>> }>
+  tools?: Array<Record<string, unknown>>
+  stream: boolean
+  maxTokens?: number
+  thinking?: { type: 'enabled'; budgetTokens: number }
+}
+
+// 浏览器交互工具参数
+export interface BrowserClickArgs {
+  selector?: string
+  x?: number
+  y?: number
+  tabId?: string
+}
+
+export interface BrowserTypeArgs {
+  text: string
+  selector?: string
+  tabId?: string
+}
+
+export interface BrowserScrollArgs {
+  direction: 'up' | 'down' | 'left' | 'right'
+  amount: number
+  tabId?: string
+}
+
+export interface BrowserSelectArgs {
+  selector: string
+  value: string
+  tabId?: string
+}
+
+export interface BrowserHoverArgs {
+  selector: string
+  tabId?: string
+}
+
+export interface BrowserGetContentArgs {
+  tabId?: string
+}
+
+export interface BrowserGetDomArgs {
+  selector: string
+  tabId?: string
+}
+
+export interface BrowserScreenshotArgs {
+  tabId?: string
+  format?: 'png' | 'jpeg'
+}
