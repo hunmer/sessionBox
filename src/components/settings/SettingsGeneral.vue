@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useNotification } from '@/composables/useNotification'
@@ -10,6 +10,34 @@ const notify = useNotification()
 const isDefaultBrowser = ref(false)
 const minimizeOnClose = ref(true)
 const isWindows = navigator.userAgent.includes('Windows')
+let defaultBrowserPollTimer: ReturnType<typeof setInterval> | null = null
+let defaultBrowserPollStopTimer: ReturnType<typeof setTimeout> | null = null
+
+function stopDefaultBrowserPolling() {
+  if (defaultBrowserPollTimer) {
+    clearInterval(defaultBrowserPollTimer)
+    defaultBrowserPollTimer = null
+  }
+  if (defaultBrowserPollStopTimer) {
+    clearTimeout(defaultBrowserPollStopTimer)
+    defaultBrowserPollStopTimer = null
+  }
+}
+
+function startDefaultBrowserPolling(targetValue: boolean) {
+  stopDefaultBrowserPolling()
+
+  defaultBrowserPollTimer = setInterval(async () => {
+    await checkDefaultBrowser()
+    if (isDefaultBrowser.value === targetValue) {
+      stopDefaultBrowserPolling()
+    }
+  }, 1200)
+
+  defaultBrowserPollStopTimer = setTimeout(() => {
+    stopDefaultBrowserPolling()
+  }, 30000)
+}
 
 async function checkDefaultBrowser() {
   isDefaultBrowser.value = await window.api.settings.checkDefaultBrowser()
@@ -21,6 +49,7 @@ async function toggleDefaultBrowser() {
   await checkDefaultBrowser()
 
   if (result.requiresSystemSelection) {
+    startDefaultBrowserPolling(next)
     notify.info({
       title: result.openedSystemSettings ? '已打开系统默认应用设置' : '请手动打开系统默认应用设置',
       description: next
@@ -46,6 +75,10 @@ async function toggleMinimizeOnClose() {
 onMounted(async () => {
   await checkDefaultBrowser()
   minimizeOnClose.value = await window.api.settings.getMinimizeOnClose()
+})
+
+onBeforeUnmount(() => {
+  stopDefaultBrowserPolling()
 })
 
 const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
