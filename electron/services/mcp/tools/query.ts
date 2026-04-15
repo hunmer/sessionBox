@@ -14,7 +14,6 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
   server.tool(
     'list_workspaces',
     'List all workspaces in SessionBox',
-    {},
     async () => {
       const workspaces = ctx.store.listWorkspaces()
       return text(workspaces)
@@ -25,7 +24,6 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
   server.tool(
     'list_groups',
     'List all groups across workspaces',
-    {},
     async () => {
       const groups = ctx.store.listGroups()
       return text(groups)
@@ -36,7 +34,6 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
   server.tool(
     'list_containers',
     'List all containers (session isolation units)',
-    {},
     async () => {
       const containers = ctx.store.listContainers()
       return text(containers)
@@ -47,7 +44,6 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
   server.tool(
     'list_pages',
     'List all pages (bound to groups and containers)',
-    {},
     async () => {
       const pages = ctx.store.listPages()
       return text(pages)
@@ -58,7 +54,6 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
   server.tool(
     'list_tabs',
     'List all tabs with runtime info (active state, frozen state, current URL)',
-    {},
     async () => {
       const tabs = ctx.store.listTabs()
       const activeTabId = ctx.webviewManager.getActiveTabId()
@@ -94,7 +89,6 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
   server.tool(
     'list_bookmarks',
     'List all bookmarks',
-    {},
     async () => {
       const bookmarks = ctx.store.listBookmarks()
       return text(bookmarks)
@@ -105,7 +99,6 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
   server.tool(
     'list_proxies',
     'List all proxy configurations',
-    {},
     async () => {
       const proxies = ctx.store.listProxies()
       return text(proxies)
