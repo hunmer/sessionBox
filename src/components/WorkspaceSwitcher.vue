@@ -20,6 +20,9 @@ import {
 
 import WorkspaceDialog from './sidebar/WorkspaceDialog.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { useContainerStore } from '@/stores/container'
+import { usePageStore } from '@/stores/page'
+import { useTabStore } from '@/stores/tab'
 
 const props = defineProps<{
   workspaces: {
@@ -33,12 +36,36 @@ const props = defineProps<{
 }>()
 
 const workspaceStore = useWorkspaceStore()
+const containerStore = useContainerStore()
+const pageStore = usePageStore()
+const tabStore = useTabStore()
 const dialogOpen = ref(false)
 
 /** 当前激活工作区的完整信息（包含 logo） */
 const activeWorkspaceInfo = computed(() =>
   props.workspaces.find((w) => w.id === workspaceStore.activeWorkspaceId) ?? props.workspaces[0]
 )
+
+/** 每个工作区的激活标签页数：Workspace → Group → Page → Tab */
+const tabCountByWorkspace = computed(() => {
+  const countMap = new Map<string, number>()
+
+  for (const workspace of props.workspaces) {
+    const effectiveWorkspaceId = workspace.id
+    const groupIds = new Set(
+      containerStore.groups
+        .filter((g) => (g.workspaceId || '__default__') === effectiveWorkspaceId)
+        .map((g) => g.id)
+    )
+    const pageIds = new Set(
+      pageStore.pages.filter((p) => groupIds.has(p.groupId)).map((p) => p.id)
+    )
+    const count = tabStore.tabs.filter((t) => pageIds.has(t.pageId)).length
+    countMap.set(workspace.id, count)
+  }
+
+  return countMap
+})
 
 function handleAddWorkspace() {
   dialogOpen.value = true
@@ -91,7 +118,10 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
             >
               <component :is="workspace.logo" class="size-4 shrink-0 text-white" />
             </div>
-            {{ workspace.name }}
+            <span class="truncate">{{ workspace.name }}</span>
+            <span v-if="tabCountByWorkspace.get(workspace.id)" class="ml-auto text-xs text-muted-foreground tabular-nums">
+              {{ tabCountByWorkspace.get(workspace.id) }}
+            </span>
             <DropdownMenuShortcut>⌘{{ index + 1 }}</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuSeparator />

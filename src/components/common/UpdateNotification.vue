@@ -55,6 +55,38 @@ const progressPercent = computed(() => {
   return downloadProgress.value?.percent ?? 0
 })
 
+// 渲染 release notes（支持 HTML 和纯文本）
+const renderedReleaseNotes = computed(() => {
+  const notes = updateInfo.value?.releaseNotes
+  if (!notes) return ''
+
+  // electron-updater 的 releaseNotes 可能是字符串或对象数组
+  if (typeof notes === 'string') {
+    // 如果包含 HTML 标签，直接返回
+    if (/<[a-z][\s\S]*>/i.test(notes)) {
+      return notes
+    }
+    // 纯文本转为 HTML（保留换行）
+    return notes
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>')
+  }
+
+  // 如果是数组（GitHub Release 格式）
+  if (Array.isArray(notes)) {
+    return notes
+      .map((note) => {
+        if (typeof note === 'string') return note
+        return note.note || ''
+      })
+      .join('<br>')
+  }
+
+  return String(notes)
+})
+
 // 检查更新
 const checkForUpdates = async () => {
   if (!window.api?.updater) return
@@ -182,7 +214,7 @@ onUnmounted(() => {
 
 <template>
   <Dialog v-model:open="isOpen">
-    <DialogContent class="sm:max-w-md">
+    <DialogContent class="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
           <span class="text-lg">发现新版本</span>
@@ -206,8 +238,8 @@ onUnmounted(() => {
           <p class="text-sm text-muted-foreground">
             有新版本可用，建议更新以获取最新功能和修复。
           </p>
-          <div v-if="updateInfo.releaseNotes" class="rounded-md bg-muted p-3">
-            <p class="text-sm whitespace-pre-wrap">{{ updateInfo.releaseNotes }}</p>
+          <div v-if="updateInfo.releaseNotes" class="max-h-60 overflow-y-auto rounded-md bg-muted p-3">
+            <div class="prose prose-sm dark:prose-invert max-w-none text-sm" v-html="renderedReleaseNotes"></div>
           </div>
         </div>
 
@@ -276,3 +308,44 @@ onUnmounted(() => {
     </DialogContent>
   </Dialog>
 </template>
+
+<style scoped>
+.prose {
+  line-height: 1.6;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+.prose :deep(a) {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+.prose :deep(ul),
+.prose :deep(ol) {
+  padding-left: 1.25em;
+  margin: 0.5em 0;
+}
+.prose :deep(li) {
+  margin: 0.25em 0;
+}
+.prose :deep(code) {
+  background: hsl(var(--muted));
+  padding: 0.125em 0.375em;
+  border-radius: 0.25em;
+  font-size: 0.875em;
+}
+.prose :deep(pre) {
+  background: hsl(var(--muted));
+  padding: 0.75em;
+  border-radius: 0.375em;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.prose :deep(pre code) {
+  background: transparent;
+  padding: 0;
+}
+.prose :deep(img) {
+  max-width: 100%;
+  height: auto;
+}
+</style>

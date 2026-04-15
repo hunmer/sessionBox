@@ -494,14 +494,50 @@ export const useTabStore = defineStore('tab', () => {
       }
     })
 
-    api.on('tab:removed', (tabId: unknown) => {
+    api.on('tab:removed', async (tabId: unknown) => {
       const id = tabId as string
+      const wasActive = activeTabId.value === id
+      const currentWorkspaceTabs = workspaceTabs.value
+      const currentIndex = currentWorkspaceTabs.findIndex((t) => t.id === id)
+      const nextWorkspaceTabId = currentIndex === -1
+        ? null
+        : currentWorkspaceTabs[currentIndex + 1]?.id ?? currentWorkspaceTabs[currentIndex - 1]?.id ?? null
+
       tabs.value = tabs.value.filter((t) => t.id !== id)
       navStates.value.delete(id)
       favicons.value.delete(id)
       proxyInfos.value.delete(id)
-      if (activeTabId.value === id) {
-        activeTabId.value = null
+
+      // 清理嗅探器数据
+      useSnifferStore().onTabClosed(id)
+
+      // Notify split store
+      const { useSplitStore } = await import('./split')
+      const splitStore = useSplitStore()
+      splitStore.handleTabClosed(id)
+
+      if (wasActive && splitStore.isSplitActive) {
+        const nextSplitTabId = splitStore.focusedPane?.activeTabId
+          ?? splitStore.activePanes.find((pane) => pane.activeTabId)?.activeTabId
+          ?? null
+
+        if (nextSplitTabId && workspaceTabs.value.some((t) => t.id === nextSplitTabId)) {
+          await switchTab(nextSplitTabId)
+        } else {
+          activeTabId.value = null
+          await api.tab.switch('')
+        }
+        return
+      }
+
+      // 自动激活同工作区内的相邻标签页
+      if (wasActive) {
+        if (nextWorkspaceTabId && workspaceTabs.value.some((t) => t.id === nextWorkspaceTabId)) {
+          await switchTab(nextWorkspaceTabId)
+        } else {
+          activeTabId.value = null
+          await api.tab.switch('')
+        }
       }
     })
 
