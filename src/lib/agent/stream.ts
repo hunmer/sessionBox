@@ -1,0 +1,62 @@
+import type { ToolCall } from '@/types'
+
+export interface StreamCallbacks {
+  onToken: (token: string) => void
+  onToolCall: (call: ToolCall) => void
+  onToolResult: (result: unknown) => void
+  onThinking: (content: string) => void
+  onDone: () => void
+  onError: (error: Error) => void
+}
+
+/**
+ * 监听主进程回传的聊天流事件。
+ * 返回清理函数用于移除监听。
+ */
+export function listenToChatStream(requestId: string, callbacks: StreamCallbacks): () => void {
+  const unsubscribers: Array<() => void> = []
+
+  unsubscribers.push(
+    window.api.on('chat:chunk', (data: any) => {
+      if (data.requestId === requestId) {
+        callbacks.onToken(data.token)
+      }
+    }),
+  )
+
+  unsubscribers.push(
+    window.api.on('chat:tool-call', (data: any) => {
+      if (data.requestId === requestId) {
+        callbacks.onToolCall(data.toolCall)
+      }
+    }),
+  )
+
+  unsubscribers.push(
+    window.api.on('chat:thinking', (data: any) => {
+      if (data.requestId === requestId) {
+        callbacks.onThinking(data.content)
+      }
+    }),
+  )
+
+  unsubscribers.push(
+    window.api.on('chat:done', (data: any) => {
+      if (data.requestId === requestId) {
+        callbacks.onDone()
+        unsubscribers.forEach((fn) => fn())
+      }
+    }),
+  )
+
+  unsubscribers.push(
+    window.api.on('chat:error', (data: any) => {
+      if (data.requestId === requestId) {
+        callbacks.onError(new Error(data.error))
+        unsubscribers.forEach((fn) => fn())
+      }
+    }),
+  )
+
+  return () => unsubscribers.forEach((fn) => fn())
+}
