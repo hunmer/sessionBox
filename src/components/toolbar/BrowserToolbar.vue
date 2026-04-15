@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUpdate } from 'vue'
-import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star, KeyRound, CornerDownLeft } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star, KeyRound, CornerDownLeft, ZoomIn, ZoomOut, RotateCcw } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { useTabStore } from '@/stores/tab'
 import { useBookmarkStore } from '@/stores/bookmark'
 import { getFaviconUrl } from '@/lib/utils'
@@ -222,6 +223,25 @@ function toggleBookmark() {
 
 // 初始化加载搜索引擎
 loadSearchEngines()
+
+// ====== 缩放控制 ======
+const zoomPercentage = computed(() => {
+  const level = tabStore.activeZoomLevel
+  // Electron zoom level 转百分比：level 0 = 100%，每级约 ±20%
+  return Math.round(100 * Math.pow(1.2, level))
+})
+
+function handleZoomIn() {
+  if (tabStore.activeTabId) tabStore.zoomIn(tabStore.activeTabId)
+}
+
+function handleZoomOut() {
+  if (tabStore.activeTabId) tabStore.zoomOut(tabStore.activeTabId)
+}
+
+function handleZoomReset() {
+  if (tabStore.activeTabId) tabStore.zoomReset(tabStore.activeTabId)
+}
 </script>
 
 <template>
@@ -315,6 +335,35 @@ loadSearchEngines()
     >
       <Code2 class="w-4 h-4" />
     </Button>
+
+    <!-- 缩放控制 -->
+    <DropdownMenu>
+      <DropdownMenuTrigger as-child>
+        <Button
+          variant="ghost" size="icon" class="h-7 w-7"
+          :disabled="!tabStore.activeTabId"
+        >
+          <ZoomIn class="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="bottom" :side-offset="4" align="end" class="min-w-[140px]">
+        <DropdownMenuItem class="flex items-center gap-2 cursor-pointer" @click="handleZoomIn">
+          <ZoomIn class="w-4 h-4" />
+          <span>放大</span>
+          <span class="ml-auto text-xs text-muted-foreground">Ctrl++</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem class="flex items-center gap-2 cursor-pointer" @click="handleZoomOut">
+          <ZoomOut class="w-4 h-4" />
+          <span>缩小</span>
+          <span class="ml-auto text-xs text-muted-foreground">Ctrl+-</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem class="flex items-center justify-center cursor-pointer font-medium" @click="handleZoomReset">
+          <RotateCcw class="w-4 h-4 mr-2" />
+          <span>重置 ({{ zoomPercentage }}%)</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
 
     <!-- 密码/笔记 -->
     <Popover v-model:open="passwordPopoverOpen">

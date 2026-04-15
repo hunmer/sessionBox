@@ -271,6 +271,7 @@ const api = {
     zoomIn: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:zoomIn', tabId),
     zoomOut: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:zoomOut', tabId),
     zoomReset: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:zoomReset', tabId),
+    getZoomLevel: (tabId: string): Promise<number> => ipcRenderer.invoke('tab:getZoomLevel', tabId),
     detectProxy: (tabId: string): Promise<{ ok: boolean; ip?: string; error?: string }> =>
       ipcRenderer.invoke('tab:detect-proxy', tabId),
     setProxyEnabled: (tabId: string, enabled: boolean): Promise<{ ok: boolean; enabled: boolean; error?: string }> =>

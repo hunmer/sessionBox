@@ -209,6 +209,7 @@ interface StoreSchema {
   searchEngines: SearchEngine[]
   defaultSearchEngineId: string
   defaultContainerId: string  // 默认容器 ID，用于外部链接打开
+  zoomPreferences: Record<string, number>  // pageId -> zoomLevel 缩放偏好持久化
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -251,7 +252,8 @@ const defaults: StoreSchema = {
     { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=%s', icon: 'Search' },
   ],
   defaultSearchEngineId: 'google',
-  defaultContainerId: 'default'
+  defaultContainerId: 'default',
+  zoomPreferences: {}
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -1159,4 +1161,21 @@ export function getDefaultSearchEngineId(): string {
 
 export function setDefaultSearchEngineId(id: string): void {
   store.set('defaultSearchEngineId', id)
+}
+
+// ====== 缩放偏好 ======
+
+export function getZoomPreference(pageId: string): number | undefined {
+  const prefs = store.get('zoomPreferences', {})
+  return prefs[pageId]
+}
+
+export function setZoomPreference(pageId: string, level: number): void {
+  const prefs = store.get('zoomPreferences', {})
+  if (level === 0) {
+    delete prefs[pageId]
+  } else {
+    prefs[pageId] = level
+  }
+  store.set('zoomPreferences', prefs)
 }

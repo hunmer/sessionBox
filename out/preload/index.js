@@ -133,6 +133,7 @@ const api = {
     zoomIn: (tabId) => electron.ipcRenderer.invoke("tab:zoomIn", tabId),
     zoomOut: (tabId) => electron.ipcRenderer.invoke("tab:zoomOut", tabId),
     zoomReset: (tabId) => electron.ipcRenderer.invoke("tab:zoomReset", tabId),
+    getZoomLevel: (tabId) => electron.ipcRenderer.invoke("tab:getZoomLevel", tabId),
     detectProxy: (tabId) => electron.ipcRenderer.invoke("tab:detect-proxy", tabId),
     setProxyEnabled: (tabId, enabled) => electron.ipcRenderer.invoke("tab:set-proxy-enabled", tabId, enabled),
     applyProxy: (tabId, proxyId) => electron.ipcRenderer.invoke("tab:apply-proxy", tabId, proxyId),

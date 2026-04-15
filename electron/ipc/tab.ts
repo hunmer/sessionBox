@@ -135,6 +135,10 @@ export function registerTabIpcHandlers(): void {
     webviewManager.zoomReset(tabId)
   })
 
+  ipcMain.handle('tab:getZoomLevel', (_e, tabId: string) => {
+    return webviewManager.getZoomLevel(tabId)
+  })
+
   ipcMain.handle('tab:detect-proxy', async (_e, tabId: string) => {
     return await webviewManager.detectProxyInfo(tabId)
   })

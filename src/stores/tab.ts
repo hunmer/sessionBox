@@ -39,6 +39,7 @@ export const useTabStore = defineStore('tab', () => {
   const frozenTabIds = ref<Set<string>>(new Set())
   const proxyInfos = ref<Map<string, TabProxyInfo>>(new Map())
   const mutedSites = ref<string[]>([])
+  const zoomLevels = ref<Map<string, number>>(new Map())
   let listenersReady = false
   let restoreReady = false
 
@@ -256,6 +257,12 @@ export const useTabStore = defineStore('tab', () => {
     return proxyInfos.value.get(activeTabId.value) ?? null
   })
 
+  /** 当前激活标签的缩放级别 */
+  const activeZoomLevel = computed((): number => {
+    if (!activeTabId.value) return 0
+    return zoomLevels.value.get(activeTabId.value) ?? 0
+  })
+
   /** 当前激活标签是否为内部页面 */
   const isInternalPage = computed(() => {
     const url = activeTab.value?.url
@@ -398,6 +405,7 @@ export const useTabStore = defineStore('tab', () => {
 
     activeTabId.value = tabId
     await api.tab.switch(tabId)
+    fetchZoomLevel(tabId)
   }
 
   async function updateTab(tabId: string, data: Partial<Omit<Tab, 'id'>>) {
@@ -454,16 +462,28 @@ export const useTabStore = defineStore('tab', () => {
   /** 放大页面 */
   async function zoomIn(tabId: string) {
     await api.tab.zoomIn(tabId)
+    const level = await api.tab.getZoomLevel(tabId)
+    zoomLevels.value.set(tabId, level)
   }
 
   /** 缩小页面 */
   async function zoomOut(tabId: string) {
     await api.tab.zoomOut(tabId)
+    const level = await api.tab.getZoomLevel(tabId)
+    zoomLevels.value.set(tabId, level)
   }
 
   /** 重置页面缩放 */
   async function zoomReset(tabId: string) {
     await api.tab.zoomReset(tabId)
+    const level = await api.tab.getZoomLevel(tabId)
+    zoomLevels.value.set(tabId, level)
+  }
+
+  /** 获取当前标签页缩放级别 */
+  async function fetchZoomLevel(tabId: string) {
+    const level = await api.tab.getZoomLevel(tabId)
+    zoomLevels.value.set(tabId, level)
   }
 
   async function detectProxy(tabId: string) {
@@ -631,6 +651,7 @@ export const useTabStore = defineStore('tab', () => {
 
     api.on('tab:activated', (tabId: unknown) => {
       activeTabId.value = tabId as string
+      fetchZoomLevel(tabId as string)
     })
 
     // 插件设置的分组过滤
@@ -850,6 +871,9 @@ export const useTabStore = defineStore('tab', () => {
     zoomIn,
     zoomOut,
     zoomReset,
+    zoomLevels,
+    fetchZoomLevel,
+    activeZoomLevel,
     detectProxy,
     setProxyEnabled,
     applyProxy,

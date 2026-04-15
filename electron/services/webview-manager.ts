@@ -1,6 +1,6 @@
 import { BrowserWindow, Menu, Session, WebContentsView, clipboard, nativeImage } from 'electron'
 import { ensureExtensionsLoadedForContainer, getExtensionsForContainer } from './extensions'
-import { getPageById, getContainerById, getGroupById, getProxyById, getMutedSites, getSnifferDomains, type Proxy } from './store'
+import { getPageById, getContainerById, getGroupById, getProxyById, getMutedSites, getSnifferDomains, getZoomPreference, setZoomPreference, type Proxy } from './store'
 import { applyProxyToSession, fetchSessionExitIp } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
@@ -335,6 +335,12 @@ class WebviewManager {
 
     const extensions = getExtensionsForContainer(containerId || null)
     extensions.addTab(view.webContents, this.mainWindow)
+
+    // 恢复缩放偏好
+    const savedZoom = getZoomPreference(pageId)
+    if (savedZoom !== undefined && savedZoom !== 0) {
+      view.webContents.setZoomLevel(savedZoom)
+    }
 
     void (async () => {
       try {
@@ -819,12 +825,21 @@ class WebviewManager {
     }
   }
 
+  /** 获取当前缩放级别 */
+  getZoomLevel(tabId: string): number {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) return 0
+    return entry.view.webContents.getZoomLevel()
+  }
+
   /** 放大页面（每次 +1 zoom level） */
   zoomIn(tabId: string): void {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return
     const currentZoom = entry.view.webContents.getZoomLevel()
-    entry.view.webContents.setZoomLevel(Math.min(currentZoom + 1, 7))
+    const newZoom = Math.min(currentZoom + 1, 7)
+    entry.view.webContents.setZoomLevel(newZoom)
+    this.saveZoomPreference(tabId, newZoom)
   }
 
   /** 缩小页面（每次 -1 zoom level） */
@@ -832,7 +847,9 @@ class WebviewManager {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return
     const currentZoom = entry.view.webContents.getZoomLevel()
-    entry.view.webContents.setZoomLevel(Math.max(currentZoom - 1, -3))
+    const newZoom = Math.max(currentZoom - 1, -3)
+    entry.view.webContents.setZoomLevel(newZoom)
+    this.saveZoomPreference(tabId, newZoom)
   }
 
   /** 重置页面缩放 */
@@ -840,6 +857,24 @@ class WebviewManager {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return
     entry.view.webContents.setZoomLevel(0)
+    this.saveZoomPreference(tabId, 0)
+  }
+
+  /** 保存缩放偏好到持久化存储 */
+  private saveZoomPreference(tabId: string, level: number): void {
+    const entry = this.views.get(tabId)
+    if (!entry) return
+    setZoomPreference(entry.pageId, level)
+  }
+
+  /** 恢复页面的缩放级别 */
+  restoreZoomLevel(tabId: string): void {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) return
+    const savedZoom = getZoomPreference(entry.pageId)
+    if (savedZoom !== undefined && savedZoom !== 0) {
+      entry.view.webContents.setZoomLevel(savedZoom)
+    }
   }
 
   async setProxyEnabledForTab(tabId: string, enabled: boolean): Promise<{ ok: boolean; enabled: boolean; error?: string }> {
