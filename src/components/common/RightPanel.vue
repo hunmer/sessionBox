@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -24,8 +24,10 @@ import ContainerMiniPopover from './ContainerMiniPopover.vue'
 import SnifferMiniPopover from './SnifferMiniPopover.vue'
 import PluginMiniPopover from './PluginMiniPopover.vue'
 import PluginSettings from '@/components/plugins/PluginSettings.vue'
+import { useChatStore } from '@/stores/chat'
 
 const tabStore = useTabStore()
+const chatStore = useChatStore()
 const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
 
 const emit = defineEmits<{
@@ -144,6 +146,16 @@ function openFullPage(site: string) {
               <PluginMiniPopover @open-full="openFullPage('sessionbox://plugins')" />
             </PopoverContent>
           </Popover>
+
+          <!-- AI 聊天 -->
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            @click="chatStore.togglePanel()"
+          >
+            <MessageSquare class="h-4 w-4" />
+          </Button>
         </div>
       </ResizablePanel>
 
