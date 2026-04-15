@@ -2,7 +2,7 @@ import { BrowserWindow } from 'electron'
 import { createServer, IncomingMessage, ServerResponse, Server } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import * as store from '../store'
 import { webviewManager } from '../webview-manager'
 import { registerAllTools } from './tools'
@@ -10,12 +10,17 @@ import type { ToolContext, McpStatus } from './types'
 
 const DEFAULT_PORT = 9527
 
+interface Session {
+  server: McpServer
+  transport: SSEServerTransport
+}
+
 class McpServerService {
-  private server: McpServer | null = null
   private httpServer: Server | null = null
-  private toolCount = 0
+  private sessions = new Map<string, Session>()
   private running = false
   private port = DEFAULT_PORT
+  private toolCount = 0
 
   async start(): Promise<void> {
     if (this.running) return
@@ -26,22 +31,14 @@ class McpServerService {
       mainWindow: webviewManager.getMainWindow()
     }
 
-    this.server = new McpServer({
-      name: 'sessionbox-mcp',
-      version: '1.0.0'
-    })
+    this.httpServer = createServer()
 
-    this.toolCount = registerAllTools(this.server, ctx)
+    // SSE 端点：客户端通过 GET /sse 建立 SSE 流
+    this.httpServer.on('request', async (req: IncomingMessage, res: ServerResponse) => {
+      const url = new URL(req.url || '/', `http://localhost:${this.port}`)
+      const pathname = url.pathname
 
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID()
-    })
-
-    await this.server.connect(transport)
-
-    // 创建 HTTP 服务器，所有请求路由到 transport
-    this.httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-      // CORS 头，允许本地 MCP 客户端连接
+      // CORS
       res.setHeader('Access-Control-Allow-Origin', '*')
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
@@ -52,27 +49,69 @@ class McpServerService {
         return
       }
 
-      // 解析请求体
-      let body: unknown = undefined
-      if (req.method === 'POST' || req.method === 'PUT') {
-        body = await this.parseBody(req)
+      // GET /sse — 建立 SSE 连接
+      if (req.method === 'GET' && pathname === '/sse') {
+        try {
+          const transport = new SSEServerTransport('/messages', res)
+          const server = new McpServer({ name: 'sessionbox-mcp', version: '1.0.0' })
+          this.toolCount = registerAllTools(server, ctx)
+          await server.connect(transport)
+
+          const sessionId = transport.sessionId
+          this.sessions.set(sessionId, { server, transport })
+
+          transport.onclose = () => {
+            console.log(`[MCP] Session closed: ${sessionId}`)
+            this.sessions.delete(sessionId)
+          }
+
+          console.log(`[MCP] New session: ${sessionId}, total: ${this.sessions.size}`)
+        } catch (error) {
+          console.error('[MCP] Error establishing SSE connection:', error)
+          if (!res.headersSent) {
+            res.writeHead(500)
+            res.end('Internal server error')
+          }
+        }
+        return
       }
 
-      try {
-        await transport.handleRequest(req, res, body)
-      } catch (error) {
-        console.error('[MCP] Error handling request:', error)
-        if (!res.headersSent) {
-          res.writeHead(500, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'Internal server error' }))
+      // POST /messages — 接收客户端消息
+      if (req.method === 'POST' && pathname === '/messages') {
+        const sessionId = url.searchParams.get('sessionId')
+        if (!sessionId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Missing sessionId' }))
+          return
         }
+
+        const session = this.sessions.get(sessionId)
+        if (!session) {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Session not found' }))
+          return
+        }
+
+        try {
+          const body = await this.parseBody(req)
+          await session.transport.handlePostMessage(req, res, body)
+        } catch (error) {
+          console.error('[MCP] Error handling POST:', error)
+          if (!res.headersSent) {
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Internal server error' }))
+          }
+        }
+        return
       }
+
+      // 未知路径
+      res.writeHead(404)
+      res.end('Not found')
     })
 
     await new Promise<void>((resolve, reject) => {
-      this.httpServer!.listen(this.port, () => {
-        resolve()
-      })
+      this.httpServer!.listen(this.port, () => resolve())
       this.httpServer!.on('error', reject)
     })
 
@@ -84,15 +123,20 @@ class McpServerService {
     if (!this.running) return
 
     try {
+      // 关闭所有会话
+      for (const [id, session] of this.sessions) {
+        try {
+          await session.transport.close()
+          await session.server.close()
+        } catch { /* ignore */ }
+      }
+      this.sessions.clear()
+
       if (this.httpServer) {
         await new Promise<void>((resolve) => {
           this.httpServer!.close(() => resolve())
         })
         this.httpServer = null
-      }
-      if (this.server) {
-        await this.server.close()
-        this.server = null
       }
     } catch (error) {
       console.error('[MCP] Error stopping server:', error)

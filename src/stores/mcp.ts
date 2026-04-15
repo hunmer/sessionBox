@@ -9,7 +9,7 @@ export const useMcpStore = defineStore('mcp', () => {
   const toolCount = ref(0)
   const port = ref(9527)
 
-  const sseUrl = computed(() => `http://localhost:${port.value}/mcp`)
+  const sseUrl = computed(() => `http://localhost:${port.value}/sse`)
 
   async function refreshStatus() {
     const status = await api.mcp.getStatus()
