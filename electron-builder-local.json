@@ -14,6 +14,33 @@
     "!node_modules/**/*.{md,ts,map,d.ts}",
     "!node_modules/**/{test,tests,__tests__,example,examples,docs,doc,website,.github,.vscode}"
   ],
+  "fileAssociations": [
+    {
+      "ext": [
+        "htm",
+        "html",
+        "shtml",
+        "xht",
+        "xhtml"
+      ],
+      "name": "HTML File",
+      "mimeType": "text/html"
+    }
+  ],
+  "protocols": [
+    {
+      "name": "HTTP",
+      "schemes": [
+        "http"
+      ]
+    },
+    {
+      "name": "HTTPS",
+      "schemes": [
+        "https"
+      ]
+    }
+  ],
   "mac": {
     "target": [
       {

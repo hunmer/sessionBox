@@ -4,6 +4,33 @@
   "directories": {
     "output": "dist-app"
   },
+  "fileAssociations": [
+    {
+      "ext": [
+        "htm",
+        "html",
+        "shtml",
+        "xht",
+        "xhtml"
+      ],
+      "name": "HTML File",
+      "mimeType": "text/html"
+    }
+  ],
+  "protocols": [
+    {
+      "name": "HTTP",
+      "schemes": [
+        "http"
+      ]
+    },
+    {
+      "name": "HTTPS",
+      "schemes": [
+        "https"
+      ]
+    }
+  ],
   "files": [
     "out/**/*",
     "package.json",
@@ -17,7 +44,10 @@
     "target": [
       {
         "target": "dmg",
-        "arch": ["x64", "arm64"]
+        "arch": [
+          "x64",
+          "arm64"
+        ]
       }
     ],
     "icon": "resources/icon.icns",
@@ -25,8 +55,16 @@
   },
   "dmg": {
     "contents": [
-      { "x": 130, "y": 220 },
-      { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      {
+        "x": 130,
+        "y": 220
+      },
+      {
+        "x": 410,
+        "y": 220,
+        "type": "link",
+        "path": "/Applications"
+      }
     ]
   },
   "win": {
@@ -34,7 +72,9 @@
     "target": [
       {
         "target": "nsis",
-        "arch": ["x64"]
+        "arch": [
+          "x64"
+        ]
       }
     ],
     "icon": "resources/icon.png",
@@ -63,17 +103,23 @@
     {
       "from": "win_packages",
       "to": "win_packages",
-      "filter": ["**/*"]
+      "filter": [
+        "**/*"
+      ]
     },
     {
       "from": "mac_packages",
       "to": "mac_packages",
-      "filter": ["**/*"]
+      "filter": [
+        "**/*"
+      ]
     },
     {
       "from": "resources/plugins",
       "to": "plugins",
-      "filter": ["**/*"]
+      "filter": [
+        "**/*"
+      ]
     }
   ],
   "compression": "store",
