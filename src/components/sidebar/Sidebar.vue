@@ -33,7 +33,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  openSettings: []
+  openSettings: [tab?: string]
 }>()
 
 // 对话框状态
@@ -207,5 +207,6 @@ const workspaceSwitcherItems = computed(() => {
     :group-id="newPageGroupId"
     @save="handleSavePage"
     @delete="handleDeletePage"
+    @open-settings="emit('openSettings', $event)"
   />
 </template>

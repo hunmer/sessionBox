@@ -23,7 +23,6 @@ import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useProxyStore } from '@/stores/proxy'
 import { useBookmarkStore } from '@/stores/bookmark'
-import { useTabStore } from '@/stores/tab'
 import type { Page } from '@/types'
 
 const props = defineProps<{
@@ -36,13 +35,13 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
   save: [data: Omit<Page, 'id'>]
   delete: [id: string]
+  openSettings: [tab?: string]
 }>()
 
 const pageStore = usePageStore()
 const containerStore = useContainerStore()
 const proxyStore = useProxyStore()
 const bookmarkStore = useBookmarkStore()
-const tabStore = useTabStore()
 
 const name = ref('')
 const icon = ref('')
@@ -294,7 +293,7 @@ function handleDelete() {
                     variant="ghost"
                     size="sm"
                     class="h-5 gap-1 text-[10px] text-primary hover:text-primary px-1"
-                    @click="emit('update:open', false); tabStore.createTabForSite('sessionbox://containers')"
+                    @click="emit('update:open', false); emit('openSettings', 'containers')"
                   >
                     管理
                     <ArrowRight class="h-3 w-3" />

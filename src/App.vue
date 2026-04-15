@@ -545,7 +545,7 @@ useIpcEvent('shortcut', (actionId) => {
           <SidebarProvider :open="!sidebarCollapsed" @update:open="sidebarCollapsed = !$event">
             <Sidebar
               :collapsed="sidebarCollapsed"
-              @open-settings="settingsDialogOpen = true; settingsInitialTab = 'user'"
+              @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'user'"
             />
           </SidebarProvider>
         </ResizablePanel>
@@ -758,7 +758,7 @@ useIpcEvent('shortcut', (actionId) => {
             <SidebarProvider :open="true">
               <Sidebar
                 :collapsed="false"
-                @open-settings="settingsDialogOpen = true; settingsInitialTab = 'user'"
+                @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'user'"
               />
             </SidebarProvider>
           </div>

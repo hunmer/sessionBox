@@ -117,7 +117,7 @@ function openFullPage(site: string) {
               </Button>
             </PopoverTrigger>
             <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
-              <ContainerMiniPopover @open-full="openFullPage('sessionbox://containers')" />
+              <ContainerMiniPopover @open-full="emit('openSettings', 'containers')" />
             </PopoverContent>
           </Popover>
 
