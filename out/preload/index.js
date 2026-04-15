@@ -195,7 +195,9 @@ const api = {
     getMinimizeOnClose: () => electron.ipcRenderer.invoke("settings:getMinimizeOnClose"),
     setMinimizeOnClose: (enabled) => electron.ipcRenderer.invoke("settings:setMinimizeOnClose", enabled),
     getDefaultContainerId: () => electron.ipcRenderer.invoke("settings:getDefaultContainerId"),
-    setDefaultContainerId: (id) => electron.ipcRenderer.invoke("settings:setDefaultContainerId", id)
+    setDefaultContainerId: (id) => electron.ipcRenderer.invoke("settings:setDefaultContainerId", id),
+    getAskContainerOnOpen: () => electron.ipcRenderer.invoke("settings:getAskContainerOnOpen"),
+    setAskContainerOnOpen: (enabled) => electron.ipcRenderer.invoke("settings:setAskContainerOnOpen", enabled)
   },
   mutedSites: {
     list: () => electron.ipcRenderer.invoke("mutedSites:list"),
