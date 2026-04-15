@@ -166,6 +166,9 @@ if (!gotTheLock) {
     // 初始化 WebContentsView 管理器
     webviewManager.setMainWindow(mainWindow)
 
+    // 暴露到 global 以便浏览器交互 IPC 处理器访问
+    ;(global as any).__webviewManager = webviewManager
+
     // 初始化自动更新器主窗口引用
     getAutoUpdater().setMainWindow(mainWindow)
 
