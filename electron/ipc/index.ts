@@ -533,4 +533,23 @@ $img.Dispose()`
   ipcMain.handle('searchEngine:set', (_e, engines: SearchEngine[]) => setSearchEngines(engines))
   ipcMain.handle('searchEngine:getDefault', () => getDefaultSearchEngineId())
   ipcMain.handle('searchEngine:setDefault', (_e, id: string) => setDefaultSearchEngineId(id))
+
+  // ====== 系统内存信息 ======
+  ipcMain.handle('system:memory', () => {
+    const processMemory = process.getProcessMemoryInfo()
+    const systemMemory = process.getSystemMemoryInfo()
+    const appMetrics = app.getAppMetrics()
+
+    // 汇总所有进程的内存占用
+    const totalWorkingSetSize = appMetrics.reduce((sum, m) => sum + m.memory.workingSetSize, 0)
+
+    return {
+      // 应用总内存占用 (KB)
+      appMemoryKB: totalWorkingSetSize,
+      // 系统总物理内存 (KB)
+      totalMemoryKB: systemMemory.total,
+      // 系统可用内存 (KB)
+      freeMemoryKB: systemMemory.free,
+    }
+  })
 }

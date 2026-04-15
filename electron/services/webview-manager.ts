@@ -811,6 +811,37 @@ class WebviewManager {
     }
   }
 
+  /** 强制刷新（清除缓存） */
+  forceReload(tabId: string): void {
+    const entry = this.views.get(tabId)
+    if (entry && !entry.view.webContents.isDestroyed()) {
+      entry.view.webContents.reloadIgnoringCache()
+    }
+  }
+
+  /** 放大页面（每次 +1 zoom level） */
+  zoomIn(tabId: string): void {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) return
+    const currentZoom = entry.view.webContents.getZoomLevel()
+    entry.view.webContents.setZoomLevel(Math.min(currentZoom + 1, 7))
+  }
+
+  /** 缩小页面（每次 -1 zoom level） */
+  zoomOut(tabId: string): void {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) return
+    const currentZoom = entry.view.webContents.getZoomLevel()
+    entry.view.webContents.setZoomLevel(Math.max(currentZoom - 1, -3))
+  }
+
+  /** 重置页面缩放 */
+  zoomReset(tabId: string): void {
+    const entry = this.views.get(tabId)
+    if (!entry || entry.view.webContents.isDestroyed()) return
+    entry.view.webContents.setZoomLevel(0)
+  }
+
   async setProxyEnabledForTab(tabId: string, enabled: boolean): Promise<{ ok: boolean; enabled: boolean; error?: string }> {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) {

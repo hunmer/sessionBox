@@ -119,6 +119,22 @@ export function registerTabIpcHandlers(): void {
     webviewManager.reload(tabId)
   })
 
+  ipcMain.handle('tab:forceReload', (_e, tabId: string) => {
+    webviewManager.forceReload(tabId)
+  })
+
+  ipcMain.handle('tab:zoomIn', (_e, tabId: string) => {
+    webviewManager.zoomIn(tabId)
+  })
+
+  ipcMain.handle('tab:zoomOut', (_e, tabId: string) => {
+    webviewManager.zoomOut(tabId)
+  })
+
+  ipcMain.handle('tab:zoomReset', (_e, tabId: string) => {
+    webviewManager.zoomReset(tabId)
+  })
+
   ipcMain.handle('tab:detect-proxy', async (_e, tabId: string) => {
     return await webviewManager.detectProxyInfo(tabId)
   })

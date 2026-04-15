@@ -22,6 +22,27 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'go-forward', label: '前进', defaultAccelerator: 'Alt+Right', supportsGlobal: true },
   { id: 'focus-address', label: '聚焦地址栏', defaultAccelerator: 'CmdOrCtrl+L', supportsGlobal: true },
   { id: 'toggle-fullscreen', label: '切换全屏', defaultAccelerator: 'F11', supportsGlobal: true },
+  { id: 'restore-tab', label: '恢复关闭的标签页', defaultAccelerator: 'CmdOrCtrl+Shift+T', supportsGlobal: true },
+  { id: 'reload-tab-f5', label: '刷新页面 (F5)', defaultAccelerator: 'F5', supportsGlobal: true },
+  { id: 'force-reload', label: '强制刷新（清除缓存）', defaultAccelerator: 'CmdOrCtrl+Shift+R', supportsGlobal: true },
+  { id: 'toggle-bookmark-bar', label: '显示/隐藏书签栏', defaultAccelerator: 'CmdOrCtrl+Shift+B', supportsGlobal: true },
+  { id: 'open-downloads', label: '打开下载页面', defaultAccelerator: 'CmdOrCtrl+J', supportsGlobal: true },
+  { id: 'open-history', label: '打开历史记录', defaultAccelerator: 'CmdOrCtrl+H', supportsGlobal: true },
+  { id: 'zoom-in', label: '放大页面', defaultAccelerator: 'CmdOrCtrl+Plus', supportsGlobal: true },
+  { id: 'zoom-out', label: '缩小页面', defaultAccelerator: 'CmdOrCtrl+-', supportsGlobal: true },
+  { id: 'zoom-reset', label: '重置页面缩放', defaultAccelerator: 'CmdOrCtrl+0', supportsGlobal: true },
+  { id: 'open-devtools', label: '打开开发者工具', defaultAccelerator: 'F12', supportsGlobal: true },
+  { id: 'open-devtools-alt', label: '打开开发者工具 (备用)', defaultAccelerator: 'CmdOrCtrl+Shift+I', supportsGlobal: true },
+  { id: 'focus-address-f6', label: '聚焦地址栏 (F6)', defaultAccelerator: 'F6', supportsGlobal: true },
+  { id: 'goto-tab-1', label: '跳转到第 1 个标签页', defaultAccelerator: 'CmdOrCtrl+1', supportsGlobal: true },
+  { id: 'goto-tab-2', label: '跳转到第 2 个标签页', defaultAccelerator: 'CmdOrCtrl+2', supportsGlobal: true },
+  { id: 'goto-tab-3', label: '跳转到第 3 个标签页', defaultAccelerator: 'CmdOrCtrl+3', supportsGlobal: true },
+  { id: 'goto-tab-4', label: '跳转到第 4 个标签页', defaultAccelerator: 'CmdOrCtrl+4', supportsGlobal: true },
+  { id: 'goto-tab-5', label: '跳转到第 5 个标签页', defaultAccelerator: 'CmdOrCtrl+5', supportsGlobal: true },
+  { id: 'goto-tab-6', label: '跳转到第 6 个标签页', defaultAccelerator: 'CmdOrCtrl+6', supportsGlobal: true },
+  { id: 'goto-tab-7', label: '跳转到第 7 个标签页', defaultAccelerator: 'CmdOrCtrl+7', supportsGlobal: true },
+  { id: 'goto-tab-8', label: '跳转到第 8 个标签页', defaultAccelerator: 'CmdOrCtrl+8', supportsGlobal: true },
+  { id: 'goto-tab-last', label: '跳转到最后一个标签页', defaultAccelerator: 'CmdOrCtrl+9', supportsGlobal: true },
   { id: 'tab-overview', label: '标签页概览', defaultAccelerator: 'CmdOrCtrl+Shift+A', supportsGlobal: true },
   { id: 'command-palette', label: '命令面板', defaultAccelerator: 'CmdOrCtrl+K', supportsGlobal: true }
 ]
@@ -129,7 +150,10 @@ export function inputEventToAccelerator(input: Electron.Input): string | null {
   const parts: string[] = []
   if (input.control || input.meta) parts.push('CmdOrCtrl')
   if (input.alt) parts.push('Alt')
-  if (input.shift) parts.push('Shift')
+  // Shift 作为产生字符的辅助键（如 + 需要 Shift+=），不计入修饰键
+  // 但对于非字符键（如字母/Tab/箭头），Shift 是有意义的修饰键
+  const needsShiftForChar = input.key === '+' || input.key === '_'
+  if (input.shift && !needsShiftForChar) parts.push('Shift')
 
   const key = input.key
   if (!key) return null
@@ -141,6 +165,7 @@ export function inputEventToAccelerator(input: Electron.Input): string | null {
   // 特殊键映射
   const keyMap: Record<string, string> = {
     ' ': 'Space',
+    '+': 'Plus',
     'ArrowUp': 'Up', 'ArrowDown': 'Down', 'ArrowLeft': 'Left', 'ArrowRight': 'Right',
     'Tab': 'Tab', 'Enter': 'Enter', 'Escape': 'Escape',
     'Delete': 'Delete', 'Backspace': 'Backspace',

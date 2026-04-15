@@ -267,6 +267,10 @@ const api = {
     goBack: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:goBack', tabId),
     goForward: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:goForward', tabId),
     reload: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:reload', tabId),
+    forceReload: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:forceReload', tabId),
+    zoomIn: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:zoomIn', tabId),
+    zoomOut: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:zoomOut', tabId),
+    zoomReset: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:zoomReset', tabId),
     detectProxy: (tabId: string): Promise<{ ok: boolean; ip?: string; error?: string }> =>
       ipcRenderer.invoke('tab:detect-proxy', tabId),
     setProxyEnabled: (tabId: string, enabled: boolean): Promise<{ ok: boolean; enabled: boolean; error?: string }> =>
@@ -536,6 +540,12 @@ const api = {
       ipcRenderer.on('update:error', handler)
       return () => ipcRenderer.removeListener('update:error', handler)
     }
+  },
+
+  // 系统内存信息
+  system: {
+    memory: (): Promise<{ appMemoryKB: number; totalMemoryKB: number; freeMemoryKB: number }> =>
+      ipcRenderer.invoke('system:memory')
   },
 
   // 主进程 → 渲染进程事件监听

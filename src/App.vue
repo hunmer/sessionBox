@@ -468,7 +468,7 @@ useIpcEvent('shortcut', (actionId) => {
       if (tab) tabStore.closeTab(tab.id)
       break
     case 'next-tab': {
-      const tabs = tabStore.sortedTabs
+      const tabs = tabStore.workspaceTabs
       if (tabs.length < 2) break
       const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
       const next = tabs[(idx + 1) % tabs.length]
@@ -476,7 +476,7 @@ useIpcEvent('shortcut', (actionId) => {
       break
     }
     case 'prev-tab': {
-      const tabs = tabStore.sortedTabs
+      const tabs = tabStore.workspaceTabs
       if (tabs.length < 2) break
       const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
       const prev = tabs[(idx - 1 + tabs.length) % tabs.length]
@@ -521,6 +521,53 @@ useIpcEvent('shortcut', (actionId) => {
     case 'command-palette':
       commandPaletteOpen.value = !commandPaletteOpen.value
       break
+    case 'restore-tab':
+      tabStore.restoreTab()
+      break
+    case 'goto-tab-1': tabStore.gotoTab(1); break
+    case 'goto-tab-2': tabStore.gotoTab(2); break
+    case 'goto-tab-3': tabStore.gotoTab(3); break
+    case 'goto-tab-4': tabStore.gotoTab(4); break
+    case 'goto-tab-5': tabStore.gotoTab(5); break
+    case 'goto-tab-6': tabStore.gotoTab(6); break
+    case 'goto-tab-7': tabStore.gotoTab(7); break
+    case 'goto-tab-8': tabStore.gotoTab(8); break
+    case 'goto-tab-last':
+      tabStore.gotoLastTab()
+      break
+    case 'reload-tab-f5':
+      if (tab) tabStore.reload(tab.id)
+      break
+    case 'force-reload':
+      if (tab) tabStore.forceReload(tab.id)
+      break
+    case 'toggle-bookmark-bar':
+      tabStore.toggleBookmarkBar()
+      break
+    case 'open-downloads':
+      tabStore.openInternalPage('downloads')
+      break
+    case 'open-history':
+      tabStore.openInternalPage('history')
+      break
+    case 'zoom-in':
+      if (tab) tabStore.zoomIn(tab.id)
+      break
+    case 'zoom-out':
+      if (tab) tabStore.zoomOut(tab.id)
+      break
+    case 'zoom-reset':
+      if (tab) tabStore.zoomReset(tab.id)
+      break
+    case 'open-devtools':
+    case 'open-devtools-alt':
+      if (tab) tabStore.openDevTools(tab.id)
+      break
+    case 'focus-address-f6': {
+      const input = document.querySelector<HTMLInputElement>('[data-address-input]')
+      input?.focus()
+      break
+    }
   }
 })
 </script>

@@ -42,6 +42,16 @@ export const useTabStore = defineStore('tab', () => {
   let listenersReady = false
   let restoreReady = false
 
+  // ====== 关闭标签页历史栈（用于 Ctrl+Shift+T 恢复） ======
+  const MAX_RECENTLY_CLOSED = 20
+  interface ClosedTabSnapshot {
+    pageId: string
+    title: string
+    url: string
+    order: number
+  }
+  const recentlyClosedTabs = ref<ClosedTabSnapshot[]>([])
+
   // ====== 标签栏布局 ======
   const tabLayout = ref<TabLayout>(
     (localStorage.getItem(TAB_LAYOUT_KEY) as TabLayout) || 'horizontal'
@@ -316,6 +326,20 @@ export const useTabStore = defineStore('tab', () => {
   }
 
   async function closeTab(tabId: string) {
+    // 保存关闭的 tab 快照（用于 Ctrl+Shift+T 恢复）
+    const closingTab = tabs.value.find((t) => t.id === tabId)
+    if (closingTab && closingTab.pageId && !closingTab.url?.startsWith('sessionbox://')) {
+      recentlyClosedTabs.value.unshift({
+        pageId: closingTab.pageId,
+        title: closingTab.title,
+        url: closingTab.url,
+        order: closingTab.order
+      })
+      if (recentlyClosedTabs.value.length > MAX_RECENTLY_CLOSED) {
+        recentlyClosedTabs.value.pop()
+      }
+    }
+
     const closingActive = activeTabId.value === tabId
     const currentWorkspaceTabs = workspaceTabs.value
     const currentIndex = currentWorkspaceTabs.findIndex((t) => t.id === tabId)
@@ -399,11 +423,14 @@ export const useTabStore = defineStore('tab', () => {
     await api.tab.navigate(tabId, url)
   }
 
-  /** 打开内部页面（如书签管理） */
+  /** 打开内部页面（如书签管理、下载、历史记录） */
   async function openInternalPage(path: string) {
     const url = `sessionbox://${path}`
     if (activeTab.value) {
       await navigate(activeTab.value.id, url)
+    } else {
+      // 无活跃标签页时，创建新标签页打开
+      await createTabForSite(url)
     }
   }
 
@@ -417,6 +444,26 @@ export const useTabStore = defineStore('tab', () => {
 
   async function reload(tabId: string) {
     await api.tab.reload(tabId)
+  }
+
+  /** 强制刷新（清除缓存） */
+  async function forceReload(tabId: string) {
+    await api.tab.forceReload(tabId)
+  }
+
+  /** 放大页面 */
+  async function zoomIn(tabId: string) {
+    await api.tab.zoomIn(tabId)
+  }
+
+  /** 缩小页面 */
+  async function zoomOut(tabId: string) {
+    await api.tab.zoomOut(tabId)
+  }
+
+  /** 重置页面缩放 */
+  async function zoomReset(tabId: string) {
+    await api.tab.zoomReset(tabId)
   }
 
   async function detectProxy(tabId: string) {
@@ -475,6 +522,49 @@ export const useTabStore = defineStore('tab', () => {
     const tab = tabs.value.find((t) => t.id === tabId)
     if (!tab) return
     const pinned = !tab.pinned
+    await updateTab(tabId, { pinned })
+  }
+
+  /** 恢复最近关闭的标签页（Ctrl+Shift+T） */
+  async function restoreTab(): Promise<boolean> {
+    if (recentlyClosedTabs.value.length === 0) return false
+
+    const snapshot = recentlyClosedTabs.value.shift()!
+    // 验证 pageId 对应的 page 是否仍然存在
+    const pageStore = usePageStore()
+    const page = pageStore.getPage(snapshot.pageId)
+    if (!page) return false
+
+    await createTab(snapshot.pageId)
+    return true
+  }
+
+  /** 跳转到指定序号的标签页（Ctrl+1~8），index 从 1 开始 */
+  function gotoTab(index: number): boolean {
+    const currentTabs = workspaceTabs.value
+    if (currentTabs.length === 0) return false
+
+    const targetIndex = Math.min(index - 1, currentTabs.length - 1)
+    const targetTab = currentTabs[targetIndex]
+    if (targetTab) {
+      switchTab(targetTab.id)
+      return true
+    }
+    return false
+  }
+
+  /** 跳转到最后一个标签页（Ctrl+9） */
+  function gotoLastTab(): boolean {
+    const currentTabs = workspaceTabs.value
+    if (currentTabs.length === 0) return false
+
+    const lastTab = currentTabs[currentTabs.length - 1]
+    if (lastTab) {
+      switchTab(lastTab.id)
+      return true
+    }
+    return false
+  }
     await updateTab(tabId, { pinned })
   }
 
@@ -758,6 +848,10 @@ export const useTabStore = defineStore('tab', () => {
     goBack,
     goForward,
     reload,
+    forceReload,
+    zoomIn,
+    zoomOut,
+    zoomReset,
     detectProxy,
     setProxyEnabled,
     applyProxy,
@@ -770,6 +864,9 @@ export const useTabStore = defineStore('tab', () => {
     mutedSites,
     isSiteMuted,
     togglePin,
+    restoreTab,
+    gotoTab,
+    gotoLastTab,
     init,
     saveState
   }
