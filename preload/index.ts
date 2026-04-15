@@ -63,6 +63,7 @@ export interface Tab {
   order: number
   pinned?: boolean
   muted?: boolean
+  workspaceId?: string
 }
 
 export interface NavState {
@@ -256,7 +257,7 @@ const api = {
 
   tab: {
     list: (): Promise<Tab[]> => ipcRenderer.invoke('tab:list'),
-    create: (pageId: string | null, url?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', pageId, url),
+    create: (pageId: string | null, url?: string, containerId?: string, workspaceId?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', pageId, url, containerId, workspaceId),
     close: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:close', tabId),
     switch: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:switch', tabId),
     update: (tabId: string, data: Partial<Omit<Tab, 'id'>>): Promise<void> =>

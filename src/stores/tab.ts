@@ -176,8 +176,15 @@ export const useTabStore = defineStore('tab', () => {
         })
         .map((p) => p.id)
     )
-    // 包含 page 匹配的 tab 以及无 page 的内部页面 tab
-    let result = sortedTabs.value.filter((t) => pageIds.has(t.pageId) || !t.pageId)
+    // 包含：page 匹配当前工作区的 tab、无 page 但 workspaceId 匹配的 tab、
+    // 无 page 且无 workspaceId 的内部页面 tab（全局可见）
+    let result = sortedTabs.value.filter((t) => {
+      if (t.pageId) return pageIds.has(t.pageId)
+      // 无 pageId 的 tab：按 workspaceId 归属过滤
+      if (t.workspaceId) return t.workspaceId === activeId
+      // 无 pageId 也无 workspaceId：内部页面，全局可见
+      return true
+    })
 
     // 如果设置了分组过滤，只保留对应分组的标签
     if (tabGroupFilterId.value) {
@@ -815,43 +822,25 @@ export const useTabStore = defineStore('tab', () => {
     }
   })
 
-  /** 使用指定容器打开外部 URL（不持久化 Page 到分组） */
+  /** 使用指定容器打开外部 URL（不持久化 Page，无分组归属） */
   async function openExternalUrlInContainer(url: string, containerId: string, workspaceId?: string) {
-    const pageStore = usePageStore()
-    const containerStore = useContainerStore()
     const workspaceStore = useWorkspaceStore()
+    const containerStore = useContainerStore()
     const targetWorkspaceId = workspaceId === '__active__' || !workspaceId
       ? workspaceStore.activeWorkspaceId
       : workspaceId
 
-    // 优先在目标工作区中查找该容器下的已有 page
-    const existingPage = pageStore.pages.find((p) => {
-      if (p.containerId !== containerId) return false
-      const group = containerStore.getGroup(p.groupId)
-      return (group?.workspaceId || '__default__') === targetWorkspaceId
-    })
-    if (existingPage) {
-      const tab = await api.tab.create(existingPage.id, url)
+    // 切换到目标工作区
+    if (targetWorkspaceId !== workspaceStore.activeWorkspaceId) {
+      workspaceStore.activate(targetWorkspaceId)
       await nextTick()
-      await activateCreatedTab(tab.id)
-      return
     }
 
-    // 查找目标工作区中的任意 page 作为宿主
-    const fallbackPage = pageStore.pages.find((p) => {
-      const group = containerStore.getGroup(p.groupId)
-      return (group?.workspaceId || '__default__') === targetWorkspaceId
-    })
-
-    if (fallbackPage) {
-      const tab = await api.tab.create(fallbackPage.id, url)
-      await nextTick()
-      await activateCreatedTab(tab.id)
-      return
-    }
-
-    // 没有任何 page 时，使用 createTabForSite 兜底
-    await createTabForSite(url)
+    // 无 pageId 模式：直接指定 containerId + workspaceId，不关联任何分组
+    const resolvedContainerId = containerId || containerStore.defaultContainerId
+    const tab = await api.tab.create(null, url, resolvedContainerId, targetWorkspaceId)
+    await nextTick()
+    await activateCreatedTab(tab.id)
   }
 
   /** 取消待处理的外部 URL */

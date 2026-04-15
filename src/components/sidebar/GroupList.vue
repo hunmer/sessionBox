@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
+import { useTabStore } from '@/stores/tab'
 import GroupItem from './GroupItem.vue'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from '@/components/ui/sidebar'
 import {
   DropdownMenu,
@@ -16,7 +19,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Pencil, Trash2, Plus } from 'lucide-vue-next'
+import {
+  Collapsible,
+  CollapsibleContent,
+} from '@/components/ui/collapsible'
+import { Pencil, Trash2, Plus, ChevronRight, X, FolderX } from 'lucide-vue-next'
 import type { Group, Page } from '@/types'
 
 const props = defineProps<{
@@ -34,6 +41,7 @@ const emit = defineEmits<{
 
 const containerStore = useContainerStore()
 const pageStore = usePageStore()
+const tabStore = useTabStore()
 
 // 将 workspaceGroups 及其页面转换为 GroupItem 需要的格式
 const workspaces = computed(() => {
@@ -54,6 +62,13 @@ const workspaces = computed(() => {
       })),
   }))
 })
+
+// 当前工作区中无 pageId 归属的标签页（未分组）
+const ungroupedTabs = computed(() => {
+  return tabStore.workspaceTabs.filter((t) => !t.pageId)
+})
+
+const ungroupedOpen = ref(true)
 </script>
 
 <template>
@@ -106,18 +121,68 @@ const workspaces = computed(() => {
   </template>
 
   <!-- 展开状态：显示完整列表 -->
-  <GroupItem
-    v-else-if="containerStore.workspaceGroups.length > 0"
-    :workspaces="workspaces"
-    @select-page="emit('selectPage', $event)"
-    @edit-group="emit('editGroup', $event)"
-    @delete-group="emit('deleteGroup', $event)"
-    @add-page="emit('addPage', $event)"
-    @edit-page="emit('editPage', $event)"
-    @delete-page="emit('deletePage', $event)"
-  />
-  <div v-else class="flex flex-col items-center justify-center py-8 text-muted-foreground">
-    <p class="text-sm">暂无分组</p>
-    <p class="text-xs mt-1">点击下方「新建分组」开始</p>
-  </div>
+  <template v-else>
+    <GroupItem
+      v-if="containerStore.workspaceGroups.length > 0"
+      :workspaces="workspaces"
+      @select-page="emit('selectPage', $event)"
+      @edit-group="emit('editGroup', $event)"
+      @delete-group="emit('deleteGroup', $event)"
+      @add-page="emit('addPage', $event)"
+      @edit-page="emit('editPage', $event)"
+      @delete-page="emit('deletePage', $event)"
+    />
+
+    <!-- 未分组标签页 -->
+    <Collapsible v-if="ungroupedTabs.length > 0" v-model:open="ungroupedOpen">
+      <SidebarMenuItem>
+        <SidebarMenuButton as-child>
+          <a
+            href="#"
+            class="flex-1 flex items-center gap-2 text-muted-foreground"
+            @click.prevent="ungroupedOpen = !ungroupedOpen"
+          >
+            <ChevronRight
+              class="w-4 h-4 transition-transform shrink-0"
+              :class="ungroupedOpen ? 'rotate-90' : ''"
+            />
+            <FolderX class="w-4 h-4" />
+            <span class="flex-1 text-xs">未分组</span>
+            <span class="text-[10px] text-muted-foreground/60">{{ ungroupedTabs.length }}</span>
+          </a>
+        </SidebarMenuButton>
+        <CollapsibleContent>
+          <ul
+            class="border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5"
+          >
+            <SidebarMenuSubItem v-for="tab in ungroupedTabs" :key="tab.id">
+              <div class="flex items-center gap-1 w-full">
+                <SidebarMenuSubButton as-child class="flex-1">
+                  <a
+                    href="#"
+                    class="flex items-center gap-2 w-full text-left"
+                    @click.prevent="tabStore.switchTab(tab.id)"
+                  >
+                    <EmojiRenderer emoji="🌐" :url="tab.url" />
+                    <span class="truncate">{{ tab.title || tab.url }}</span>
+                  </a>
+                </SidebarMenuSubButton>
+                <button
+                  class="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  @click.stop="tabStore.closeTab(tab.id)"
+                >
+                  <X class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </SidebarMenuSubItem>
+          </ul>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+
+    <div v-if="containerStore.workspaceGroups.length === 0 && ungroupedTabs.length === 0" class="flex flex-col items-center justify-center py-8 text-muted-foreground">
+      <p class="text-sm">暂无分组</p>
+      <p class="text-xs mt-1">点击下方「新建分组」开始</p>
+    </div>
+  </template>
 </template>

@@ -70,6 +70,7 @@ export interface Tab {
   order: number
   pinned?: boolean // 固定标签
   muted?: boolean // 静音标签
+  workspaceId?: string // 无 pageId 关联时的工作区归属
 }
 
 // 书签文件夹

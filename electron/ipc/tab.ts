@@ -23,7 +23,9 @@ export function registerTabIpcHandlers(): void {
 
   // 创建 tab（含 WebContentsView）
   // pageId 为空字符串时使用默认 partition（无页面关联）
-  ipcMain.handle('tab:create', (_e, pageId: string | null, url?: string) => {
+  // containerId 用于无 pageId 时指定容器隔离
+  // workspaceId 用于无 pageId 时指定工作区归属
+  ipcMain.handle('tab:create', (_e, pageId: string | null, url?: string, containerId?: string, workspaceId?: string) => {
     const tabs = listTabs()
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
     const mainWindow = webviewManager.getMainWindow()
@@ -50,15 +52,17 @@ export function registerTabIpcHandlers(): void {
     const internalPageTitle = pageKey ? (internalPageTitles[pageKey] || pageKey) : null
 
     if (!pageId) {
-      // 无页面模式：使用默认 partition
+      // 无页面模式：使用指定或默认 partition
       const tabUrl = url || 'https://www.baidu.com'
+      const resolvedContainerId = containerId || ''
       const tab = createTab({
         pageId: '',
         title: internalPageTitle || '新标签页',
         url: tabUrl,
-        order
+        order,
+        workspaceId: workspaceId || undefined
       })
-      webviewManager.registerPendingView(tab.id, '', '', tabUrl)
+      webviewManager.registerPendingView(tab.id, '', resolvedContainerId, tabUrl)
       mainWindow?.webContents.send('on:tab:created', tab)
       return tab
     }
@@ -67,7 +71,7 @@ export function registerTabIpcHandlers(): void {
     if (!page) throw new Error(`页面 ${pageId} 不存在`)
 
     const container = page.containerId ? getContainerById(page.containerId) : undefined
-    const containerId = page.containerId || ''
+    const pageContainerId = page.containerId || ''
     const tabUrl = url || page.url
     const tab = createTab({
       pageId: pageId,
@@ -75,7 +79,7 @@ export function registerTabIpcHandlers(): void {
       url: tabUrl,
       order
     })
-    webviewManager.registerPendingView(tab.id, pageId, containerId, tabUrl)
+    webviewManager.registerPendingView(tab.id, pageId, pageContainerId, tabUrl)
     mainWindow?.webContents.send('on:tab:created', tab)
     return tab
   })

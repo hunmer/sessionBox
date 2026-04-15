@@ -64,6 +64,7 @@ export interface Tab {
   order: number
   pinned?: boolean
   muted?: boolean
+  workspaceId?: string
 }
 
 export interface BookmarkFolder {
