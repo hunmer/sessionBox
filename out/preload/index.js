@@ -271,6 +271,26 @@ const api = {
     openFile: (filePath) => electron.ipcRenderer.invoke("download:openFile", filePath),
     pickDirectory: (defaultPath) => electron.ipcRenderer.invoke("download:pickDirectory", defaultPath)
   },
+  chat: {
+    completions: (params) => electron.ipcRenderer.invoke("chat:completions", params)
+  },
+  aiProvider: {
+    list: () => electron.ipcRenderer.invoke("ai-provider:list"),
+    create: (data) => electron.ipcRenderer.invoke("ai-provider:create", data),
+    update: (data) => electron.ipcRenderer.invoke("ai-provider:update", data),
+    delete: (id) => electron.ipcRenderer.invoke("ai-provider:delete", id),
+    test: (id) => electron.ipcRenderer.invoke("ai-provider:test", id)
+  },
+  browser: {
+    click: (args) => electron.ipcRenderer.invoke("browser:click", args),
+    type: (args) => electron.ipcRenderer.invoke("browser:type", args),
+    scroll: (args) => electron.ipcRenderer.invoke("browser:scroll", args),
+    select: (args) => electron.ipcRenderer.invoke("browser:select", args),
+    hover: (args) => electron.ipcRenderer.invoke("browser:hover", args),
+    getContent: (args) => electron.ipcRenderer.invoke("browser:get-content", args),
+    getDom: (args) => electron.ipcRenderer.invoke("browser:get-dom", args),
+    screenshot: (args) => electron.ipcRenderer.invoke("browser:screenshot", args)
+  },
   plugin: {
     list: () => electron.ipcRenderer.invoke("plugin:list"),
     enable: (pluginId) => electron.ipcRenderer.invoke("plugin:enable", pluginId),
