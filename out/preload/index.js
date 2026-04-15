@@ -129,6 +129,10 @@ const api = {
     goBack: (tabId) => electron.ipcRenderer.invoke("tab:goBack", tabId),
     goForward: (tabId) => electron.ipcRenderer.invoke("tab:goForward", tabId),
     reload: (tabId) => electron.ipcRenderer.invoke("tab:reload", tabId),
+    forceReload: (tabId) => electron.ipcRenderer.invoke("tab:forceReload", tabId),
+    zoomIn: (tabId) => electron.ipcRenderer.invoke("tab:zoomIn", tabId),
+    zoomOut: (tabId) => electron.ipcRenderer.invoke("tab:zoomOut", tabId),
+    zoomReset: (tabId) => electron.ipcRenderer.invoke("tab:zoomReset", tabId),
     detectProxy: (tabId) => electron.ipcRenderer.invoke("tab:detect-proxy", tabId),
     setProxyEnabled: (tabId, enabled) => electron.ipcRenderer.invoke("tab:set-proxy-enabled", tabId, enabled),
     applyProxy: (tabId, proxyId) => electron.ipcRenderer.invoke("tab:apply-proxy", tabId, proxyId),
@@ -317,6 +321,10 @@ const api = {
       electron.ipcRenderer.on("update:error", handler);
       return () => electron.ipcRenderer.removeListener("update:error", handler);
     }
+  },
+  // 系统内存信息
+  system: {
+    memory: () => electron.ipcRenderer.invoke("system:memory")
   },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {

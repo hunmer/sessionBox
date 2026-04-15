@@ -187,13 +187,15 @@ const workspaceSwitcherItems = computed(() => {
         @delete-page="handleDeletePage"
         @select-page="handleSelectPage"
       />
-      <MemoryInfo class="shrink-0" />
-      <NavUser
-        class="mt-auto p-1 shrink-0"
-        :user="{ name: userProfileStore.profile.name, email: '', avatar: userProfileStore.avatarSrc, emoji: userProfileStore.isEmojiAvatar ? userProfileStore.profile.avatar : undefined }"
-        :collapsed="collapsed"
-        @open-settings="emit('openSettings')"
-      />
+      <div class="mt-auto shrink-0">
+        <MemoryInfo />
+        <NavUser
+          class="p-1"
+          :user="{ name: userProfileStore.profile.name, email: '', avatar: userProfileStore.avatarSrc, emoji: userProfileStore.isEmojiAvatar ? userProfileStore.profile.avatar : undefined }"
+          :collapsed="collapsed"
+          @open-settings="emit('openSettings')"
+        />
+      </div>
     </SidebarContent>
     <SidebarRail />
   </div>

@@ -565,8 +565,6 @@ export const useTabStore = defineStore('tab', () => {
     }
     return false
   }
-    await updateTab(tabId, { pinned })
-  }
 
   /** 注册主进程 → 渲染进程事件监听 */
   function setupListeners() {

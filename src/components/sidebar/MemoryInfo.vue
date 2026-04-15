@@ -1,30 +1,50 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { HardDrive } from 'lucide-vue-next'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useTabStore } from '@/stores/tab'
 
 const tabStore = useTabStore()
 
-const appMemoryMB = ref(0)
-const totalMemoryGB = ref(0)
-const usedPercent = ref(0)
+const appMemoryKB = ref(0)
+const totalMemoryKB = ref(0)
+const freeMemoryKB = ref(0)
 
 const api = window.api
+
+// 应用占用百分比
+const appPercent = computed(() =>
+  totalMemoryKB.value ? (appMemoryKB.value / totalMemoryKB.value) * 100 : 0
+)
+
+// 系统其他进程占用百分比
+const otherPercent = computed(() => {
+  const systemUsed = totalMemoryKB.value - freeMemoryKB.value
+  const otherUsed = Math.max(0, systemUsed - appMemoryKB.value)
+  return totalMemoryKB.value ? (otherUsed / totalMemoryKB.value) * 100 : 0
+})
+
+// 空闲百分比
+const freePercent = computed(() =>
+  totalMemoryKB.value ? (freeMemoryKB.value / totalMemoryKB.value) * 100 : 0
+)
+
+function formatMB(kb: number): string {
+  return (kb / 1024).toFixed(0)
+}
+
+function formatGB(kb: number): string {
+  return (kb / 1024 / 1024).toFixed(1)
+}
 
 let timer: ReturnType<typeof setInterval> | null = null
 
 async function refreshMemory() {
   try {
     const info = await api.system.memory()
-    const appMB = Math.round(info.appMemoryKB / 1024)
-    const totalGB = +(info.totalMemoryKB / 1024 / 1024).toFixed(1)
-    const used = ((info.totalMemoryKB - info.freeMemoryKB) / info.totalMemoryKB) * 100
-
-    appMemoryMB.value = appMB
-    totalMemoryGB.value = totalGB
-    usedPercent.value = Math.round(used)
+    appMemoryKB.value = info.appMemoryKB
+    totalMemoryKB.value = info.totalMemoryKB
+    freeMemoryKB.value = info.freeMemoryKB
   } catch {
-    // 主进程未就绪或不可用
+    // 主进程未就绪
   }
 }
 
@@ -42,21 +62,29 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex items-center gap-2 px-3 py-2 text-xs text-sidebar-foreground/50">
-    <HardDrive class="h-3.5 w-3.5 shrink-0" />
-    <div class="flex flex-1 items-center justify-between gap-2">
+  <div class="px-3 pt-2 pb-1 text-xs text-sidebar-foreground/60 space-y-1.5">
+    <!-- 标签数量 + 应用内存 -->
+    <div class="flex items-center justify-between">
       <span>{{ tabStore.tabs.length }} 个标签</span>
-      <span>{{ appMemoryMB }} MB</span>
+      <span>{{ formatMB(appMemoryKB) }} MB / {{ formatGB(totalMemoryKB) }} GB</span>
     </div>
+
+    <!-- 三色进度条 -->
     <div
-      class="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-sidebar-foreground/10"
-      :title="`系统内存已使用 ${usedPercent}%（共 ${totalMemoryGB} GB）`"
+      class="flex h-2 w-full overflow-hidden rounded-full bg-sidebar-foreground/5"
+      :title="`应用: ${formatMB(appMemoryKB)} MB (${appPercent.toFixed(1)}%) · 系统: ${formatMB(totalMemoryKB - freeMemoryKB - appMemoryKB)} MB (${otherPercent.toFixed(1)}%) · 空闲: ${formatMB(freeMemoryKB)} MB (${freePercent.toFixed(1)}%)`"
     >
+      <!-- 应用占用 -->
       <div
-        class="h-full rounded-full transition-all duration-500"
-        :class="usedPercent > 80 ? 'bg-red-500' : usedPercent > 60 ? 'bg-yellow-500' : 'bg-green-500'"
-        :style="{ width: `${usedPercent}%` }"
+        class="h-full bg-blue-500 transition-all duration-700"
+        :style="{ width: `${appPercent}%` }"
       />
+      <!-- 系统其他占用 -->
+      <div
+        class="h-full bg-amber-400 transition-all duration-700"
+        :style="{ width: `${otherPercent}%` }"
+      />
+      <!-- 空闲区域保持背景色 -->
     </div>
   </div>
 </template>
