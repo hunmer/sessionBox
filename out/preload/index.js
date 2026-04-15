@@ -197,7 +197,9 @@ const api = {
     getDefaultContainerId: () => electron.ipcRenderer.invoke("settings:getDefaultContainerId"),
     setDefaultContainerId: (id) => electron.ipcRenderer.invoke("settings:setDefaultContainerId", id),
     getAskContainerOnOpen: () => electron.ipcRenderer.invoke("settings:getAskContainerOnOpen"),
-    setAskContainerOnOpen: (enabled) => electron.ipcRenderer.invoke("settings:setAskContainerOnOpen", enabled)
+    setAskContainerOnOpen: (enabled) => electron.ipcRenderer.invoke("settings:setAskContainerOnOpen", enabled),
+    getDefaultWorkspaceId: () => electron.ipcRenderer.invoke("settings:getDefaultWorkspaceId"),
+    setDefaultWorkspaceId: (id) => electron.ipcRenderer.invoke("settings:setDefaultWorkspaceId", id)
   },
   mutedSites: {
     list: () => electron.ipcRenderer.invoke("mutedSites:list"),

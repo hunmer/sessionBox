@@ -820,7 +820,9 @@ export const useTabStore = defineStore('tab', () => {
     const pageStore = usePageStore()
     const containerStore = useContainerStore()
     const workspaceStore = useWorkspaceStore()
-    const targetWorkspaceId = workspaceId || workspaceStore.activeWorkspaceId
+    const targetWorkspaceId = workspaceId === '__active__' || !workspaceId
+      ? workspaceStore.activeWorkspaceId
+      : workspaceId
 
     // 优先在目标工作区中查找该容器下的已有 page
     const existingPage = pageStore.pages.find((p) => {

@@ -10,7 +10,7 @@ export const useContainerStore = defineStore('container', () => {
   const groups = ref<Group[]>([])
   const containers = ref<Container[]>([])
   const defaultContainerId = ref('default')
-  const defaultWorkspaceId = ref('__default__')
+  const defaultWorkspaceId = ref('__active__')
   const askContainerOnOpen = ref(false)
 
   // ====== 计算属性 ======

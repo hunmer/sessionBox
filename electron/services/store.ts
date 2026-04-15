@@ -959,7 +959,7 @@ export function setAskContainerOnOpen(enabled: boolean): void {
 }
 
 export function getDefaultWorkspaceId(): string {
-  return store.get('defaultWorkspaceId', '__default__')
+  return store.get('defaultWorkspaceId', '__active__')
 }
 
 export function setDefaultWorkspaceId(id: string): void {

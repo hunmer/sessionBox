@@ -17,7 +17,7 @@ const tabStore = useTabStore()
 const containerStore = useContainerStore()
 const workspaceStore = useWorkspaceStore()
 
-const selectedWorkspaceId = ref(containerStore.defaultWorkspaceId)
+const selectedWorkspaceId = ref('__active__')
 
 const open = computed({
   get: () => tabStore.pendingExternalUrl !== null,
@@ -63,7 +63,7 @@ async function useDefault() {
             <SelectValue placeholder="选择工作区" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__default__">默认工作区</SelectItem>
+            <SelectItem value="__active__">当前激活工作区</SelectItem>
             <SelectItem v-for="w in workspaceStore.sortedWorkspaces" :key="w.id" :value="w.id">
               {{ w.title }}
             </SelectItem>
