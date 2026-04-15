@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const api = window.api
 
@@ -7,12 +7,16 @@ export const useMcpStore = defineStore('mcp', () => {
   const enabled = ref(false)
   const running = ref(false)
   const toolCount = ref(0)
+  const port = ref(9527)
+
+  const sseUrl = computed(() => `http://localhost:${port.value}/mcp`)
 
   async function refreshStatus() {
     const status = await api.mcp.getStatus()
     enabled.value = status.enabled
     running.value = status.running
     toolCount.value = status.toolCount
+    port.value = status.port
   }
 
   async function startServer() {
@@ -37,6 +41,8 @@ export const useMcpStore = defineStore('mcp', () => {
     enabled,
     running,
     toolCount,
+    port,
+    sseUrl,
     refreshStatus,
     startServer,
     stopServer,

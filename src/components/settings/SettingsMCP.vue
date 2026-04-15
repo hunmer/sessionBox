@@ -31,8 +31,7 @@ function copyConfig() {
   const config = JSON.stringify({
     mcpServers: {
       sessionbox: {
-        command: 'npx',
-        args: ['--yes', '@anthropic-ai/sessionbox-mcp']
+        url: mcpStore.sseUrl
       }
     }
   }, null, 2)
@@ -64,7 +63,7 @@ function copyConfig() {
         </span>
       </div>
       <div v-if="mcpStore.running" class="text-muted-foreground">
-        已注册工具：{{ mcpStore.toolCount }} 个
+        已注册工具：{{ mcpStore.toolCount }} 个 | 端口：{{ mcpStore.port }}
       </div>
     </div>
 
@@ -77,8 +76,7 @@ function copyConfig() {
         <pre class="bg-muted rounded-lg p-4 text-xs overflow-x-auto"><code>{
   "mcpServers": {
     "sessionbox": {
-      "command": "npx",
-      "args": ["--yes", "@anthropic-ai/sessionbox-mcp"]
+      "url": "{{ mcpStore.sseUrl }}"
     }
   }
 }</code></pre>

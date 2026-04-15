@@ -15,4 +15,5 @@ export interface McpStatus {
   enabled: boolean
   running: boolean
   toolCount: number
+  port: number
 }
