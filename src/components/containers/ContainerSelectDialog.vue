@@ -50,7 +50,7 @@ async function useDefault() {
     <DialogContent class="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>选择容器打开链接</DialogTitle>
-        <DialogDescription class="truncate" :title="pendingUrl ?? ''">
+        <DialogDescription class="max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground" :title="pendingUrl ?? ''">
           {{ pendingUrl }}
         </DialogDescription>
       </DialogHeader>
@@ -101,7 +101,7 @@ async function useDefault() {
       <div class="flex justify-end gap-2 pt-2 border-t">
         <Button variant="ghost" size="sm" @click="open = false">取消</Button>
         <Button variant="secondary" size="sm" @click="useDefault">
-          使用默认容器打开
+          确定
         </Button>
       </div>
     </DialogContent>
