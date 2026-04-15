@@ -4,12 +4,13 @@ import { setupUserAgent } from './utils/user-agent'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
-import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes, getMinimizeOnClose } from './services/store'
+import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
 import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
 import { trayManager } from './services/tray'
 import { trayWindowManager } from './services/tray-window'
 import { pluginManager } from './services/plugin-manager'
+import { mcpServerService } from './services/mcp/server'
 import { ensureWindowsBrowserRegistration } from './services/default-browser'
 import { ensureIconDir, getCachedIconPath, fetchAndCacheFavicon, getSiteIconsDir } from './services/favicon-cache'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
@@ -126,6 +127,9 @@ if (!gotTheLock) {
 
   app.on('before-quit', () => {
     isQuitting = true
+    mcpServerService.stop().catch((error) => {
+      console.error('[Main] Failed to stop MCP server:', error)
+    })
     pluginManager.shutdown()
     trayWindowManager.destroyAll()
   })
@@ -341,6 +345,13 @@ if (!gotTheLock) {
 
     // 注册全局快捷键
     registerGlobalShortcuts()
+
+    // 启动 MCP Server（如果已启用）
+    if (getMcpEnabled()) {
+      mcpServerService.start().catch((error) => {
+        console.error('[Main] Failed to start MCP server:', error)
+      })
+    }
 
     // 启动 3 秒后自动检查更新
     setTimeout(() => {
