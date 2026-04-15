@@ -554,6 +554,14 @@ const api = {
       ipcRenderer.invoke('system:memory')
   },
 
+  // MCP Server
+  mcp: {
+    start: (): Promise<void> => ipcRenderer.invoke('mcp:start'),
+    stop: (): Promise<void> => ipcRenderer.invoke('mcp:stop'),
+    getStatus: (): Promise<{ enabled: boolean; running: boolean; toolCount: number }> =>
+      ipcRenderer.invoke('mcp:get-status')
+  },
+
   // 主进程 → 渲染进程事件监听
   on: (event: string, callback: (...args: unknown[]) => void): (() => void) => {
     const channel = `on:${event}`
