@@ -331,6 +331,12 @@ const api = {
   system: {
     memory: () => electron.ipcRenderer.invoke("system:memory")
   },
+  // MCP Server
+  mcp: {
+    start: () => electron.ipcRenderer.invoke("mcp:start"),
+    stop: () => electron.ipcRenderer.invoke("mcp:stop"),
+    getStatus: () => electron.ipcRenderer.invoke("mcp:get-status")
+  },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
     const channel = `on:${event}`;
