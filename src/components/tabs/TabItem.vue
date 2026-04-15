@@ -14,6 +14,7 @@ import { useSplitStore } from '@/stores/split'
 import { usePageStore } from '@/stores/page'
 import { useContainerStore } from '@/stores/container'
 import { getDomain } from '@/lib/utils'
+import { extractNavigableDropUrl, hasSupportedExternalDrop } from '@/lib/external-drop'
 
 const props = defineProps<{
   tab: Tab
@@ -133,6 +134,7 @@ const screenshotUrl = ref<string | null>(null)
 const screenshotLoading = ref(false)
 let hoverTimer: ReturnType<typeof setTimeout> | null = null
 let closeTimer: ReturnType<typeof setTimeout> | null = null
+let dropActivateTimer: ReturnType<typeof setTimeout> | null = null
 
 // 模块级截图缓存，所有 TabItem 实例共享
 const screenshotCache = new Map<string, { url: string | null; timestamp: number }>()
@@ -145,6 +147,7 @@ const canPreview = computed(
 function clearTimers() {
   if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null }
   if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
+  if (dropActivateTimer) { clearTimeout(dropActivateTimer); dropActivateTimer = null }
 }
 
 function handleTriggerEnter() {
@@ -187,6 +190,51 @@ async function capturePreview() {
   }
 }
 
+const isDropTarget = ref(false)
+
+function handleDropDragOver(event: DragEvent) {
+  if (!hasSupportedExternalDrop(event)) return
+
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+
+  isDropTarget.value = true
+  if (dropActivateTimer || isActive.value) return
+
+  dropActivateTimer = setTimeout(() => {
+    dropActivateTimer = null
+    void tabStore.switchTab(props.tab.id)
+  }, 200)
+}
+
+function handleDropDragLeave(event: DragEvent) {
+  const currentTarget = event.currentTarget as HTMLElement | null
+  const relatedTarget = event.relatedTarget as Node | null
+  if (currentTarget?.contains(relatedTarget)) return
+
+  isDropTarget.value = false
+  if (dropActivateTimer) {
+    clearTimeout(dropActivateTimer)
+    dropActivateTimer = null
+  }
+}
+
+async function handleExternalDrop(event: DragEvent) {
+  const url = extractNavigableDropUrl(event)
+  isDropTarget.value = false
+  if (dropActivateTimer) {
+    clearTimeout(dropActivateTimer)
+    dropActivateTimer = null
+  }
+  if (!url) return
+
+  event.preventDefault()
+  await tabStore.switchTab(props.tab.id)
+  await tabStore.navigate(props.tab.id, url)
+}
+
 onBeforeUnmount(clearTimers)
 </script>
 
@@ -199,6 +247,9 @@ onBeforeUnmount(clearTimers)
             class="group flex items-center gap-2 h-[30px] px-3 cursor-pointer transition-all select-none border rounded-xl"
             :class="[
               vertical ? 'w-full' : '',
+              isDropTarget
+                ? 'bg-accent/60 text-accent-foreground border-accent'
+                : '',
               isActive && groupColor
                 ? 'shadow-sm font-medium'
                 : isActive
@@ -209,6 +260,9 @@ onBeforeUnmount(clearTimers)
             @click="tabStore.switchTab(tab.id)"
             @mouseenter="handleTriggerEnter"
             @mouseleave="handleTriggerLeave"
+            @dragover.stop="handleDropDragOver"
+            @dragleave.stop="handleDropDragLeave"
+            @drop.stop="handleExternalDrop"
           >
             <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin" :class="isActive && groupColor ? '' : 'text-primary/50'" :style="isActive && groupColor ? { color: groupColor + '80' } : {}" />
             <Snowflake v-else-if="isFrozen" class="w-3.5 h-3.5 flex-shrink-0 text-blue-400" />

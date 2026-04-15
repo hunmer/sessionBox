@@ -11,6 +11,7 @@ import { trayManager } from './services/tray'
 import { trayWindowManager } from './services/tray-window'
 import { pluginManager } from './services/plugin-manager'
 import { ensureWindowsBrowserRegistration } from './services/default-browser'
+import { ensureIconDir, getCachedIconPath, fetchAndCacheFavicon, getSiteIconsDir } from './services/favicon-cache'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 
 // 节流函数
@@ -51,6 +52,10 @@ protocol.registerSchemesAsPrivileged([
   },
   {
     scheme: 'extension-icon',
+    privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
+  },
+  {
+    scheme: 'site-icon',
     privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
   }
 ])
@@ -299,6 +304,25 @@ if (!gotTheLock) {
       const extension = listExtensions().find((e) => e.id === extensionId)
       if (!extension?.icon) return new Response('Not found', { status: 404 })
       return net.fetch(`file://${extension.icon.replace(/\\/g, '/')}`)
+    })
+
+    // 注册 site-icon:// 协议，从本地缓存提供网站图标，缓存未命中时自动下载
+    ensureIconDir()
+    protocol.handle('site-icon', async (request) => {
+      // 剥离查询参数（?v=xxx 用于浏览器缓存失效）
+      const raw = decodeURIComponent(request.url.replace('site-icon://', '')).replace(/\/+$/, '')
+      const domain = raw.split('?')[0]
+      if (!domain) return new Response('Bad request', { status: 400 })
+
+      // 优先从本地缓存查找
+      const cachedPath = getCachedIconPath(domain)
+      if (cachedPath) {
+        return net.fetch(`file://${cachedPath.replace(/\\/g, '/')}`)
+      }
+
+      // 缓存未命中，按策略下载并缓存（始终返回有效路径）
+      const filePath = await fetchAndCacheFavicon(domain)
+      return net.fetch(`file://${filePath.replace(/\\/g, '/')}`)
     })
 
     // 注册已知第三方协议的空处理器，防止网站唤起外部应用时系统弹出"打开方式"对话框

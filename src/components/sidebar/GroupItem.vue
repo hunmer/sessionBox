@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { reactive, computed, ref, onBeforeUnmount } from 'vue'
 import { ChevronRight, MoreHorizontal, X } from "lucide-vue-next"
 import draggable from 'vuedraggable'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
+import { extractNavigableDropUrl, hasSupportedExternalDrop } from '@/lib/external-drop'
 import {
   Popover,
   PopoverContent,
@@ -115,6 +116,83 @@ function handlePageClick(pageId: string) {
   emit('selectPage', pageId)
 }
 
+const activeDropPageId = ref<string | null>(null)
+let hoverActivateTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearHoverActivateTimer() {
+  if (!hoverActivateTimer) return
+  clearTimeout(hoverActivateTimer)
+  hoverActivateTimer = null
+}
+
+function getPageTabsById(pageId: string): Tab[] {
+  return tabStore.sortedTabs.filter(tab => tab.pageId === pageId)
+}
+
+function getFirstPageTab(pageId: string): Tab | null {
+  return getPageTabsById(pageId)[0] ?? null
+}
+
+async function activatePageFirstTab(pageId: string) {
+  const firstTab = getFirstPageTab(pageId)
+  if (!firstTab) return
+  await tabStore.switchTab(firstTab.id)
+}
+
+function handlePageDragOver(event: DragEvent, pageId: string) {
+  if (!hasSupportedExternalDrop(event)) return
+
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+
+  if (activeDropPageId.value !== pageId) {
+    clearHoverActivateTimer()
+  }
+  activeDropPageId.value = pageId
+  if (hoverActivateTimer || tabStore.activeTabId === getFirstPageTab(pageId)?.id) return
+
+  hoverActivateTimer = setTimeout(() => {
+    hoverActivateTimer = null
+    void activatePageFirstTab(pageId)
+  }, 200)
+}
+
+function handlePageDragLeave(event: DragEvent, pageId: string) {
+  const currentTarget = event.currentTarget as HTMLElement | null
+  const relatedTarget = event.relatedTarget as Node | null
+  if (currentTarget?.contains(relatedTarget)) return
+
+  if (activeDropPageId.value === pageId) {
+    activeDropPageId.value = null
+  }
+  clearHoverActivateTimer()
+}
+
+async function handlePageDrop(event: DragEvent, pageId: string) {
+  const url = extractNavigableDropUrl(event)
+  activeDropPageId.value = null
+  clearHoverActivateTimer()
+  if (!url) return
+
+  event.preventDefault()
+
+  const firstTab = getFirstPageTab(pageId)
+  if (firstTab) {
+    await tabStore.switchTab(firstTab.id)
+    await tabStore.navigate(firstTab.id, url)
+    return
+  }
+
+  const createdTab = await tabStore.createTab(pageId)
+  await tabStore.navigate(createdTab.id, url)
+}
+
+onBeforeUnmount(() => {
+  clearHoverActivateTimer()
+})
+
 // 分组拖拽排序
 function onGroupReorder(reordered: Workspace[]) {
   containerStore.reorderGroups(reordered.map(w => w.group.id))
@@ -209,8 +287,12 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                     <SidebarMenuSubButton as-child class="flex-1">
                       <a
                         href="#"
-                        class="flex items-center gap-2 w-full text-left"
+                        class="flex items-center gap-2 w-full text-left rounded-md transition-colors"
+                        :class="activeDropPageId === pageItem.id ? 'bg-accent/60 text-accent-foreground' : ''"
                         @click.prevent="handlePageClick(pageItem.id)"
+                        @dragover.stop="handlePageDragOver($event, pageItem.id)"
+                        @dragleave.stop="handlePageDragLeave($event, pageItem.id)"
+                        @drop.stop="handlePageDrop($event, pageItem.id)"
                       >
                         <EmojiRenderer :emoji="pageItem.emoji" :url="pageItem.url" />
                         <span>{{ pageItem.name }}</span>

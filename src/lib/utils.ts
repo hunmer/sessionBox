@@ -14,8 +14,9 @@ export function getDomain(url: string): string {
   }
 }
 
-/** 根据 URL 获取网站 favicon 图标地址 */
-export function getFaviconUrl(url: string): string {
+/** 根据 URL 获取网站 favicon 图标地址（使用本地缓存协议） */
+export function getFaviconUrl(url: string, version?: number): string {
   const domain = getDomain(url)
-  return `https://icon.horse/icon/${domain}`
+  const base = `site-icon://${domain}`
+  return version ? `${base}?v=${version}` : base
 }

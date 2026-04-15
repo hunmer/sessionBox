@@ -36,6 +36,8 @@ export const useTabStore = defineStore('tab', () => {
   const tabGroupFilterId = ref<string | null>(null)
   const navStates = ref<Map<string, NavState>>(new Map())
   const favicons = ref<Map<string, string>>(new Map())
+  /** favicon 缓存版本号（domain → 版本），用于强制刷新 <img> */
+  const faviconVersions = ref<Map<string, number>>(new Map())
   const frozenTabIds = ref<Set<string>>(new Set())
   const proxyInfos = ref<Map<string, TabProxyInfo>>(new Map())
   const mutedSites = ref<string[]>([])
@@ -707,7 +709,14 @@ export const useTabStore = defineStore('tab', () => {
     })
 
     api.on('tab:favicon-updated', (tabId: unknown, url: unknown) => {
-      favicons.value.set(tabId as string, url as string)
+      const faviconUrl = url as string
+      favicons.value.set(tabId as string, faviconUrl)
+      // 从 site-icon:// URL 中提取 domain，更新版本号强制其他组件刷新
+      if (faviconUrl.startsWith('site-icon://')) {
+        const domain = faviconUrl.replace('site-icon://', '').split('?')[0]
+        const cur = faviconVersions.value.get(domain) || 0
+        faviconVersions.value.set(domain, cur + 1)
+      }
     })
 
     // 新窗口打开 → 在新 tab 中加载
@@ -859,6 +868,7 @@ export const useTabStore = defineStore('tab', () => {
     tabGroupFilterId,
     navStates,
     favicons,
+    faviconVersions,
     frozenTabIds,
     sortedTabs,
     workspaceTabs,

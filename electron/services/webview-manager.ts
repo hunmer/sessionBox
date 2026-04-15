@@ -6,6 +6,7 @@ import { getUserAgent } from '../utils/user-agent'
 import { addDownload, checkConnection } from './aria2'
 import { handleBeforeInputEvent } from './shortcut-manager'
 import { broadcastToRenderer, pluginEventBus } from './plugin-event-bus'
+import { cacheFaviconFromUrl } from './favicon-cache'
 
 export const BLOCKED_SCHEMES = [
   'bitbrowser',
@@ -476,9 +477,24 @@ class WebviewManager {
       const currentEntry = this.views.get(tabId)
     })
 
-    wc.on('page-favicon-updated', (_event, favicons) => {
+    wc.on('page-favicon-updated', async (_event, favicons) => {
       if (favicons.length > 0 && canSend()) {
-        win.webContents.send('on:tab:favicon-updated', tabId, favicons[0])
+        const faviconUrl = favicons[0]
+        // 从当前页面 URL 提取域名
+        const pageUrl = wc.getURL()
+        let domain = ''
+        try { domain = new URL(pageUrl).hostname } catch { /* 忽略无效 URL */ }
+
+        if (domain) {
+          // 异步缓存到本地，成功后通知渲染进程使用 site-icon:// 协议
+          const saved = await cacheFaviconFromUrl(faviconUrl, domain)
+          if (saved) {
+            win.webContents.send('on:tab:favicon-updated', tabId, `site-icon://${domain}`)
+            return
+          }
+        }
+        // 缓存失败，仍发送原始远程 URL
+        win.webContents.send('on:tab:favicon-updated', tabId, faviconUrl)
       }
     })
 

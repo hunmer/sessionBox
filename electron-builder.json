@@ -102,6 +102,10 @@
       "to": "trayIconTemplate@2x.png"
     },
     {
+      "from": "resources/unknow.ico",
+      "to": "unknow.ico"
+    },
+    {
       "from": "win_packages",
       "to": "win_packages",
       "filter": [

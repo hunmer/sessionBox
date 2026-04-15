@@ -1,18 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { resolveLucideIcon } from '@/lib/lucide-resolver'
-import { getFaviconUrl } from '@/lib/utils'
+import { getFaviconUrl, getDomain } from '@/lib/utils'
+import { useTabStore } from '@/stores/tab'
 
 const props = defineProps<{
   emoji?: string
   url?: string
 }>()
 
+const tabStore = useTabStore()
+
 const hasEmoji = computed(() => !!props.emoji?.trim())
 const isImage = computed(() => props.emoji?.startsWith('img:'))
 const isLucide = computed(() => props.emoji?.startsWith('lucide:'))
 const imgSrc = computed(() => isImage.value ? `account-icon://${props.emoji!.slice(4)}` : '')
-const faviconSrc = computed(() => (!hasEmoji.value && props.url) ? getFaviconUrl(props.url) : '')
+const faviconSrc = computed(() => {
+  if (hasEmoji.value || !props.url) return ''
+  const domain = getDomain(props.url)
+  const version = tabStore.faviconVersions.get(domain)
+  return getFaviconUrl(props.url, version)
+})
 
 const lucideComponent = computed(() => {
   if (!isLucide.value) return null
