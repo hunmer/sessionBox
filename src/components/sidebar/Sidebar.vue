@@ -193,7 +193,7 @@ const workspaceSwitcherItems = computed(() => {
           class="p-1"
           :user="{ name: userProfileStore.profile.name, email: '', avatar: userProfileStore.avatarSrc, emoji: userProfileStore.isEmojiAvatar ? userProfileStore.profile.avatar : undefined }"
           :collapsed="collapsed"
-          @open-settings="emit('openSettings')"
+          @open-settings="emit('openSettings', $event)"
         />
       </div>
     </SidebarContent>

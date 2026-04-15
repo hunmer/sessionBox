@@ -17,6 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { Badge } from '@/components/ui/badge'
 
 import WorkspaceDialog from './sidebar/WorkspaceDialog.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
@@ -118,11 +119,14 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
             >
               <component :is="workspace.logo" class="size-4 shrink-0 text-white" />
             </div>
-            <span class="truncate">{{ workspace.name }}</span>
-            <span v-if="tabCountByWorkspace.get(workspace.id)" class="ml-auto text-xs text-muted-foreground tabular-nums">
+            <span class="truncate flex-1">{{ workspace.name }}</span>
+            <Badge
+              v-if="tabCountByWorkspace.get(workspace.id)"
+              class="ml-auto h-5 min-w-5 rounded-full px-1.5 text-[10px] tabular-nums"
+              :style="{ backgroundColor: workspace.color || '#6b7280', borderColor: workspace.color || '#6b7280', color: '#fff' }"
+            >
               {{ tabCountByWorkspace.get(workspace.id) }}
-            </span>
-            <DropdownMenuShortcut>⌘{{ index + 1 }}</DropdownMenuShortcut>
+            </Badge>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem class="gap-2 p-2" @click="handleAddWorkspace">
