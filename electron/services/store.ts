@@ -951,6 +951,16 @@ export function setMinimizeOnClose(enabled: boolean): void {
   store.set('minimizeOnClose', enabled)
 }
 
+// ====== MCP 设置 ======
+
+export function getMcpEnabled(): boolean {
+  return store.get('mcpEnabled', false)
+}
+
+export function setMcpEnabled(enabled: boolean): void {
+  store.set('mcpEnabled', enabled)
+}
+
 export function getAskContainerOnOpen(): boolean {
   return store.get('askContainerOnOpen', false)
 }
