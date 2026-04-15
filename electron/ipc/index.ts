@@ -59,7 +59,8 @@ import {
   listPasswordsBySite,
   createPassword,
   updatePassword,
-  deletePassword
+  deletePassword,
+  clearAllPasswords
 } from '../services/store'
 import {
   listSearchEngines,
@@ -468,6 +469,7 @@ $img.Dispose()`
     updatePassword(id, data)
   )
   ipcMain.handle('password:delete', (_e, id: string) => deletePassword(id))
+  ipcMain.handle('password:clearAll', () => clearAllPasswords())
 
   ipcMain.handle('password:importOpenFile', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)

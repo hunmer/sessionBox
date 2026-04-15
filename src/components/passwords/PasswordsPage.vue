@@ -29,6 +29,17 @@ import {
   DialogTitle,
   DialogFooter
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog'
 import { usePasswordStore } from '@/stores/password'
 import { useTabStore } from '@/stores/tab'
 import { useNotification } from '@/composables/useNotification'
@@ -208,6 +219,13 @@ async function handleImport() {
     notify.success(`成功导入 ${count} 条密码`)
   }
 }
+
+async function handleClearAll() {
+  if (passwordStore.entries.length === 0) return
+  await passwordStore.clearAll()
+  selectedSite.value = ''
+  notify.success('已清空所有密码')
+}
 </script>
 
 <template>
@@ -229,14 +247,36 @@ async function handleImport() {
         <Plus class="w-3.5 h-3.5" />
         添加备注
       </Button>
+      <AlertDialog v-if="passwordStore.entries.length > 0">
+        <AlertDialogTrigger as-child>
+          <Button variant="ghost" size="sm" class="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive">
+            <Trash2 class="w-3.5 h-3.5" />
+            清空
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认清空所有密码？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将删除所有已保存的 {{ passwordStore.entries.length }} 条密码，且无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction class="bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="handleClearAll">
+              确认清空
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
 
     <!-- 左右分栏 -->
     <ResizablePanelGroup direction="horizontal" class="flex-1 min-h-0">
       <!-- 左侧站点列表 -->
       <ResizablePanel :default-size="25" :min-size="15" :max-size="40">
-        <div class="h-full flex flex-col">
-          <div class="px-3 py-2 border-b border-border">
+        <div class="h-full flex flex-col min-h-0">
+          <div class="px-3 py-2 border-b border-border flex-shrink-0">
             <div class="relative">
               <Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
@@ -246,7 +286,7 @@ async function handleImport() {
               />
             </div>
           </div>
-          <ScrollArea class="flex-1">
+          <ScrollArea class="flex-1 min-h-0">
             <div v-if="sites.length === 0" class="flex items-center justify-center py-8">
               <p class="text-xs text-muted-foreground">暂无保存的站点</p>
             </div>
@@ -276,18 +316,18 @@ async function handleImport() {
 
       <!-- 右侧条目列表 -->
       <ResizablePanel>
-        <div class="h-full flex flex-col">
+        <div class="h-full flex flex-col min-h-0">
           <div v-if="!selectedSite" class="flex items-center justify-center flex-1">
             <p class="text-xs text-muted-foreground">选择左侧站点查看备注</p>
           </div>
 
           <template v-else>
-            <div class="flex items-center gap-2 px-4 py-2 border-b border-border">
+            <div class="flex items-center gap-2 px-4 py-2 border-b border-border flex-shrink-0">
               <span class="text-sm font-medium">{{ hostname(selectedSite) }}</span>
               <span class="text-xs text-muted-foreground">{{ siteEntries.length }} 条备注</span>
             </div>
 
-            <ScrollArea class="flex-1">
+            <ScrollArea class="flex-1 min-h-0">
               <div v-if="siteEntries.length === 0" class="flex flex-col items-center justify-center py-16 gap-3">
                 <KeyRound class="h-12 w-12 text-muted-foreground/30" />
                 <p class="text-sm text-muted-foreground">暂无备注信息</p>

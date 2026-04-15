@@ -201,7 +201,10 @@ const api = {
     listBySite: (siteOrigin) => electron.ipcRenderer.invoke("password:listBySite", siteOrigin),
     create: (data) => electron.ipcRenderer.invoke("password:create", data),
     update: (id, data) => electron.ipcRenderer.invoke("password:update", id, data),
-    delete: (id) => electron.ipcRenderer.invoke("password:delete", id)
+    delete: (id) => electron.ipcRenderer.invoke("password:delete", id),
+    clearAll: () => electron.ipcRenderer.invoke("password:clearAll"),
+    importOpenFile: () => electron.ipcRenderer.invoke("password:importOpenFile"),
+    exportSaveFile: (csv) => electron.ipcRenderer.invoke("password:exportSaveFile", csv)
   },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   searchEngine: {

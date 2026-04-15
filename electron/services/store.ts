@@ -1129,6 +1129,10 @@ export function deletePassword(id: string): void {
   setCollection('passwords', passwords)
 }
 
+export function clearAllPasswords(): void {
+  setCollection('passwords', [])
+}
+
 // ====== 搜索引擎操作 ======
 
 export function listSearchEngines(): SearchEngine[] {

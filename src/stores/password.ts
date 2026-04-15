@@ -206,6 +206,19 @@ export const usePasswordStore = defineStore('password', () => {
       const trimmedUrl = url.trim()
       if (!trimmedUrl) continue
 
+      // 提取 hostname 用于分组（去掉协议、端口、路径）
+      const siteOrigin = (() => {
+        try {
+          return new URL(trimmedUrl).hostname
+        } catch {
+          try {
+            return new URL('http://' + trimmedUrl).hostname
+          } catch {
+            return trimmedUrl
+          }
+        }
+      })()
+
       // 构建字段列表
       const fields: PasswordField[] = []
 
@@ -258,17 +271,16 @@ export const usePasswordStore = defineStore('password', () => {
         }
       }
 
-      // URL 去重检查
       const siteName = (() => {
-        try { return new URL(trimmedUrl).hostname } catch { return trimmedUrl }
+        try { return new URL(siteOrigin).hostname } catch { return siteOrigin }
       })()
 
       await createEntry({
-        siteOrigin: trimmedUrl,
+        siteOrigin,
         siteName,
         name: name.trim() || siteName,
         fields,
-        order: entries.value.filter((e) => e.siteOrigin === trimmedUrl).length + imported,
+        order: entries.value.filter((e) => e.siteOrigin === siteOrigin).length + imported,
         createdAt: Date.now(),
         updatedAt: Date.now()
       })
@@ -276,6 +288,12 @@ export const usePasswordStore = defineStore('password', () => {
     }
 
     return imported
+  }
+
+  /** 清空所有密码 */
+  async function clearAll() {
+    await api.password.clearAll()
+    entries.value = []
   }
 
   /** 打开文件对话框并导入 */
@@ -301,6 +319,7 @@ export const usePasswordStore = defineStore('password', () => {
     getEntryById,
     exportPasswords,
     importFromFile,
+    clearAll,
     init
   }
 })

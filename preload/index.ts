@@ -382,6 +382,8 @@ const api = {
       ipcRenderer.invoke('password:update', id, data),
     delete: (id: string): Promise<void> =>
       ipcRenderer.invoke('password:delete', id),
+    clearAll: (): Promise<void> =>
+      ipcRenderer.invoke('password:clearAll'),
     importOpenFile: (): Promise<{ csv: string } | null> =>
       ipcRenderer.invoke('password:importOpenFile'),
     exportSaveFile: (csv: string): Promise<{ success: boolean }> =>
