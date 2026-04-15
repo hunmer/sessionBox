@@ -190,6 +190,17 @@ export interface DefaultBrowserResult {
   openedSystemSettings: boolean
 }
 
+// Chat 补全参数
+export interface ChatCompletionParams {
+  providerId: string
+  modelId: string
+  messages: Array<{ role: string; content: string | Array<Record<string, unknown>> }>
+  tools?: Array<Record<string, unknown>>
+  stream: boolean
+  maxTokens?: number
+  thinking?: { type: 'enabled'; budgetTokens: number }
+}
+
 // IPC API 定义
 const api = {
   workspace: {
@@ -483,6 +494,32 @@ const api = {
     startDrag: (filePath: string): void => ipcRenderer.send('download:startDrag', filePath),
     openFile: (filePath: string): Promise<void> => ipcRenderer.invoke('download:openFile', filePath),
     pickDirectory: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('download:pickDirectory', defaultPath)
+  },
+
+  chat: {
+    completions: (params: ChatCompletionParams & { _requestId: string }): Promise<{ started: boolean }> =>
+      ipcRenderer.invoke('chat:completions', params),
+  },
+
+  aiProvider: {
+    list: (): Promise<any[]> => ipcRenderer.invoke('ai-provider:list'),
+    create: (data: any): Promise<any> => ipcRenderer.invoke('ai-provider:create', data),
+    update: (data: { id: string; [key: string]: any }): Promise<any> =>
+      ipcRenderer.invoke('ai-provider:update', data),
+    delete: (id: string): Promise<boolean> => ipcRenderer.invoke('ai-provider:delete', id),
+    test: (id: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('ai-provider:test', id),
+  },
+
+  browser: {
+    click: (args: any): Promise<any> => ipcRenderer.invoke('browser:click', args),
+    type: (args: any): Promise<any> => ipcRenderer.invoke('browser:type', args),
+    scroll: (args: any): Promise<any> => ipcRenderer.invoke('browser:scroll', args),
+    select: (args: any): Promise<any> => ipcRenderer.invoke('browser:select', args),
+    hover: (args: any): Promise<any> => ipcRenderer.invoke('browser:hover', args),
+    getContent: (args: any): Promise<any> => ipcRenderer.invoke('browser:get-content', args),
+    getDom: (args: any): Promise<any> => ipcRenderer.invoke('browser:get-dom', args),
+    screenshot: (args: any): Promise<any> => ipcRenderer.invoke('browser:screenshot', args),
   },
 
   plugin: {
