@@ -31,6 +31,9 @@ import { useWorkspaceStore } from '@/stores/workspace'
 import { useHomepageStore } from '@/stores/homepage'
 import { usePasswordStore } from '@/stores/password'
 import { useMcpStore } from '@/stores/mcp'
+import { useChatStore } from '@/stores/chat'
+import { useAIProviderStore } from '@/stores/ai-provider'
+import ChatPanel from '@/components/chat/ChatPanel.vue'
 import { useIpcEvent } from '@/composables/useIpc'
 import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
 
@@ -46,6 +49,8 @@ const homepageStore = useHomepageStore()
 const passwordStore = usePasswordStore()
 const splitStore = useSplitStore()
 const mcpStore = useMcpStore()
+const chatStore = useChatStore()
+const aiProviderStore = useAIProviderStore()
 
 const proxyDialogOpen = ref(false)
 const settingsDialogOpen = ref(false)
@@ -371,6 +376,8 @@ onMounted(async () => {
   ])
   await splitStore.restoreState()
   await mcpStore.init()
+  void chatStore.init()
+  void aiProviderStore.init()
   ready.value = true
 
   // 启动时自动打开主页
@@ -709,6 +716,14 @@ useIpcEvent('shortcut', (actionId) => {
             </div>
           </div>
         </ResizablePanel>
+
+        <!-- 聊天面板（可调整宽度，默认 380px） -->
+        <template v-if="chatStore.isPanelVisible">
+          <ResizableHandle />
+          <ResizablePanel size-unit="px" :default-size="380" :min-size="280" :max-size="600">
+            <ChatPanel />
+          </ResizablePanel>
+        </template>
 
         <!-- 右侧面板（固定 50px） -->
         <div v-if="!immersiveMode" class="w-[50px] shrink-0 h-full border-l border-border">

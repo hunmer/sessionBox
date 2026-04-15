@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import type { ChatMessage, ToolCall } from '@/types'
+import type { ChatMessage as ChatMessageType, ToolCall } from '@/types'
 import ChatMessage from './ChatMessage.vue'
 
 const props = defineProps<{
-  messages: ChatMessage[]
+  messages: ChatMessageType[]
   isStreaming: boolean
   streamingToken: string
   streamingToolCalls: ToolCall[]
