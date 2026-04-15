@@ -20,6 +20,7 @@ import InternalPageHost from '@/components/common/InternalPageHost.vue'
 import SplitView from '@/components/tabs/SplitView.vue'
 import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
 import CommandPaletteDialog from '@/components/command-palette/CommandPaletteDialog.vue'
+import ContainerSelectDialog from '@/components/containers/ContainerSelectDialog.vue'
 import { useSplitStore } from '@/stores/split'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
@@ -891,6 +892,9 @@ useIpcEvent('shortcut', (actionId) => {
       :open-settings="() => { settingsDialogOpen = true; settingsInitialTab = 'general' }"
       @update:open="commandPaletteOpen = $event"
     />
+
+    <!-- 外部链接容器选择对话框 -->
+    <ContainerSelectDialog />
 
     <!-- 更新提示弹窗 -->
     <UpdateNotification />

@@ -950,6 +950,14 @@ export function setMinimizeOnClose(enabled: boolean): void {
   store.set('minimizeOnClose', enabled)
 }
 
+export function getAskContainerOnOpen(): boolean {
+  return store.get('askContainerOnOpen', false)
+}
+
+export function setAskContainerOnOpen(enabled: boolean): void {
+  store.set('askContainerOnOpen', enabled)
+}
+
 // ====== 快捷键绑定操作 ======
 
 export function getShortcutBindings(): ShortcutBindingStore[] {

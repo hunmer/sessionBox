@@ -832,22 +832,24 @@ class WebviewManager {
     return entry.view.webContents.getZoomLevel()
   }
 
-  /** 放大页面（每次 +1 zoom level） */
+  /** 放大页面（每次约 +10%） */
   zoomIn(tabId: string): void {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return
     const currentZoom = entry.view.webContents.getZoomLevel()
-    const newZoom = Math.min(currentZoom + 1, 7)
+    const step = 0.5 // 1.2^0.5 ≈ 1.095 ≈ 110%
+    const newZoom = Math.round(Math.min(currentZoom + step, 7) * 100) / 100
     entry.view.webContents.setZoomLevel(newZoom)
     this.saveZoomPreference(tabId, newZoom)
   }
 
-  /** 缩小页面（每次 -1 zoom level） */
+  /** 缩小页面（每次约 -10%） */
   zoomOut(tabId: string): void {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return
     const currentZoom = entry.view.webContents.getZoomLevel()
-    const newZoom = Math.max(currentZoom - 1, -3)
+    const step = 0.5
+    const newZoom = Math.round(Math.max(currentZoom - step, -3) * 100) / 100
     entry.view.webContents.setZoomLevel(newZoom)
     this.saveZoomPreference(tabId, newZoom)
   }

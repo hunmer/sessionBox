@@ -41,6 +41,8 @@ import {
   setDefaultContainerId,
   getMinimizeOnClose,
   setMinimizeOnClose,
+  getAskContainerOnOpen,
+  setAskContainerOnOpen,
   getMutedSites,
   setMutedSites,
   addMutedSite,
@@ -443,6 +445,9 @@ $img.Dispose()`
 
   ipcMain.handle('settings:getDefaultContainerId', () => getDefaultContainerId())
   ipcMain.handle('settings:setDefaultContainerId', (_e, id: string) => setDefaultContainerId(id))
+
+  ipcMain.handle('settings:getAskContainerOnOpen', () => getAskContainerOnOpen())
+  ipcMain.handle('settings:setAskContainerOnOpen', (_e, enabled: boolean) => setAskContainerOnOpen(enabled))
 
   // ====== 默认浏览器 ======
   ipcMain.handle('settings:setDefaultBrowser', (_e, enabled: boolean) => setDefaultBrowser(enabled))

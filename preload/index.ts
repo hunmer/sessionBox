@@ -375,7 +375,9 @@ const api = {
     getMinimizeOnClose: (): Promise<boolean> => ipcRenderer.invoke('settings:getMinimizeOnClose'),
     setMinimizeOnClose: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setMinimizeOnClose', enabled),
     getDefaultContainerId: (): Promise<string> => ipcRenderer.invoke('settings:getDefaultContainerId'),
-    setDefaultContainerId: (id: string): Promise<void> => ipcRenderer.invoke('settings:setDefaultContainerId', id)
+    setDefaultContainerId: (id: string): Promise<void> => ipcRenderer.invoke('settings:setDefaultContainerId', id),
+    getAskContainerOnOpen: (): Promise<boolean> => ipcRenderer.invoke('settings:getAskContainerOnOpen'),
+    setAskContainerOnOpen: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setAskContainerOnOpen', enabled)
   },
 
   mutedSites: {

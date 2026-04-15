@@ -11,6 +11,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Switch } from '@/components/ui/switch'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import IconSelector from '@/components/common/IconSelector.vue'
 import { useContainerStore } from '@/stores/container'
@@ -122,6 +123,18 @@ async function confirmDelete() {
     <!-- 主内容区 -->
     <div class="flex-1 min-h-0 overflow-auto">
       <div class="max-w-2xl mx-auto p-6 flex flex-col gap-6">
+        <!-- 每次询问开关 -->
+        <div class="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-sm font-medium">每次都询问打开容器</span>
+            <span class="text-xs text-muted-foreground">从外部打开链接时弹出容器选择对话框</span>
+          </div>
+          <Switch
+            :checked="containerStore.askContainerOnOpen"
+            @update:checked="containerStore.setAskContainerOnOpen($event)"
+          />
+        </div>
+
         <!-- 容器列表 -->
         <ScrollArea>
           <div class="flex flex-col gap-1">

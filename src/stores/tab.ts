@@ -40,6 +40,8 @@ export const useTabStore = defineStore('tab', () => {
   const proxyInfos = ref<Map<string, TabProxyInfo>>(new Map())
   const mutedSites = ref<string[]>([])
   const zoomLevels = ref<Map<string, number>>(new Map())
+  /** 待选择容器后打开的外部 URL（非 null 时弹出容器选择对话框） */
+  const pendingExternalUrl = ref<string | null>(null)
   let listenersReady = false
   let restoreReady = false
 
@@ -748,27 +750,15 @@ export const useTabStore = defineStore('tab', () => {
     api.on('open-external-url', async (url: unknown) => {
       const externalUrl = url as string
       const containerStore = useContainerStore()
-      const pageStore = usePageStore()
-      const workspaceStore = useWorkspaceStore()
 
-      // 找到当前工作区中的一个分组
-      const activeWorkspaceId = workspaceStore.activeWorkspaceId
-      const targetGroup = containerStore.workspaceGroups.find((g) =>
-        (g.workspaceId || '__default__') === activeWorkspaceId
-      )
+      if (containerStore.askContainerOnOpen) {
+        // 开启"每次询问"：弹出容器选择对话框
+        pendingExternalUrl.value = externalUrl
+        return
+      }
 
-      // 创建临时 page，使用默认容器
-      const page = await pageStore.createPage({
-        groupId: targetGroup?.id ?? '',
-        containerId: containerStore.defaultContainerId,
-        name: externalUrl,
-        icon: '🌐',
-        url: externalUrl,
-        order: pageStore.pages.length
-      })
-
-      // 基于 page 创建 tab
-      await createTab(page.id)
+      // 未开启询问：使用默认容器打开，不持久化 Page
+      await openExternalUrlInContainer(externalUrl, containerStore.defaultContainerId)
     })
   }
 
@@ -824,6 +814,44 @@ export const useTabStore = defineStore('tab', () => {
       api.tab.switch('')
     }
   })
+
+  /** 使用指定容器打开外部 URL（不持久化 Page 到分组） */
+  async function openExternalUrlInContainer(url: string, containerId: string) {
+    const pageStore = usePageStore()
+    const containerStore = useContainerStore()
+
+    // 优先查找该容器下的已有 page，复用其 partition
+    const existingPage = pageStore.pages.find(p => p.containerId === containerId)
+    if (existingPage) {
+      const tab = await api.tab.create(existingPage.id, url)
+      await nextTick()
+      await activateCreatedTab(tab.id)
+      return
+    }
+
+    // 容器下无已有 page：查找当前工作区的任意 page 作为宿主
+    const workspaceStore = useWorkspaceStore()
+    const activeId = workspaceStore.activeWorkspaceId
+    const fallbackPage = pageStore.pages.find((p) => {
+      const group = containerStore.getGroup(p.groupId)
+      return (group?.workspaceId || '__default__') === activeId
+    })
+
+    if (fallbackPage) {
+      const tab = await api.tab.create(fallbackPage.id, url)
+      await nextTick()
+      await activateCreatedTab(tab.id)
+      return
+    }
+
+    // 没有任何 page 时，使用 createTabForSite 兜底
+    await createTabForSite(url)
+  }
+
+  /** 取消待处理的外部 URL */
+  function cancelExternalUrl() {
+    pendingExternalUrl.value = null
+  }
 
   /** 保存当前所有 tab 状态到主进程（退出前调用） */
   async function saveState() {
@@ -889,6 +917,9 @@ export const useTabStore = defineStore('tab', () => {
     restoreTab,
     gotoTab,
     gotoLastTab,
+    pendingExternalUrl,
+    openExternalUrlInContainer,
+    cancelExternalUrl,
     init,
     saveState
   }

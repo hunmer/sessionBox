@@ -10,6 +10,7 @@ export const useContainerStore = defineStore('container', () => {
   const groups = ref<Group[]>([])
   const containers = ref<Container[]>([])
   const defaultContainerId = ref('default')
+  const askContainerOnOpen = ref(false)
 
   // ====== 计算属性 ======
 
@@ -117,6 +118,7 @@ export const useContainerStore = defineStore('container', () => {
   async function init() {
     await Promise.all([loadGroups(), loadContainers()])
     defaultContainerId.value = await api.settings.getDefaultContainerId()
+    askContainerOnOpen.value = await api.settings.getAskContainerOnOpen()
   }
 
   /** 设置默认容器 */
@@ -125,10 +127,17 @@ export const useContainerStore = defineStore('container', () => {
     defaultContainerId.value = id
   }
 
+  /** 设置是否每次询问容器 */
+  async function setAskContainerOnOpen(enabled: boolean) {
+    await api.settings.setAskContainerOnOpen(enabled)
+    askContainerOnOpen.value = enabled
+  }
+
   return {
     groups,
     containers,
     defaultContainerId,
+    askContainerOnOpen,
     containersByGroup,
     sortedGroups,
     workspaceGroups,
@@ -145,6 +154,7 @@ export const useContainerStore = defineStore('container', () => {
     deleteContainer,
     reorderContainers,
     setDefaultContainer,
+    setAskContainerOnOpen,
     init
   }
 })
