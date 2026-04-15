@@ -469,6 +469,33 @@ $img.Dispose()`
   )
   ipcMain.handle('password:delete', (_e, id: string) => deletePassword(id))
 
+  ipcMain.handle('password:importOpenFile', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return null
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: '导入密码 CSV',
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+      properties: ['openFile']
+    })
+    if (canceled || filePaths.length === 0) return null
+    const { readFileSync } = await import('node:fs')
+    return { csv: readFileSync(filePaths[0], 'utf-8') }
+  })
+
+  ipcMain.handle('password:exportSaveFile', async (e, csv: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return { success: false }
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: '导出密码',
+      defaultPath: 'passwords.csv',
+      filters: [{ name: 'CSV', extensions: ['csv'] }]
+    })
+    if (canceled || !filePath) return { success: false }
+    const { writeFileSync } = await import('node:fs')
+    writeFileSync(filePath, csv, 'utf-8')
+    return { success: true }
+  })
+
   // ====== 搜索引擎 ======
   ipcMain.handle('searchEngine:list', () => listSearchEngines())
   ipcMain.handle('searchEngine:set', (_e, engines: SearchEngine[]) => setSearchEngines(engines))

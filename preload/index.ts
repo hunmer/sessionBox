@@ -382,6 +382,10 @@ const api = {
       ipcRenderer.invoke('password:update', id, data),
     delete: (id: string): Promise<void> =>
       ipcRenderer.invoke('password:delete', id),
+    importOpenFile: (): Promise<{ csv: string } | null> =>
+      ipcRenderer.invoke('password:importOpenFile'),
+    exportSaveFile: (csv: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('password:exportSaveFile', csv),
   },
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),

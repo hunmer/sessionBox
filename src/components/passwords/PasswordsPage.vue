@@ -2,7 +2,8 @@
 import { ref, computed, watch } from 'vue'
 import {
   Plus, Search, Trash2, Eye, EyeOff, Copy, Pencil,
-  KeyRound, GripVertical, X, Check, TextCursorInput, AlignLeft, CheckSquare
+  KeyRound, GripVertical, X, Check, TextCursorInput, AlignLeft, CheckSquare,
+  Upload, Download
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,10 +31,12 @@ import {
 } from '@/components/ui/dialog'
 import { usePasswordStore } from '@/stores/password'
 import { useTabStore } from '@/stores/tab'
+import { useNotification } from '@/composables/useNotification'
 import type { PasswordEntry, PasswordField } from '@/types'
 
 const passwordStore = usePasswordStore()
 const tabStore = useTabStore()
+const notify = useNotification()
 
 // ====== 左侧站点列表 ======
 const searchQuery = ref('')
@@ -186,6 +189,25 @@ function toggleVisibility(fieldId: string) {
 async function copyToClipboard(value: string) {
   await navigator.clipboard.writeText(value)
 }
+
+// ====== 导入导出 ======
+async function handleExport() {
+  if (passwordStore.entries.length === 0) {
+    notify.warning('没有可导出的密码')
+    return
+  }
+  const success = await passwordStore.exportPasswords()
+  if (success) {
+    notify.success(`已导出 ${passwordStore.entries.length} 条密码`)
+  }
+}
+
+async function handleImport() {
+  const count = await passwordStore.importFromFile()
+  if (count > 0) {
+    notify.success(`成功导入 ${count} 条密码`)
+  }
+}
 </script>
 
 <template>
@@ -195,6 +217,14 @@ async function copyToClipboard(value: string) {
       <KeyRound class="h-4 w-4 text-muted-foreground" />
       <h2 class="text-sm font-semibold flex-shrink-0">密码管理</h2>
       <div class="flex-1" />
+      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleImport">
+        <Upload class="w-3.5 h-3.5" />
+        导入
+      </Button>
+      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleExport">
+        <Download class="w-3.5 h-3.5" />
+        导出
+      </Button>
       <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="openCreateDialog">
         <Plus class="w-3.5 h-3.5" />
         添加备注
