@@ -110,7 +110,7 @@ function addChildField(index: number) {
           :model-value="field.type"
           @update:model-value="updateField(index, { type: $event as OutputField['type'] })"
         >
-          <SelectTrigger class="h-6 text-[11px]">
+          <SelectTrigger class="!h-6 !px-2 !py-0 w-full text-[11px] !gap-0.5 [&_svg]:!size-3">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -126,36 +126,17 @@ function addChildField(index: number) {
         </Select>
 
         <!-- 值 -->
-        <div v-if="field.type === 'object'" class="flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            class="h-5 text-[10px] gap-0.5 px-1.5 text-muted-foreground hover:text-foreground"
-            @click="addChildField(index)"
-          >
-            <Plus class="w-2.5 h-2.5" />
-            子字段
-          </Button>
-        </div>
         <Input
-          v-else
+          v-if="field.type !== 'object'"
           :model-value="field.value ?? ''"
           placeholder="默认值"
           class="h-6 text-[11px]"
           @update:model-value="updateField(index, { value: $event })"
         />
+        <span v-else class="h-6" />
 
         <!-- 操作 -->
         <div class="flex items-center gap-0.5">
-          <Button
-            v-if="field.type === 'object'"
-            variant="ghost"
-            size="sm"
-            class="h-5 w-5 p-0"
-            @click="addChildField(index)"
-          >
-            <Plus class="w-2.5 h-2.5" />
-          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -169,8 +150,8 @@ function addChildField(index: number) {
 
       <!-- 递归子字段 -->
       <OutputFieldEditor
-        v-if="field.type === 'object' && field.children?.length"
-        :model-value="field.children"
+        v-if="field.type === 'object'"
+        :model-value="field.children ?? []"
         :depth="(depth ?? 0) + 1"
         @update:model-value="updateChildren(index, $event)"
       />
