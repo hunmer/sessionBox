@@ -9,13 +9,13 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import VariableFieldMenu from './VariableFieldMenu.vue'
 
 const props = defineProps<{
   excludeNodeId: string
@@ -46,30 +46,9 @@ function getNodeLabel(node: { type: string; label: string }) {
   return node.label || def?.label || node.type
 }
 
-/** 将输出字段树递归展平为路径列表 */
-function flattenFields(
-  fields: OutputField[],
-  parentPath = '',
-): { path: string; display: string; type: string }[] {
-  const result: { path: string; display: string; type: string }[] = []
-  for (const field of fields) {
-    const currentPath = parentPath ? `${parentPath}.${field.key}` : field.key
-    result.push({
-      path: currentPath,
-      display: currentPath,
-      type: field.type,
-    })
-    if (field.type === 'object' && field.children?.length) {
-      result.push(...flattenFields(field.children, currentPath))
-    }
-  }
-  return result
-}
-
-/** 获取节点的输出字段列表 */
-function getNodeOutputs(node: { data: Record<string, any> }) {
-  const outputs: OutputField[] = node.data?.outputs ?? []
-  return flattenFields(outputs)
+/** 获取节点的输出字段 */
+function getNodeOutputs(node: { data: Record<string, any> }): OutputField[] {
+  return node.data?.outputs ?? []
 }
 
 /** 生成变量引用字符串 */
@@ -116,17 +95,11 @@ function handleSelectField(nodeId: string, fieldPath: string) {
 
           <DropdownMenuSubContent class="min-w-[180px]">
             <template v-if="getNodeOutputs(node).length > 0">
-              <DropdownMenuItem
-                v-for="output in getNodeOutputs(node)"
-                :key="output.path"
-                class="text-xs"
-                @click="handleSelectField(node.id, output.path)"
-              >
-                <span class="font-mono text-muted-foreground mr-1.5 text-[10px]">
-                  {{ output.type }}
-                </span>
-                <span class="truncate">{{ output.display }}</span>
-              </DropdownMenuItem>
+              <VariableFieldMenu
+                :fields="getNodeOutputs(node)"
+                :node-id="node.id"
+                @select="handleSelectField"
+              />
             </template>
             <div v-else class="px-2 py-1.5 text-xs text-muted-foreground">
               无输出字段

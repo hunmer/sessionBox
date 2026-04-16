@@ -16,6 +16,7 @@ import {
   MenubarContent,
   MenubarItem,
 } from '@/components/ui/menubar'
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { useWorkflowStore } from '@/stores/workflow'
 import CustomNodeWrapper from './CustomNodeWrapper.vue'
 import NodeSidebar from './NodeSidebar.vue'
@@ -26,6 +27,26 @@ import { Plus, FolderOpen } from 'lucide-vue-next'
 
 const store = useWorkflowStore()
 const listDialogOpen = ref(false)
+
+// ====== 面板尺寸持久化 ======
+const PANEL_SIZES_KEY = 'workflow-panel-sizes'
+const DEFAULT_SIZES = [18, 52, 30] // 左侧节点列表 / 中间画布 / 右侧属性面板
+
+function loadPanelSizes(): number[] {
+  try {
+    const raw = localStorage.getItem(PANEL_SIZES_KEY)
+    return raw ? JSON.parse(raw) : DEFAULT_SIZES
+  } catch {
+    return DEFAULT_SIZES
+  }
+}
+
+const panelSizes = ref<number[]>(loadPanelSizes())
+
+function handlePanelResize(sizes: number[]) {
+  panelSizes.value = sizes
+  localStorage.setItem(PANEL_SIZES_KEY, JSON.stringify(sizes))
+}
 
 // 自动保存草稿：currentWorkflow 深度变化时持久化
 watch(() => store.currentWorkflow, (val) => {
@@ -203,10 +224,18 @@ async function onListSelect(workflow: any) {
 
     <!-- 编辑器：有工作流时展示 -->
     <template v-else>
-      <div class="flex flex-1 min-h-0 overflow-hidden">
-        <NodeSidebar />
+      <ResizablePanelGroup
+        direction="horizontal"
+        class="flex-1 min-h-0 overflow-hidden"
+        @layout="handlePanelResize"
+      >
+        <ResizablePanel :default-size="panelSizes[0]" :min-size="10" :max-size="35">
+          <NodeSidebar />
+        </ResizablePanel>
 
-        <div class="flex-1">
+        <ResizableHandle with-handle />
+
+        <ResizablePanel :default-size="panelSizes[1]" :min-size="30">
           <VueFlow
             :nodes="nodes"
             :edges="edges"
@@ -225,10 +254,14 @@ async function onListSelect(workflow: any) {
             <MiniMap />
             <Controls />
           </VueFlow>
-        </div>
+        </ResizablePanel>
 
-        <NodeProperties />
-      </div>
+        <ResizableHandle with-handle />
+
+        <ResizablePanel :default-size="panelSizes[2]" :min-size="15" :max-size="50">
+          <NodeProperties />
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       <ExecutionBar />
     </template>

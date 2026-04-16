@@ -10,9 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { resolveLucideIcon } from '@/lib/lucide-resolver'
-import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight, Import, FileDown } from 'lucide-vue-next'
 import OutputFieldEditor from './OutputFieldEditor.vue'
 import VariablePicker from './VariablePicker.vue'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 
 const store = useWorkflowStore()
 
@@ -28,7 +35,12 @@ const IconComponent = computed(() => {
 
 const isDebugging = computed(() => store.debugNodeStatus === 'running')
 const outputExpanded = ref(true)
-const outputsExpanded = ref(false)
+const outputsExpanded = ref(true)
+
+// 导入对话框
+const importDialogOpen = ref(false)
+const importJson = ref('')
+const importError = ref('')
 
 function getFieldValue(key: string): any {
   return store.selectedNode?.data[key] ?? ''
@@ -71,10 +83,61 @@ function formatOutput(value: any): string {
     return String(value)
   }
 }
+
+/** 将任意值推断为 OutputField 类型 */
+function inferType(value: any): OutputField['type'] {
+  if (value === null || value === undefined) return 'any'
+  if (typeof value === 'string') return 'string'
+  if (typeof value === 'number') return 'number'
+  if (typeof value === 'boolean') return 'boolean'
+  if (typeof value === 'object') return 'object'
+  return 'any'
+}
+
+/** 将 JS 对象递归转换为 OutputField[] */
+function toOutputFields(data: any): OutputField[] {
+  if (typeof data !== 'object' || data === null) return []
+  return Object.entries(data).map(([key, value]) => {
+    const type = inferType(value)
+    const field: OutputField = { key, type }
+    if (type === 'object' && value !== null) {
+      field.children = toOutputFields(value)
+    } else {
+      field.value = value !== undefined ? String(value) : ''
+    }
+    return field
+  })
+}
+
+/** 从调试输出应用到输出字段 */
+function applyDebugOutput() {
+  const output = store.debugNodeResult?.output
+  if (!output) return
+  nodeOutputs.value = toOutputFields(output)
+}
+
+/** 打开导入对话框 */
+function openImportDialog() {
+  importJson.value = ''
+  importError.value = ''
+  importDialogOpen.value = true
+}
+
+/** 确认导入 */
+function confirmImport() {
+  importError.value = ''
+  try {
+    const parsed = JSON.parse(importJson.value)
+    nodeOutputs.value = toOutputFields(parsed)
+    importDialogOpen.value = false
+  } catch {
+    importError.value = 'JSON 格式不正确，请检查输入'
+  }
+}
 </script>
 
 <template>
-  <div class="w-64 border-l border-border bg-background flex flex-col h-full">
+  <div class="border-l border-border bg-background flex flex-col h-full">
     <div v-if="!store.selectedNode || !definition" class="flex-1 flex items-center justify-center">
       <p class="text-xs text-muted-foreground">点击节点查看属性</p>
     </div>
@@ -244,16 +307,39 @@ function formatOutput(value: any): string {
 
           <!-- 输出字段编辑区 -->
           <div class="border-t border-border pt-3">
-            <button
-              class="flex items-center gap-1.5 w-full text-left mb-2"
-              @click="outputsExpanded = !outputsExpanded"
-            >
-              <component
-                :is="outputsExpanded ? ChevronDown : ChevronRight"
-                class="w-3 h-3 text-muted-foreground shrink-0"
-              />
-              <span class="text-xs font-medium">输出字段</span>
-            </button>
+            <div class="flex items-center gap-1.5 mb-2">
+              <button
+                class="flex items-center gap-1.5 text-left flex-1"
+                @click="outputsExpanded = !outputsExpanded"
+              >
+                <component
+                  :is="outputsExpanded ? ChevronDown : ChevronRight"
+                  class="w-3 h-3 text-muted-foreground shrink-0"
+                />
+                <span class="text-xs font-medium">输出字段</span>
+              </button>
+              <div class="flex items-center gap-0.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-5 px-1.5 text-[10px] gap-0.5 text-muted-foreground hover:text-foreground"
+                  @click="openImportDialog"
+                >
+                  <Import class="w-3 h-3" />
+                  导入
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-5 px-1.5 text-[10px] gap-0.5 text-muted-foreground hover:text-foreground"
+                  :disabled="!store.debugNodeResult?.output"
+                  @click="applyDebugOutput"
+                >
+                  <FileDown class="w-3 h-3" />
+                  应用输出
+                </Button>
+              </div>
+            </div>
             <div v-if="outputsExpanded">
               <OutputFieldEditor v-model="nodeOutputs" />
             </div>
@@ -261,5 +347,32 @@ function formatOutput(value: any): string {
         </div>
       </ScrollArea>
     </template>
+
+    <!-- 导入 JSON 对话框 -->
+    <Dialog :open="importDialogOpen" @update:open="importDialogOpen = $event">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle class="text-sm">导入输出字段</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-2">
+          <p class="text-[11px] text-muted-foreground">粘贴 JSON 对象，将自动解析为输出字段结构</p>
+          <Textarea
+            v-model="importJson"
+            placeholder='{"key1": "value1", "key2": 123}'
+            class="text-xs font-mono min-h-[160px]"
+            @keydown.ctrl.enter="confirmImport"
+          />
+          <p v-if="importError" class="text-[11px] text-red-500">{{ importError }}</p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" class="h-7 text-xs" @click="importDialogOpen = false">
+            取消
+          </Button>
+          <Button size="sm" class="h-7 text-xs" :disabled="!importJson.trim()" @click="confirmImport">
+            确认导入
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
