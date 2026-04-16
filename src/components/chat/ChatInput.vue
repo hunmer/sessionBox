@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { Button } from '@/components/ui/button'
-import { ImagePlus, Send, Square } from 'lucide-vue-next'
+import { ImagePlus, Send, Square, Trash2 } from 'lucide-vue-next'
 
 const props = defineProps<{
   isStreaming: boolean
@@ -11,6 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   send: [content: string, images: string[]]
   stop: []
+  clear: []
 }>()
 
 const inputText = ref('')
@@ -92,7 +93,18 @@ function onInput() {
     </div>
 
     <!-- 输入区域 -->
-    <div class="flex items-end gap-2">
+    <div class="flex items-center gap-2">
+      <!-- 清空对话 -->
+      <Button
+        variant="ghost"
+        size="icon"
+        class="shrink-0 h-8 w-8"
+        :disabled="isStreaming"
+        @click="$emit('clear')"
+      >
+        <Trash2 class="h-4 w-4" />
+      </Button>
+
       <textarea
         ref="textareaRef"
         v-model="inputText"

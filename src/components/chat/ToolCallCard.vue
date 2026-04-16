@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { ToolCall } from '@/types'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
@@ -16,7 +16,7 @@ const statusConfig: Record<string, { label: string; class: string; icon: string 
   error: { label: '错误', class: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', icon: '❌' },
 }
 
-const config = statusConfig[props.toolCall.status] ?? statusConfig.pending
+const config = computed(() => statusConfig[props.toolCall.status] ?? statusConfig.pending)
 </script>
 
 <template>

@@ -22,6 +22,12 @@ function handleSend(content: string, images: string[]) {
 function handleClose() {
   chatStore.togglePanel()
 }
+
+function handleClear() {
+  if (chatStore.currentSessionId) {
+    chatStore.clearSessionMessages(chatStore.currentSessionId)
+  }
+}
 </script>
 
 <template>
@@ -55,6 +61,7 @@ function handleClose() {
       :disabled="!providerStore.currentModel"
       @send="handleSend"
       @stop="chatStore.stopGeneration()"
+      @clear="handleClear"
     />
 
     <!-- 供应商管理对话框 -->

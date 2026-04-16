@@ -66,10 +66,10 @@ const isUser = computed(() => props.message.role === 'user')
       <!-- 文本内容 -->
       <div
         v-if="displayContent"
-        class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%]"
+        class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden"
         :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
       >
-        <div class="prose prose-sm dark:prose-invert max-w-none" v-html="renderMarkdown(displayContent)" />
+        <div class="chat-markdown prose prose-sm dark:prose-invert max-w-none" v-html="renderMarkdown(displayContent)" />
       </div>
 
       <!-- 工具调用卡片 -->
@@ -101,6 +101,17 @@ function renderMarkdown(text: string): string {
 </script>
 
 <style scoped>
+.chat-markdown :deep(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.chat-markdown :deep(pre) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .thinking-dots::after {
   content: '';
   animation: dots 1.5s steps(4, end) infinite;
