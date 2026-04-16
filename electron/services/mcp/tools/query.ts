@@ -55,8 +55,20 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
     'list_tabs',
     'List all tabs with runtime info (active state, frozen state, current URL)',
     async () => {
+      console.log('[MCP list_tabs] called')
+
       const tabs = ctx.store.listTabs()
+      console.log('[MCP list_tabs] store.listTabs() count:', tabs.length)
+      if (tabs.length > 0) {
+        console.log('[MCP list_tabs] first tab:', JSON.stringify(tabs[0]))
+      }
+
       const activeTabId = ctx.webviewManager.getActiveTabId()
+      console.log('[MCP list_tabs] activeTabId:', activeTabId)
+
+      // 检查 webviewManager 中实际管理的视图
+      const managedViewCount = ctx.webviewManager.getManagedViewCount?.() ?? 'N/A'
+      console.log('[MCP list_tabs] webviewManager managed views:', managedViewCount)
 
       const result = tabs.map((tab) => {
         const viewInfo = ctx.webviewManager.getViewInfo(tab.id)
@@ -81,6 +93,7 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
         }
       })
 
+      console.log('[MCP list_tabs] returning', result.length, 'tabs')
       return text(result)
     }
   )

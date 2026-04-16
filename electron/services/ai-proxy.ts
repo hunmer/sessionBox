@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron'
-import { getAIProvider } from './store'
+import { getAIProvider, listTabs, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
+import { webviewManager } from './webview-manager'
 
 interface ProxyRequest {
   _requestId: string
@@ -15,6 +16,7 @@ interface ProxyRequest {
 /**
  * 将渲染进程的聊天请求代理到 LLM 供应商 API。
  * API Key 仅在主进程内存中组装，不暴露给渲染进程。
+ * 支持 tool_use 多轮循环：LLM 请求调用工具 → 主进程执行 → 结果回传 → 继续对话。
  */
 export async function proxyChatCompletions(
   mainWindow: BrowserWindow,
@@ -38,77 +40,101 @@ export async function proxyChatCompletions(
       return
     }
 
-    // 构造 Anthropic API 请求
     const apiUrl = `${provider.apiBase.replace(/\/$/, '')}/v1/messages`
+    const MAX_TOOL_ROUNDS = 10
 
-    const body: Record<string, unknown> = {
-      model: modelId,
-      messages,
-      max_tokens: maxTokens ?? 4096,
-      stream: true,
-    }
-    if (tools && tools.length > 0) {
-      body.tools = tools
-    }
-    if (thinking) {
-      body.thinking = thinking
-      if (!maxTokens || maxTokens < (thinking.budgetTokens + 1024)) {
-        body.max_tokens = (thinking.budgetTokens + 4096)
+    // 多轮对话循环：LLM 可能多次请求 tool_use
+    let currentMessages = [...messages]
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      console.log(`[ai-proxy] round ${round + 1}, messages count: ${currentMessages.length}`)
+
+      const body: Record<string, unknown> = {
+        model: modelId,
+        messages: currentMessages,
+        max_tokens: maxTokens ?? 4096,
+        stream: true,
       }
-    }
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': provider.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify(body),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      send('on:chat:error', { requestId: _requestId, error: `API error ${response.status}: ${errorText}` })
-      return
-    }
-
-    if (!response.body) {
-      send('on:chat:error', { requestId: _requestId, error: 'No response body' })
-      return
-    }
-
-    // 解析 SSE 流
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim()
-          if (data === '[DONE]') {
-            send('on:chat:done', { requestId: _requestId })
-            return
-          }
-          try {
-            const event = JSON.parse(data)
-            forwardSSEEvent(send, _requestId, event)
-          } catch {
-            // 非JSON行，忽略
-          }
+      if (tools && tools.length > 0) {
+        body.tools = tools
+      }
+      if (thinking) {
+        body.thinking = thinking
+        if (!maxTokens || maxTokens < (thinking.budgetTokens + 1024)) {
+          body.max_tokens = (thinking.budgetTokens + 4096)
         }
       }
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': provider.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        send('on:chat:error', { requestId: _requestId, error: `API error ${response.status}: ${errorText}` })
+        return
+      }
+
+      if (!response.body) {
+        send('on:chat:error', { requestId: _requestId, error: 'No response body' })
+        return
+      }
+
+      // 解析 SSE 流，累积完整的 assistant message
+      const parsed = await parseSSEStream(response.body, send, _requestId)
+
+      console.log(`[ai-proxy] round ${round + 1} done, stop_reason: ${parsed.stopReason}, tool_calls: ${parsed.toolCalls.length}`)
+
+      // 没有 tool_use，正常结束
+      if (parsed.stopReason !== 'tool_use' || parsed.toolCalls.length === 0) {
+        send('on:chat:done', { requestId: _requestId })
+        return
+      }
+
+      // === 工具执行阶段 ===
+      console.log(`[ai-proxy] executing ${parsed.toolCalls.length} tool call(s)...`)
+
+      // 构造 assistant message（含文本 + tool_use blocks）
+      const assistantContent: Array<Record<string, unknown>> = []
+      if (parsed.textContent) {
+        assistantContent.push({ type: 'text', text: parsed.textContent })
+      }
+      for (const tc of parsed.toolCalls) {
+        assistantContent.push({
+          type: 'tool_use',
+          id: tc.id,
+          name: tc.name,
+          input: tc.args,
+        })
+      }
+
+      // 执行每个工具，收集 tool_result
+      const toolResults: Array<Record<string, unknown>> = []
+      for (const tc of parsed.toolCalls) {
+        console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
+        const result = executeTool(tc.name, tc.args)
+        console.log(`[ai-proxy] tool ${tc.name} result: ${JSON.stringify(result).slice(0, 200)}`)
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: tc.id,
+          content: typeof result === 'string' ? result : JSON.stringify(result),
+        })
+      }
+
+      // 把 assistant message + tool_result 追加到消息历史，进入下一轮
+      currentMessages.push({ role: 'assistant', content: assistantContent })
+      currentMessages.push({ role: 'user', content: toolResults })
     }
 
+    // 超过最大轮次，强制结束
+    console.warn(`[ai-proxy] reached max tool rounds (${MAX_TOOL_ROUNDS}), stopping`)
     send('on:chat:done', { requestId: _requestId })
   } catch (error) {
     send('on:chat:error', {
@@ -178,6 +204,298 @@ function forwardSSEEvent(
       break
     }
   }
+}
+
+// ===== SSE 流解析（累积 tool_use 信息） =====
+
+interface ParsedToolCall {
+  id: string
+  name: string
+  args: Record<string, unknown>
+}
+
+interface ParsedStream {
+  textContent: string
+  toolCalls: ParsedToolCall[]
+  stopReason: string | null
+}
+
+/**
+ * 解析完整 SSE 流，同时转发事件到渲染进程并累积 tool_use 信息。
+ */
+async function parseSSEStream(
+  body: NodeJS.ReadableStream,
+  send: (channel: string, data: unknown) => void,
+  requestId: string,
+): Promise<ParsedStream> {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  let textContent = ''
+  let stopReason: string | null = null
+
+  // tool_use 累积状态
+  // content_block 的 index 并不总是从 0 开始（前面可能有 text block），
+  // 所以用 index → toolCalls 数组下标 的映射来关联
+  const toolCalls: ParsedToolCall[] = []
+  const toolJsonBuffers = new Map<number, { callIndex: number; json: string }>()
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const data = line.slice(6).trim()
+      if (data === '[DONE]') continue
+
+      let event: Record<string, unknown>
+      try { event = JSON.parse(data) } catch { continue }
+
+      const type = event.type as string
+
+      // 转发事件给渲染进程
+      forwardSSEEvent(send, requestId, event)
+
+      // 累积文本
+      if (type === 'content_block_delta') {
+        const delta = event.delta as Record<string, unknown> | undefined
+        if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
+          textContent += delta.text
+        }
+      }
+
+      // 累积 tool_use 开始
+      if (type === 'content_block_start') {
+        const cb = event.content_block as Record<string, unknown> | undefined
+        if (cb?.type === 'tool_use') {
+          const idx = event.index as number
+          const callIndex = toolCalls.length
+          toolCalls.push({ id: cb.id as string, name: cb.name as string, args: {} })
+          toolJsonBuffers.set(idx, { callIndex, json: '' })
+        }
+      }
+
+      // 累积 tool_use 参数 JSON
+      if (type === 'input_json_delta') {
+        const idx = event.index as number
+        const delta = event.delta as string | undefined
+        const buf = toolJsonBuffers.get(idx)
+        if (delta && buf) {
+          buf.json += delta
+        }
+      }
+
+      // tool_use 参数结束 → 解析 JSON
+      if (type === 'content_block_stop') {
+        const idx = event.index as number
+        const buf = toolJsonBuffers.get(idx)
+        if (buf) {
+          try {
+            toolCalls[buf.callIndex].args = JSON.parse(buf.json || '{}')
+          } catch {
+            console.error(`[ai-proxy] failed to parse tool args JSON: ${buf.json}`)
+          }
+          toolJsonBuffers.delete(idx)
+        }
+      }
+
+      // stop_reason
+      if (type === 'message_delta') {
+        const delta = event.delta as Record<string, unknown> | undefined
+        if (delta?.stop_reason) {
+          stopReason = delta.stop_reason as string
+        }
+      }
+    }
+  }
+
+  return { textContent, toolCalls, stopReason }
+}
+
+// ===== 工具执行（主进程内直接调用 store / webviewManager） =====
+
+/**
+ * 根据工具名在主进程内执行对应操作，返回结果。
+ */
+function executeTool(name: string, args: Record<string, unknown>): unknown {
+  console.log(`[ai-proxy executeTool] name=${name}, args=${JSON.stringify(args)}`)
+
+  try {
+    switch (name) {
+      case 'list_tabs': {
+        const tabs = listTabs()
+        const activeTabId = webviewManager.getActiveTabId()
+        const result = tabs.map((tab) => {
+          const viewInfo = webviewManager.getViewInfo(tab.id)
+          const page = tab.pageId ? getPageById(tab.pageId) : undefined
+          const group = page?.groupId ? getGroupById(page.groupId) : undefined
+          return {
+            tabId: tab.id,
+            pageId: tab.pageId,
+            title: tab.title,
+            url: viewInfo?.url ?? tab.url,
+            isActive: tab.id === activeTabId,
+            isFrozen: webviewManager.isFrozen(tab.id),
+            pinned: tab.pinned,
+            muted: tab.muted,
+            groupName: group?.name,
+          }
+        })
+        console.log(`[ai-proxy executeTool] list_tabs returning ${result.length} tabs`)
+        return result
+      }
+
+      case 'list_groups': {
+        return listGroups()
+      }
+
+      case 'list_pages': {
+        return listPages()
+      }
+
+      case 'create_tab': {
+        // 通过 IPC 让主进程创建标签页，这里只返回提示
+        return { message: '请使用 chat:completions 接口创建标签页', hint: 'not yet supported in tool execution' }
+      }
+
+      case 'navigate_tab': {
+        const tabId = (args.tabId as string) || webviewManager.getActiveTabId()
+        const url = args.url as string
+        if (!tabId || !url) return { error: 'tabId and url are required' }
+        webviewManager.navigate(tabId, url)
+        return { success: true, tabId, url }
+      }
+
+      case 'switch_tab': {
+        const tabId = args.tabId as string
+        if (!tabId) return { error: 'tabId is required' }
+        webviewManager.switchView(tabId)
+        return { success: true, tabId }
+      }
+
+      case 'close_tab': {
+        const tabId = args.tabId as string
+        if (!tabId) return { error: 'tabId is required' }
+        webviewManager.destroyView(tabId)
+        return { success: true, tabId }
+      }
+
+      // 浏览器交互工具（需要 CDP / executeJavaScript）
+      case 'click_element': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        const selector = args.selector as string
+        wc.executeJavaScript(`document.querySelector('${cssEscape(selector)}')?.click()`)
+        return { success: true }
+      }
+
+      case 'type_text': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        const text = (args.text as string).replace(/'/g, "\\'")
+        const selector = args.selector as string | undefined
+        if (selector) {
+          wc.executeJavaScript(`
+            const el = document.querySelector('${cssEscape(selector)}')
+            if (el) { el.focus(); el.value = '${text}'; el.dispatchEvent(new Event('input', { bubbles: true })) }
+          `)
+        } else {
+          wc.executeJavaScript(`
+            const el = document.activeElement
+            if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
+              if (el.isContentEditable) { el.textContent += '${text}' }
+              else { el.value += '${text}'; el.dispatchEvent(new Event('input', { bubbles: true })) }
+            }
+          `)
+        }
+        return { success: true }
+      }
+
+      case 'scroll_page': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        const amount = (args.amount as number) || 300
+        const scrollMap: Record<string, string> = {
+          up: `window.scrollBy(0, -${amount})`,
+          down: `window.scrollBy(0, ${amount})`,
+          left: `window.scrollBy(-${amount}, 0)`,
+          right: `window.scrollBy(${amount}, 0)`,
+        }
+        wc.executeJavaScript(scrollMap[args.direction as string] ?? '')
+        return { success: true }
+      }
+
+      case 'get_page_content': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        // 注意：executeJavaScript 是异步的，这里简化处理
+        return { hint: 'use execute_js tool for async content retrieval' }
+      }
+
+      case 'get_dom': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        return { hint: 'use execute_js tool for async DOM retrieval' }
+      }
+
+      case 'get_page_screenshot': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        // 截图是异步操作，简化返回
+        return { hint: 'screenshot is async, not yet supported in tool loop' }
+      }
+
+      case 'select_option': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        const selector = args.selector as string
+        const value = (args.value as string).replace(/'/g, "\\'")
+        wc.executeJavaScript(`
+          const el = document.querySelector('${cssEscape(selector)}')
+          if (el) { el.value = '${value}'; el.dispatchEvent(new Event('change', { bubbles: true })) }
+        `)
+        return { success: true }
+      }
+
+      case 'hover_element': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        const selector = args.selector as string
+        wc.executeJavaScript(`
+          const el = document.querySelector('${cssEscape(selector)}')
+          if (el) { el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true })); el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })) }
+        `)
+        return { success: true }
+      }
+
+      default:
+        console.warn(`[ai-proxy executeTool] unknown tool: ${name}`)
+        return { error: `Unknown tool: ${name}` }
+    }
+  } catch (err) {
+    console.error(`[ai-proxy executeTool] error executing ${name}:`, err)
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+/** 获取 webContents */
+function getWebContentsFromManager(tabId?: string): Electron.WebContents | null {
+  if (!tabId) {
+    tabId = webviewManager.getActiveTabId() ?? undefined
+  }
+  if (!tabId) return null
+  return webviewManager.getWebContents?.(tabId) ?? null
+}
+
+/** CSS 选择器转义 */
+function cssEscape(selector: string): string {
+  return selector.replace(/'/g, "\\'")
 }
 
 /**
