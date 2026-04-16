@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, computed, ref, onBeforeUnmount } from 'vue'
+import { reactive, computed, ref, onBeforeUnmount, watch } from 'vue'
 import { ChevronRight, MoreHorizontal, X } from "lucide-vue-next"
 import draggable from 'vuedraggable'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
@@ -102,14 +102,27 @@ async function closeAllPageTabs(pageId: string) {
   }
 }
 
-// 为每个 workspace 维护独立的折叠状态
-const openStates = reactive<Record<string, boolean>>({})
+// 为每个 workspace 维护独立的折叠状态，持久化到 localStorage
+const COLLAPSE_STORAGE_KEY = 'sessionbox-group-collapse-states'
 
-// 初始化所有为展开状态
-props.workspaces.forEach((w) => {
-  if (openStates[w.name] === undefined) {
-    openStates[w.name] = true
+function loadCollapseStates(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
   }
+}
+
+const openStates = reactive<Record<string, boolean>>({})
+const savedStates = loadCollapseStates()
+
+props.workspaces.forEach((w) => {
+  openStates[w.group.id] = savedStates[w.group.id] ?? true
+})
+
+watch(openStates, () => {
+  localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify({ ...openStates }))
 })
 
 function handlePageClick(pageId: string) {
@@ -217,7 +230,7 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
     @update:model-value="onGroupReorder"
   >
     <template #item="{ element: workspace }">
-      <Collapsible v-model:open="openStates[workspace.name]">
+      <Collapsible v-model:open="openStates[workspace.group.id]">
         <SidebarMenuItem>
           <div class="flex items-center gap-1 group/menu-button-wrapper">
             <SidebarMenuButton as-child>
@@ -225,11 +238,11 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                 href="#"
                 class="flex-1 flex items-center gap-2"
                 :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
-                @click.prevent="openStates[workspace.name] = !openStates[workspace.name]"
+                @click.prevent="openStates[workspace.group.id] = !openStates[workspace.group.id]"
               >
                 <ChevronRight
                   class="w-4 h-4 transition-transform group-data-[collapsible=icon]:hidden shrink-0"
-                  :class="openStates[workspace.name] ? 'rotate-90' : ''"
+                  :class="openStates[workspace.group.id] ? 'rotate-90' : ''"
                 />
                 <EmojiRenderer v-if="workspace.emoji" :emoji="workspace.emoji" />
                 <span class="flex-1">{{ workspace.name }}</span>

@@ -41,12 +41,8 @@ export async function runAgentStream(
     { role: 'user', content: userContent },
   ]
 
-  // 构造工具定义（Anthropic 格式）
-  const tools = createBrowserTools(targetTabId).map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    input_schema: tool.schema,
-  }))
+  // 构造工具定义（Anthropic 格式，纯 JSON Schema，可安全通过 IPC 序列化）
+  const tools = createBrowserTools(targetTabId)
 
   const requestId = crypto.randomUUID()
 
