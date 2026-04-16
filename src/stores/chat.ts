@@ -39,6 +39,7 @@ export const useChatStore = defineStore('chat', () => {
   const abortController = ref<AbortController | null>(null)
   const streamingMessageId = ref<string | null>(null)
   let streamCleanup: (() => void) | null = null
+  let currentRequestId: string | null = null
 
   // ===== 工具启用状态 =====
 
@@ -165,7 +166,7 @@ export const useChatStore = defineStore('chat', () => {
           content: m.content,
         }))
 
-      streamCleanup = await runAgentStream(
+      const result = await runAgentStream(
         history,
         content,
         images,
@@ -229,6 +230,7 @@ export const useChatStore = defineStore('chat', () => {
               abortController.value = null
               streamingMessageId.value = null
               streamCleanup = null
+              currentRequestId = null
             }
           },
           onError: async (error: Error) => {
@@ -247,17 +249,24 @@ export const useChatStore = defineStore('chat', () => {
               abortController.value = null
               streamingMessageId.value = null
               streamCleanup = null
+              currentRequestId = null
             }
           },
         },
         targetTabId.value,
         enabledToolNames.value,
       )
+
+      if (result) {
+        currentRequestId = result.requestId
+        streamCleanup = result.cleanup
+      }
     } catch (error) {
       isStreaming.value = false
       abortController.value = null
       streamingMessageId.value = null
       streamCleanup = null
+      currentRequestId = null
       const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
       if (msgIndex !== -1) {
         const errorContent = error instanceof Error ? error.message : String(error)
@@ -298,8 +307,11 @@ export const useChatStore = defineStore('chat', () => {
   async function stopGeneration() {
     if (!abortController.value) return
 
-    // 1. 中止请求
-    abortController.value.abort()
+    // 1. 通知主进程中止 HTTP 请求
+    if (currentRequestId) {
+      window.api.chat.abort(currentRequestId).catch(() => {})
+      currentRequestId = null
+    }
     abortController.value = null
 
     // 2. 清理 IPC 监听器

@@ -272,7 +272,8 @@ const api = {
     pickDirectory: (defaultPath) => electron.ipcRenderer.invoke("download:pickDirectory", defaultPath)
   },
   chat: {
-    completions: (params) => electron.ipcRenderer.invoke("chat:completions", params)
+    completions: (params) => electron.ipcRenderer.invoke("chat:completions", params),
+    abort: (requestId) => electron.ipcRenderer.invoke("chat:abort", requestId)
   },
   aiProvider: {
     list: () => electron.ipcRenderer.invoke("ai-provider:list"),

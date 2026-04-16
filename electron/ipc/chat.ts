@@ -1,5 +1,5 @@
 import { ipcMain, BrowserWindow } from 'electron'
-import { proxyChatCompletions } from '../services/ai-proxy'
+import { proxyChatCompletions, activeRequests } from '../services/ai-proxy'
 
 export function registerChatIpcHandlers(): void {
   ipcMain.handle('chat:completions', async (event, params) => {
@@ -17,6 +17,17 @@ export function registerChatIpcHandlers(): void {
       }
     })
     return { started: true }
+  })
+
+  // 中止正在进行的聊天请求
+  ipcMain.handle('chat:abort', (_event, requestId: string) => {
+    const controller = activeRequests.get(requestId)
+    if (controller) {
+      controller.abort()
+      activeRequests.delete(requestId)
+      return { aborted: true }
+    }
+    return { aborted: false, reason: 'not found' }
   })
 
   // ===== 浏览器交互工具（CDP） =====

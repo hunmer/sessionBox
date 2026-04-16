@@ -23,6 +23,9 @@ const RETRYABLE_STATUS_CODES = new Set([429, 529, 500, 502, 503, 504])
 const MAX_RETRIES = 3
 const INITIAL_RETRY_DELAY_MS = 2000
 
+/** 活跃请求的 AbortController 映射，供外部中止 */
+export const activeRequests = new Map<string, AbortController>()
+
 /**
  * 判断错误是否可重试。
  * 529 (overloaded) 和 429 (rate_limit) 是典型场景。
@@ -48,6 +51,11 @@ export async function proxyChatCompletions(
   params: ProxyRequest,
 ): Promise<void> {
   const { _requestId, providerId, modelId, messages, tools, stream, maxTokens, thinking, targetTabId } = params
+
+  // 创建 AbortController 并注册到全局映射
+  const abortController = new AbortController()
+  activeRequests.set(_requestId, abortController)
+
   const send = (channel: string, data: unknown) => {
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send(channel, data)
@@ -104,6 +112,7 @@ export async function proxyChatCompletions(
             'anthropic-dangerous-direct-browser-access': 'true',
           },
           body: JSON.stringify(body),
+          signal: abortController.signal,
         })
 
         if (response.ok) break
@@ -209,10 +218,21 @@ export async function proxyChatCompletions(
     console.warn(`[ai-proxy] reached max tool rounds (${MAX_TOOL_ROUNDS}), stopping`)
     send('on:chat:done', { requestId: _requestId })
   } catch (error) {
+    // AbortError 表示用户主动中止，静默处理
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.log(`[ai-proxy] request ${_requestId} aborted by user`)
+      return
+    }
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log(`[ai-proxy] request ${_requestId} aborted by user`)
+      return
+    }
     send('on:chat:error', {
       requestId: _requestId,
       error: error instanceof Error ? error.message : String(error),
     })
+  } finally {
+    activeRequests.delete(_requestId)
   }
 }
 

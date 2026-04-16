@@ -500,6 +500,8 @@ const api = {
   chat: {
     completions: (params: ChatCompletionParams & { _requestId: string }): Promise<{ started: boolean }> =>
       ipcRenderer.invoke('chat:completions', params),
+    abort: (requestId: string): Promise<{ aborted: boolean }> =>
+      ipcRenderer.invoke('chat:abort', requestId),
   },
 
   aiProvider: {

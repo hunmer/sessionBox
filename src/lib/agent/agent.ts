@@ -5,6 +5,7 @@ import { useAIProviderStore } from '@/stores/ai-provider'
 /**
  * 通过主进程 API 代理运行 Agent 流式请求。
  * 渲染进程构造请求参数，主进程注入 API Key 并转发到 LLM 供应商。
+ * 返回 requestId（用于 abort）和 cleanup（用于清理 IPC 监听器）。
  */
 export async function runAgentStream(
   history: Array<{ role: string; content: string }>,
@@ -13,14 +14,14 @@ export async function runAgentStream(
   callbacks: StreamCallbacks,
   targetTabId: string | null,
   enabledToolNames?: Set<string>,
-): Promise<void> {
+): Promise<{ requestId: string; cleanup: () => void }> {
   const providerStore = useAIProviderStore()
   const provider = providerStore.currentProvider
   const model = providerStore.currentModel
 
   if (!provider || !model) {
     callbacks.onError(new Error('请先配置 AI 供应商和模型'))
-    return
+    return { requestId: '', cleanup: () => {} }
   }
 
   // 构造消息（含图片支持）
@@ -71,6 +72,5 @@ export async function runAgentStream(
     callbacks.onError(error instanceof Error ? error : new Error(String(error)))
   }
 
-  // 暴露 cleanup 供外部中断时调用
-  return cleanup
+  return { requestId, cleanup }
 }
