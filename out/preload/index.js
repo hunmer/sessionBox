@@ -380,6 +380,12 @@ const api = {
     update: (id, data) => electron.ipcRenderer.invoke("workflowFolder:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("workflowFolder:delete", id)
   },
+  executionLog: {
+    list: (workflowId) => electron.ipcRenderer.invoke("executionLog:list", workflowId),
+    save: (workflowId, log) => electron.ipcRenderer.invoke("executionLog:save", workflowId, log),
+    delete: (workflowId, logId) => electron.ipcRenderer.invoke("executionLog:delete", workflowId, logId),
+    clear: (workflowId) => electron.ipcRenderer.invoke("executionLog:clear", workflowId)
+  },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
     const channel = `on:${event}`;

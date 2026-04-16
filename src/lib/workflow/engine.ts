@@ -43,6 +43,7 @@ export class WorkflowEngine {
 
   get currentLog(): ExecutionLog {
     return {
+      id: '',
       workflowId: '',
       startedAt: this.startTime,
       status:

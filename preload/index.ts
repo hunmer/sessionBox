@@ -650,6 +650,17 @@ const api = {
       ipcRenderer.invoke('workflowFolder:delete', id),
   },
 
+  executionLog: {
+    list: (workflowId: string): Promise<any[]> =>
+      ipcRenderer.invoke('executionLog:list', workflowId),
+    save: (workflowId: string, log: any): Promise<any> =>
+      ipcRenderer.invoke('executionLog:save', workflowId, log),
+    delete: (workflowId: string, logId: string): Promise<void> =>
+      ipcRenderer.invoke('executionLog:delete', workflowId, logId),
+    clear: (workflowId: string): Promise<void> =>
+      ipcRenderer.invoke('executionLog:clear', workflowId),
+  },
+
   // 主进程 → 渲染进程事件监听
   on: (event: string, callback: (...args: unknown[]) => void): (() => void) => {
     const channel = `on:${event}`

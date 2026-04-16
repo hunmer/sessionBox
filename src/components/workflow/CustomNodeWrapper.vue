@@ -55,7 +55,7 @@ const displayLabel = computed(() => props.data?.label || definition.value?.label
 </script>
 
 <template>
-  <NodeResizer min-width="140" min-height="60" />
+  <NodeResizer :is-visible="props.selected" min-width="140" min-height="60" />
 
   <div
     class="group/node bg-background border-2 rounded-lg shadow-sm w-full h-full cursor-pointer transition-colors relative"
@@ -64,7 +64,13 @@ const displayLabel = computed(() => props.data?.label || definition.value?.label
     @contextmenu.prevent
   >
     <!-- 输入连接点 -->
-    <Handle type="target" :position="Position.Left" class="!w-3 !h-3 !bg-blue-500 !border-2 !border-blue-300" />
+    <Handle
+      id="target"
+      type="target"
+      :position="Position.Left"
+      :connectable="props.connectable"
+      class="!z-10 !w-3 !h-3 !bg-blue-500 !border-2 !border-blue-300"
+    />
 
     <!-- 悬浮删除按钮 -->
     <button
@@ -99,6 +105,12 @@ const displayLabel = computed(() => props.data?.label || definition.value?.label
     </div>
 
     <!-- 输出连接点 -->
-    <Handle type="source" :position="Position.Right" class="!w-3 !h-3 !bg-emerald-500 !border-2 !border-emerald-300" />
+    <Handle
+      id="source"
+      type="source"
+      :position="Position.Right"
+      :connectable="props.connectable"
+      class="!z-10 !w-3 !h-3 !bg-emerald-500 !border-2 !border-emerald-300"
+    />
   </div>
 </template>

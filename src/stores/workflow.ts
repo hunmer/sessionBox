@@ -1,12 +1,13 @@
-// src/stores/workflow.ts
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Workflow, WorkflowFolder, WorkflowNode, ExecutionLog } from '@/lib/workflow/types'
 import { WorkflowEngine, type EngineStatus } from '@/lib/workflow/engine'
 
 const DRAFT_KEY = 'workflow-draft'
 
 export const useWorkflowStore = defineStore('workflow', () => {
+  const api = () => (window as any).api
+
   // ====== 数据 ======
   const workflows = ref<Workflow[]>([])
   const workflowFolders = ref<WorkflowFolder[]>([])
@@ -18,6 +19,10 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const executionLog = ref<ExecutionLog | null>(null)
   const executionContext = ref<Record<string, any>>({})
   const engine = ref<WorkflowEngine | null>(null)
+
+  // ====== 执行历史 ======
+  const executionLogs = ref<ExecutionLog[]>([])
+  const selectedExecutionLogId = ref<string | null>(null)
 
   // ====== 单节点调试 ======
   const debugNodeStatus = ref<'idle' | 'running' | 'completed' | 'error'>('idle')
@@ -41,22 +46,70 @@ export const useWorkflowStore = defineStore('workflow', () => {
     return currentWorkflow.value.nodes.find((n) => n.id === selectedNodeId.value) || null
   })
 
+  const selectedExecutionLog = computed<ExecutionLog | null>(() => {
+    const id = selectedExecutionLogId.value
+    if (!id) return executionLog.value
+    return executionLogs.value.find((l) => l.id === id) || executionLog.value
+  })
+
+  // ====== 执行历史管理 ======
+  async function loadExecutionLogs(): Promise<void> {
+    const workflowId = currentWorkflow.value?.id
+    if (!workflowId) {
+      executionLogs.value = []
+      return
+    }
+    executionLogs.value = await api().executionLog.list(workflowId)
+    if (selectedExecutionLogId.value && !executionLogs.value.find((l) => l.id === selectedExecutionLogId.value)) {
+      selectedExecutionLogId.value = null
+    }
+  }
+
+  async function deleteExecutionLog(logId: string): Promise<void> {
+    const workflowId = currentWorkflow.value?.id
+    if (!workflowId) return
+    await api().executionLog.delete(workflowId, logId)
+    executionLogs.value = executionLogs.value.filter((l) => l.id !== logId)
+    if (selectedExecutionLogId.value === logId) selectedExecutionLogId.value = null
+  }
+
+  async function clearExecutionLogs(): Promise<void> {
+    const workflowId = currentWorkflow.value?.id
+    if (!workflowId) return
+    await api().executionLog.clear(workflowId)
+    executionLogs.value = []
+    selectedExecutionLogId.value = null
+  }
+
+  async function saveCurrentExecutionLog(): Promise<void> {
+    const log = executionLog.value
+    if (!log || log.status === 'running' || log.status === 'paused') return
+    if (!log.id) log.id = `exec-${Date.now()}`
+    const workflowId = currentWorkflow.value?.id
+    if (!workflowId) return
+    log.workflowId = workflowId
+    await api().executionLog.save(workflowId, log)
+  }
+
+  // 切换工作流时加载历史
+  watch(() => currentWorkflow.value?.id, () => {
+    loadExecutionLogs()
+  })
+
   // ====== 数据 CRUD ======
   async function loadData() {
-    const api = (window as any).api
-    workflows.value = await api.workflow.list()
-    workflowFolders.value = await api.workflowFolder.list()
+    workflows.value = await api().workflow.list()
+    workflowFolders.value = await api().workflowFolder.list()
   }
 
   async function saveWorkflow(workflow: Workflow): Promise<void> {
-    const api = (window as any).api
     const existing = workflows.value.find((w) => w.id === workflow.id)
     const now = Date.now()
     if (existing) {
-      await api.workflow.update(workflow.id, { ...workflow, updatedAt: now })
+      await api().workflow.update(workflow.id, { ...workflow, updatedAt: now })
       Object.assign(existing, { ...workflow, updatedAt: now })
     } else {
-      const created = await api.workflow.create({ ...workflow, createdAt: now, updatedAt: now })
+      const created = await api().workflow.create({ ...workflow, createdAt: now, updatedAt: now })
       workflows.value.push(created)
       currentWorkflow.value = created
     }
@@ -64,8 +117,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   async function deleteWorkflow(id: string): Promise<void> {
-    const api = (window as any).api
-    await api.workflow.delete(id)
+    await api().workflow.delete(id)
     workflows.value = workflows.value.filter((w) => w.id !== id)
     if (currentWorkflow.value?.id === id) {
       currentWorkflow.value = null
@@ -74,8 +126,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   async function createFolder(name: string, parentId: string | null = null): Promise<void> {
-    const api = (window as any).api
-    const folder = await api.workflowFolder.create({
+    const folder = await api().workflowFolder.create({
       name,
       parentId,
       order: workflowFolders.value.filter((f) => f.parentId === parentId).length,
@@ -85,14 +136,12 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   async function deleteFolder(id: string): Promise<void> {
-    const api = (window as any).api
-    await api.workflowFolder.delete(id)
+    await api().workflowFolder.delete(id)
     workflowFolders.value = workflowFolders.value.filter((f) => f.id !== id)
   }
 
   async function updateFolder(id: string, data: Partial<WorkflowFolder>): Promise<void> {
-    const api = (window as any).api
-    await api.workflowFolder.update(id, data)
+    await api().workflowFolder.update(id, data)
     const idx = workflowFolders.value.findIndex((f) => f.id === id)
     if (idx !== -1) Object.assign(workflowFolders.value[idx], data)
   }
@@ -203,6 +252,23 @@ export const useWorkflowStore = defineStore('workflow', () => {
     executionStatus.value = engine.value.status as EngineStatus
     executionContext.value = engine.value.currentContext
     executionLog.value = log
+
+    if (log.status === 'completed' || log.status === 'error') {
+      log.id = `exec-${Date.now()}`
+      log.workflowId = currentWorkflow.value.id
+      executionLogs.value.unshift(log)
+      if (executionLogs.value.length > 50) executionLogs.value.length = 50
+      selectedExecutionLogId.value = log.id
+      saveExecutionLogToDisk(log)
+    }
+  }
+
+  async function saveExecutionLogToDisk(log: ExecutionLog): Promise<void> {
+    const workflowId = currentWorkflow.value?.id
+    if (!workflowId) return
+    try {
+      await api().executionLog.save(workflowId, log)
+    } catch { /* ignore */ }
   }
 
   function pauseExecution(): void {
@@ -215,6 +281,15 @@ export const useWorkflowStore = defineStore('workflow', () => {
     executionStatus.value = engine.value.status as EngineStatus
     executionContext.value = engine.value.currentContext
     executionLog.value = log
+
+    if (log.status === 'completed' || log.status === 'error') {
+      log.id = `exec-${Date.now()}`
+      log.workflowId = currentWorkflow.value!.id
+      executionLogs.value.unshift(log)
+      if (executionLogs.value.length > 50) executionLogs.value.length = 50
+      selectedExecutionLogId.value = log.id
+      saveExecutionLogToDisk(log)
+    }
   }
 
   function stopExecution(): void {
@@ -280,6 +355,13 @@ export const useWorkflowStore = defineStore('workflow', () => {
     executionStatus,
     executionLog,
     executionContext,
+    // 执行历史
+    executionLogs,
+    selectedExecutionLogId,
+    selectedExecutionLog,
+    loadExecutionLogs,
+    deleteExecutionLog,
+    clearExecutionLogs,
     // CRUD
     loadData,
     saveWorkflow,

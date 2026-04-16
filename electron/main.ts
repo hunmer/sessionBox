@@ -3,6 +3,7 @@ import { join } from 'path'
 import { setupUserAgent } from './utils/user-agent'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
+import { registerExecutionLogIpcHandlers } from './ipc/execution-log'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
 import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
@@ -294,6 +295,7 @@ if (!gotTheLock) {
     // 注册所有 IPC 处理器
     registerIpcHandlers()
     registerDownloadIpcHandlers()
+    registerExecutionLogIpcHandlers()
 
     // 初始化插件系统
     pluginManager.loadAll()

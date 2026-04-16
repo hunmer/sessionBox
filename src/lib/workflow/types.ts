@@ -81,6 +81,7 @@ export interface ExecutionStep {
 
 /** 执行日志 */
 export interface ExecutionLog {
+  id: string
   workflowId: string
   startedAt: number
   finishedAt?: number
