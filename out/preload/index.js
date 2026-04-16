@@ -237,7 +237,8 @@ const api = {
   },
   shortcut: {
     list: () => electron.ipcRenderer.invoke("shortcut:list"),
-    update: (id, accelerator, isGlobal) => electron.ipcRenderer.invoke("shortcut:update", id, accelerator, isGlobal),
+    update: (id, accelerator, isGlobal, enabled) => electron.ipcRenderer.invoke("shortcut:update", id, accelerator, isGlobal, enabled),
+    toggle: (id, enabled) => electron.ipcRenderer.invoke("shortcut:toggle", id, enabled),
     clear: (id) => electron.ipcRenderer.invoke("shortcut:clear", id),
     reset: () => electron.ipcRenderer.invoke("shortcut:reset")
   },

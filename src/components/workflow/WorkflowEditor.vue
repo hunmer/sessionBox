@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, markRaw } from 'vue'
+import { ref, computed, markRaw, watch } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { MiniMap } from '@vue-flow/minimap'
@@ -26,6 +26,11 @@ import { Plus, FolderOpen } from 'lucide-vue-next'
 
 const store = useWorkflowStore()
 const listDialogOpen = ref(false)
+
+// 自动保存草稿：currentWorkflow 深度变化时持久化
+watch(() => store.currentWorkflow, (val) => {
+  if (val) store.saveDraft()
+}, { deep: true })
 
 const { onConnect, project, vueFlowRef } = useVueFlow()
 

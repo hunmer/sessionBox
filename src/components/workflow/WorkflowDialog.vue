@@ -16,6 +16,11 @@ onMounted(() => {
 
 function onOpenChange(val: boolean) {
   open.value = val
+  if (val) {
+    store.loadData()
+    // 尝试恢复上次编辑的草稿
+    store.restoreDraft()
+  }
 }
 </script>
 

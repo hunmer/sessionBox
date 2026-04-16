@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useShortcutStore } from '@/stores/shortcut'
 import { Kbd } from '@/components/ui/kbd'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +20,12 @@ import { useNotification } from '@/composables/useNotification'
 const notify = useNotification()
 
 const store = useShortcutStore()
+
+const activeTab = ref(store.groups[0]?.key ?? 'tab')
+
+const shortcutsInGroup = computed(() => {
+  return store.getShortcutsByGroup(activeTab.value)
+})
 
 // 录制状态
 const recordingId = ref<string | null>(null)
@@ -41,7 +48,6 @@ function keyToAcceleratorPart(e: KeyboardEvent): string {
   if (e.altKey) parts.push('Alt')
   if (e.shiftKey) parts.push('Shift')
 
-  // 主键映射
   let key = ''
   if (e.key === ' ') key = 'Space'
   else if (e.key === 'ArrowUp') key = 'Up'
@@ -60,7 +66,7 @@ function keyToAcceleratorPart(e: KeyboardEvent): string {
   else if (e.key === 'PageDown') key = 'PageDown'
   else if (e.key.startsWith('F') && /^F\d{1,2}$/.test(e.key)) key = e.key
   else if (e.key.length === 1) key = e.key.toUpperCase()
-  else return '' // 忽略无法识别的键
+  else return ''
 
   if (key) parts.push(key)
   return parts.join('+')
@@ -91,14 +97,12 @@ async function onKeyDown(e: KeyboardEvent) {
   e.preventDefault()
   e.stopPropagation()
 
-  // Escape 取消录制
   if (e.key === 'Escape') {
     recordingId.value = null
     recordedKeys.value = []
     return
   }
 
-  // Delete/Backspace 清空快捷键
   if ((e.key === 'Delete' || e.key === 'Backspace') && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
     const id = recordingId.value
     recordingId.value = null
@@ -107,17 +111,14 @@ async function onKeyDown(e: KeyboardEvent) {
     return
   }
 
-  // 忽略单独的修饰键
   if (isModifier(e)) {
     recordedKeys.value = acceleratorToParts(keyToAcceleratorPart(e))
     return
   }
 
-  // 组合键完成
   const accelerator = keyToAcceleratorPart(e)
   if (!accelerator) return
 
-  // 必须包含修饰键
   if (!e.ctrlKey && !e.metaKey && !e.altKey) {
     notify.warning('快捷键需要包含 Ctrl、Alt 或 Shift 修饰键')
     return
@@ -132,7 +133,6 @@ async function onKeyDown(e: KeyboardEvent) {
   recordedKeys.value = []
 
   if (result.conflictId) {
-    // 有冲突，弹出确认对话框
     conflictMessage.value = `${result.error}，是否覆盖？`
     pendingConflict.value = { targetId: id, accelerator, conflictId: result.conflictId, isGlobal }
     conflictDialogOpen.value = true
@@ -153,12 +153,17 @@ async function confirmOverride() {
   }
 }
 
+async function onEnabledChange(id: string, enabled: boolean) {
+  const result = await store.toggleEnabled(id, enabled)
+  if (!result.success) {
+    notify.error(result.error || '更新失败')
+  }
+}
+
 async function onGlobalChange(id: string, value: boolean) {
-  console.log('[Shortcut] Switch toggled:', id, value)
   const item = store.shortcuts.find(s => s.id === id)
   if (!item) return
   const result = await store.updateShortcut(id, item.accelerator || '', value)
-  console.log('[Shortcut] Switch update result:', result)
   if (!result.success) {
     notify.error(result.error || '更新失败')
   }
@@ -170,7 +175,11 @@ function startRecording(id: string) {
 }
 
 onMounted(() => {
-  store.load()
+  store.load().then(() => {
+    if (store.groups.length > 0) {
+      activeTab.value = store.groups[0].key
+    }
+  })
   window.addEventListener('keydown', onKeyDown, true)
 })
 
@@ -182,43 +191,86 @@ onUnmounted(() => {
 <template>
   <div class="flex flex-col gap-3">
     <div class="text-sm font-medium">快捷键</div>
-    <div class="flex flex-col gap-0.5">
-      <template v-for="(item, i) in store.shortcuts" :key="item.id">
-        <Separator v-if="i > 0" class="my-1" />
-        <div class="flex items-center justify-between py-1.5 px-1">
-          <span class="text-sm text-muted-foreground">{{ item.label }}</span>
-          <div class="flex items-center gap-3">
-            <!-- 全局注册开关 -->
-            <label class="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-              <span>全局</span>
-              <Switch
-                :model-value="item.global"
-                @update:model-value="onGlobalChange(item.id, $event)"
-                class="scale-75"
-              />
-            </label>
 
-            <!-- 快捷键显示/录制区域 -->
-            <button
-              class="flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted/50 hover:bg-muted transition-colors min-w-[80px] justify-center cursor-pointer"
-              :class="recordingId === item.id ? 'border-primary ring-1 ring-primary/30 bg-primary/5' : ''"
-              @click="startRecording(item.id)"
+    <Tabs v-model="activeTab">
+      <TabsList class="w-full justify-start h-8 p-0.5 bg-muted/50">
+        <TabsTrigger
+          v-for="group in store.groups"
+          :key="group.key"
+          :value="group.key"
+          class="text-xs px-3 py-1 data-[state=active]:bg-background"
+        >
+          {{ group.label }}
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent
+        v-for="group in store.groups"
+        :key="group.key"
+        :value="group.key"
+        class="mt-2"
+      >
+        <div class="flex flex-col gap-0.5">
+          <template
+            v-for="(item, i) in store.getShortcutsByGroup(group.key)"
+            :key="item.id"
+          >
+            <Separator v-if="i > 0" class="my-0.5" />
+            <div
+              class="flex items-center justify-between py-1.5 px-1 rounded transition-opacity"
+              :class="item.enabled ? 'opacity-100' : 'opacity-50'"
             >
-              <template v-if="recordingId === item.id">
-                <template v-if="recordedKeys.length > 0">
-                  <Kbd v-for="key in recordedKeys" :key="key" class="text-primary">{{ key }}</Kbd>
-                </template>
-                <span v-else class="text-xs text-muted-foreground">按下快捷键...</span>
-              </template>
-              <template v-else-if="item.accelerator">
-                <Kbd v-for="key in acceleratorToParts(item.accelerator)" :key="key">{{ key }}</Kbd>
-              </template>
-              <span v-else class="text-xs text-muted-foreground/50">未设置</span>
-            </button>
-          </div>
+              <span class="text-sm text-muted-foreground">{{ item.label }}</span>
+              <div class="flex items-center gap-3">
+                <!-- 启用/禁用开关 -->
+                <Switch
+                  :model-value="item.enabled"
+                  @update:model-value="onEnabledChange(item.id, $event)"
+                  class="scale-75"
+                />
+
+                <!-- 全局注册开关 -->
+                <label
+                  v-if="item.supportsGlobal"
+                  class="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer"
+                >
+                  <span>全局</span>
+                  <Switch
+                    :model-value="item.global"
+                    :disabled="!item.enabled"
+                    @update:model-value="onGlobalChange(item.id, $event)"
+                    class="scale-75"
+                  />
+                </label>
+
+                <!-- 快捷键显示/录制区域 -->
+                <button
+                  class="flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted/50 hover:bg-muted transition-colors min-w-[80px] justify-center cursor-pointer"
+                  :class="[
+                    recordingId === item.id ? 'border-primary ring-1 ring-primary/30 bg-primary/5' : '',
+                    !item.enabled ? 'pointer-events-none opacity-50' : ''
+                  ]"
+                  :disabled="!item.enabled"
+                  @click="startRecording(item.id)"
+                >
+                  <template v-if="recordingId === item.id">
+                    <template v-if="recordedKeys.length > 0">
+                      <Kbd v-for="key in recordedKeys" :key="key" class="text-primary">{{ key }}</Kbd>
+                    </template>
+                    <span v-else class="text-xs text-muted-foreground">按下快捷键...</span>
+                  </template>
+                  <template v-else-if="item.accelerator">
+                    <Kbd v-for="key in acceleratorToParts(item.accelerator)" :key="key">{{ key }}</Kbd>
+                  </template>
+                  <span v-else class="text-xs text-muted-foreground/50">未设置</span>
+                </button>
+              </div>
+            </div>
+          </template>
         </div>
-      </template>
-    </div>
+      </TabsContent>
+    </Tabs>
+
     <p class="text-xs text-muted-foreground/60 mt-1">
       点击快捷键区域录入 · Delete 清空 · Escape 取消
     </p>

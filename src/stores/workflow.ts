@@ -4,6 +4,8 @@ import { ref, computed } from 'vue'
 import type { Workflow, WorkflowFolder, WorkflowNode, ExecutionLog } from '@/lib/workflow/types'
 import { WorkflowEngine, type EngineStatus } from '@/lib/workflow/engine'
 
+const DRAFT_KEY = 'workflow-draft'
+
 export const useWorkflowStore = defineStore('workflow', () => {
   // ====== 数据 ======
   const workflows = ref<Workflow[]>([])
@@ -48,6 +50,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
       workflows.value.push(created)
       currentWorkflow.value = created
     }
+    clearDraft()
   }
 
   async function deleteWorkflow(id: string): Promise<void> {
@@ -56,6 +59,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     workflows.value = workflows.value.filter((w) => w.id !== id)
     if (currentWorkflow.value?.id === id) {
       currentWorkflow.value = null
+      clearDraft()
     }
   }
 
@@ -98,6 +102,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     executionStatus.value = 'idle'
     executionLog.value = null
     executionContext.value = {}
+    saveDraft()
   }
 
   function addNode(type: string, position: { x: number; y: number }): WorkflowNode {
@@ -191,6 +196,35 @@ export const useWorkflowStore = defineStore('workflow', () => {
     engine.value?.stop()
   }
 
+  // ====== 草稿持久化 ======
+  function saveDraft(): void {
+    if (!currentWorkflow.value) return
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(currentWorkflow.value))
+    } catch { /* quota exceeded, ignore */ }
+  }
+
+  function restoreDraft(): boolean {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return false
+      const draft = JSON.parse(raw) as Workflow
+      if (!draft?.id) return false
+      currentWorkflow.value = draft
+      selectedNodeId.value = null
+      executionStatus.value = 'idle'
+      executionLog.value = null
+      executionContext.value = {}
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  function clearDraft(): void {
+    localStorage.removeItem(DRAFT_KEY)
+  }
+
   return {
     // 数据
     workflows,
@@ -225,5 +259,9 @@ export const useWorkflowStore = defineStore('workflow', () => {
     pauseExecution,
     resumeExecution,
     stopExecution,
+    // 草稿
+    saveDraft,
+    restoreDraft,
+    clearDraft,
   }
 })
