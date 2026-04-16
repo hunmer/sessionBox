@@ -616,6 +616,30 @@ const api = {
       ipcRenderer.invoke('skill:delete', name),
   },
 
+  workflow: {
+    list: (folderId?: string | null): Promise<any[]> =>
+      ipcRenderer.invoke('workflow:list', folderId),
+    get: (id: string): Promise<any | undefined> =>
+      ipcRenderer.invoke('workflow:get', id),
+    create: (data: any): Promise<any> =>
+      ipcRenderer.invoke('workflow:create', data),
+    update: (id: string, data: any): Promise<void> =>
+      ipcRenderer.invoke('workflow:update', id, data),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke('workflow:delete', id),
+  },
+
+  workflowFolder: {
+    list: (): Promise<any[]> =>
+      ipcRenderer.invoke('workflowFolder:list'),
+    create: (data: any): Promise<any> =>
+      ipcRenderer.invoke('workflowFolder:create', data),
+    update: (id: string, data: any): Promise<void> =>
+      ipcRenderer.invoke('workflowFolder:update', id, data),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke('workflowFolder:delete', id),
+  },
+
   // 主进程 → 渲染进程事件监听
   on: (event: string, callback: (...args: unknown[]) => void): (() => void) => {
     const channel = `on:${event}`

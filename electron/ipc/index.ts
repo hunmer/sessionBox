@@ -89,6 +89,7 @@ import { registerPluginIpcHandlers } from './plugin'
 import { registerMcpIpcHandlers } from './mcp'
 import { registerChatIpcHandlers } from './chat'
 import { registerAIProviderIpcHandlers } from './ai-provider'
+import { registerWorkflowIpcHandlers } from './workflow'
 import { isDefaultBrowser, setDefaultBrowser } from '../services/default-browser'
 import { listSkills, searchSkill, readSkill, writeSkill, deleteSkill } from '../services/skill-store'
 
@@ -480,6 +481,9 @@ $img.Dispose()`
 
   // ====== AI Provider ======
   registerAIProviderIpcHandlers()
+
+  // ====== 工作流 ======
+  registerWorkflowIpcHandlers()
 
   // ====== 密码/笔记管理 ======
   ipcMain.handle('password:list', () => listPasswords())

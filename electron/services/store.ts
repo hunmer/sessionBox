@@ -84,6 +84,39 @@ export interface Bookmark {
   order: number      // 排序
 }
 
+export interface WorkflowFolder {
+  id: string
+  name: string
+  parentId: string | null
+  order: number
+  createdAt: number
+}
+
+export interface WorkflowNode {
+  id: string
+  type: string
+  label: string
+  position: { x: number; y: number }
+  data: Record<string, any>
+}
+
+export interface WorkflowEdge {
+  id: string
+  source: string
+  target: string
+}
+
+export interface Workflow {
+  id: string
+  name: string
+  folderId: string | null
+  description?: string
+  nodes: WorkflowNode[]
+  edges: WorkflowEdge[]
+  createdAt: number
+  updatedAt: number
+}
+
 // 扩展配置
 export interface Extension {
   id: string
@@ -232,6 +265,8 @@ interface StoreSchema {
   defaultContainerId: string  // 默认容器 ID，用于外部链接打开
   zoomPreferences: Record<string, number>  // pageId -> zoomLevel 缩放偏好持久化
   aiProviders: AIProviderStore[]
+  workflowFolders: WorkflowFolder[]
+  workflows: Workflow[]
 }
 
 const DEFAULT_WORKSPACE_ID = '__default__'
@@ -276,7 +311,9 @@ const defaults: StoreSchema = {
   defaultSearchEngineId: 'google',
   defaultContainerId: 'default',
   zoomPreferences: {},
-  aiProviders: []
+  aiProviders: [],
+  workflowFolders: [],
+  workflows: []
 }
 
 const store = new Store<StoreSchema>({ defaults })
@@ -830,6 +867,14 @@ function collectChildFolderIds(folders: BookmarkFolder[], parentId: string): str
   return ids
 }
 
+function collectChildWorkflowFolderIds(folders: WorkflowFolder[], parentId: string): string[] {
+  const children = folders.filter((f) => f.parentId === parentId)
+  return children.reduce<string[]>(
+    (acc, child) => [...acc, child.id, ...collectChildWorkflowFolderIds(folders, child.id)],
+    [],
+  )
+}
+
 // ====== 书签数据迁移 ======
 
 /** 迁移旧存储键名 favoriteSites → bookmarks，以及检测旧数据（无 folderId 字段） */
@@ -1267,4 +1312,68 @@ export function deleteAIProvider(id: string): boolean {
   providers.splice(index, 1)
   store.set('aiProviders', providers)
   return true
+}
+
+// ====== 工作流文件夹操作 ======
+
+export function listWorkflowFolders(): WorkflowFolder[] {
+  return getCollection('workflowFolders').sort((a, b) => a.order - b.order)
+}
+
+export function createWorkflowFolder(data: Omit<WorkflowFolder, 'id'>): WorkflowFolder {
+  const folders = getCollection('workflowFolders')
+  const folder: WorkflowFolder = { ...data, id: randomUUID() }
+  folders.push(folder)
+  setCollection('workflowFolders', folders)
+  return folder
+}
+
+export function updateWorkflowFolder(id: string, data: Partial<Omit<WorkflowFolder, 'id'>>): void {
+  const folders = getCollection('workflowFolders')
+  const idx = folders.findIndex((f) => f.id === id)
+  if (idx === -1) throw new Error(`工作流文件夹 ${id} 不存在`)
+  folders[idx] = { ...folders[idx], ...data }
+  setCollection('workflowFolders', folders)
+}
+
+export function deleteWorkflowFolder(id: string): void {
+  const folders = getCollection('workflowFolders')
+  const childIds = collectChildWorkflowFolderIds(folders, id)
+  const idsToDelete = [id, ...childIds]
+  setCollection('workflowFolders', folders.filter((f) => !idsToDelete.includes(f.id)))
+  const workflows = getCollection('workflows').filter((w) => !idsToDelete.includes(w.folderId))
+  setCollection('workflows', workflows)
+}
+
+// ====== 工作流操作 ======
+
+export function listWorkflows(folderId?: string | null): Workflow[] {
+  const items = getCollection('workflows').sort((a, b) => a.updatedAt - b.updatedAt)
+  if (folderId !== undefined) return items.filter((w) => w.folderId === folderId)
+  return items
+}
+
+export function getWorkflow(id: string): Workflow | undefined {
+  return getCollection('workflows').find((w) => w.id === id)
+}
+
+export function createWorkflow(data: Omit<Workflow, 'id'>): Workflow {
+  const items = getCollection('workflows')
+  const item: Workflow = { ...data, id: randomUUID() }
+  items.push(item)
+  setCollection('workflows', items)
+  return item
+}
+
+export function updateWorkflow(id: string, data: Partial<Omit<Workflow, 'id'>>): void {
+  const items = getCollection('workflows')
+  const idx = items.findIndex((w) => w.id === id)
+  if (idx === -1) throw new Error(`工作流 ${id} 不存在`)
+  items[idx] = { ...items[idx], ...data }
+  setCollection('workflows', items)
+}
+
+export function deleteWorkflow(id: string): void {
+  const items = getCollection('workflows').filter((w) => w.id !== id)
+  setCollection('workflows', items)
 }
