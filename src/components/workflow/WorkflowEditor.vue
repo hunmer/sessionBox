@@ -32,6 +32,29 @@ const isEditingName = ref(false)
 const editingName = ref('')
 const FLOW_ID = 'workflow-editor-flow'
 
+// ====== ExecutionBar 折叠/展开 & 面板大小 ======
+const EXEC_PANEL_SIZE_KEY = 'workflow-exec-panel-size'
+const executionBarExpanded = ref(false)
+const savedExecPanelSize = ref(Number(localStorage.getItem(EXEC_PANEL_SIZE_KEY)) || 25)
+const execPanelRef = ref<InstanceType<typeof ResizablePanel> | null>(null)
+
+function onExecBarResize(sizes: number[]) {
+  if (executionBarExpanded.value && sizes.length === 2) {
+    savedExecPanelSize.value = sizes[1]
+    localStorage.setItem(EXEC_PANEL_SIZE_KEY, String(sizes[1]))
+  }
+}
+
+watch(executionBarExpanded, (expanded) => {
+  if (expanded) {
+    nextTick(() => {
+      nextTick(() => {
+        execPanelRef.value?.resize(savedExecPanelSize.value)
+      })
+    })
+  }
+})
+
 // ====== 面板尺寸持久化 ======
 const PANEL_SIZES_KEY = 'workflow-panel-sizes'
 const DEFAULT_SIZES = [18, 52, 30] // 左侧节点列表 / 中间画布 / 右侧属性面板
@@ -303,7 +326,7 @@ async function onListSelect(workflow: any) {
 
     <!-- 编辑器：有工作流时展示 -->
     <template v-else>
-      <ResizablePanelGroup direction="vertical">
+      <ResizablePanelGroup direction="vertical" @layout="onExecBarResize">
         <ResizablePanel :default-size="82" :min-size="40">
           <ResizablePanelGroup
             direction="horizontal"
@@ -347,10 +370,20 @@ async function onListSelect(workflow: any) {
           </ResizablePanelGroup>
         </ResizablePanel>
 
-        <ResizableHandle with-handle />
+        <ResizableHandle
+          v-if="executionBarExpanded"
+          with-handle
+        />
 
-        <ResizablePanel :default-size="18" :min-size="8" :max-size="60">
-          <ExecutionBar />
+        <ResizablePanel
+          ref="execPanelRef"
+          :collapsible="!executionBarExpanded"
+          :collapsed-size="4"
+          :default-size="executionBarExpanded ? savedExecPanelSize : 4"
+          :min-size="executionBarExpanded ? 30 : 4"
+          :max-size="executionBarExpanded ? 60 : 4"
+        >
+          <ExecutionBar v-model:expanded="executionBarExpanded" />
         </ResizablePanel>
       </ResizablePanelGroup>
     </template>

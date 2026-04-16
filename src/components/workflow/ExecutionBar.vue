@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useWorkflowStore } from '@/stores/workflow'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -9,7 +9,7 @@ import { Play, Pause, Square, ChevronDown, ChevronUp, ChevronRight, CheckCircle,
 import type { ExecutionLog, ExecutionStep } from '@/lib/workflow/types'
 
 const store = useWorkflowStore()
-const expanded = ref(false)
+const expanded = defineModel<boolean>('expanded', { default: false })
 
 const isRunning = computed(() => store.executionStatus === 'running')
 const isPaused = computed(() => store.executionStatus === 'paused')
