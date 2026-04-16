@@ -40,6 +40,7 @@
     "turndown": "^7.2.4",
     "vue": "^3.5.13",
     "vue-sonner": "^2.0.9",
+    "vue-stream-markdown": "^0.7.1",
     "vue-waterfall-plugin-next": "^3.0.1",
     "vue3-emoji-picker": "^1.1.8",
     "vuedraggable": "^4.1.0",

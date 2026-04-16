@@ -42,6 +42,11 @@ export const BROWSER_TOOL_LIST: ToolMeta[] = [
   { name: 'get_interactive_nodes', description: '获取页面中可见的交互节点简要列表（name, text, selector）', category: '页面信息' },
   { name: 'get_interactive_node_detail', description: '根据选择器获取单个交互节点的详细信息', category: '页面信息' },
   { name: 'get_active_tab', description: '获取当前对话选中的目标标签页信息', category: '标签页管理' },
+  { name: 'write_skill', description: '保存或更新一个 Skill（Markdown 格式）', category: '技能管理' },
+  { name: 'read_skill', description: '按名称读取 Skill 内容', category: '技能管理' },
+  { name: 'list_skills', description: '列出所有已保存的 Skill（名称 + 说明）', category: '技能管理' },
+  { name: 'search_skill', description: '按名称模糊搜索 Skill', category: '技能管理' },
+  { name: 'exec_skill', description: '按名称执行一个 Skill，传入参数', category: '技能管理' },
 ]
 
 /**
@@ -288,6 +293,88 @@ export function createBrowserTools(targetTabId: string | null): ToolDefinition[]
       input_schema: {
         type: 'object',
         properties: {},
+      },
+    },
+
+    // ===== 技能管理工具 =====
+    {
+      name: 'write_skill',
+      description:
+        '保存或更新一个 Skill。Skill 以 Markdown 格式存储，包含名称、说明和内容（步骤 + 代码）。当用户说"保存 skill"或"创建技能"时使用。如果同名 Skill 已存在则覆盖。',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description:
+              'Skill 名称，使用小写英文 + 短横线，如 "scrape-product"、"batch-download"。作为唯一标识和文件名。',
+          },
+          description: {
+            type: 'string',
+            description: 'Skill 的一句话说明，用于 list/search 时展示。',
+          },
+          content: {
+            type: 'string',
+            description:
+              'Skill 的 Markdown 正文，包含步骤、代码片段、参数说明等。支持 ```js 代码块，执行时会提取运行。',
+          },
+        },
+        required: ['name', 'description', 'content'],
+      },
+    },
+
+    {
+      name: 'read_skill',
+      description:
+        '按名称读取 Skill 的完整内容。返回 Markdown 正文。当用户说"查看 skill"、"读取技能"时使用。',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Skill 名称' },
+        },
+        required: ['name'],
+      },
+    },
+
+    {
+      name: 'list_skills',
+      description:
+        '列出所有已保存的 Skill，返回名称和说明。当用户说"列出 skill"、"有哪些技能"时使用。',
+      input_schema: {
+        type: 'object',
+        properties: {},
+      },
+    },
+
+    {
+      name: 'search_skill',
+      description:
+        '按名称模糊搜索 Skill。返回匹配的 Skill 列表（名称 + 说明）。当用户说"搜索 skill"或不确定完整名称时使用。',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: '搜索关键词（支持模糊匹配）' },
+        },
+        required: ['name'],
+      },
+    },
+
+    {
+      name: 'exec_skill',
+      description:
+        '按名称执行一个已保存的 Skill。Skill 的 Markdown 正文中 ```js 代码块会被提取并按顺序执行，步骤中的参数占位符会被替换。当用户说"执行 skill"、"运行技能"时使用。找不到时建议先 search_skill。',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: '要执行的 Skill 名称' },
+          params: {
+            type: 'object',
+            description:
+              '传给 Skill 的参数键值对，对应 Skill 内容中的占位符。例如 { "url": "https://example.com", "count": 5 }',
+            properties: {},
+          },
+        },
+        required: ['name'],
       },
     },
   ]

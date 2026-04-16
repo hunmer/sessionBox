@@ -28,6 +28,10 @@ function handleClear() {
     chatStore.clearSessionMessages(chatStore.currentSessionId)
   }
 }
+
+function handleEdit(messageId: string, newContent: string) {
+  chatStore.editMessage(messageId, newContent)
+}
 </script>
 
 <template>
@@ -54,6 +58,9 @@ function handleClear() {
       :streaming-tool-calls="chatStore.streamingToolCalls"
       :streaming-thinking="chatStore.streamingThinking"
       :streaming-usage="chatStore.streamingUsage"
+      @retry="chatStore.retryMessage($event)"
+      @delete="chatStore.deleteMessageAndAfter($event)"
+      @edit="handleEdit"
     />
 
     <!-- 输入区域 -->

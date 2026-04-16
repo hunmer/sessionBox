@@ -12,6 +12,12 @@ const props = defineProps<{
   streamingUsage: { inputTokens: number; outputTokens: number } | null
 }>()
 
+const emit = defineEmits<{
+  retry: [messageId: string]
+  delete: [messageId: string]
+  edit: [messageId: string, newContent: string]
+}>()
+
 const containerRef = ref<HTMLDivElement>()
 const autoScroll = ref(true)
 
@@ -36,6 +42,16 @@ function handleScroll() {
   if (!el) return
   autoScroll.value = el.scrollHeight - el.scrollTop - el.clientHeight < 50
 }
+
+/** 判断是否是最后一条 assistant 消息 */
+function isLastAssistantMessage(index: number): boolean {
+  if (props.messages[index].role !== 'assistant') return false
+  // 向后查找，是否还有其他 assistant 消息
+  for (let i = index + 1; i < props.messages.length; i++) {
+    if (props.messages[i].role === 'assistant') return false
+  }
+  return true
+}
 </script>
 
 <template>
@@ -54,10 +70,14 @@ function handleScroll() {
       :key="msg.id"
       :message="msg"
       :is-streaming="isStreaming && index === messages.length - 1 && msg.role === 'assistant'"
+      :is-last-assistant="isLastAssistantMessage(index)"
       :streaming-content="isStreaming && index === messages.length - 1 ? streamingToken : undefined"
       :streaming-thinking="isStreaming && index === messages.length - 1 ? streamingThinking : undefined"
       :streaming-tool-calls="isStreaming && index === messages.length - 1 ? streamingToolCalls : undefined"
       :streaming-usage="isStreaming && index === messages.length - 1 ? streamingUsage : undefined"
+      @retry="emit('retry', $event)"
+      @delete="emit('delete', $event)"
+      @edit="(id, content) => emit('edit', id, content)"
     />
   </div>
 </template>

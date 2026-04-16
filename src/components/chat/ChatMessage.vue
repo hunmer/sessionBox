@@ -4,6 +4,8 @@ import type { ChatMessage as ChatMessageType, ToolCall } from '@/types'
 import ThinkingBlock from './ThinkingBlock.vue'
 import ToolCallCard from './ToolCallCard.vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Copy, RefreshCw, Trash2, Pencil, Check } from 'lucide-vue-next'
 
 type ContentSegment =
   | { type: 'text'; content: string }
@@ -12,10 +14,17 @@ type ContentSegment =
 const props = defineProps<{
   message: ChatMessageType
   isStreaming?: boolean
+  isLastAssistant?: boolean
   streamingContent?: string
   streamingThinking?: string
   streamingToolCalls?: ToolCall[]
   streamingUsage?: { inputTokens: number; outputTokens: number } | null
+}>()
+
+const emit = defineEmits<{
+  retry: [messageId: string]
+  delete: [messageId: string]
+  edit: [messageId: string, newContent: string]
 }>()
 
 const displayContent = computed(() => {
@@ -34,6 +43,54 @@ const displayToolCalls = computed(() => {
 })
 
 const isUser = computed(() => props.message.role === 'user')
+
+// --- 操作按钮 ---
+const showActions = ref(false)
+const copied = ref(false)
+const isEditing = ref(false)
+const editContent = ref('')
+
+/** 是否可以重试（非流式且是 AI 消息） */
+const canRetry = computed(() => !isUser.value && !props.isStreaming && props.isLastAssistant)
+
+/** 复制消息内容到剪贴板 */
+async function copyContent() {
+  const text = props.message.content || ''
+  if (!text) return
+  await navigator.clipboard.writeText(text)
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
+
+/** 进入编辑模式 */
+function startEdit() {
+  editContent.value = props.message.content
+  isEditing.value = true
+}
+
+/** 取消编辑 */
+function cancelEdit() {
+  isEditing.value = false
+  editContent.value = ''
+}
+
+/** 确认编辑 */
+function confirmEdit() {
+  const trimmed = editContent.value.trim()
+  if (!trimmed) return
+  emit('edit', props.message.id, trimmed)
+  isEditing.value = false
+}
+
+/** 删除消息 */
+function handleDelete() {
+  emit('delete', props.message.id)
+}
+
+/** 重试 */
+function handleRetry() {
+  emit('retry', props.message.id)
+}
 
 // --- 执行时间统计 ---
 const elapsedMs = ref(0)
@@ -151,7 +208,12 @@ const segments = computed<ContentSegment[]>(() => {
 </script>
 
 <template>
-  <div class="flex gap-3 py-3" :class="isUser ? 'flex-row-reverse' : ''">
+  <div
+    class="group/msg flex gap-3 py-3"
+    :class="isUser ? 'flex-row-reverse' : ''"
+    @mouseenter="showActions = true"
+    @mouseleave="showActions = false"
+  >
     <!-- Avatar -->
     <Avatar class="h-7 w-7 shrink-0 mt-0.5">
       <AvatarFallback class="text-xs" :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'">
@@ -182,8 +244,27 @@ const segments = computed<ContentSegment[]>(() => {
         <span class="thinking-dots">正在思考</span>
       </div>
 
+      <!-- 编辑模式 -->
+      <div v-if="isEditing" class="max-w-[85%]" :class="isUser ? 'ml-auto' : ''">
+        <textarea
+          v-model="editContent"
+          class="w-full rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+          rows="3"
+          @keydown.enter.ctrl="confirmEdit"
+          @keydown.escape="cancelEdit"
+        />
+        <div class="flex gap-2 mt-1" :class="isUser ? 'justify-end' : ''">
+          <button class="text-xs px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 transition-colors" @click="cancelEdit">
+            取消
+          </button>
+          <button class="text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" @click="confirmEdit">
+            保存并发送
+          </button>
+        </div>
+      </div>
+
       <!-- 按顺序穿插渲染文本和工具调用 -->
-      <template v-for="(seg, i) in segments" :key="i">
+      <template v-if="!isEditing" v-for="(seg, i) in segments" :key="i">
         <div
           v-if="seg.type === 'text' && seg.content"
           class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden"
@@ -209,6 +290,68 @@ const segments = computed<ContentSegment[]>(() => {
           <ToolCallCard :tool-call="seg.toolCall" />
         </div>
       </template>
+
+      <!-- 操作按钮 -->
+      <div
+        v-if="!isStreaming && !isEditing && showActions && (displayContent || displayToolCalls?.length)"
+        class="flex gap-0.5 mt-0.5"
+        :class="isUser ? 'justify-end' : ''"
+      >
+        <TooltipProvider :delay-duration="300">
+          <!-- 用户消息：编辑 -->
+          <Tooltip v-if="isUser">
+            <TooltipTrigger as-child>
+              <button
+                class="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                @click="startEdit"
+              >
+                <Pencil class="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" :side-offset="4">编辑</TooltipContent>
+          </Tooltip>
+
+          <!-- 复制 -->
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <button
+                class="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                @click="copyContent"
+              >
+                <Check v-if="copied" class="h-3.5 w-3.5 text-green-500" />
+                <Copy v-else class="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" :side-offset="4">{{ copied ? '已复制' : '复制' }}</TooltipContent>
+          </Tooltip>
+
+          <!-- AI 消息：重试 -->
+          <Tooltip v-if="canRetry">
+            <TooltipTrigger as-child>
+              <button
+                class="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                @click="handleRetry"
+              >
+                <RefreshCw class="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" :side-offset="4">重新生成</TooltipContent>
+          </Tooltip>
+
+          <!-- AI 消息：删除 -->
+          <Tooltip v-if="!isUser">
+            <TooltipTrigger as-child>
+              <button
+                class="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                @click="handleDelete"
+              >
+                <Trash2 class="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" :side-offset="4">删除</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
   </div>
 </template>

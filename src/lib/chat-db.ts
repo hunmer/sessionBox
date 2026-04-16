@@ -98,6 +98,26 @@ export async function updateMessage(id: string, updates: Partial<ChatMessage>): 
   await chatDb.messages.update(id, updates)
 }
 
+export async function deleteMessage(id: string): Promise<void> {
+  const msg = await chatDb.messages.get(id)
+  if (!msg) return
+  await chatDb.messages.delete(id)
+  if (msg.sessionId) {
+    const session = await chatDb.sessions.get(msg.sessionId)
+    if (session) {
+      await chatDb.sessions.update(msg.sessionId, {
+        messageCount: Math.max(0, session.messageCount - 1),
+        updatedAt: Date.now(),
+      })
+    }
+  }
+}
+
+export async function deleteMessages(ids: string[]): Promise<void> {
+  if (!ids.length) return
+  await chatDb.messages.bulkDelete(ids)
+}
+
 export async function clearMessages(sessionId: string): Promise<void> {
   await chatDb.messages.where('sessionId').equals(sessionId).delete()
   await chatDb.sessions.update(sessionId, {

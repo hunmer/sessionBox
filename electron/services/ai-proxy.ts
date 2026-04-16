@@ -17,6 +17,26 @@ interface ProxyRequest {
   targetTabId?: string
 }
 
+/** 可重试的 HTTP 状态码（服务过载、限流、临时故障） */
+const RETRYABLE_STATUS_CODES = new Set([429, 529, 500, 502, 503, 504])
+const MAX_RETRIES = 3
+const INITIAL_RETRY_DELAY_MS = 2000
+
+/**
+ * 判断错误是否可重试。
+ * 529 (overloaded) 和 429 (rate_limit) 是典型场景。
+ */
+function isRetryableError(status: number): boolean {
+  return RETRYABLE_STATUS_CODES.has(status)
+}
+
+/**
+ * 延迟指定毫秒数（指数退避）。
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 /**
  * 将渲染进程的聊天请求代理到 LLM 供应商 API。
  * API Key 仅在主进程内存中组装，不暴露给渲染进程。
@@ -70,24 +90,48 @@ export async function proxyChatCompletions(
         }
       }
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': provider.apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify(body),
-      })
+      let response: Response | null = null
+      let lastErrorText = ''
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        send('on:chat:error', { requestId: _requestId, error: `API error ${response.status}: ${errorText}` })
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': provider.apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify(body),
+        })
+
+        if (response.ok) break
+
+        lastErrorText = await response.text()
+
+        if (attempt < MAX_RETRIES && isRetryableError(response.status)) {
+          const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt)
+          console.warn(
+            `[ai-proxy] API error ${response.status} (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${retryDelay}ms...`,
+          )
+          send('on:chat:retry', {
+            requestId: _requestId,
+            attempt: attempt + 1,
+            maxRetries: MAX_RETRIES,
+            delayMs: retryDelay,
+            status: response.status,
+            error: lastErrorText,
+          })
+          await delay(retryDelay)
+          continue
+        }
+
+        // 不可重试或已耗尽重试次数
+        send('on:chat:error', { requestId: _requestId, error: `API error ${response.status}: ${lastErrorText}` })
         return
       }
 
-      if (!response.body) {
+      if (!response!.body) {
         send('on:chat:error', { requestId: _requestId, error: 'No response body' })
         return
       }

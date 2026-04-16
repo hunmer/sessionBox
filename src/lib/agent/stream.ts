@@ -13,6 +13,15 @@ export interface ToolCallArgsEvent {
   args: Record<string, unknown>
 }
 
+export interface RetryEvent {
+  requestId: string
+  attempt: number
+  maxRetries: number
+  delayMs: number
+  status: number
+  error: string
+}
+
 export interface StreamCallbacks {
   onToken: (token: string) => void
   onToolCall: (call: ToolCall) => void
@@ -20,6 +29,7 @@ export interface StreamCallbacks {
   onToolCallArgs: (event: ToolCallArgsEvent) => void
   onThinking: (content: string) => void
   onUsage: (usage: { inputTokens: number; outputTokens: number }) => void
+  onRetry?: (event: RetryEvent) => void
   onDone: () => void
   onError: (error: Error) => void
 }
@@ -89,6 +99,14 @@ export function listenToChatStream(requestId: string, callbacks: StreamCallbacks
       if (data.requestId === requestId) {
         callbacks.onError(new Error(data.error))
         unsubscribers.forEach((fn) => fn())
+      }
+    }),
+  )
+
+  unsubscribers.push(
+    window.api.on('chat:retry', (data: any) => {
+      if (data.requestId === requestId) {
+        callbacks.onRetry?.(data)
       }
     }),
   )

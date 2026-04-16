@@ -9,6 +9,8 @@ import {
   addMessage as dbAddMessage,
   listMessages as dbListMessages,
   updateMessage as dbUpdateMessage,
+  deleteMessage as dbDeleteMessage,
+  deleteMessages as dbDeleteMessages,
   clearMessages as dbClearMessages,
 } from '@/lib/chat-db'
 import { useAIProviderStore } from './ai-provider'
@@ -33,6 +35,7 @@ export const useChatStore = defineStore('chat', () => {
   const streamingToolCalls = ref<ToolCall[]>([])
   const streamingThinking = ref('')
   const streamingUsage = ref<{ inputTokens: number; outputTokens: number } | null>(null)
+  const retryStatus = ref<{ attempt: number; maxRetries: number; delayMs: number; status: number } | null>(null)
   const abortController = ref<AbortController | null>(null)
 
   // ===== 工具启用状态 =====
@@ -166,6 +169,7 @@ export const useChatStore = defineStore('chat', () => {
     streamingToolCalls.value = []
     streamingThinking.value = ''
     streamingUsage.value = null
+    retryStatus.value = null
 
     try {
       const controller = new AbortController()
@@ -212,6 +216,14 @@ export const useChatStore = defineStore('chat', () => {
           onUsage: (usage) => {
             streamingUsage.value = usage
           },
+          onRetry: (event) => {
+            retryStatus.value = {
+              attempt: event.attempt,
+              maxRetries: event.maxRetries,
+              delayMs: event.delayMs,
+              status: event.status,
+            }
+          },
           onDone: async () => {
             try {
               // toRaw 解除 Vue 响应式 Proxy，确保 IndexedDB 可序列化
@@ -231,6 +243,7 @@ export const useChatStore = defineStore('chat', () => {
                 messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
               }
             } finally {
+              retryStatus.value = null
               isStreaming.value = false
               abortController.value = null
             }
@@ -246,6 +259,7 @@ export const useChatStore = defineStore('chat', () => {
                 messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
               }
             } finally {
+              retryStatus.value = null
               isStreaming.value = false
               abortController.value = null
             }
@@ -272,6 +286,73 @@ export const useChatStore = defineStore('chat', () => {
       isStreaming.value = false
       abortController.value = null
     }
+  }
+
+  // ===== 消息操作 =====
+
+  /** 删除单条消息 */
+  async function deleteMessageById(messageId: string) {
+    await dbDeleteMessage(messageId)
+    messages.value = messages.value.filter((m) => m.id !== messageId)
+  }
+
+  /** 删除指定消息及其之后的所有消息 */
+  async function deleteMessageAndAfter(messageId: string) {
+    const index = messages.value.findIndex((m) => m.id === messageId)
+    if (index === -1) return
+    const idsToDelete = messages.value.slice(index).map((m) => m.id)
+    await dbDeleteMessages(idsToDelete)
+    messages.value = messages.value.slice(0, index)
+  }
+
+  /** 重试：删除最后一条 AI 回复，重新发送 */
+  async function retryMessage(messageId: string) {
+    if (isStreaming.value) return
+    const index = messages.value.findIndex((m) => m.id === messageId)
+    if (index === -1) return
+
+    // 找到这条 AI 消息之前最近的一条用户消息
+    let userMsgIndex = -1
+    for (let i = index - 1; i >= 0; i--) {
+      if (messages.value[i].role === 'user') {
+        userMsgIndex = i
+        break
+      }
+    }
+    if (userMsgIndex === -1) return
+
+    const userMsg = messages.value[userMsgIndex]
+    const userContent = userMsg.content
+    const userImages = userMsg.images
+
+    // 删除这条 AI 回复（及之后的所有消息）
+    const idsToDelete = messages.value.slice(index).map((m) => m.id)
+    await dbDeleteMessages(idsToDelete)
+    messages.value = messages.value.slice(0, index)
+
+    // 重新发送用户消息
+    await sendMessage(userContent, userImages)
+  }
+
+  /** 编辑用户消息：更新内容后重新生成 AI 回复 */
+  async function editMessage(messageId: string, newContent: string) {
+    if (isStreaming.value) return
+    const index = messages.value.findIndex((m) => m.id === messageId)
+    if (index === -1) return
+
+    // 更新数据库中的消息
+    await dbUpdateMessage(messageId, { content: newContent })
+    messages.value[index] = { ...messages.value[index], content: newContent }
+
+    // 删除这条消息之后的所有消息
+    if (index < messages.value.length - 1) {
+      const idsToDelete = messages.value.slice(index + 1).map((m) => m.id)
+      await dbDeleteMessages(idsToDelete)
+      messages.value = messages.value.slice(0, index + 1)
+    }
+
+    // 重新发送
+    await sendMessage(newContent, messages.value[index].images)
   }
 
   // ===== 面板控制 =====
@@ -315,6 +396,7 @@ export const useChatStore = defineStore('chat', () => {
     streamingToolCalls,
     streamingThinking,
     streamingUsage,
+    retryStatus,
     currentSession,
     enabledTools,
     enabledToolNames,
@@ -325,6 +407,10 @@ export const useChatStore = defineStore('chat', () => {
     clearSessionMessages,
     sendMessage,
     stopGeneration,
+    deleteMessageById,
+    deleteMessageAndAfter,
+    retryMessage,
+    editMessage,
     togglePanel,
     setTargetTab,
     toggleTool,
