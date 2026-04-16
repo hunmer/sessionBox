@@ -432,7 +432,7 @@ async function parseSSEStream(
 /**
  * 根据工具名在主进程内执行对应操作，返回结果。
  */
-async function executeTool(name: string, args: Record<string, unknown>, targetTabId?: string): Promise<unknown> {
+export async function executeTool(name: string, args: Record<string, unknown>, targetTabId?: string): Promise<unknown> {
   console.log(`[ai-proxy executeTool] name=${name}, args=${JSON.stringify(args)}`)
 
   try {

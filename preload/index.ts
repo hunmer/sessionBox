@@ -612,6 +612,12 @@ const api = {
       ipcRenderer.invoke('mcp:get-status')
   },
 
+  // Workflow agent 工具执行
+  agent: {
+    execTool: (toolType: string, params?: Record<string, any>): Promise<any> =>
+      ipcRenderer.invoke('agent:execTool', toolType, params),
+  },
+
   // Skill 管理
   skill: {
     list: (): Promise<Array<{ name: string; description: string; created: string; updated: string }>> =>

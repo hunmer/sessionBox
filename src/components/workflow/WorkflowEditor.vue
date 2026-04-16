@@ -380,7 +380,7 @@ async function onListSelect(workflow: any) {
           :collapsible="!executionBarExpanded"
           :collapsed-size="4"
           :default-size="executionBarExpanded ? savedExecPanelSize : 4"
-          :min-size="executionBarExpanded ? 30 : 4"
+          :min-size="executionBarExpanded ? 15 : 4"
           :max-size="executionBarExpanded ? 60 : 4"
         >
           <ExecutionBar v-model:expanded="executionBarExpanded" />

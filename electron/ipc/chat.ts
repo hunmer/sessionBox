@@ -1,7 +1,12 @@
 import { ipcMain, BrowserWindow } from 'electron'
-import { proxyChatCompletions, activeRequests } from '../services/ai-proxy'
+import { proxyChatCompletions, activeRequests, executeTool } from '../services/ai-proxy'
 
 export function registerChatIpcHandlers(): void {
+  // Workflow engine 工具执行通道
+  ipcMain.handle('agent:execTool', async (_event, toolType: string, params: Record<string, any>) => {
+    return executeTool(toolType, params || {})
+  })
+
   ipcMain.handle('chat:completions', async (event, params) => {
     const mainWindow = BrowserWindow.fromWebContents(event.sender)
     if (!mainWindow) {

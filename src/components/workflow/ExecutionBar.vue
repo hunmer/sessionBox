@@ -127,7 +127,7 @@ const displayLog = computed(() => store.selectedExecutionLog)
 
     <!-- 展开区域：左右分栏 -->
     <div v-if="expanded" class="border-t border-border flex-1 min-h-0">
-      <ResizablePanelGroup direction="horizontal">
+      <ResizablePanelGroup direction="horizontal" class="h-full">
         <!-- 左侧：历史执行列表 -->
         <ResizablePanel :default-size="25" :min-size="15" :max-size="40">
           <div class="h-full flex flex-col">
@@ -143,7 +143,7 @@ const displayLog = computed(() => store.selectedExecutionLog)
                 <Trash2 class="w-2.5 h-2.5 text-muted-foreground" />
               </Button>
             </div>
-            <ScrollArea class="flex-1">
+            <ScrollArea class="flex-1 min-h-0">
               <div class="space-y-px p-1">
                 <div
                   v-for="log in store.executionLogs"
@@ -191,7 +191,7 @@ const displayLog = computed(() => store.selectedExecutionLog)
                 {{ displayLog ? `${formatTime(displayLog.startedAt)} · ${displayLog.steps.length} 节点` : '执行详情' }}
               </span>
             </div>
-            <ScrollArea class="flex-1" v-if="displayLog">
+            <ScrollArea class="flex-1 min-h-0" v-if="displayLog">
               <div class="p-2 space-y-1">
                 <div
                   v-for="step in displayLog.steps"

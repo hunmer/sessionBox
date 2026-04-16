@@ -359,6 +359,10 @@ const api = {
     stop: () => electron.ipcRenderer.invoke("mcp:stop"),
     getStatus: () => electron.ipcRenderer.invoke("mcp:get-status")
   },
+  // Workflow agent 工具执行
+  agent: {
+    execTool: (toolType, params) => electron.ipcRenderer.invoke("agent:execTool", toolType, params)
+  },
   // Skill 管理
   skill: {
     list: () => electron.ipcRenderer.invoke("skill:list"),
