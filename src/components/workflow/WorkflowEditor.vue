@@ -32,7 +32,7 @@ watch(() => store.currentWorkflow, (val) => {
   if (val) store.saveDraft()
 }, { deep: true })
 
-const { onConnect, project, vueFlowRef, onViewportChange, setViewport, fitView } = useVueFlow()
+const { onConnect, project, vueFlowRef, onViewportChange, setViewport, fitView, addEdges, connectionLineStyle } = useVueFlow()
 
 const nodeTypes = {
   custom: markRaw(CustomNodeWrapper),
@@ -95,6 +95,10 @@ const edges = computed(() =>
 onConnect((params: any) => {
   store.addEdge(params.source, params.target)
 })
+
+function handleConnect(params: any) {
+  store.addEdge(params.source, params.target)
+}
 
 function onDragOver(event: DragEvent) {
   event.preventDefault()
@@ -209,6 +213,8 @@ async function onListSelect(workflow: any) {
             :node-types="nodeTypes"
             :min-zoom="0.2"
             :max-zoom="4"
+            :connection-mode="'loose'"
+            @connect="handleConnect"
             @dragover="onDragOver"
             @drop="onDrop"
             @node-click="onNodeClick"
