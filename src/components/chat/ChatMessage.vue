@@ -93,6 +93,16 @@ const displayUsage = computed(() => {
   return props.message.usage ?? null
 })
 
+/** 是否显示统计栏（时间或 token） */
+const showStats = computed(() => !isUser.value && (durationMs.value !== null || displayUsage.value !== null))
+
+/** 最后一个文本段的索引 */
+const lastTextSegmentIndex = computed(() => {
+  let last = -1
+  segments.value.forEach((seg, i) => { if (seg.type === 'text' && seg.content) last = i })
+  return last
+})
+
 function formatTokenCount(n: number): string {
   if (n < 1000) return String(n)
   return `${(n / 1000).toFixed(1)}k`
@@ -180,27 +190,25 @@ const segments = computed<ContentSegment[]>(() => {
           :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
         >
           <div class="chat-markdown prose prose-sm dark:prose-invert max-w-none" v-html="renderMarkdown(seg.content)" />
+          <!-- 统计信息嵌入最后一个文本气泡右下角 -->
+          <div
+            v-if="i === lastTextSegmentIndex && showStats"
+            class="flex items-center justify-end gap-2 mt-1 pt-1 border-t border-border/10 text-[11px] text-muted-foreground/50"
+          >
+            <span v-if="durationMs !== null" class="inline-flex items-center gap-1">
+              <span v-if="isStreaming" class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              {{ formatDuration(durationMs) }}
+            </span>
+            <span v-if="displayUsage" class="inline-flex items-center gap-1.5">
+              <span title="输入 tokens">↑ {{ formatTokenCount(displayUsage.inputTokens) }}</span>
+              <span title="输出 tokens">↓ {{ formatTokenCount(displayUsage.outputTokens) }}</span>
+            </span>
+          </div>
         </div>
         <div v-else-if="seg.type === 'tool-call'" class="max-w-[85%]">
           <ToolCallCard :tool-call="seg.toolCall" />
         </div>
       </template>
-
-      <!-- 执行时间 & Token 统计 -->
-      <div
-        v-if="durationMs !== null || displayUsage"
-        class="text-[11px] text-muted-foreground/60 mt-0.5 inline-flex items-center gap-2"
-        :class="isUser ? 'text-right' : ''"
-      >
-        <span v-if="durationMs !== null" class="inline-flex items-center gap-1">
-          <span v-if="isStreaming" class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          {{ formatDuration(durationMs) }}
-        </span>
-        <span v-if="displayUsage" class="inline-flex items-center gap-1.5">
-          <span title="输入 tokens">&#8594; {{ formatTokenCount(displayUsage.inputTokens) }}</span>
-          <span title="输出 tokens">&#8592; {{ formatTokenCount(displayUsage.outputTokens) }}</span>
-        </span>
-      </div>
     </div>
   </div>
 </template>

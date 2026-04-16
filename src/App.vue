@@ -172,6 +172,10 @@ const SIDEBAR_DEFAULT_SIZE = 260
 // ====== 垂直标签栏面板控制 ======
 const VERTICAL_TAB_STORAGE_KEY = 'sessionbox-vertical-tab-width'
 const VERTICAL_TAB_DEFAULT_SIZE = 180
+const CHAT_PANEL_STORAGE_KEY = 'sessionbox-chat-panel-width'
+const CHAT_PANEL_DEFAULT_SIZE = 380
+const CHAT_PANEL_MIN_SIZE = 280
+const CHAT_PANEL_MAX_SIZE = 600
 const IMMERSIVE_HIDE_DELAY = 900
 const IMMERSIVE_EDGE_TRIGGER_SIZE = 16
 const RIGHT_PANEL_WIDTH = 50
@@ -194,6 +198,12 @@ const verticalTabDefaultSize = savedVerticalTabWidth ? Number(savedVerticalTabWi
 const sidebarCurrentSize = ref(sidebarDefaultSize)
 const sidebarExpandedSize = ref(sidebarDefaultSize)
 const verticalTabCurrentSize = ref(verticalTabDefaultSize)
+
+// 从 localStorage 恢复聊天面板宽度
+const savedChatPanelWidth = localStorage.getItem(CHAT_PANEL_STORAGE_KEY)
+const chatPanelDefaultSize = savedChatPanelWidth
+  ? Math.min(Math.max(Number(savedChatPanelWidth), CHAT_PANEL_MIN_SIZE), CHAT_PANEL_MAX_SIZE)
+  : CHAT_PANEL_DEFAULT_SIZE
 const immersivePanelVisible = ref<Record<ImmersiveEdge, boolean>>({
   top: false,
   left: false,
@@ -302,6 +312,13 @@ function handleLayout(sizes: number[]) {
     // 垂直模式下 sizes[1] 是垂直标签栏面板的像素宽度
     if (tabStore.tabLayout === 'vertical' && sizes.length >= 3) {
       localStorage.setItem(VERTICAL_TAB_STORAGE_KEY, String(Math.round(sizes[1])))
+    }
+    // ChatPanel 始终是最后一个面板
+    if (chatStore.isPanelVisible) {
+      const chatWidth = Math.round(sizes[sizes.length - 1])
+      if (chatWidth >= CHAT_PANEL_MIN_SIZE && chatWidth <= CHAT_PANEL_MAX_SIZE) {
+        localStorage.setItem(CHAT_PANEL_STORAGE_KEY, String(chatWidth))
+      }
     }
   }, 300)
 }
@@ -720,7 +737,7 @@ useIpcEvent('shortcut', (actionId) => {
         <!-- 聊天面板（可调整宽度，默认 380px） -->
         <template v-if="chatStore.isPanelVisible">
           <ResizableHandle />
-          <ResizablePanel size-unit="px" :default-size="380" :min-size="280" :max-size="600">
+          <ResizablePanel size-unit="px" :default-size="chatPanelDefaultSize" :min-size="280" :max-size="600">
             <ChatPanel />
           </ResizablePanel>
         </template>

@@ -221,14 +221,6 @@ function forwardSSEEvent(
       }
       break
     }
-    case 'message_start': {
-      const msg = event.message as Record<string, unknown> | undefined
-      if (msg?.usage) {
-        const usage = msg.usage as Record<string, unknown>
-        send('on:chat:usage', { requestId, inputTokens: usage.input_tokens ?? 0, outputTokens: 0 })
-      }
-      break
-    }
     case 'error': {
       send('on:chat:error', { requestId, error: event.error })
       break
@@ -348,10 +340,9 @@ async function parseSSEStream(
         if (delta?.stop_reason) {
           stopReason = delta.stop_reason as string
         }
-        // message_delta 事件携带本輪 output_tokens
         const usage = event.usage as Record<string, unknown> | undefined
-        if (usage?.output_tokens) {
-          cumulativeUsage.outputTokens += usage.output_tokens as number
+        if (usage && typeof usage.output_tokens === 'number') {
+          cumulativeUsage.outputTokens += usage.output_tokens
           send('on:chat:usage', { requestId, ...cumulativeUsage })
         }
       }
@@ -360,8 +351,9 @@ async function parseSSEStream(
       if (type === 'message_start') {
         const msg = event.message as Record<string, unknown> | undefined
         const usage = msg?.usage as Record<string, unknown> | undefined
-        if (usage?.input_tokens) {
-          cumulativeUsage.inputTokens += usage.input_tokens as number
+        if (usage && typeof usage.input_tokens === 'number') {
+          cumulativeUsage.inputTokens += usage.input_tokens
+          send('on:chat:usage', { requestId, ...cumulativeUsage })
         }
       }
     }

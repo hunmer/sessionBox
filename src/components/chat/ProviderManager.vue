@@ -80,7 +80,7 @@ async function handleAddModel(providerId: string) {
   }
 
   await providerStore.updateProvider(providerId, {
-    models: [...provider.models, newModel],
+    models: [...provider.models.map((m) => ({ ...m })), newModel],
   })
 
   newModelId.value = ''
@@ -95,7 +95,7 @@ async function handleDeleteModel(providerId: string, modelId: string) {
   const provider = providerStore.providers.find((p) => p.id === providerId)
   if (!provider) return
   await providerStore.updateProvider(providerId, {
-    models: provider.models.filter((m) => m.id !== modelId),
+    models: provider.models.filter((m) => m.id !== modelId).map((m) => ({ ...m })),
   })
 }
 
