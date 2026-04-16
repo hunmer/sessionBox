@@ -160,7 +160,7 @@ export const useChatStore = defineStore('chat', () => {
       abortController.value = controller
 
       const history = messages.value
-        .filter((m) => m.id !== assistantMsg.id)
+        .filter((m) => m.id !== assistantMsg.id && m.role !== 'system')
         .map((m) => ({
           role: m.role,
           content: m.content,
