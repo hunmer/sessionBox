@@ -1,9 +1,16 @@
 import type { ToolCall } from '@/types'
 
+export interface ToolResultEvent {
+  requestId: string
+  toolUseId: string
+  name: string
+  result: unknown
+}
+
 export interface StreamCallbacks {
   onToken: (token: string) => void
   onToolCall: (call: ToolCall) => void
-  onToolResult: (result: unknown) => void
+  onToolResult: (event: ToolResultEvent) => void
   onThinking: (content: string) => void
   onDone: () => void
   onError: (error: Error) => void
@@ -28,6 +35,14 @@ export function listenToChatStream(requestId: string, callbacks: StreamCallbacks
     window.api.on('chat:tool-call', (data: any) => {
       if (data.requestId === requestId) {
         callbacks.onToolCall(data.toolCall)
+      }
+    }),
+  )
+
+  unsubscribers.push(
+    window.api.on('chat:tool-result', (data: any) => {
+      if (data.requestId === requestId) {
+        callbacks.onToolResult(data)
       }
     }),
   )

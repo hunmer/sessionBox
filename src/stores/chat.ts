@@ -149,8 +149,14 @@ export const useChatStore = defineStore('chat', () => {
           onToolCall: (call: ToolCall) => {
             streamingToolCalls.value.push(call)
           },
-          onToolResult: (_result: unknown) => {
-            // 工具结果在 Agent 内部处理
+          onToolResult: (event: { toolUseId: string; name: string; result: unknown }) => {
+            // 找到对应的 ToolCall，更新状态和结果
+            const tc = streamingToolCalls.value.find((t) => t.id === event.toolUseId)
+            if (tc) {
+              tc.status = 'completed'
+              tc.result = event.result
+              tc.completedAt = Date.now()
+            }
           },
           onThinking: (thinkContent: string) => {
             streamingThinking.value += thinkContent
@@ -227,6 +233,12 @@ export const useChatStore = defineStore('chat', () => {
 
   async function init() {
     await loadSessions()
+
+    // 自动激活最近使用的会话
+    if (sessions.value.length > 0 && !currentSessionId.value) {
+      await switchSession(sessions.value[0].id)
+    }
+
     const tabStore = useTabStore()
     if (!targetTabId.value && tabStore.activeTabId) {
       setTargetTab(tabStore.activeTabId)

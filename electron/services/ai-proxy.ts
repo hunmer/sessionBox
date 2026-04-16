@@ -120,11 +120,21 @@ export async function proxyChatCompletions(
       for (const tc of parsed.toolCalls) {
         console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
         const result = executeTool(tc.name, tc.args)
-        console.log(`[ai-proxy] tool ${tc.name} result: ${JSON.stringify(result).slice(0, 200)}`)
+        const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
+        console.log(`[ai-proxy] tool ${tc.name} result: ${resultStr.slice(0, 200)}`)
+
+        // 通知渲染进程：工具执行完成 + 结果
+        send('on:chat:tool-result', {
+          requestId: _requestId,
+          toolUseId: tc.id,
+          name: tc.name,
+          result,
+        })
+
         toolResults.push({
           type: 'tool_result',
           tool_use_id: tc.id,
-          content: typeof result === 'string' ? result : JSON.stringify(result),
+          content: resultStr,
         })
       }
 
