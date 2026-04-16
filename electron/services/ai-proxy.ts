@@ -45,7 +45,7 @@ export async function proxyChatCompletions(
     }
 
     const apiUrl = `${provider.apiBase.replace(/\/$/, '')}/v1/messages`
-    const MAX_TOOL_ROUNDS = 10
+    const MAX_TOOL_ROUNDS = 100
 
     // 多轮对话循环：LLM 可能多次请求 tool_use
     let currentMessages = [...messages]
