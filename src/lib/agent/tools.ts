@@ -37,6 +37,9 @@ export const BROWSER_TOOL_LIST: ToolMeta[] = [
   { name: 'close_tab', description: '关闭标签页', category: '标签页管理' },
   { name: 'list_groups', description: '列出所有分组', category: '标签页管理' },
   { name: 'list_pages', description: '列出所有页面', category: '标签页管理' },
+  { name: 'get_page_summary', description: '获取页面结构化摘要（标题、heading、链接、meta）', category: '页面信息' },
+  { name: 'get_page_markdown', description: '获取页面正文内容的 Markdown 表示', category: '页面信息' },
+  { name: 'get_interactive_nodes', description: '获取页面中可见的交互节点列表', category: '页面信息' },
 ]
 
 /**
@@ -226,6 +229,41 @@ export function createBrowserTools(targetTabId: string | null): ToolDefinition[]
       input_schema: {
         type: 'object',
         properties: {},
+      },
+    },
+
+    {
+      name: 'get_page_summary',
+      description: '获取页面结构化摘要，包括标题、URL、description、headings、links（最多 50 条）和 meta 信息。',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tabId: tabIdField,
+        },
+      },
+    },
+
+    {
+      name: 'get_page_markdown',
+      description: '获取页面正文内容的 Markdown 表示。使用 Readability 提取正文，再转为 Markdown。适合阅读文章、博客、文档类页面。',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tabId: tabIdField,
+          maxLength: { type: 'number', description: 'Markdown 内容最大字符数，默认 10000', default: 10000 },
+        },
+      },
+    },
+
+    {
+      name: 'get_interactive_nodes',
+      description: '获取页面中可见的交互节点列表（按钮、链接、输入框等），返回每个节点的 tag、role、name、text、selector、rect、visible、clickable 属性。默认仅返回视口内元素。',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tabId: tabIdField,
+          viewportOnly: { type: 'boolean', description: '是否仅返回视口内元素，默认 true', default: true },
+        },
       },
     },
   ]
