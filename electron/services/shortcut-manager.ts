@@ -44,7 +44,8 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'goto-tab-8', label: '跳转到第 8 个标签页', defaultAccelerator: 'CmdOrCtrl+8', supportsGlobal: true },
   { id: 'goto-tab-last', label: '跳转到最后一个标签页', defaultAccelerator: 'CmdOrCtrl+9', supportsGlobal: true },
   { id: 'tab-overview', label: '标签页概览', defaultAccelerator: 'CmdOrCtrl+Shift+A', supportsGlobal: true },
-  { id: 'command-palette', label: '命令面板', defaultAccelerator: 'CmdOrCtrl+K', supportsGlobal: true }
+  { id: 'command-palette', label: '命令面板', defaultAccelerator: 'CmdOrCtrl+K', supportsGlobal: true },
+  { id: 'toggle-window', label: '唤起/最小化主窗口', defaultAccelerator: '', supportsGlobal: true }
 ]
 
 /** 快捷键绑定 */
@@ -89,7 +90,17 @@ export function registerGlobalShortcuts(): void {
       globalShortcut.register(binding.accelerator, () => {
         console.log('[Shortcut] 全局快捷键触发:', binding.id, binding.accelerator)
         const win = BrowserWindow.getAllWindows()[0]
-        if (win) {
+        if (!win) return
+
+        if (binding.id === 'toggle-window') {
+          // 唤起/最小化主窗口：最小化则恢复，否则最小化
+          if (win.isMinimized()) {
+            win.restore()
+            win.focus()
+          } else {
+            win.minimize()
+          }
+        } else {
           if (win.isMinimized()) win.restore()
           win.focus()
           win.webContents.send('on:shortcut', binding.id)

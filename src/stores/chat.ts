@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 import type { ChatSession, ChatMessage, ToolCall } from '@/types'
 import {
   createSession as dbCreateSession,
@@ -156,10 +156,13 @@ export const useChatStore = defineStore('chat', () => {
             streamingThinking.value += thinkContent
           },
           onDone: async () => {
+            // toRaw 解除 Vue 响应式 Proxy，确保 IndexedDB 可序列化
             const updates: Partial<ChatMessage> = {
               content: streamingToken.value,
               thinking: streamingThinking.value || undefined,
-              toolCalls: streamingToolCalls.value.length > 0 ? [...streamingToolCalls.value] : undefined,
+              toolCalls: streamingToolCalls.value.length > 0
+                ? JSON.parse(JSON.stringify(toRaw(streamingToolCalls.value)))
+                : undefined,
             }
             await dbUpdateMessage(assistantMsg.id, updates)
             const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
