@@ -211,12 +211,13 @@ function requestDelete(skill: SkillItem) {
 }
 
 async function confirmDelete() {
-  if (!deleteTarget.value) return
+  const target = deleteTarget.value
+  if (!target) return
+  deleteTarget.value = null
   try {
-    await window.api.skill.delete(deleteTarget.value.name)
+    await window.api.skill.delete(target.name)
     await loadSkills()
   } catch { /* ignore */ }
-  deleteTarget.value = null
 }
 </script>
 
