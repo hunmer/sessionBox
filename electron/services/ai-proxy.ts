@@ -748,10 +748,15 @@ async function executeTool(name: string, args: Record<string, unknown>, targetTa
           for (let i = 0; i < codeBlocks.length; i++) {
             const code = replaceParams(codeBlocks[i], params)
             try {
-              const result = await wc.executeJavaScript(`(function() { ${code} })()`)
+              const result = await wc.executeJavaScript(buildSkillExecutionScript(code))
               results.push({ step: i + 1, success: true, result })
             } catch (err) {
-              results.push({ step: i + 1, success: false, error: err instanceof Error ? err.message : String(err) })
+              results.push({
+                step: i + 1,
+                success: false,
+                error: err instanceof Error ? err.message : String(err),
+                result: { code },
+              })
             }
           }
         }
@@ -803,6 +808,77 @@ function getWebContentsFromManager(tabId?: string): Electron.WebContents | null 
 /** CSS 选择器转义 */
 function cssEscape(selector: string): string {
   return selector.replace(/'/g, "\\'")
+}
+
+function buildSkillExecutionScript(code: string): string {
+  return `(() => {
+    const ensureElement = (selector) => {
+      const el = document.querySelector(selector)
+      if (!el) {
+        throw new Error(\`Element not found: \${selector}\`)
+      }
+      return el
+    }
+
+    const type_text = async (selector, text) => {
+      if (typeof selector !== 'string' || !selector) {
+        throw new Error('type_text: selector is required')
+      }
+      if (typeof text !== 'string') {
+        throw new Error('type_text: text must be a string')
+      }
+
+      const el = ensureElement(selector)
+      if (!(el instanceof HTMLElement)) {
+        throw new Error(\`type_text: unsupported element for selector \${selector}\`)
+      }
+
+      el.focus()
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        el.value = text
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        el.dispatchEvent(new Event('change', { bubbles: true }))
+        return { success: true }
+      }
+
+      if (el.isContentEditable) {
+        el.textContent = text
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        return { success: true }
+      }
+
+      throw new Error(\`type_text: selector \${selector} is not an input, textarea, or contenteditable element\`)
+    }
+
+    const click_element = async (selector) => {
+      if (typeof selector !== 'string' || !selector) {
+        throw new Error('click_element: selector is required')
+      }
+
+      const el = ensureElement(selector)
+      if (!(el instanceof HTMLElement)) {
+        throw new Error(\`click_element: unsupported element for selector \${selector}\`)
+      }
+
+      el.click()
+      return { success: true }
+    }
+
+    const get_page_content = async () => ({
+      content: document.body?.innerText ?? '',
+    })
+
+    const get_page_markdown = async () => ({
+      title: document.title || '',
+      markdown: document.body?.innerText ?? '',
+      contentLength: (document.body?.innerText ?? '').length,
+      truncated: false,
+    })
+
+    return (async () => {
+      ${code}
+    })()
+  })()`
 }
 
 /**

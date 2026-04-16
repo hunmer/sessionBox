@@ -211,13 +211,27 @@ export function extractCodeBlocks(content: string): string[] {
 }
 
 /**
- * 将参数占位符 {{paramName}} 替换为实际值。
+ * 将参数占位符替换为实际值。
+ * - {{paramName}} 保持历史行为，用于原始 JS 片段替换
+ * - {paramName} 用于字符串模板占位符，例如 '{keyword}'
  */
 export function replaceParams(code: string, params: Record<string, unknown>): string {
-  return code.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+  return code.replace(/\{\{(\w+)\}\}|\{(\w+)\}/g, (match, rawKey, stringKey) => {
+    const key = rawKey || stringKey
     const val = params[key]
-    if (val === undefined) return `{{${key}}}`
-    return typeof val === 'string' ? val : JSON.stringify(val)
+    if (val === undefined) return match
+
+    const text = typeof val === 'string' ? val : JSON.stringify(val)
+    if (rawKey) return text
+
+    return text
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/"/g, '\\"')
+      .replace(/\r/g, '\\r')
+      .replace(/\n/g, '\\n')
+      .replace(/\u2028/g, '\\u2028')
+      .replace(/\u2029/g, '\\u2029')
   })
 }
 

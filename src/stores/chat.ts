@@ -127,33 +127,14 @@ export const useChatStore = defineStore('chat', () => {
 
   // ===== 消息发送 =====
 
-  async function sendMessage(content: string, images?: string[]) {
-    if (isStreaming.value) return
-    if (!currentSessionId.value) {
-      await createSession()
-    }
+  /**
+   * 核心流式请求：创建助手占位消息，发送请求，处理回调和持久化。
+   * 被 sendMessage（新消息）和 retryMessage（重试）共用。
+   */
+  async function streamAssistantReply(content: string, images?: string[]) {
     const sessionId = currentSessionId.value!
     const providerStore = useAIProviderStore()
 
-    // 保存用户消息
-    const userMsg = await dbAddMessage({
-      sessionId,
-      role: 'user',
-      content,
-      images,
-      createdAt: Date.now(),
-    })
-    messages.value.push(userMsg)
-
-    // 更新会话标题（首条消息时）
-    const session = sessions.value.find((s) => s.id === sessionId)
-    if (session && session.messageCount <= 1) {
-      const title = content.slice(0, 50) + (content.length > 50 ? '...' : '')
-      await dbUpdateSessionTitle(sessionId, title)
-      session.title = title
-    }
-
-    // 创建助手消息占位
     const assistantMsg = await dbAddMessage({
       sessionId,
       role: 'assistant',
@@ -163,7 +144,6 @@ export const useChatStore = defineStore('chat', () => {
     })
     messages.value.push(assistantMsg)
 
-    // 开始流式请求
     isStreaming.value = true
     streamingToken.value = ''
     streamingToolCalls.value = []
@@ -202,7 +182,6 @@ export const useChatStore = defineStore('chat', () => {
             }
           },
           onToolResult: (event: { toolUseId: string; name: string; result: unknown }) => {
-            // 找到对应的 ToolCall，更新状态和结果
             const tc = streamingToolCalls.value.find((t) => t.id === event.toolUseId)
             if (tc) {
               tc.status = 'completed'
@@ -226,7 +205,6 @@ export const useChatStore = defineStore('chat', () => {
           },
           onDone: async () => {
             try {
-              // toRaw 解除 Vue 响应式 Proxy，确保 IndexedDB 可序列化
               const updates: Partial<ChatMessage> = {
                 content: streamingToken.value,
                 thinking: streamingThinking.value || undefined,
@@ -280,6 +258,34 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function sendMessage(content: string, images?: string[]) {
+    if (isStreaming.value) return
+    if (!currentSessionId.value) {
+      await createSession()
+    }
+    const sessionId = currentSessionId.value!
+
+    // 保存用户消息
+    const userMsg = await dbAddMessage({
+      sessionId,
+      role: 'user',
+      content,
+      images,
+      createdAt: Date.now(),
+    })
+    messages.value.push(userMsg)
+
+    // 更新会话标题（首条消息时）
+    const session = sessions.value.find((s) => s.id === sessionId)
+    if (session && session.messageCount <= 1) {
+      const title = content.slice(0, 50) + (content.length > 50 ? '...' : '')
+      await dbUpdateSessionTitle(sessionId, title)
+      session.title = title
+    }
+
+    await streamAssistantReply(content, images)
+  }
+
   function stopGeneration() {
     if (abortController.value) {
       abortController.value.abort()
@@ -325,13 +331,13 @@ export const useChatStore = defineStore('chat', () => {
     const userContent = userMsg.content
     const userImages = userMsg.images
 
-    // 删除这条 AI 回复（及之后的所有消息）
+    // 删除这条 AI 回复（及之后的所有消息），保留用户消息
     const idsToDelete = messages.value.slice(index).map((m) => m.id)
     await dbDeleteMessages(idsToDelete)
     messages.value = messages.value.slice(0, index)
 
-    // 重新发送用户消息
-    await sendMessage(userContent, userImages)
+    // 直接流式生成新回复，不再重复创建用户消息
+    await streamAssistantReply(userContent, userImages)
   }
 
   /** 编辑用户消息：更新内容后重新生成 AI 回复 */
@@ -351,8 +357,8 @@ export const useChatStore = defineStore('chat', () => {
       messages.value = messages.value.slice(0, index + 1)
     }
 
-    // 重新发送
-    await sendMessage(newContent, messages.value[index].images)
+    // 重新生成 AI 回复（用户消息已就地更新，无需重复创建）
+    await streamAssistantReply(newContent, messages.value[index].images)
   }
 
   // ===== 面板控制 =====
