@@ -188,7 +188,7 @@ const workspaceSwitcherItems = computed(() => {
         @select-page="handleSelectPage"
       />
       <div class="mt-auto shrink-0">
-        <MemoryInfo />
+        <MemoryInfo :collapsed="collapsed" />
         <NavUser
           class="p-1"
           :user="{ name: userProfileStore.profile.name, email: '', avatar: userProfileStore.avatarSrc, emoji: userProfileStore.isEmojiAvatar ? userProfileStore.profile.avatar : undefined }"

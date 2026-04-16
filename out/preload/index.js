@@ -357,6 +357,13 @@ const api = {
     stop: () => electron.ipcRenderer.invoke("mcp:stop"),
     getStatus: () => electron.ipcRenderer.invoke("mcp:get-status")
   },
+  // Skill 管理
+  skill: {
+    list: () => electron.ipcRenderer.invoke("skill:list"),
+    search: (query) => electron.ipcRenderer.invoke("skill:search", query),
+    read: (name) => electron.ipcRenderer.invoke("skill:read", name),
+    delete: (name) => electron.ipcRenderer.invoke("skill:delete", name)
+  },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
     const channel = `on:${event}`;

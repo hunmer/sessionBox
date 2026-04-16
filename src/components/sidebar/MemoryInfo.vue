@@ -2,6 +2,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useTabStore } from '@/stores/tab'
 
+defineProps<{ collapsed?: boolean }>()
+
 const tabStore = useTabStore()
 
 const appMemoryKB = ref(0)
@@ -64,7 +66,7 @@ onUnmounted(() => {
 <template>
   <div class="px-3 pt-2 pb-1 text-xs text-sidebar-foreground/60 space-y-1.5">
     <!-- 标签数量 + 应用内存 -->
-    <div class="flex items-center justify-between">
+    <div v-if="!collapsed" class="flex items-center justify-between">
       <span>{{ tabStore.tabs.length }} 个标签</span>
       <span>{{ formatMB(appMemoryKB) }} MB / {{ formatGB(totalMemoryKB) }} GB</span>
     </div>

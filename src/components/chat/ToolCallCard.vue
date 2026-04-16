@@ -9,6 +9,16 @@ const props = defineProps<{
 
 const showArgs = ref(true)
 const showResult = ref(false)
+const copied = ref(false)
+
+function copyResult() {
+  const text = props.toolCall.error ?? formattedResult.value
+  if (!text) return
+  navigator.clipboard.writeText(text).then(() => {
+    copied.value = true
+    setTimeout(() => (copied.value = false), 1500)
+  })
+}
 
 const statusConfig: Record<string, { label: string; class: string; icon: string }> = {
   pending: { label: '等待中', class: 'bg-muted text-muted-foreground', icon: '⏳' },
@@ -112,12 +122,27 @@ const duration = computed(() => {
 
     <!-- 输出结果 -->
     <Collapsible v-if="toolCall.result != null || toolCall.error" v-model:open="showResult" class="border-t">
-      <CollapsibleTrigger class="w-full flex items-center gap-1 px-3 py-1 text-muted-foreground hover:text-foreground cursor-pointer text-[11px]">
-        <svg class="h-3 w-3 transition-transform" :class="showResult ? 'rotate-90' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 18l6-6-6-6" />
-        </svg>
-        <span>{{ showResult ? '收起结果' : '查看结果' }}</span>
-      </CollapsibleTrigger>
+      <div class="w-full flex items-center justify-between px-3 py-1 text-muted-foreground text-[11px]">
+        <CollapsibleTrigger class="flex items-center gap-1 hover:text-foreground cursor-pointer">
+          <svg class="h-3 w-3 transition-transform" :class="showResult ? 'rotate-90' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+          <span>{{ showResult ? '收起结果' : '查看结果' }}</span>
+        </CollapsibleTrigger>
+        <button
+          class="p-0.5 rounded hover:bg-muted hover:text-foreground transition-colors"
+          title="复制输出"
+          @click.stop="copyResult"
+        >
+          <svg v-if="!copied" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          <svg v-else class="h-3 w-3 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+      </div>
       <CollapsibleContent>
         <div v-if="toolCall.error" class="px-3 pb-2 text-red-500 font-mono text-[11px]">{{ toolCall.error }}</div>
         <div v-else-if="isImageResult" class="px-3 pb-2">
