@@ -7,7 +7,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
 import { resolveLucideIcon } from '@/lib/lucide-resolver'
+import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { ref } from 'vue'
 
 const store = useWorkflowStore()
 
@@ -21,6 +24,9 @@ const IconComponent = computed(() => {
   return resolveLucideIcon(definition.value.icon)
 })
 
+const isDebugging = computed(() => store.debugNodeStatus === 'running')
+const outputExpanded = ref(true)
+
 function getFieldValue(key: string): any {
   return store.selectedNode?.data[key] ?? ''
 }
@@ -28,6 +34,22 @@ function getFieldValue(key: string): any {
 function setFieldValue(key: string, value: any) {
   if (store.selectedNodeId) {
     store.updateNodeData(store.selectedNodeId, { [key]: value })
+  }
+}
+
+async function handleDebug() {
+  if (!store.selectedNodeId || isDebugging.value) return
+  outputExpanded.value = true
+  await store.debugSingleNode(store.selectedNodeId)
+}
+
+function formatOutput(value: any): string {
+  if (value === undefined || value === null) return ''
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
   }
 }
 </script>
@@ -41,10 +63,64 @@ function setFieldValue(key: string, value: any) {
     <template v-else>
       <div class="flex items-center gap-2 p-3 border-b border-border">
         <component :is="IconComponent" v-if="IconComponent" class="w-4 h-4 text-muted-foreground" />
-        <div>
-          <div class="text-sm font-medium">{{ definition.label }}</div>
-          <div v-if="description" class="text-[10px] text-muted-foreground">
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-medium truncate">{{ definition.label }}</div>
+          <div v-if="definition?.description" class="text-[10px] text-muted-foreground truncate">
             {{ definition.description }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 调试按钮 -->
+      <div class="px-3 py-2 border-b border-border">
+        <Button
+          size="sm"
+          variant="outline"
+          class="w-full h-7 text-xs gap-1.5"
+          :disabled="isDebugging"
+          @click="handleDebug"
+        >
+          <Loader2 v-if="isDebugging" class="w-3 h-3 animate-spin" />
+          <Bug v-else class="w-3 h-3" />
+          {{ isDebugging ? '执行中...' : '调试此节点' }}
+        </Button>
+      </div>
+
+      <!-- 调试输出 -->
+      <div
+        v-if="store.debugNodeResult && store.selectedNodeId === store.debugNodeId"
+        class="px-3 py-2 border-b border-border"
+      >
+        <!-- 状态 + 折叠 -->
+        <button
+          class="flex items-center gap-1.5 w-full text-left"
+          @click="outputExpanded = !outputExpanded"
+        >
+          <component
+            :is="outputExpanded ? ChevronDown : ChevronRight"
+            class="w-3 h-3 text-muted-foreground shrink-0"
+          />
+          <CheckCircle2
+            v-if="store.debugNodeResult.status === 'completed'"
+            class="w-3 h-3 text-green-500 shrink-0"
+          />
+          <XCircle v-else class="w-3 h-3 text-red-500 shrink-0" />
+          <span class="text-xs font-medium">
+            {{ store.debugNodeResult.status === 'completed' ? '执行成功' : '执行失败' }}
+          </span>
+          <span class="text-[10px] text-muted-foreground ml-auto">
+            {{ store.debugNodeResult.duration }}ms
+          </span>
+        </button>
+
+        <div v-if="outputExpanded" class="mt-2 space-y-1.5">
+          <!-- 错误信息 -->
+          <div v-if="store.debugNodeResult.error" class="rounded bg-red-500/10 p-2">
+            <p class="text-[11px] text-red-500 font-mono break-all">{{ store.debugNodeResult.error }}</p>
+          </div>
+          <!-- 输出结果 -->
+          <div v-if="store.debugNodeResult.output !== undefined" class="rounded bg-muted p-2">
+            <pre class="text-[11px] font-mono text-foreground whitespace-pre-wrap break-all max-h-40 overflow-auto">{{ formatOutput(store.debugNodeResult.output) }}</pre>
           </div>
         </div>
       </div>

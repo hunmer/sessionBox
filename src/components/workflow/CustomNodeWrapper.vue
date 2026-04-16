@@ -2,9 +2,17 @@
 import { ref, computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
+import { X, Copy, Trash2 } from 'lucide-vue-next'
 import { getNodeDefinition } from '@/lib/workflow/nodeRegistry'
 import { resolveLucideIcon } from '@/lib/lucide-resolver'
 import { useWorkflowStore } from '@/stores/workflow'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 
 const props = defineProps<NodeProps>()
 const store = useWorkflowStore()
@@ -41,40 +49,72 @@ function finishEdit() {
   store.updateNodeLabel(String(props.id), editLabel.value)
 }
 
+function handleDelete() {
+  store.removeNode(String(props.id))
+}
+
+function handleClone() {
+  store.cloneNode(String(props.id))
+}
+
 const displayLabel = computed(() => props.data?.label || definition.value?.label || props.type)
 </script>
 
 <template>
-  <div
-    class="bg-background border-2 rounded-lg shadow-sm min-w-[140px] max-w-[200px] cursor-pointer transition-colors"
-    :class="[statusColor, props.selected ? 'ring-2 ring-primary' : '']"
-    @click="store.selectedNodeId = String(id)"
-  >
-    <div class="flex items-center gap-2 px-3 py-2 border-b border-border/50">
-      <component :is="IconComponent" v-if="IconComponent" class="w-4 h-4 text-muted-foreground shrink-0" />
-      <span class="text-xs text-muted-foreground truncate">{{ definition?.label || type }}</span>
-    </div>
-
-    <div class="px-3 py-1.5">
-      <input
-        v-if="isEditing"
-        ref="inputRef"
-        v-model="editLabel"
-        class="w-full text-xs bg-transparent outline-none border-b border-primary"
-        @blur="finishEdit"
-        @keyup.enter="finishEdit"
-        @click.stop
-      />
+  <ContextMenu>
+    <ContextMenuTrigger as-child>
       <div
-        v-else
-        class="text-xs truncate hover:bg-muted/50 rounded px-1 py-0.5"
-        @dblclick.stop="startEdit"
+        class="group/node bg-background border-2 rounded-lg shadow-sm min-w-[140px] max-w-[200px] cursor-pointer transition-colors relative"
+        :class="[statusColor, props.selected ? 'ring-2 ring-primary' : '']"
+        @click="store.selectedNodeId = String(id)"
       >
-        {{ displayLabel }}
-      </div>
-    </div>
+        <!-- 悬浮删除按钮 -->
+        <button
+          class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover/node:opacity-100 transition-opacity hover:bg-destructive/80 z-10"
+          @click.stop="handleDelete"
+        >
+          <X class="w-3 h-3" />
+        </button>
 
-    <Handle type="target" :position="Position.Top" class="!w-3 !h-3 !bg-muted-foreground" />
-    <Handle type="source" :position="Position.Bottom" class="!w-3 !h-3 !bg-muted-foreground" />
-  </div>
+        <div class="flex items-center gap-2 px-3 py-2 border-b border-border/50">
+          <component :is="IconComponent" v-if="IconComponent" class="w-4 h-4 text-muted-foreground shrink-0" />
+          <span class="text-xs text-muted-foreground truncate">{{ definition?.label || type }}</span>
+        </div>
+
+        <div class="px-3 py-1.5">
+          <input
+            v-if="isEditing"
+            ref="inputRef"
+            v-model="editLabel"
+            class="w-full text-xs bg-transparent outline-none border-b border-primary"
+            @blur="finishEdit"
+            @keyup.enter="finishEdit"
+            @click.stop
+          />
+          <div
+            v-else
+            class="text-xs truncate hover:bg-muted/50 rounded px-1 py-0.5"
+            @dblclick.stop="startEdit"
+          >
+            {{ displayLabel }}
+          </div>
+        </div>
+
+        <Handle type="target" :position="Position.Top" class="!w-3 !h-3 !bg-muted-foreground" />
+        <Handle type="source" :position="Position.Bottom" class="!w-3 !h-3 !bg-muted-foreground" />
+      </div>
+    </ContextMenuTrigger>
+
+    <ContextMenuContent class="w-40">
+      <ContextMenuItem class="gap-2 cursor-pointer" @select="handleClone">
+        <Copy class="w-4 h-4" />
+        <span>克隆</span>
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem class="gap-2 cursor-pointer text-destructive focus:text-destructive" @select="handleDelete">
+        <Trash2 class="w-4 h-4" />
+        <span>删除</span>
+      </ContextMenuItem>
+    </ContextMenuContent>
+  </ContextMenu>
 </template>

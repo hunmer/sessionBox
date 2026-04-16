@@ -19,6 +19,16 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const executionContext = ref<Record<string, any>>({})
   const engine = ref<WorkflowEngine | null>(null)
 
+  // ====== 单节点调试 ======
+  const debugNodeStatus = ref<'idle' | 'running' | 'completed' | 'error'>('idle')
+  const debugNodeResult = ref<{
+    status: 'completed' | 'error'
+    output?: any
+    error?: string
+    duration: number
+  } | null>(null)
+  const debugNodeId = ref<string | null>(null)
+
   // ====== 计算属性 ======
   const rootFolders = computed(() =>
     workflowFolders.value
@@ -126,6 +136,21 @@ export const useWorkflowStore = defineStore('workflow', () => {
     if (selectedNodeId.value === nodeId) selectedNodeId.value = null
   }
 
+  function cloneNode(nodeId: string): WorkflowNode | null {
+    if (!currentWorkflow.value) return null
+    const source = currentWorkflow.value.nodes.find((n) => n.id === nodeId)
+    if (!source) return null
+    const cloned: WorkflowNode = {
+      id: crypto.randomUUID(),
+      type: source.type,
+      label: source.label,
+      position: { x: source.position.x + 30, y: source.position.y + 30 },
+      data: JSON.parse(JSON.stringify(source.data)),
+    }
+    currentWorkflow.value.nodes.push(cloned)
+    return cloned
+  }
+
   function updateNodeData(nodeId: string, data: Record<string, any>): void {
     const node = currentWorkflow.value?.nodes.find((n) => n.id === nodeId)
     if (node) node.data = { ...node.data, ...data }
@@ -196,6 +221,23 @@ export const useWorkflowStore = defineStore('workflow', () => {
     engine.value?.stop()
   }
 
+  // ====== 单节点调试 ======
+  async function debugSingleNode(nodeId: string): Promise<void> {
+    if (!currentWorkflow.value) return
+    const node = currentWorkflow.value.nodes.find((n) => n.id === nodeId)
+    if (!node) return
+
+    debugNodeStatus.value = 'running'
+    debugNodeResult.value = null
+    debugNodeId.value = nodeId
+
+    const tempEngine = new WorkflowEngine([node], [])
+    const result = await tempEngine.debugSingleNode(node, executionContext.value)
+
+    debugNodeResult.value = result
+    debugNodeStatus.value = result.status
+  }
+
   // ====== 草稿持久化 ======
   function saveDraft(): void {
     if (!currentWorkflow.value) return
@@ -249,6 +291,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     newWorkflow,
     addNode,
     removeNode,
+    cloneNode,
     updateNodeData,
     updateNodePosition,
     updateNodeLabel,
@@ -259,6 +302,11 @@ export const useWorkflowStore = defineStore('workflow', () => {
     pauseExecution,
     resumeExecution,
     stopExecution,
+    // 单节点调试
+    debugNodeStatus,
+    debugNodeResult,
+    debugNodeId,
+    debugSingleNode,
     // 草稿
     saveDraft,
     restoreDraft,

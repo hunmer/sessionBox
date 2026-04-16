@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, markRaw, watch } from 'vue'
+import { ref, computed, markRaw, watch, nextTick } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { MiniMap } from '@vue-flow/minimap'
@@ -32,11 +32,46 @@ watch(() => store.currentWorkflow, (val) => {
   if (val) store.saveDraft()
 }, { deep: true })
 
-const { onConnect, project, vueFlowRef } = useVueFlow()
+const { onConnect, project, vueFlowRef, onViewportChange, setViewport, fitView } = useVueFlow()
 
 const nodeTypes = {
   custom: markRaw(CustomNodeWrapper),
 }
+
+// ====== Viewport 持久化 ======
+const VIEWPORT_KEY = (id: string) => `workflow-vp-${id}`
+
+function getSavedViewport(workflowId: string): { zoom: number; x: number; y: number } | null {
+  try {
+    const raw = localStorage.getItem(VIEWPORT_KEY(workflowId))
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+let viewportSaveTimer: ReturnType<typeof setTimeout> | null = null
+onViewportChange(({ zoom, x, y }) => {
+  if (!store.currentWorkflow) return
+  if (viewportSaveTimer) clearTimeout(viewportSaveTimer)
+  viewportSaveTimer = setTimeout(() => {
+    localStorage.setItem(
+      VIEWPORT_KEY(store.currentWorkflow!.id),
+      JSON.stringify({ zoom, x, y }),
+    )
+  }, 300)
+})
+
+watch(() => store.currentWorkflow?.id, async (id) => {
+  if (!id) return
+  await nextTick()
+  const saved = getSavedViewport(id)
+  if (saved) {
+    setViewport(saved)
+  } else {
+    fitView()
+  }
+})
 
 const nodes = computed(() =>
   (store.currentWorkflow?.nodes || []).map((n) => ({
@@ -172,10 +207,8 @@ async function onListSelect(workflow: any) {
             :nodes="nodes"
             :edges="edges"
             :node-types="nodeTypes"
-            :default-viewport="{ zoom: 1, x: 0, y: 0 }"
             :min-zoom="0.2"
             :max-zoom="4"
-            fit-view-on-init
             @dragover="onDragOver"
             @drop="onDrop"
             @node-click="onNodeClick"

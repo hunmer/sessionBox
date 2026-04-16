@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import {
   Dialog,
   DialogContent,
@@ -14,18 +14,17 @@ onMounted(() => {
   store.loadData()
 })
 
-function onOpenChange(val: boolean) {
-  open.value = val
+// 监听 open 变化：打开时恢复草稿（比 @update:open 更可靠）
+watch(open, (val) => {
   if (val) {
     store.loadData()
-    // 尝试恢复上次编辑的草稿
     store.restoreDraft()
   }
-}
+})
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="onOpenChange">
+  <Dialog :open="open" @update:open="open = $event">
     <DialogContent class="sm:max-w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden" :show-close-button="true">
       <WorkflowEditor />
     </DialogContent>

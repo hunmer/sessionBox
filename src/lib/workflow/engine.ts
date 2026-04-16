@@ -90,6 +90,21 @@ export class WorkflowEngine {
     this.stopRequested = true
   }
 
+  /** 调试单个节点 —— 不重置状态，复用已有 context 做变量解析 */
+  async debugSingleNode(
+    node: WorkflowNode,
+    existingContext: Record<string, any> = {},
+  ): Promise<{ status: 'completed' | 'error'; output?: any; error?: string; duration: number }> {
+    this.context = { ...existingContext }
+    const startTime = Date.now()
+    try {
+      const result = await this.dispatchNode(node)
+      return { status: 'completed', output: result, duration: Date.now() - startTime }
+    } catch (err: any) {
+      return { status: 'error', error: err?.message || String(err), duration: Date.now() - startTime }
+    }
+  }
+
   private reset(): void {
     this.context = {}
     this.steps = []
