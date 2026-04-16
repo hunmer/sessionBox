@@ -37,6 +37,14 @@ export interface Workflow {
   updatedAt: number
 }
 
+/** 节点输出字段定义（支持嵌套） */
+export interface OutputField {
+  key: string
+  type: 'string' | 'number' | 'boolean' | 'object' | 'any'
+  value?: string
+  children?: OutputField[]
+}
+
 /** 节点属性表单字段定义 */
 export interface NodeProperty {
   key: string

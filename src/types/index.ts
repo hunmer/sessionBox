@@ -289,6 +289,7 @@ export type {
   Workflow,
   NodeProperty,
   NodeTypeDefinition,
+  OutputField,
   ExecutionStep,
   ExecutionLog,
 } from '@/lib/workflow/types'

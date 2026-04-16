@@ -96,6 +96,7 @@ export class WorkflowEngine {
     existingContext: Record<string, any> = {},
   ): Promise<{ status: 'completed' | 'error'; output?: any; error?: string; duration: number }> {
     this.context = { ...existingContext }
+    if (!this.context.__data__) this.context.__data__ = {}
     const startTime = Date.now()
     try {
       const result = await this.dispatchNode(node)
@@ -106,7 +107,7 @@ export class WorkflowEngine {
   }
 
   private reset(): void {
-    this.context = {}
+    this.context = { __data__: {} }
     this.steps = []
     this.currentIndex = 0
     this.pauseRequested = false
@@ -157,6 +158,9 @@ export class WorkflowEngine {
       step.status = 'completed'
       step.output = result
       this.context[node.id] = result
+      // 同时写入 __data__ 以支持 {{ __data__["nodeId"].field }} 语法
+      if (!this.context.__data__) this.context.__data__ = {}
+      this.context.__data__[node.id] = result
       this.onNodeStatusChange?.(node.id, 'completed')
     } catch (err: any) {
       step.finishedAt = Date.now()
@@ -220,14 +224,36 @@ export class WorkflowEngine {
     const resolved: Record<string, any> = {}
     for (const [key, value] of Object.entries(data)) {
       if (typeof value === 'string') {
-        resolved[key] = value.replace(/\{\{context\.([^}]+)\}\}/g, (_, path) => {
+        // 先解析 __data__ 格式: {{ __data__["nodeId"].field.path }}
+        let str = value.replace(
+          /\{\{\s*__data__\["([^"]+)"\]\.([^}]+?)\s*\}\}/g,
+          (_, nodeId, fieldPath) => {
+            const data = this.context.__data__?.[nodeId]
+            if (data == null) return ''
+            return String(this.getNestedValue(data, fieldPath) ?? '')
+          },
+        )
+        // 再解析 context 格式: {{ context.nodeId.field }}
+        str = str.replace(/\{\{context\.([^}]+)\}\}/g, (_, path) => {
           return String(this.getContextValue(path) ?? '')
         })
+        resolved[key] = str
       } else {
         resolved[key] = value
       }
     }
     return resolved
+  }
+
+  /** 按点号路径获取嵌套值 */
+  private getNestedValue(obj: any, path: string): any {
+    const parts = path.split('.')
+    let current = obj
+    for (const part of parts) {
+      if (current == null) return undefined
+      current = current[part]
+    }
+    return current
   }
 
   private getContextValue(path: string): any {

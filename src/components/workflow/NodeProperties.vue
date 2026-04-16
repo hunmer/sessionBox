@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useWorkflowStore } from '@/stores/workflow'
 import { getNodeDefinition } from '@/lib/workflow/nodeRegistry'
+import type { OutputField } from '@/lib/workflow/types'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
@@ -10,7 +11,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { resolveLucideIcon } from '@/lib/lucide-resolver'
 import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight } from 'lucide-vue-next'
-import { ref } from 'vue'
+import OutputFieldEditor from './OutputFieldEditor.vue'
+import VariablePicker from './VariablePicker.vue'
 
 const store = useWorkflowStore()
 
@@ -26,6 +28,7 @@ const IconComponent = computed(() => {
 
 const isDebugging = computed(() => store.debugNodeStatus === 'running')
 const outputExpanded = ref(true)
+const outputsExpanded = ref(false)
 
 function getFieldValue(key: string): any {
   return store.selectedNode?.data[key] ?? ''
@@ -36,6 +39,22 @@ function setFieldValue(key: string, value: any) {
     store.updateNodeData(store.selectedNodeId, { [key]: value })
   }
 }
+
+/** 插入变量引用到指定字段 */
+function insertVariable(propKey: string, variablePath: string) {
+  const current = getFieldValue(propKey) || ''
+  setFieldValue(propKey, current + variablePath)
+}
+
+/** 获取/设置节点输出字段 */
+const nodeOutputs = computed<OutputField[]>({
+  get: () => store.selectedNode?.data?.outputs ?? [],
+  set: (val) => {
+    if (store.selectedNodeId) {
+      store.updateNodeData(store.selectedNodeId, { outputs: val })
+    }
+  },
+})
 
 async function handleDebug() {
   if (!store.selectedNodeId || isDebugging.value) return
@@ -137,32 +156,53 @@ function formatOutput(value: any): string {
               {{ prop.description }}
             </p>
 
-            <Input
-              v-if="prop.type === 'text'"
-              :model-value="getFieldValue(prop.key)"
-              :readonly="prop.readonly"
-              :placeholder="prop.label"
-              class="h-7 text-xs"
-              @update:model-value="setFieldValue(prop.key, $event)"
-            />
+            <!-- text + 变量按钮 -->
+            <div v-if="prop.type === 'text'" class="flex gap-1">
+              <Input
+                :model-value="getFieldValue(prop.key)"
+                :readonly="prop.readonly"
+                :placeholder="prop.label"
+                class="h-7 text-xs flex-1"
+                @update:model-value="setFieldValue(prop.key, $event)"
+              />
+              <VariablePicker
+                v-if="store.selectedNodeId"
+                :exclude-node-id="store.selectedNodeId"
+                @select="insertVariable(prop.key, $event)"
+              />
+            </div>
 
-            <Textarea
-              v-else-if="prop.type === 'textarea'"
-              :model-value="getFieldValue(prop.key)"
-              :readonly="prop.readonly"
-              :placeholder="prop.label"
-              class="text-xs min-h-[60px]"
-              @update:model-value="setFieldValue(prop.key, $event)"
-            />
+            <!-- textarea + 变量按钮 -->
+            <div v-else-if="prop.type === 'textarea'" class="flex gap-1">
+              <Textarea
+                :model-value="getFieldValue(prop.key)"
+                :readonly="prop.readonly"
+                :placeholder="prop.label"
+                class="text-xs min-h-[60px] flex-1"
+                @update:model-value="setFieldValue(prop.key, $event)"
+              />
+              <VariablePicker
+                v-if="store.selectedNodeId"
+                :exclude-node-id="store.selectedNodeId"
+                @select="insertVariable(prop.key, $event)"
+              />
+            </div>
 
-            <Textarea
-              v-else-if="prop.type === 'code'"
-              :model-value="getFieldValue(prop.key)"
-              :readonly="prop.readonly"
-              placeholder="// JavaScript code"
-              class="text-xs font-mono min-h-[120px]"
-              @update:model-value="setFieldValue(prop.key, $event)"
-            />
+            <!-- code + 变量按钮 -->
+            <div v-else-if="prop.type === 'code'" class="flex gap-1">
+              <Textarea
+                :model-value="getFieldValue(prop.key)"
+                :readonly="prop.readonly"
+                placeholder="// JavaScript code"
+                class="text-xs font-mono min-h-[120px] flex-1"
+                @update:model-value="setFieldValue(prop.key, $event)"
+              />
+              <VariablePicker
+                v-if="store.selectedNodeId"
+                :exclude-node-id="store.selectedNodeId"
+                @select="insertVariable(prop.key, $event)"
+              />
+            </div>
 
             <Input
               v-else-if="prop.type === 'number'"
@@ -200,6 +240,23 @@ function formatOutput(value: any): string {
 
           <div v-if="definition.properties.length === 0" class="text-xs text-muted-foreground text-center py-4">
             该节点无配置参数
+          </div>
+
+          <!-- 输出字段编辑区 -->
+          <div class="border-t border-border pt-3">
+            <button
+              class="flex items-center gap-1.5 w-full text-left mb-2"
+              @click="outputsExpanded = !outputsExpanded"
+            >
+              <component
+                :is="outputsExpanded ? ChevronDown : ChevronRight"
+                class="w-3 h-3 text-muted-foreground shrink-0"
+              />
+              <span class="text-xs font-medium">输出字段</span>
+            </button>
+            <div v-if="outputsExpanded">
+              <OutputFieldEditor v-model="nodeOutputs" />
+            </div>
           </div>
         </div>
       </ScrollArea>
