@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, watch } from 'vue'
 import { useTabStore } from '@/stores/tab'
 import { useChatStore } from '@/stores/chat'
 import {
@@ -9,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const AUTO_VALUE = '__auto__'
+const CURRENT_VALUE = '__current__'
 
 const tabStore = useTabStore()
 const chatStore = useChatStore()
@@ -22,12 +23,30 @@ function getDomain(url: string): string {
   }
 }
 
+/** 动态显示当前激活标签页的标题 */
+const currentTabLabel = computed(() => {
+  const tab = tabStore.activeTab
+  if (!tab) return '当前标签页'
+  return tab.title || getDomain(tab.url)
+})
+
+/** 选中的标签页被关闭后，自动回退到 __current__ */
+watch(
+  () => tabStore.tabs.map((t) => t.id),
+  (tabIds) => {
+    const targetId = chatStore.targetTabId
+    if (targetId && !tabIds.includes(targetId)) {
+      chatStore.setTargetTab(null)
+    }
+  }
+)
+
 function getCurrentValue(): string {
-  return chatStore.targetTabId ?? AUTO_VALUE
+  return chatStore.targetTabId ?? CURRENT_VALUE
 }
 
 function handleChange(value: string): void {
-  chatStore.setTargetTab(value === AUTO_VALUE ? null : value)
+  chatStore.setTargetTab(value === CURRENT_VALUE ? null : value)
 }
 </script>
 
@@ -40,7 +59,12 @@ function handleChange(value: string): void {
       <SelectValue placeholder="选择标签页" />
     </SelectTrigger>
     <SelectContent>
-      <SelectItem :value="AUTO_VALUE" class="text-xs">自动检测</SelectItem>
+      <SelectItem :value="CURRENT_VALUE" class="text-xs">
+        <span class="flex items-center gap-1">
+          <span class="text-muted-foreground">{{ currentTabLabel }}</span>
+          <span class="text-[10px] text-muted-foreground/60">(跟随)</span>
+        </span>
+      </SelectItem>
       <SelectItem
         v-for="tab in tabStore.tabs"
         :key="tab.id"

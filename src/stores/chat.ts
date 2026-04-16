@@ -213,34 +213,40 @@ export const useChatStore = defineStore('chat', () => {
             streamingUsage.value = usage
           },
           onDone: async () => {
-            // toRaw 解除 Vue 响应式 Proxy，确保 IndexedDB 可序列化
-            const updates: Partial<ChatMessage> = {
-              content: streamingToken.value,
-              thinking: streamingThinking.value || undefined,
-              toolCalls: streamingToolCalls.value.length > 0
-                ? JSON.parse(JSON.stringify(toRaw(streamingToolCalls.value)))
-                : undefined,
-              usage: streamingUsage.value ?? undefined,
+            try {
+              // toRaw 解除 Vue 响应式 Proxy，确保 IndexedDB 可序列化
+              const updates: Partial<ChatMessage> = {
+                content: streamingToken.value,
+                thinking: streamingThinking.value || undefined,
+                toolCalls: streamingToolCalls.value.length > 0
+                  ? JSON.parse(JSON.stringify(toRaw(streamingToolCalls.value)))
+                  : undefined,
+                usage: streamingUsage.value ?? undefined,
+              }
+              await dbUpdateMessage(assistantMsg.id, updates)
+              const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
+              if (msgIndex !== -1) {
+                messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
+              }
+            } finally {
+              isStreaming.value = false
+              abortController.value = null
             }
-            await dbUpdateMessage(assistantMsg.id, updates)
-            const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
-            if (msgIndex !== -1) {
-              messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
-            }
-            isStreaming.value = false
-            abortController.value = null
           },
           onError: async (error: Error) => {
-            const updates: Partial<ChatMessage> = {
-              content: streamingToken.value || `[错误] ${error.message}`,
+            try {
+              const updates: Partial<ChatMessage> = {
+                content: streamingToken.value || `[错误] ${error.message}`,
+              }
+              await dbUpdateMessage(assistantMsg.id, updates)
+              const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
+              if (msgIndex !== -1) {
+                messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
+              }
+            } finally {
+              isStreaming.value = false
+              abortController.value = null
             }
-            await dbUpdateMessage(assistantMsg.id, updates)
-            const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
-            if (msgIndex !== -1) {
-              messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
-            }
-            isStreaming.value = false
-            abortController.value = null
           },
         },
         targetTabId.value,
@@ -292,10 +298,8 @@ export const useChatStore = defineStore('chat', () => {
       await switchSession(sessions.value[0].id)
     }
 
-    const tabStore = useTabStore()
-    if (!targetTabId.value && tabStore.activeTabId) {
-      setTargetTab(tabStore.activeTabId)
-    }
+    // targetTabId 保持 null 表示"跟随当前激活标签页"
+    // 由 BrowserViewPicker 的 __current__ 选项控制
   }
 
   return {
