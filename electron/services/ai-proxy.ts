@@ -3,6 +3,7 @@ import { join } from 'path'
 import { mkdirSync, writeFileSync } from 'fs'
 import { getAIProvider, listTabs, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
 import { webviewManager } from './webview-manager'
+import { extractPageSummary, extractPageMarkdown, extractInteractiveNodes } from './page-extractor'
 
 interface ProxyRequest {
   _requestId: string
@@ -532,6 +533,45 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
         return { success: true }
       }
 
+      // ===== 页面感知工具 =====
+      case 'get_page_summary': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        const pageCheck = checkPageAvailable(wc)
+        if (pageCheck) return pageCheck
+        try {
+          return await extractPageSummary(wc)
+        } catch (err) {
+          return { error: `Failed to get page summary: ${err instanceof Error ? err.message : String(err)}` }
+        }
+      }
+
+      case 'get_page_markdown': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        const pageCheck = checkPageAvailable(wc)
+        if (pageCheck) return pageCheck
+        try {
+          const maxLength = (args.maxLength as number) || 10000
+          return await extractPageMarkdown(wc, maxLength)
+        } catch (err) {
+          return { error: `Failed to get page markdown: ${err instanceof Error ? err.message : String(err)}` }
+        }
+      }
+
+      case 'get_interactive_nodes': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        const pageCheck = checkPageAvailable(wc)
+        if (pageCheck) return pageCheck
+        try {
+          const viewportOnly = args.viewportOnly !== false
+          return await extractInteractiveNodes(wc, viewportOnly)
+        } catch (err) {
+          return { error: `Failed to get interactive nodes: ${err instanceof Error ? err.message : String(err)}` }
+        }
+      }
+
       default:
         console.warn(`[ai-proxy executeTool] unknown tool: ${name}`)
         return { error: `Unknown tool: ${name}` }
@@ -540,6 +580,23 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
     console.error(`[ai-proxy executeTool] error executing ${name}:`, err)
     return { error: err instanceof Error ? err.message : String(err) }
   }
+}
+
+/** 检查页面是否可用于内容提取（内部页面、未加载完成） */
+function checkPageAvailable(wc: Electron.WebContents): { error: string } | null {
+  const url = wc.getURL()
+  if (
+    url.startsWith('sessionbox://') ||
+    url === 'about:blank' ||
+    url.startsWith('chrome-error://') ||
+    url === ''
+  ) {
+    return { error: 'Cannot extract content from internal pages' }
+  }
+  if (wc.isLoading()) {
+    return { error: 'Page is still loading' }
+  }
+  return null
 }
 
 /** 获取 webContents */
