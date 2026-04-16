@@ -366,6 +366,19 @@ const api = {
     write: (name, description, content) => electron.ipcRenderer.invoke("skill:write", name, description, content),
     delete: (name) => electron.ipcRenderer.invoke("skill:delete", name)
   },
+  workflow: {
+    list: (folderId) => electron.ipcRenderer.invoke("workflow:list", folderId),
+    get: (id) => electron.ipcRenderer.invoke("workflow:get", id),
+    create: (data) => electron.ipcRenderer.invoke("workflow:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("workflow:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("workflow:delete", id)
+  },
+  workflowFolder: {
+    list: () => electron.ipcRenderer.invoke("workflowFolder:list"),
+    create: (data) => electron.ipcRenderer.invoke("workflowFolder:create", data),
+    update: (id, data) => electron.ipcRenderer.invoke("workflowFolder:update", id, data),
+    delete: (id) => electron.ipcRenderer.invoke("workflowFolder:delete", id)
+  },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
     const channel = `on:${event}`;
