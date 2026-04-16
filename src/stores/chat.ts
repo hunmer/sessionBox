@@ -37,6 +37,8 @@ export const useChatStore = defineStore('chat', () => {
   const streamingUsage = ref<{ inputTokens: number; outputTokens: number } | null>(null)
   const retryStatus = ref<{ attempt: number; maxRetries: number; delayMs: number; status: number } | null>(null)
   const abortController = ref<AbortController | null>(null)
+  const streamingMessageId = ref<string | null>(null)
+  let streamCleanup: (() => void) | null = null
 
   // ===== 工具启用状态 =====
 
@@ -143,6 +145,7 @@ export const useChatStore = defineStore('chat', () => {
       modelId: providerStore.currentModel?.id,
     })
     messages.value.push(assistantMsg)
+    streamingMessageId.value = assistantMsg.id
 
     isStreaming.value = true
     streamingToken.value = ''
@@ -162,7 +165,7 @@ export const useChatStore = defineStore('chat', () => {
           content: m.content,
         }))
 
-      await runAgentStream(
+      streamCleanup = await runAgentStream(
         history,
         content,
         images,
@@ -224,6 +227,8 @@ export const useChatStore = defineStore('chat', () => {
               retryStatus.value = null
               isStreaming.value = false
               abortController.value = null
+              streamingMessageId.value = null
+              streamCleanup = null
             }
           },
           onError: async (error: Error) => {
@@ -240,6 +245,8 @@ export const useChatStore = defineStore('chat', () => {
               retryStatus.value = null
               isStreaming.value = false
               abortController.value = null
+              streamingMessageId.value = null
+              streamCleanup = null
             }
           },
         },
@@ -249,6 +256,8 @@ export const useChatStore = defineStore('chat', () => {
     } catch (error) {
       isStreaming.value = false
       abortController.value = null
+      streamingMessageId.value = null
+      streamCleanup = null
       const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
       if (msgIndex !== -1) {
         const errorContent = error instanceof Error ? error.message : String(error)
@@ -286,12 +295,50 @@ export const useChatStore = defineStore('chat', () => {
     await streamAssistantReply(content, images)
   }
 
-  function stopGeneration() {
-    if (abortController.value) {
-      abortController.value.abort()
-      isStreaming.value = false
-      abortController.value = null
+  async function stopGeneration() {
+    if (!abortController.value) return
+
+    // 1. 中止请求
+    abortController.value.abort()
+    abortController.value = null
+
+    // 2. 清理 IPC 监听器
+    streamCleanup?.()
+    streamCleanup = null
+
+    // 3. 保存当前 AI 消息已有的流式内容
+    const msgId = streamingMessageId.value
+    if (msgId) {
+      const updates: Partial<ChatMessage> = {
+        content: streamingToken.value,
+        thinking: streamingThinking.value || undefined,
+        toolCalls: streamingToolCalls.value.length > 0
+          ? JSON.parse(JSON.stringify(toRaw(streamingToolCalls.value)))
+          : undefined,
+      }
+      await dbUpdateMessage(msgId, updates)
+      const msgIndex = messages.value.findIndex((m) => m.id === msgId)
+      if (msgIndex !== -1) {
+        messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
+      }
     }
+
+    // 4. 追加系统消息：用户已中断操作
+    const sessionId = currentSessionId.value
+    if (sessionId) {
+      const systemMsg = await dbAddMessage({
+        sessionId,
+        role: 'system',
+        content: '用户已中断操作',
+        createdAt: Date.now(),
+      })
+      messages.value.push(systemMsg)
+    }
+
+    // 5. 重置状态
+    isStreaming.value = false
+    streamingMessageId.value = null
+    retryStatus.value = null
   }
 
   // ===== 消息操作 =====

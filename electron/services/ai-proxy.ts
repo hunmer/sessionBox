@@ -748,7 +748,7 @@ async function executeTool(name: string, args: Record<string, unknown>, targetTa
           for (let i = 0; i < codeBlocks.length; i++) {
             const code = replaceParams(codeBlocks[i], params)
             try {
-              const result = await wc.executeJavaScript(buildSkillExecutionScript(code))
+              const result = await wc.executeJavaScript(buildSkillExecutionScript(code, params, targetTabId))
               results.push({ step: i + 1, success: true, result })
             } catch (err) {
               results.push({
@@ -810,25 +810,88 @@ function cssEscape(selector: string): string {
   return selector.replace(/'/g, "\\'")
 }
 
-function buildSkillExecutionScript(code: string): string {
+function serializeForScript(value: unknown): string {
+  return JSON.stringify(value ?? null)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
+
+function buildSkillExecutionScript(
+  code: string,
+  params: Record<string, unknown>,
+  targetTabId?: string,
+): string {
+  const serializedParams = serializeForScript(params)
+  const serializedTabId = serializeForScript(targetTabId ?? null)
+
   return `(() => {
-    const ensureElement = (selector) => {
+    const params = ${serializedParams}
+    const tabId = ${serializedTabId}
+
+    const ensureElement = (selector, fnName = 'query') => {
+      if (typeof selector !== 'string' || !selector) {
+        throw new Error(\`\${fnName}: selector is required\`)
+      }
+
       const el = document.querySelector(selector)
       if (!el) {
-        throw new Error(\`Element not found: \${selector}\`)
+        throw new Error(\`\${fnName}: element not found for selector \${selector}\`)
       }
       return el
     }
 
-    const type_text = async (selector, text) => {
-      if (typeof selector !== 'string' || !selector) {
-        throw new Error('type_text: selector is required')
+    const normalizeObjectArgs = (value, fnName) => {
+      if (value === undefined || value === null) return {}
+      if (typeof value === 'object' && !Array.isArray(value)) return value
+      throw new Error(\`\${fnName}: arguments must be an object or empty\`)
+    }
+
+    const getAccessibleName = (el) => {
+      const labelledBy = el.getAttribute('aria-labelledby')
+      if (labelledBy) {
+        const labelEl = document.getElementById(labelledBy)
+        if (labelEl && labelEl.textContent) return labelEl.textContent.trim().slice(0, 100)
       }
+      return (
+        el.getAttribute('aria-label') ||
+        el.getAttribute('title') ||
+        el.getAttribute('placeholder') ||
+        el.getAttribute('alt') ||
+        (el.textContent || '').trim().slice(0, 100) ||
+        ''
+      )
+    }
+
+    const generateSelector = (el) => {
+      if (el.id) return '#' + CSS.escape(el.id)
+      if (el.className && typeof el.className === 'string') {
+        const classes = el.className.trim().split(/\\s+/).filter((cls) => cls && !cls.startsWith('__'))
+        for (const cls of classes) {
+          const selector = '.' + CSS.escape(cls)
+          if (document.querySelectorAll(selector).length === 1) return selector
+        }
+      }
+      const parent = el.parentElement
+      if (!parent) return el.tagName.toLowerCase()
+      const siblings = Array.from(parent.children)
+      const index = siblings.indexOf(el) + 1
+      return el.tagName.toLowerCase() + ':nth-child(' + index + ')'
+    }
+
+    const type_text = async (arg1, arg2) => {
+      const options = typeof arg1 === 'object' && arg1 !== null
+        ? arg1
+        : { selector: arg1, text: arg2 }
+      const selector = options.selector
+      const text = options.text
+
       if (typeof text !== 'string') {
         throw new Error('type_text: text must be a string')
       }
 
-      const el = ensureElement(selector)
+      const el = ensureElement(selector, 'type_text')
       if (!(el instanceof HTMLElement)) {
         throw new Error(\`type_text: unsupported element for selector \${selector}\`)
       }
@@ -850,12 +913,10 @@ function buildSkillExecutionScript(code: string): string {
       throw new Error(\`type_text: selector \${selector} is not an input, textarea, or contenteditable element\`)
     }
 
-    const click_element = async (selector) => {
-      if (typeof selector !== 'string' || !selector) {
-        throw new Error('click_element: selector is required')
-      }
-
-      const el = ensureElement(selector)
+    const click_element = async (arg) => {
+      const options = typeof arg === 'object' && arg !== null ? arg : { selector: arg }
+      const selector = options.selector
+      const el = ensureElement(selector, 'click_element')
       if (!(el instanceof HTMLElement)) {
         throw new Error(\`click_element: unsupported element for selector \${selector}\`)
       }
@@ -864,16 +925,220 @@ function buildSkillExecutionScript(code: string): string {
       return { success: true }
     }
 
+    const hover_element = async (arg) => {
+      const options = typeof arg === 'object' && arg !== null ? arg : { selector: arg }
+      const selector = options.selector
+      const el = ensureElement(selector, 'hover_element')
+      if (!(el instanceof HTMLElement)) {
+        throw new Error(\`hover_element: unsupported element for selector \${selector}\`)
+      }
+
+      el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
+      el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+      return { success: true }
+    }
+
+    const select_option = async (arg1, arg2) => {
+      const options = typeof arg1 === 'object' && arg1 !== null
+        ? arg1
+        : { selector: arg1, value: arg2 }
+      const selector = options.selector
+      const value = options.value
+
+      if (typeof value !== 'string') {
+        throw new Error('select_option: value must be a string')
+      }
+
+      const el = ensureElement(selector, 'select_option')
+      if (!(el instanceof HTMLSelectElement)) {
+        throw new Error(\`select_option: selector \${selector} is not a select element\`)
+      }
+
+      el.value = value
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+      return { success: true }
+    }
+
+    const scroll_page = async (arg) => {
+      const options = typeof arg === 'object' && arg !== null ? arg : { direction: arg }
+      const direction = options.direction
+      const amount = typeof options.amount === 'number' ? options.amount : 300
+      const scrollMap = {
+        up: [0, -amount],
+        down: [0, amount],
+        left: [-amount, 0],
+        right: [amount, 0],
+      }
+      const delta = scrollMap[direction]
+      if (!delta) {
+        throw new Error('scroll_page: direction must be one of up/down/left/right')
+      }
+
+      window.scrollBy(delta[0], delta[1])
+      return { success: true }
+    }
+
+    const get_dom = async (arg) => {
+      const options = typeof arg === 'object' && arg !== null ? arg : { selector: arg }
+      const selector = options.selector
+      const el = ensureElement(selector, 'get_dom')
+      return { html: el.outerHTML }
+    }
+
     const get_page_content = async () => ({
       content: document.body?.innerText ?? '',
     })
 
-    const get_page_markdown = async () => ({
-      title: document.title || '',
-      markdown: document.body?.innerText ?? '',
-      contentLength: (document.body?.innerText ?? '').length,
-      truncated: false,
-    })
+    const get_page_summary = async () => {
+      const getMeta = (name) => {
+        const el = document.querySelector('meta[name="' + name + '"]') ||
+          document.querySelector('meta[property="' + name + '"]')
+        return el ? el.getAttribute('content') || '' : ''
+      }
+
+      return {
+        title: document.title || '',
+        url: location.href,
+        description: getMeta('description'),
+        headings: Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6')).map((h) => ({
+          level: Number.parseInt(h.tagName[1], 10),
+          text: (h.textContent || '').trim(),
+        })),
+        links: Array.from(document.querySelectorAll('a[href]')).slice(0, 50).map((a) => ({
+          text: (a.textContent || '').trim(),
+          href: a.href,
+        })),
+        meta: {
+          author: getMeta('author'),
+          keywords: getMeta('keywords'),
+          ogTitle: getMeta('og:title'),
+          ogDescription: getMeta('og:description'),
+        },
+      }
+    }
+
+    const get_page_markdown = async (arg) => {
+      const options = normalizeObjectArgs(arg, 'get_page_markdown')
+      const maxLength = typeof options.maxLength === 'number' ? options.maxLength : 10000
+      let markdown = document.body?.innerText ?? ''
+      let truncated = false
+
+      if (markdown.length > maxLength) {
+        markdown = markdown.slice(0, maxLength) + '\\n\\n[truncated]'
+        truncated = true
+      }
+
+      return {
+        title: document.title || '',
+        byline: '',
+        excerpt: '',
+        markdown,
+        contentLength: (document.body?.innerText ?? '').length,
+        truncated,
+      }
+    }
+
+    const get_interactive_nodes = async (arg) => {
+      const options = normalizeObjectArgs(arg, 'get_interactive_nodes')
+      const viewportOnly = options.viewportOnly !== false
+
+      const INTERACTIVE_TAGS = new Set([
+        'BUTTON', 'A', 'INPUT', 'TEXTAREA', 'SELECT',
+        'SUMMARY', 'DETAILS', 'OPTION', 'LABEL',
+      ])
+      const INTERACTIVE_ROLES = new Set([
+        'button', 'link', 'textbox', 'checkbox', 'radio',
+        'combobox', 'menuitem', 'tab', 'switch', 'slider',
+        'searchbox', 'menu', 'menubar', 'toolbar', 'dialog',
+        'treeitem', 'option', 'gridcell',
+      ])
+
+      const viewport = {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+      }
+
+      const isVisible = (el) => {
+        const style = getComputedStyle(el)
+        if (style.display === 'none') return false
+        if (style.visibility === 'hidden') return false
+        if (Number.parseFloat(style.opacity) <= 0) return false
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      }
+
+      const isInViewport = (el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.top < viewport.height && rect.bottom > 0 && rect.left < viewport.width && rect.right > 0
+      }
+
+      const isInteractive = (el) => {
+        if (el.tagName === 'INPUT' && el.type === 'hidden') return false
+        if (INTERACTIVE_TAGS.has(el.tagName)) return true
+        if (el.tagName === 'A' && el.hasAttribute('href')) return true
+        const role = el.getAttribute('role')
+        if (role && INTERACTIVE_ROLES.has(role)) return true
+        return el.hasAttribute('tabindex') && el.getAttribute('tabindex') !== '-1'
+      }
+
+      const nodes = []
+      for (const el of document.querySelectorAll('*')) {
+        if (!isInteractive(el)) continue
+        if (!isVisible(el)) continue
+        if (viewportOnly && !isInViewport(el)) continue
+
+        nodes.push({
+          name: getAccessibleName(el),
+          text: (el.textContent || '').trim().slice(0, 200),
+          selector: generateSelector(el),
+        })
+      }
+
+      return Object.assign(nodes, { nodes, viewport })
+    }
+
+    const get_interactive_node_detail = async (arg) => {
+      const options = typeof arg === 'object' && arg !== null ? arg : { selector: arg }
+      const selector = options.selector
+      const el = ensureElement(selector, 'get_interactive_node_detail')
+      const rect = el.getBoundingClientRect()
+      const style = getComputedStyle(el)
+      const attributes = {}
+      const skipAttrs = new Set(['class', 'style', 'id', 'tabindex'])
+
+      for (const attr of Array.from(el.attributes || [])) {
+        if (!skipAttrs.has(attr.name) && !attr.name.startsWith('on')) {
+          attributes[attr.name] = attr.value
+        }
+      }
+
+      return {
+        tag: el.tagName.toLowerCase(),
+        role: el.getAttribute('role') || el.tagName.toLowerCase(),
+        name: getAccessibleName(el),
+        text: (el.textContent || '').trim().slice(0, 200),
+        selector,
+        rect: {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        },
+        visible: style.display !== 'none' && style.visibility !== 'hidden' && Number.parseFloat(style.opacity) > 0,
+        clickable: typeof el.onclick === 'function' || el.tagName === 'BUTTON' || (el.tagName === 'A' && el.hasAttribute('href')),
+        attributes,
+        styles: {
+          display: style.display,
+          visibility: style.visibility,
+          opacity: style.opacity,
+          cursor: style.cursor,
+        },
+        value: 'value' in el ? el.value : undefined,
+        href: 'href' in el ? el.href : undefined,
+      }
+    }
 
     return (async () => {
       ${code}

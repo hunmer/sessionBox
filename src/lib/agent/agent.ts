@@ -70,4 +70,7 @@ export async function runAgentStream(
     cleanup()
     callbacks.onError(error instanceof Error ? error : new Error(String(error)))
   }
+
+  // 暴露 cleanup 供外部中断时调用
+  return cleanup
 }

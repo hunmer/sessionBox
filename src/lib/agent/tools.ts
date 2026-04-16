@@ -300,7 +300,7 @@ export function createBrowserTools(targetTabId: string | null): ToolDefinition[]
     {
       name: 'write_skill',
       description:
-        '保存或更新一个 Skill。Skill 以 Markdown 格式存储，包含名称、说明和内容（步骤 + 代码）。当用户说"保存 skill"或"创建技能"时使用。如果同名 Skill 已存在则覆盖。',
+        '保存或更新一个 Skill。Skill 以 Markdown 格式存储，包含名称、说明和内容（步骤 + 代码）。`js` 代码块可直接写可执行代码，不要求注释；保存时会自动补齐统一返回对象，确保执行结果至少返回 { success: true/false }。当用户说"保存 skill"或"创建技能"时使用。如果同名 Skill 已存在则覆盖。',
       input_schema: {
         type: 'object',
         properties: {
@@ -316,7 +316,7 @@ export function createBrowserTools(targetTabId: string | null): ToolDefinition[]
           content: {
             type: 'string',
             description:
-              'Skill 的 Markdown 正文，包含步骤、代码片段、参数说明等。支持 ```js 代码块，执行时会提取运行。',
+              'Skill 的 Markdown 正文，包含步骤、代码片段、参数说明等。支持 ```js 代码块，执行时会提取运行。代码块无需写注释；若未显式 return，保存时也会自动包装为返回对象。',
           },
         },
         required: ['name', 'description', 'content'],

@@ -362,6 +362,7 @@ const api = {
     list: () => electron.ipcRenderer.invoke("skill:list"),
     search: (query) => electron.ipcRenderer.invoke("skill:search", query),
     read: (name) => electron.ipcRenderer.invoke("skill:read", name),
+    write: (name, description, content) => electron.ipcRenderer.invoke("skill:write", name, description, content),
     delete: (name) => electron.ipcRenderer.invoke("skill:delete", name)
   },
   // 主进程 → 渲染进程事件监听

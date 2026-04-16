@@ -90,7 +90,7 @@ import { registerMcpIpcHandlers } from './mcp'
 import { registerChatIpcHandlers } from './chat'
 import { registerAIProviderIpcHandlers } from './ai-provider'
 import { isDefaultBrowser, setDefaultBrowser } from '../services/default-browser'
-import { listSkills, searchSkill, readSkill, deleteSkill } from '../services/skill-store'
+import { listSkills, searchSkill, readSkill, writeSkill, deleteSkill } from '../services/skill-store'
 
 /** 容器图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'container-icons')
@@ -561,6 +561,10 @@ $img.Dispose()`
   ipcMain.handle('skill:list', () => listSkills())
   ipcMain.handle('skill:search', (_e, query: string) => searchSkill(query))
   ipcMain.handle('skill:read', (_e, name: string) => readSkill(name))
+  ipcMain.handle(
+    'skill:write',
+    (_e, name: string, description: string, content: string) => writeSkill(name, description, content),
+  )
   ipcMain.handle('skill:delete', (_e, name: string) => deleteSkill(name))
 
   // ====== 系统内存信息 ======

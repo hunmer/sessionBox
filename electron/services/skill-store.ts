@@ -16,7 +16,7 @@
  *
  * ## 代码
  * ```js
- * // ...
+ * return { success: true }
  * ```
  */
 
@@ -138,10 +138,11 @@ export function writeSkill(
     updated: now,
   }
 
+  const normalizedContent = normalizeSkillContent(content)
   const filePath = skillFilePath(safeName)
-  writeFileSync(filePath, buildFrontmatter(meta, content), 'utf-8')
+  writeFileSync(filePath, buildFrontmatter(meta, normalizedContent), 'utf-8')
 
-  return { ...meta, content }
+  return { ...meta, content: normalizedContent }
 }
 
 /**
@@ -236,6 +237,61 @@ export function replaceParams(code: string, params: Record<string, unknown>): st
 }
 
 // ===== 内部辅助 =====
+
+function normalizeSkillContent(content: string): string {
+  return content.replace(/```(js|javascript)\r?\n([\s\S]*?)```/g, (_match, lang, code) => {
+    const normalizedCode = normalizeSkillCodeBlock(code)
+    return `\`\`\`${lang}\n${normalizedCode}\n\`\`\``
+  })
+}
+
+function normalizeSkillCodeBlock(code: string): string {
+  const trimmedCode = code.trim()
+  if (!trimmedCode) {
+    return `return { success: false, error: 'Skill code is empty' }`
+  }
+
+  if (trimmedCode.includes('const __skillExecutionResult__ = await (async () => {')) {
+    return trimmedCode
+  }
+
+  return [
+    'try {',
+    '  const __skillExecutionResult__ = await (async () => {',
+    indentCode(trimmedCode, 4),
+    '  })()',
+    '',
+    '  if (',
+    '    __skillExecutionResult__ !== null &&',
+    "    typeof __skillExecutionResult__ === 'object' &&",
+    '    !Array.isArray(__skillExecutionResult__)',
+    '  ) {',
+    '    return {',
+    '      ...__skillExecutionResult__,',
+    "      success: typeof __skillExecutionResult__.success === 'boolean' ? __skillExecutionResult__.success : true,",
+    '    }',
+    '  }',
+    '',
+    '  return __skillExecutionResult__ === undefined',
+    '    ? { success: true }',
+    '    : { success: true, data: __skillExecutionResult__ }',
+    '} catch (error) {',
+    '  return {',
+    '    success: false,',
+    "    error: error instanceof Error ? error.message : String(error),",
+    '  }',
+    '}',
+  ].join('\n')
+}
+
+function indentCode(code: string, spaces: number): string {
+  const padding = ' '.repeat(spaces)
+  return code
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => (line ? `${padding}${line}` : ''))
+    .join('\n')
+}
 
 function readSkillRaw(name: string): { meta: SkillMeta; content: string } | null {
   const filePath = skillFilePath(name)

@@ -48,6 +48,7 @@ const displayToolCalls = computed(() => {
 })
 
 const isUser = computed(() => props.message.role === 'user')
+const isSystem = computed(() => props.message.role === 'system')
 
 // --- 操作按钮 ---
 const showActions = ref(false)
@@ -148,6 +149,14 @@ function formatDuration(ms: number): string {
   return `${minutes}m ${seconds}s`
 }
 
+/** 格式化消息时间为 HH:mm */
+function formatMessageTime(timestamp: number): string {
+  const date = new Date(timestamp)
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
 /** 展示的 token 用量，streaming 时取实时数据，否则取消息持久化数据 */
 const displayUsage = computed(() => {
   if (isUser.value) return null
@@ -213,7 +222,17 @@ const segments = computed<ContentSegment[]>(() => {
 </script>
 
 <template>
+  <!-- 系统消息：居中显示 -->
+  <div v-if="isSystem" class="flex justify-center py-2">
+    <span class="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-muted/50 px-3 py-1.5 rounded-full">
+      <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ message.content }}
+    </span>
+  </div>
+
+  <!-- 用户/AI 消息 -->
   <div
+    v-else
     class="group/msg flex gap-3 py-3"
     :class="isUser ? 'flex-row-reverse' : ''"
     @mouseenter="showActions = true"
@@ -300,6 +319,15 @@ const segments = computed<ContentSegment[]>(() => {
           <ToolCallCard :tool-call="seg.toolCall" />
         </div>
       </template>
+
+      <!-- 消息时间 -->
+      <div
+        v-if="!isEditing"
+        class="text-[11px] text-muted-foreground/40 mt-0.5"
+        :class="isUser ? 'text-right' : ''"
+      >
+        {{ formatMessageTime(props.message.createdAt) }}
+      </div>
 
       <!-- 操作按钮 -->
       <div
