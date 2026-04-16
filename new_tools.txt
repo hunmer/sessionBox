@@ -1,0 +1,504 @@
+可以，下面我按“**怎么给 agent 提供网页信息**”和“**怎么拿重要节点树**”两部分来讲，并尽量给你一些**不依赖 AI** 的可落地方案。
+
+---
+
+# 一、如何让 agent 获取网页的重要信息？
+
+核心问题其实不是“把整页内容都喂给 agent”，而是：
+
+1. **先做网页信息压缩**
+2. **再给 agent 结构化表示**
+3. **必要时只保留关键信息块**
+
+常见方案从轻到重大概有这几种：
+
+---
+
+## 方案 1：直接提取 DOM 中的可见文本 + 结构化信息
+这是最基础也最稳的方式。
+
+你可以通过 CDP / `page.evaluate` / 注入 JS 获取：
+
+- 当前页面标题
+- URL
+- meta description
+- 所有可见文本
+- 主要 heading（h1~h6）
+- 链接列表
+- 表单元素
+- 图片 alt
+- 按钮文字
+- 当前滚动位置、视口信息
+
+### 优点
+- 不依赖 AI
+- 简单、稳定、可控
+- 对“工具型 agent”很友好
+
+### 缺点
+- 对复杂网页，噪音很多
+- 很难自动识别“正文”和“侧边栏/广告/导航”
+
+---
+
+## 方案 2：网页转 Markdown
+这个是现在非常常见的做法，特别适合给 LLM/agent 输入。
+
+### 常见策略
+把页面转成 markdown 后保留：
+- 标题层级
+- 段落
+- 列表
+- 表格
+- 链接
+- 图片 alt
+- code block
+
+例如：
+
+```md
+# 页面标题
+
+## 核心内容
+
+这里是正文...
+
+- 项目 1
+- 项目 2
+
+[链接文字](https://example.com)
+```
+
+### 可用库
+不依赖 AI 的话，可以考虑：
+
+#### 1）Readability.js
+- Mozilla 出的阅读模式提取器
+- 适合新闻、博客、文章类页面
+- 能自动剥离导航栏、广告、推荐区
+
+#### 2）Turndown
+- 可把 HTML 转 markdown
+- 通常和 Readability.js 组合使用
+- 流程：`HTML -> 选出正文 -> 转 markdown`
+
+### 推荐组合
+**Readability.js + Turndown**
+这是很经典的“非 AI 网页转 markdown”方案。
+
+---
+
+## 方案 3：基于可见性和布局的“重要区域提取”
+如果你的页面不是文章，而是后台系统、Web App、表单页面，那么“正文提取”不一定适用。
+
+这时更适合做：
+
+- 找出视口内元素
+- 找出面积较大、文本较多的卡片/容器
+- 找出交互元素（按钮、输入框、下拉框）
+- 找出高层级 heading、label、aria 信息
+- 找出 `role`、`aria-label`、`data-testid` 等属性
+
+### 这种方式更像“UI 结构摘要”
+适合给 agent 做操作决策。
+
+---
+
+
+## 1. Readability 提取正文
+适合内容页、文章页、文档页。
+
+### 思路
+- 从 DOM 中找出最像“正文”的区域
+- 剔除导航、侧栏、页脚、推荐列表等
+
+### 结果
+你可以得到：
+- 标题
+- 作者
+- 正文 HTML
+- 再转成 markdown
+
+### 适用场景
+- 新闻网站
+- 博客
+- 帮助文档
+- 资讯页
+
+---
+
+## 2. 基于 DOM 规则的提取
+适合你自己可控的业务页面。
+
+比如：
+- 只取 `article`
+- 只取 `[role="main"]`
+- 只取 `.content`
+- 只取可见 text node
+- 只取 `input/select/textarea/button/a`
+
+这个方案很稳定，前提是你知道页面结构规律。
+
+---
+
+## 3. 基于 accessibility tree
+这是非常推荐的非 AI 方案，尤其适合 agent。
+
+### 为什么？
+因为 accessibility tree 比 DOM 更接近“人和自动化工具看到的结构”。
+
+它会提供：
+- role（button、textbox、link、heading）
+- accessible name
+- state（disabled、checked、expanded）
+- 层级关系
+
+### 优点
+- 对 agent 特别友好
+- 比单纯 DOM 更“语义化”
+- 适合找按钮、输入框、菜单、对话框、列表
+
+### CDP 相关
+可以尝试：
+- `Accessibility.getFullAXTree`
+- `Accessibility.getPartialAXTree`
+
+如果你的自动化框架支持，这个非常值得优先考虑。
+
+---
+
+## 4. 规则化摘要
+自己定义一套“页面摘要协议”，比如输出：
+
+```json
+{
+  "title": "...",
+  "url": "...",
+  "headings": ["..."],
+  "mainText": "...",
+  "links": [
+    {"text": "...", "href": "..."}
+  ],
+  "buttons": [
+    {"text": "...", "selector": "..."}
+  ],
+  "inputs": [
+    {"type": "text", "placeholder": "...", "selector": "..."}
+  ]
+}
+```
+
+这比直接 markdown 更适合 agent 做决策和执行。
+
+---
+
+# 三、网页转 Markdown：推荐做法
+
+如果你想“网页转 markdown”，建议不要直接整页 HTML 转，而是：
+
+## 流程建议
+1. 获取页面 HTML
+2. 用 Readability 提取正文
+3. 用 Turndown 转 markdown
+4. 补充一些结构化元数据
+
+### 这样做的原因
+直接整页转 markdown 会把：
+- 导航
+- 广告
+- 弹窗
+- 脚本生成噪音
+- 隐藏内容
+
+全都带进去，结果很乱。
+
+---
+
+## 简单示意
+```js
+const { JSDOM } = require('jsdom');
+const TurndownService = require('turndown');
+const { Readability } = require('@mozilla/readability');
+
+function htmlToMarkdown(html, url) {
+  const dom = new JSDOM(html, { url });
+  const reader = new Readability(dom.window.document);
+  const article = reader.parse();
+
+  if (!article) return '';
+
+  const turndown = new TurndownService();
+  const md = turndown.turndown(article.content);
+
+  return {
+    title: article.title,
+    byline: article.byline,
+    excerpt: article.excerpt,
+    markdown: md
+  };
+}
+```
+
+---
+
+# 四、如何让 agent 获取“重要的节点树”？
+
+这个问题非常关键。
+
+我建议你不要直接把整个 DOM 树原样给 agent，因为：
+- 太大
+- 噪声多
+- 不稳定
+- 对决策没帮助
+
+更好的方法是：**抽取“语义化节点树”**。
+
+---
+
+## 方案 A：注入 JS 获取简化节点树
+你完全可以注入 JS，遍历 DOM，然后只保留重要节点。
+
+### 重点不是“所有节点”，而是“重要节点”
+一般建议保留：
+
+- `button`
+- `a`
+- `input`
+- `textarea`
+- `select`
+- `option`
+- `label`
+- `img`
+- `svg`（有时候图标按钮）
+- `h1~h6`
+- `[role]` 明确的元素
+- 可点击元素
+- 当前视口内可见的元素
+- 有文本且尺寸较大的容器
+
+---
+
+## 方案 B：用 Accessibility Tree
+如果你想让 agent 更容易“理解”页面，**Accessibility Tree 比 DOM 更好**。
+
+### 可以得到什么
+- role: button/link/textbox/heading
+- name: “提交”、“搜索”
+- state: disabled/checked/expanded
+- children 关系
+
+### 这对 agent 非常重要
+因为 agent 关心的是：
+- 哪个按钮能点
+- 哪个输入框要填
+- 哪个菜单展开了
+- 哪个元素是表单提交入口
+
+而不是 DOM 里有多少 div/span。
+
+---
+
+## 方案 C：DOM + 视觉特征结合
+这是更实用的一种：
+
+对每个候选节点，记录：
+- tagName
+- text
+- aria-label
+- role
+- class/id
+- bounding box
+- 是否可见
+- 是否可点击
+- 父子层级
+- 是否在视口内
+
+这样 agent 得到的是一个“带坐标和语义”的节点列表。
+
+---
+
+# 五、怎么定义“重要节点”？
+
+你可以用下面这些规则：
+
+## 1）交互优先
+优先保留：
+- `button`
+- `a[href]`
+- `input`
+- `textarea`
+- `select`
+- `summary`
+- `details`
+- `tab`
+- `menuitem`
+
+## 2）语义优先
+优先保留：
+- `role` 不为空
+- `aria-label`
+- `aria-labelledby`
+- `title`
+- `placeholder`
+- `alt`
+
+## 3）可见性优先
+只保留：
+- `display != none`
+- `visibility != hidden`
+- `opacity > 0`
+- `rect` 在视口或接近视口
+- 宽高合理
+
+## 4）文本密度优先
+保留文本多的容器：
+- 段落
+- 卡片
+- 列表
+- 表格
+- 文章块
+
+## 5）层级优先
+保留：
+- heading
+- main/article/section
+- form
+- dialog
+- nav
+- aside（可选，通常低优先级）
+
+---
+
+# 六、建议你输出什么格式给 agent？
+
+我建议不要只输出纯文本，最好输出一个结构化 JSON，例子：
+
+```json
+{
+  "title": "页面标题",
+  "url": "https://xxx.com",
+  "summary": "页面简介",
+  "main": {
+    "text": "正文摘要...",
+    "markdown": "# 标题\n\n正文..."
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "role": "button",
+      "tag": "button",
+      "name": "登录",
+      "text": "登录",
+      "visible": true,
+      "clickable": true,
+      "rect": {"x": 100, "y": 200, "width": 80, "height": 32}
+    },
+    {
+      "id": 2,
+      "role": "textbox",
+      "tag": "input",
+      "name": "手机号",
+      "placeholder": "请输入手机号",
+      "visible": true,
+      "rect": {"x": 120, "y": 260, "width": 200, "height": 32}
+    }
+  ]
+}
+```
+
+### 这样 agent 的好处
+- 能读内容
+- 能定位元素
+- 能执行操作
+- 还能做状态判断
+
+---
+
+# 七、一个实用建议：别让 agent 直接看全量 DOM
+
+这是很多项目会踩的坑。
+
+## 原因
+- DOM 太大，token 爆炸
+- 页面动态变化大
+- 重复节点多
+- 噪声多，决策差
+
+## 更好的方式
+做一个“页面感知层”，提供三个接口：
+
+1. `getPageSummary()`
+2. `getInteractiveNodes()`
+3. `getMainContentMarkdown()`
+
+agent 每次只拿这三类信息，再决定下一步动作。
+
+---
+
+# 八、如果你是 Electron + CDP，我建议的架构
+
+## 推荐流程
+1. 用 CDP 获取页面 HTML / DOM / accessibility tree
+2. 注入 JS 获取：
+   - 可见文本
+   - 交互节点
+   - bounding box
+3. 用规则提取正文
+4. 转 markdown
+5. 输出结构化 JSON 给 agent
+
+---
+
+## 一个比较好的分层
+### Layer 1：内容层
+- 页面标题
+- 正文 markdown
+- 摘要
+
+### Layer 2：交互层
+- 可点击节点
+- 输入框
+- 菜单
+- 表单
+
+### Layer 3：几何层
+- 坐标
+- 可见区域
+- 滚动状态
+
+### Layer 4：语义层
+- role
+- aria
+- accessibility tree
+
+---
+
+# 九、如果你只想要“重要节点树”，最推荐哪种？
+
+如果只能选一个，我建议：
+
+## 首选：Accessibility Tree
+因为它最适合 agent。
+
+## 其次：DOM 规则抽取
+作为补充，处理 AX tree 没覆盖的内容。
+
+## 最后：可见区域扫描
+用于视觉上重要但语义不明显的块。
+
+---
+
+# 十、结论：给你一个直接建议
+
+## 对“网页重要信息”
+- 内容页：`Readability.js + Turndown`
+- 业务页：`DOM 规则提取 + accessibility tree`
+- 复杂网页：`DOM + 视口 + 坐标 + AX tree`
+
+## 对“重要节点树”
+- 不要全量 DOM
+- 注入 JS 抽取“语义化重要节点”
+- 优先用 `Accessibility Tree`
+- 结合 bounding box 和可见性
+
+---

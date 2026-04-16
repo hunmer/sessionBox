@@ -17,6 +17,16 @@ const statusConfig: Record<string, { label: string; class: string; icon: string 
 }
 
 const config = computed(() => statusConfig[props.toolCall.status] ?? statusConfig.pending)
+
+const isImageResult = computed(() => {
+  const result = props.toolCall.result
+  return result && typeof result === 'object' && '_isImageContent' in result
+})
+
+const imageUrl = computed(() => {
+  if (!isImageResult.value) return ''
+  return (props.toolCall.result as Record<string, unknown>)?.url as string ?? ''
+})
 </script>
 
 <template>
@@ -38,6 +48,14 @@ const config = computed(() => statusConfig[props.toolCall.status] ?? statusConfi
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div v-if="toolCall.error" class="px-3 pb-2 text-red-500 font-mono text-[11px]">{{ toolCall.error }}</div>
+        <div v-else-if="isImageResult" class="px-3 pb-2">
+          <img
+            :src="imageUrl"
+            alt="Screenshot"
+            class="rounded border max-w-full max-h-64 object-contain"
+            loading="lazy"
+          />
+        </div>
         <div v-else class="px-3 pb-2 font-mono text-[11px] bg-muted/50 rounded mx-3 mb-2 px-2 py-1 overflow-x-auto max-h-40">
           {{ typeof toolCall.result === 'string' ? toolCall.result : JSON.stringify(toolCall.result, null, 2) }}
         </div>

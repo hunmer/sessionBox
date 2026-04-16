@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuCheckboxItem,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Switch } from '@/components/ui/switch'
 import { ImagePlus, Send, Square, Trash2, Wrench } from 'lucide-vue-next'
 import { useChatStore } from '@/stores/chat'
 import { BROWSER_TOOL_LIST } from '@/lib/agent/tools'
@@ -164,17 +165,22 @@ function onInput() {
             <DropdownMenuLabel v-if="gi > 0" class="text-xs text-muted-foreground pt-1">
               {{ category }}
             </DropdownMenuLabel>
-            <DropdownMenuCheckboxItem
+            <DropdownMenuItem
               v-for="tool in tools"
               :key="tool.name"
-              :checked="chatStore.enabledTools[tool.name] !== false"
-              @update:checked="chatStore.toggleTool(tool.name)"
+              class="flex items-center justify-between gap-3"
+              @select.prevent
             >
-              <div class="flex flex-col gap-0.5">
+              <div class="flex flex-col gap-0.5 min-w-0">
                 <span class="font-mono text-xs">{{ tool.name }}</span>
                 <span class="text-[11px] text-muted-foreground leading-tight">{{ tool.description }}</span>
               </div>
-            </DropdownMenuCheckboxItem>
+              <Switch
+                :model-value="chatStore.enabledTools[tool.name] !== false"
+                @update:model-value="chatStore.toggleTool(tool.name)"
+                class="shrink-0"
+              />
+            </DropdownMenuItem>
             <DropdownMenuSeparator v-if="gi < groupedTools.length - 1" />
           </template>
         </DropdownMenuContent>

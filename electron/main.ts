@@ -58,6 +58,10 @@ protocol.registerSchemesAsPrivileged([
   {
     scheme: 'site-icon',
     privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
+  },
+  {
+    scheme: 'screenshot',
+    privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
   }
 ])
 
@@ -311,6 +315,14 @@ if (!gotTheLock) {
       const extension = listExtensions().find((e) => e.id === extensionId)
       if (!extension?.icon) return new Response('Not found', { status: 404 })
       return net.fetch(`file://${extension.icon.replace(/\\/g, '/')}`)
+    })
+
+    // 注册 screenshot:// 协议，从 userData/ai-screenshots/ 提供截图文件
+    const screenshotDir = join(app.getPath('userData'), 'ai-screenshots')
+    protocol.handle('screenshot', (request) => {
+      const filename = decodeURIComponent(request.url.replace('screenshot://', '')).replace(/\/+$/, '')
+      if (!filename) return new Response('Bad request', { status: 400 })
+      return net.fetch(`file://${join(screenshotDir, filename).replace(/\\/g, '/')}`)
     })
 
     // 注册 site-icon:// 协议，从本地缓存提供网站图标，缓存未命中时自动下载

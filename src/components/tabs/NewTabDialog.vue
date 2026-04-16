@@ -7,7 +7,6 @@ import { usePageStore } from '@/stores/page'
 import { getFaviconUrl } from '@/lib/utils'
 import type { Page } from '@/types'
 
-/** 通过输入框提交的 URL 记录 */
 interface UrlRecord {
   url: string
   time: number
@@ -31,7 +30,6 @@ const pageStore = usePageStore()
 const urlInput = ref('')
 const urlRecords = ref<UrlRecord[]>([])
 
-// 从 localStorage 加载输入框提交记录
 function loadRecords() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -41,33 +39,33 @@ function loadRecords() {
   }
 }
 
-// 保存一条提交记录
 function saveRecord(url: string) {
-  const list = urlRecords.value.filter((r) => r.url !== url)
+  const list = urlRecords.value.filter((record) => record.url !== url)
   list.unshift({ url, time: Date.now() })
   if (list.length > MAX_RECORDS) list.length = MAX_RECORDS
   urlRecords.value = list
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
 }
 
-// 获取当前工作区的页面列表
 const pages = computed(() => {
   const groups = containerStore.workspaceGroups
-  const groupIds = new Set(groups.map((g) => g.id))
+  const groupIds = new Set(groups.map((group) => group.id))
+
   return pageStore.pages
-    .filter((p) => groupIds.has(p.groupId))
+    .filter((page) => groupIds.has(page.groupId))
     .slice()
     .sort((a, b) => a.order - b.order)
 })
 
-// 根据 URL 输入过滤历史记录
 const filteredHistory = computed(() => {
   if (!urlInput.value.trim()) return urlRecords.value.slice(0, 20)
-  const q = urlInput.value.toLowerCase()
-  return urlRecords.value.filter((r) => r.url.toLowerCase().includes(q)).slice(0, 20)
+
+  const query = urlInput.value.toLowerCase()
+  return urlRecords.value
+    .filter((record) => record.url.toLowerCase().includes(query))
+    .slice(0, 20)
 })
 
-// 弹窗打开时加载记录
 watch(() => props.open, (open) => {
   if (open) {
     urlInput.value = ''
@@ -75,39 +73,37 @@ watch(() => props.open, (open) => {
   }
 })
 
-// 从 URL 提取简短显示名
 function getUrlLabel(url: string) {
   try {
-    const u = new URL(url)
-    return u.hostname.replace(/^www\./, '')
+    const parsedUrl = new URL(url)
+    return parsedUrl.hostname.replace(/^www\./, '')
   } catch {
     return url
   }
 }
 
-// 图标是否为自定义图片
 function isImageIcon(icon: string | undefined) {
   return icon?.startsWith('img:')
 }
 
-// URL 输入框回车：记录并导航
 function handleUrlSubmit() {
   let url = urlInput.value.trim()
   if (!url) return
-  // 自动补全协议
-  if (!/^https?:\/\//i.test(url)) url = 'https://' + url
+
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`
+  }
+
   saveRecord(url)
   emit('navigate', url)
   emit('update:open', false)
 }
 
-// 点击页面
 function handleSelectPage(page: Page) {
   emit('select', page)
   emit('update:open', false)
 }
 
-// 点击历史记录
 function handleSelectHistory(record: UrlRecord) {
   saveRecord(record.url)
   emit('navigate', record.url)
@@ -117,73 +113,69 @@ function handleSelectHistory(record: UrlRecord) {
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="w-[80vw] sm:max-w-[640px] p-4 gap-3" show-close-button>
+    <DialogContent class="w-[80vw] gap-3 p-4 sm:max-w-[640px]" show-close-button>
       <DialogHeader>
         <DialogTitle>新建标签页</DialogTitle>
       </DialogHeader>
 
-      <!-- URL 输入框 -->
       <div class="relative">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Search class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           v-model="urlInput"
           type="text"
           placeholder="输入网址访问..."
-          class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-transparent text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          @keydown.enter="handleUrlSubmit"
+          class="h-9 w-full rounded-md border border-input bg-transparent pl-9 pr-3 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          @keydown.enter.prevent="handleUrlSubmit"
         />
       </div>
 
-      <!-- 页面列表 -->
       <div v-if="pages.length > 0">
-        <div class="text-xs text-muted-foreground mb-1.5 px-1">页面</div>
+        <div class="mb-1.5 px-1 text-xs text-muted-foreground">页面</div>
         <div class="flex gap-2 overflow-x-auto pb-1">
           <button
             v-for="page in pages"
             :key="page.id"
-            class="flex-shrink-0 flex flex-col items-center gap-1 w-16 p-1.5 rounded-lg hover:bg-accent transition-colors"
+            class="flex w-16 flex-shrink-0 flex-col items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-accent"
             :title="page.name"
             @click="handleSelectPage(page)"
           >
-            <span class="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden text-lg">
+            <span class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted text-lg">
               <img
                 v-if="isImageIcon(page.icon)"
                 :src="`account-icon://${page.icon!.slice(4)}`"
                 alt=""
-                class="w-full h-full object-cover"
+                class="h-full w-full object-cover"
               />
               <span v-else class="leading-none">{{ page.icon }}</span>
             </span>
-            <span class="text-[11px] text-center leading-tight truncate w-full">{{ page.name }}</span>
+            <span class="w-full truncate text-center text-[11px] leading-tight">{{ page.name }}</span>
           </button>
         </div>
       </div>
 
-      <!-- 历史记录 -->
       <div v-if="filteredHistory.length > 0">
-        <div class="text-xs text-muted-foreground mb-1.5 px-1">历史记录</div>
+        <div class="mb-1.5 px-1 text-xs text-muted-foreground">历史记录</div>
         <div class="flex gap-2 overflow-x-auto pb-1">
           <button
             v-for="record in filteredHistory"
             :key="record.url"
-            class="flex-shrink-0 flex flex-col items-center gap-1 w-16 p-1.5 rounded-lg hover:bg-accent transition-colors"
+            class="flex w-16 flex-shrink-0 flex-col items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-accent"
             :title="record.url"
             @click="handleSelectHistory(record)"
           >
-            <span class="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+            <span class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted">
               <img
                 :src="getFaviconUrl(record.url)"
                 alt=""
-                class="w-5 h-5 rounded-sm object-cover"
+                class="h-5 w-5 rounded-sm object-cover"
                 @error="($event.target as HTMLImageElement).style.display = 'none'"
               />
             </span>
-            <span class="text-[11px] text-center leading-tight truncate w-full">{{ getUrlLabel(record.url) }}</span>
+            <span class="w-full truncate text-center text-[11px] leading-tight">{{ getUrlLabel(record.url) }}</span>
           </button>
         </div>
       </div>
 
-      <!-- 无结果提示 -->
       <div
         v-if="pages.length === 0 && filteredHistory.length === 0 && !urlInput.trim()"
         class="py-4 text-center text-sm text-muted-foreground"

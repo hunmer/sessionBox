@@ -1,4 +1,6 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, app } from 'electron'
+import { join } from 'path'
+import { mkdirSync, writeFileSync } from 'fs'
 import { getAIProvider, listTabs, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
 import { webviewManager } from './webview-manager'
 
@@ -119,9 +121,21 @@ export async function proxyChatCompletions(
       const toolResults: Array<Record<string, unknown>> = []
       for (const tc of parsed.toolCalls) {
         console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
-        const result = executeTool(tc.name, tc.args)
-        const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
-        console.log(`[ai-proxy] tool ${tc.name} result: ${resultStr.slice(0, 200)}`)
+        const result = await executeTool(tc.name, tc.args)
+
+        // 构建工具结果内容：图片需要结构化数组格式
+        let toolResultContent: string | Array<Record<string, unknown>>
+        if (result && typeof result === 'object' && '_isImageContent' in result) {
+          const img = result as { mediaType: string; data: string; width: number; height: number }
+          toolResultContent = [
+            { type: 'text', text: `Screenshot captured (${img.width}x${img.height})` },
+            { type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } },
+          ]
+          console.log(`[ai-proxy] tool ${tc.name} result: screenshot ${img.width}x${img.height}`)
+        } else {
+          toolResultContent = typeof result === 'string' ? result : JSON.stringify(result)
+          console.log(`[ai-proxy] tool ${tc.name} result: ${(toolResultContent as string).slice(0, 200)}`)
+        }
 
         // 通知渲染进程：工具执行完成 + 结果
         send('on:chat:tool-result', {
@@ -134,7 +148,7 @@ export async function proxyChatCompletions(
         toolResults.push({
           type: 'tool_result',
           tool_use_id: tc.id,
-          content: resultStr,
+          content: toolResultContent,
         })
       }
 
@@ -333,7 +347,7 @@ async function parseSSEStream(
 /**
  * 根据工具名在主进程内执行对应操作，返回结果。
  */
-function executeTool(name: string, args: Record<string, unknown>): unknown {
+async function executeTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   console.log(`[ai-proxy executeTool] name=${name}, args=${JSON.stringify(args)}`)
 
   try {
@@ -401,7 +415,7 @@ function executeTool(name: string, args: Record<string, unknown>): unknown {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
         const selector = args.selector as string
-        wc.executeJavaScript(`document.querySelector('${cssEscape(selector)}')?.click()`)
+        await wc.executeJavaScript(`document.querySelector('${cssEscape(selector)}')?.click()`)
         return { success: true }
       }
 
@@ -411,12 +425,12 @@ function executeTool(name: string, args: Record<string, unknown>): unknown {
         const text = (args.text as string).replace(/'/g, "\\'")
         const selector = args.selector as string | undefined
         if (selector) {
-          wc.executeJavaScript(`
+          await wc.executeJavaScript(`
             const el = document.querySelector('${cssEscape(selector)}')
             if (el) { el.focus(); el.value = '${text}'; el.dispatchEvent(new Event('input', { bubbles: true })) }
           `)
         } else {
-          wc.executeJavaScript(`
+          await wc.executeJavaScript(`
             const el = document.activeElement
             if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
               if (el.isContentEditable) { el.textContent += '${text}' }
@@ -437,28 +451,62 @@ function executeTool(name: string, args: Record<string, unknown>): unknown {
           left: `window.scrollBy(-${amount}, 0)`,
           right: `window.scrollBy(${amount}, 0)`,
         }
-        wc.executeJavaScript(scrollMap[args.direction as string] ?? '')
+        await wc.executeJavaScript(scrollMap[args.direction as string] ?? '')
         return { success: true }
       }
 
       case 'get_page_content': {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
-        // 注意：executeJavaScript 是异步的，这里简化处理
-        return { hint: 'use execute_js tool for async content retrieval' }
+        try {
+          const content = await wc.executeJavaScript('document.body.innerText')
+          return { content }
+        } catch (err) {
+          return { error: `Failed to get page content: ${err instanceof Error ? err.message : String(err)}` }
+        }
       }
 
       case 'get_dom': {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
-        return { hint: 'use execute_js tool for async DOM retrieval' }
+        const selector = args.selector as string
+        if (!selector) return { error: 'selector is required' }
+        try {
+          const html = await wc.executeJavaScript(`document.querySelector('${cssEscape(selector)}')?.outerHTML ?? null`)
+          if (!html) return { error: `Element not found: ${selector}` }
+          return { html }
+        } catch (err) {
+          return { error: `Failed to get DOM: ${err instanceof Error ? err.message : String(err)}` }
+        }
       }
 
       case 'get_page_screenshot': {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
-        // 截图是异步操作，简化返回
-        return { hint: 'screenshot is async, not yet supported in tool loop' }
+        try {
+          const image = await wc.capturePage()
+          if (image.isEmpty()) return { error: 'Page is empty or not loaded' }
+          const jpeg = image.toJPEG(80)
+          const size = image.getSize()
+
+          // 保存到临时文件
+          const filename = `screenshot-${Date.now()}.jpg`
+          const screenshotDir = join(app.getPath('userData'), 'ai-screenshots')
+          mkdirSync(screenshotDir, { recursive: true })
+          writeFileSync(join(screenshotDir, filename), jpeg)
+
+          const base64 = jpeg.toString('base64')
+          return {
+            _isImageContent: true,
+            url: `screenshot://${filename}`,
+            mediaType: 'image/jpeg',
+            data: base64,
+            width: size.width,
+            height: size.height,
+          }
+        } catch (err) {
+          return { error: `Screenshot failed: ${err instanceof Error ? err.message : String(err)}` }
+        }
       }
 
       case 'select_option': {
@@ -466,7 +514,7 @@ function executeTool(name: string, args: Record<string, unknown>): unknown {
         if (!wc) return { error: 'Tab not found' }
         const selector = args.selector as string
         const value = (args.value as string).replace(/'/g, "\\'")
-        wc.executeJavaScript(`
+        await wc.executeJavaScript(`
           const el = document.querySelector('${cssEscape(selector)}')
           if (el) { el.value = '${value}'; el.dispatchEvent(new Event('change', { bubbles: true })) }
         `)
@@ -477,7 +525,7 @@ function executeTool(name: string, args: Record<string, unknown>): unknown {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
         const selector = args.selector as string
-        wc.executeJavaScript(`
+        await wc.executeJavaScript(`
           const el = document.querySelector('${cssEscape(selector)}')
           if (el) { el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true })); el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })) }
         `)
