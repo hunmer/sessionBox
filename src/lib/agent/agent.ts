@@ -12,6 +12,7 @@ export async function runAgentStream(
   images: string[] | undefined,
   callbacks: StreamCallbacks,
   targetTabId: string | null,
+  enabledToolNames?: Set<string>,
 ): Promise<void> {
   const providerStore = useAIProviderStore()
   const provider = providerStore.currentProvider
@@ -42,7 +43,10 @@ export async function runAgentStream(
   ]
 
   // 构造工具定义（Anthropic 格式，纯 JSON Schema，可安全通过 IPC 序列化）
-  const tools = createBrowserTools(targetTabId)
+  const allTools = createBrowserTools(targetTabId)
+  const tools = enabledToolNames
+    ? allTools.filter((t) => enabledToolNames.has(t.name))
+    : allTools
 
   const requestId = crypto.randomUUID()
 

@@ -13,6 +13,32 @@ export interface ToolDefinition {
   }
 }
 
+/** 工具元数据（用于 UI 展示，不依赖 targetTabId） */
+export interface ToolMeta {
+  name: string
+  description: string
+  category: string
+}
+
+/** 所有浏览器交互工具的元数据列表 */
+export const BROWSER_TOOL_LIST: ToolMeta[] = [
+  { name: 'click_element', description: '点击页面元素', category: '页面交互' },
+  { name: 'type_text', description: '在输入框中输入文字', category: '页面交互' },
+  { name: 'scroll_page', description: '滚动页面', category: '页面交互' },
+  { name: 'select_option', description: '选择下拉框选项', category: '页面交互' },
+  { name: 'hover_element', description: '鼠标悬停在元素上', category: '页面交互' },
+  { name: 'get_page_content', description: '获取页面文本内容', category: '页面信息' },
+  { name: 'get_dom', description: '获取指定元素 HTML', category: '页面信息' },
+  { name: 'get_page_screenshot', description: '截取页面截图', category: '页面信息' },
+  { name: 'list_tabs', description: '列出所有标签页', category: '标签页管理' },
+  { name: 'create_tab', description: '创建新标签页', category: '标签页管理' },
+  { name: 'navigate_tab', description: '导航到指定 URL', category: '标签页管理' },
+  { name: 'switch_tab', description: '切换标签页', category: '标签页管理' },
+  { name: 'close_tab', description: '关闭标签页', category: '标签页管理' },
+  { name: 'list_groups', description: '列出所有分组', category: '标签页管理' },
+  { name: 'list_pages', description: '列出所有页面', category: '标签页管理' },
+]
+
 /**
  * 创建浏览器交互工具集
  * @param targetTabId 默认目标标签页 ID

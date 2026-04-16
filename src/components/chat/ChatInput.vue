@@ -1,7 +1,18 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, computed } from 'vue'
 import { Button } from '@/components/ui/button'
-import { ImagePlus, Send, Square, Trash2 } from 'lucide-vue-next'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { ImagePlus, Send, Square, Trash2, Wrench } from 'lucide-vue-next'
+import { useChatStore } from '@/stores/chat'
+import { BROWSER_TOOL_LIST } from '@/lib/agent/tools'
+import type { ToolMeta } from '@/lib/agent/tools'
 
 const props = defineProps<{
   isStreaming: boolean
@@ -14,9 +25,27 @@ const emit = defineEmits<{
   clear: []
 }>()
 
+const chatStore = useChatStore()
+
 const inputText = ref('')
 const images = ref<string[]>([])
 const textareaRef = ref<HTMLTextAreaElement>()
+
+/** 按分类分组工具列表 */
+const groupedTools = computed(() => {
+  const groups = new Map<string, ToolMeta[]>()
+  for (const tool of BROWSER_TOOL_LIST) {
+    const list = groups.get(tool.category) ?? []
+    list.push(tool)
+    groups.set(tool.category, list)
+  }
+  return Array.from(groups.entries())
+})
+
+/** 已启用工具数量 */
+const enabledCount = computed(() => {
+  return BROWSER_TOOL_LIST.filter((t) => chatStore.enabledTools[t.name] !== false).length
+})
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -104,6 +133,52 @@ function onInput() {
       >
         <Trash2 class="h-4 w-4" />
       </Button>
+
+      <!-- 工具列表 -->
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="shrink-0 h-8 w-8 relative"
+            :disabled="isStreaming"
+          >
+            <Wrench class="h-4 w-4" />
+            <span
+              v-if="enabledCount < BROWSER_TOOL_LIST.length"
+              class="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 rounded-full bg-amber-500 text-white text-[9px] flex items-center justify-center px-0.5 leading-none"
+            >
+              {{ enabledCount }}
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" class="w-64 max-h-80 overflow-y-auto">
+          <DropdownMenuLabel class="flex items-center justify-between">
+            <span>工具列表</span>
+            <span class="text-xs font-normal text-muted-foreground">
+              {{ enabledCount }}/{{ BROWSER_TOOL_LIST.length }}
+            </span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <template v-for="([category, tools], gi) in groupedTools" :key="category">
+            <DropdownMenuLabel v-if="gi > 0" class="text-xs text-muted-foreground pt-1">
+              {{ category }}
+            </DropdownMenuLabel>
+            <DropdownMenuCheckboxItem
+              v-for="tool in tools"
+              :key="tool.name"
+              :checked="chatStore.enabledTools[tool.name] !== false"
+              @update:checked="chatStore.toggleTool(tool.name)"
+            >
+              <div class="flex flex-col gap-0.5">
+                <span class="font-mono text-xs">{{ tool.name }}</span>
+                <span class="text-[11px] text-muted-foreground leading-tight">{{ tool.description }}</span>
+              </div>
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator v-if="gi < groupedTools.length - 1" />
+          </template>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <textarea
         ref="textareaRef"

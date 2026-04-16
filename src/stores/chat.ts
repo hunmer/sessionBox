@@ -14,9 +14,11 @@ import {
 import { useAIProviderStore } from './ai-provider'
 import { useTabStore } from './tab'
 import { runAgentStream } from '@/lib/agent/agent'
+import { BROWSER_TOOL_LIST } from '@/lib/agent/tools'
 
 const PANEL_VISIBLE_KEY = 'sessionbox-chat-panel-visible'
 const TARGET_TAB_KEY = 'sessionbox-chat-target-tab'
+const ENABLED_TOOLS_KEY = 'sessionbox-chat-enabled-tools'
 
 export const useChatStore = defineStore('chat', () => {
   const sessions = ref<ChatSession[]>([])
@@ -31,6 +33,42 @@ export const useChatStore = defineStore('chat', () => {
   const streamingToolCalls = ref<ToolCall[]>([])
   const streamingThinking = ref('')
   const abortController = ref<AbortController | null>(null)
+
+  // ===== 工具启用状态 =====
+
+  /** 从 localStorage 恢复已启用工具，默认全部启用 */
+  function loadEnabledTools(): Record<string, boolean> {
+    try {
+      const stored = localStorage.getItem(ENABLED_TOOLS_KEY)
+      if (stored) return JSON.parse(stored)
+    } catch { /* ignore */ }
+    // 默认全部启用
+    const defaults: Record<string, boolean> = {}
+    for (const tool of BROWSER_TOOL_LIST) {
+      defaults[tool.name] = true
+    }
+    return defaults
+  }
+
+  const enabledTools = ref<Record<string, boolean>>(loadEnabledTools())
+
+  function toggleTool(name: string) {
+    enabledTools.value[name] = !enabledTools.value[name]
+    localStorage.setItem(ENABLED_TOOLS_KEY, JSON.stringify(enabledTools.value))
+  }
+
+  function isToolEnabled(name: string): boolean {
+    return enabledTools.value[name] !== false
+  }
+
+  /** 获取当前启用的工具名称集合 */
+  const enabledToolNames = computed(() => {
+    return new Set(
+      BROWSER_TOOL_LIST
+        .filter((t) => enabledTools.value[t.name] !== false)
+        .map((t) => t.name),
+    )
+  })
 
   const currentSession = computed(() =>
     sessions.value.find((s) => s.id === currentSessionId.value) ?? null,
@@ -192,6 +230,7 @@ export const useChatStore = defineStore('chat', () => {
           },
         },
         targetTabId.value,
+        enabledToolNames.value,
       )
     } catch (error) {
       isStreaming.value = false
@@ -256,6 +295,8 @@ export const useChatStore = defineStore('chat', () => {
     streamingToolCalls,
     streamingThinking,
     currentSession,
+    enabledTools,
+    enabledToolNames,
     loadSessions,
     createSession,
     deleteSessionById,
@@ -265,6 +306,8 @@ export const useChatStore = defineStore('chat', () => {
     stopGeneration,
     togglePanel,
     setTargetTab,
+    toggleTool,
+    isToolEnabled,
     init,
   }
 })
