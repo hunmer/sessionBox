@@ -27,6 +27,21 @@ const formattedArgs = computed(() => {
   return JSON.stringify(props.toolCall.args, null, 2)
 })
 
+const formattedResult = computed(() => {
+  const result = props.toolCall.result
+  if (result == null) return ''
+  if (typeof result === 'string') {
+    // 尝试解析为 JSON，成功则格式化
+    try {
+      const parsed = JSON.parse(result)
+      return JSON.stringify(parsed, null, 2)
+    } catch {
+      return result
+    }
+  }
+  return JSON.stringify(result, null, 2)
+})
+
 const isImageResult = computed(() => {
   const result = props.toolCall.result
   return result && typeof result === 'object' && '_isImageContent' in result
@@ -63,9 +78,7 @@ const imageUrl = computed(() => {
             loading="lazy"
           />
         </div>
-        <div v-else class="px-3 pb-2 font-mono text-[11px] bg-muted/50 rounded mx-3 mb-2 px-2 py-1 overflow-x-auto max-h-40">
-          {{ typeof toolCall.result === 'string' ? toolCall.result : JSON.stringify(toolCall.result, null, 2) }}
-        </div>
+        <pre v-else class="font-mono text-[11px] bg-muted/50 rounded px-3 pb-2 mx-3 mb-2 px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all max-h-60 m-0">{{ formattedResult }}</pre>
       </CollapsibleContent>
     </Collapsible>
   </div>

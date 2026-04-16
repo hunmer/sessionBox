@@ -149,6 +149,18 @@ function onBlur() {
 /** 键盘导航 */
 function handleInputKeydown(e: KeyboardEvent) {
   const list = searchCandidates.value
+
+  // Enter 键始终可触发导航，不依赖候选列表是否为空
+  if (e.key === 'Enter') {
+    if (list.length && activeIndex.value >= 0 && activeIndex.value < list.length) {
+      e.preventDefault()
+      selectSearchCandidate(list[activeIndex.value].url)
+    } else {
+      navigate()
+    }
+    return
+  }
+
   if (!list.length) return
 
   if (e.key === 'ArrowDown') {
@@ -167,13 +179,6 @@ function handleInputKeydown(e: KeyboardEvent) {
     e.preventDefault()
     activeIndex.value = activeIndex.value <= 0 ? list.length - 1 : activeIndex.value - 1
     scrollIntoView(activeIndex.value)
-  } else if (e.key === 'Enter') {
-    if (activeIndex.value >= 0 && activeIndex.value < list.length) {
-      e.preventDefault()
-      selectSearchCandidate(list[activeIndex.value].url)
-    } else {
-      navigate()
-    }
   } else if (e.key === 'Escape') {
     isFocused.value = false
     activeIndex.value = -1
