@@ -600,6 +600,18 @@ const api = {
       ipcRenderer.invoke('mcp:get-status')
   },
 
+  // Skill 管理
+  skill: {
+    list: (): Promise<Array<{ name: string; description: string; created: string; updated: string }>> =>
+      ipcRenderer.invoke('skill:list'),
+    search: (query: string): Promise<Array<{ name: string; description: string; created: string; updated: string }>> =>
+      ipcRenderer.invoke('skill:search', query),
+    read: (name: string): Promise<{ name: string; description: string; content: string; updated: string } | null> =>
+      ipcRenderer.invoke('skill:read', name),
+    delete: (name: string): Promise<boolean> =>
+      ipcRenderer.invoke('skill:delete', name),
+  },
+
   // 主进程 → 渲染进程事件监听
   on: (event: string, callback: (...args: unknown[]) => void): (() => void) => {
     const channel = `on:${event}`

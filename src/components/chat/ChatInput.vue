@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   InputGroup,
   InputGroupAddon,
@@ -17,10 +17,17 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import { ImagePlus, Send, Square, Trash2, Wrench } from 'lucide-vue-next'
+import { ImagePlus, Send, Square, Trash2, Wrench, ScrollText, Copy, Check } from 'lucide-vue-next'
 import { useChatStore } from '@/stores/chat'
 import { BROWSER_TOOL_LIST } from '@/lib/agent/tools'
 import type { ToolMeta } from '@/lib/agent/tools'
+
+interface SkillItem {
+  name: string
+  description: string
+  created: string
+  updated: string
+}
 
 const props = defineProps<{
   isStreaming: boolean
@@ -98,6 +105,34 @@ function fileToBase64(file: File): Promise<string> {
 
 function removeImage(index: number) {
   images.value.splice(index, 1)
+}
+
+// ===== Skill 列表 =====
+const skills = ref<SkillItem[]>([])
+const copiedName = ref<string | null>(null)
+
+async function loadSkills() {
+  try {
+    skills.value = await window.api.skill.list()
+  } catch {
+    skills.value = []
+  }
+}
+
+onMounted(loadSkills)
+
+async function copySkillName(name: string) {
+  try {
+    await navigator.clipboard.writeText(name)
+    copiedName.value = name
+    setTimeout(() => {
+      copiedName.value = null
+    }, 1500)
+  } catch { /* ignore */ }
+}
+
+function onSkillDropdownOpen(open: boolean) {
+  if (open) loadSkills()
 }
 </script>
 
@@ -191,6 +226,43 @@ function removeImage(index: number) {
               </DropdownMenuItem>
               <DropdownMenuSeparator v-if="gi < groupedTools.length - 1" />
             </template>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <!-- Skill 列表 -->
+        <DropdownMenu @update:open="onSkillDropdownOpen">
+          <DropdownMenuTrigger as-child>
+            <InputGroupButton variant="ghost" size="icon-xs" :disabled="isStreaming">
+              <ScrollText class="size-4" />
+            </InputGroupButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" class="w-64 max-h-80 overflow-y-auto">
+            <DropdownMenuLabel class="flex items-center justify-between">
+              <span>Skill 列表</span>
+              <span class="text-xs font-normal text-muted-foreground">{{ skills.length }}</span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <template v-if="skills.length">
+              <DropdownMenuItem
+                v-for="skill in skills"
+                :key="skill.name"
+                class="flex items-center justify-between gap-2"
+                @select.prevent="copySkillName(skill.name)"
+              >
+                <div class="flex flex-col gap-0.5 min-w-0">
+                  <span class="font-mono text-xs">{{ skill.name }}</span>
+                  <span class="text-[11px] text-muted-foreground leading-tight truncate">{{ skill.description }}</span>
+                </div>
+                <component
+                  :is="copiedName === skill.name ? Check : Copy"
+                  class="size-3.5 shrink-0 text-muted-foreground"
+                  :class="copiedName === skill.name && 'text-green-500'"
+                />
+              </DropdownMenuItem>
+            </template>
+            <DropdownMenuItem v-else disabled class="text-muted-foreground text-xs justify-center">
+              暂无 Skill，对 AI 说"保存 skill"即可创建
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
