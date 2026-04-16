@@ -7,6 +7,7 @@ const props = defineProps<{
   toolCall: ToolCall
 }>()
 
+const showArgs = ref(true)
 const showResult = ref(false)
 
 const statusConfig: Record<string, { label: string; class: string; icon: string }> = {
@@ -25,6 +26,15 @@ const hasArgs = computed(() => {
 const formattedArgs = computed(() => {
   if (!hasArgs.value) return ''
   return JSON.stringify(props.toolCall.args, null, 2)
+})
+
+/** 将 args 格式化为更可读的键值对列表 */
+const argEntries = computed(() => {
+  if (!hasArgs.value) return []
+  return Object.entries(props.toolCall.args).map(([key, value]) => ({
+    key,
+    value: typeof value === 'string' ? value : JSON.stringify(value, null, 2),
+  }))
 })
 
 const formattedResult = computed(() => {
@@ -51,22 +61,62 @@ const imageUrl = computed(() => {
   if (!isImageResult.value) return ''
   return (props.toolCall.result as Record<string, unknown>)?.url as string ?? ''
 })
+
+/** 格式化耗时 */
+const duration = computed(() => {
+  const { startedAt, completedAt } = props.toolCall
+  if (!startedAt || !completedAt) return ''
+  const ms = completedAt - startedAt
+  if (ms < 1000) return `${ms}ms`
+  return `${(ms / 1000).toFixed(1)}s`
+})
 </script>
 
 <template>
   <div class="my-1 rounded-md border text-xs">
+    <!-- 工具名 + 状态 -->
     <div class="flex items-center justify-between px-3 py-1.5">
-      <span class="font-mono font-medium">{{ toolCall.name }}</span>
+      <div class="flex items-center gap-2">
+        <span class="font-mono font-medium text-foreground">{{ toolCall.name }}</span>
+        <span v-if="duration" class="text-[10px] text-muted-foreground">{{ duration }}</span>
+      </div>
       <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" :class="config.class">
         {{ config.icon }} {{ config.label }}
       </span>
     </div>
-    <div v-if="hasArgs" class="px-3 pb-1.5 text-muted-foreground">
-      <pre class="font-mono text-[11px] bg-muted/50 rounded px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all m-0">{{ formattedArgs }}</pre>
+
+    <!-- 输入参数 -->
+    <Collapsible v-if="hasArgs" v-model:open="showArgs" class="border-t">
+      <CollapsibleTrigger class="w-full flex items-center gap-1 px-3 py-1 text-muted-foreground hover:text-foreground cursor-pointer text-[11px]">
+        <svg class="h-3 w-3 transition-transform" :class="showArgs ? 'rotate-90' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+        <span>输入参数</span>
+        <span class="text-[10px] opacity-60">({{ argEntries.length }})</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div class="px-3 pb-2 space-y-1">
+          <div v-for="entry in argEntries" :key="entry.key" class="flex gap-2">
+            <span class="font-mono text-blue-600 dark:text-blue-400 shrink-0">{{ entry.key }}:</span>
+            <span class="font-mono text-muted-foreground break-all">{{ entry.value }}</span>
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+
+    <!-- 无参数时的提示（仅 running 状态显示） -->
+    <div v-else-if="toolCall.status === 'running'" class="px-3 py-1 border-t text-[11px] text-muted-foreground flex items-center gap-1">
+      <span class="inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+      <span>接收参数中...</span>
     </div>
-    <Collapsible v-if="toolCall.result != null || toolCall.error" v-model:open="showResult">
-      <CollapsibleTrigger class="w-full px-3 pb-1 text-left text-muted-foreground hover:text-foreground cursor-pointer text-[11px]">
-        {{ showResult ? '收起结果' : '查看结果' }}
+
+    <!-- 输出结果 -->
+    <Collapsible v-if="toolCall.result != null || toolCall.error" v-model:open="showResult" class="border-t">
+      <CollapsibleTrigger class="w-full flex items-center gap-1 px-3 py-1 text-muted-foreground hover:text-foreground cursor-pointer text-[11px]">
+        <svg class="h-3 w-3 transition-transform" :class="showResult ? 'rotate-90' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+        <span>{{ showResult ? '收起结果' : '查看结果' }}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div v-if="toolCall.error" class="px-3 pb-2 text-red-500 font-mono text-[11px]">{{ toolCall.error }}</div>

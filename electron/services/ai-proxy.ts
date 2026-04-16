@@ -3,7 +3,7 @@ import { join } from 'path'
 import { mkdirSync, writeFileSync } from 'fs'
 import { getAIProvider, listTabs, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
 import { webviewManager } from './webview-manager'
-import { extractPageSummary, extractPageMarkdown, extractInteractiveNodes } from './page-extractor'
+import { extractPageSummary, extractPageMarkdown, extractInteractiveNodes, extractInteractiveNodeDetail } from './page-extractor'
 
 interface ProxyRequest {
   _requestId: string
@@ -49,6 +49,7 @@ export async function proxyChatCompletions(
 
     // 多轮对话循环：LLM 可能多次请求 tool_use
     let currentMessages = [...messages]
+    let cumulativeUsage = { inputTokens: 0, outputTokens: 0 }
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       console.log(`[ai-proxy] round ${round + 1}, messages count: ${currentMessages.length}`)
@@ -92,13 +93,13 @@ export async function proxyChatCompletions(
       }
 
       // 解析 SSE 流，累积完整的 assistant message
-      const parsed = await parseSSEStream(response.body, send, _requestId)
+      const parsed = await parseSSEStream(response.body, send, _requestId, cumulativeUsage)
 
       console.log(`[ai-proxy] round ${round + 1} done, stop_reason: ${parsed.stopReason}, tool_calls: ${parsed.toolCalls.length}`)
 
       // 没有 tool_use，正常结束
       if (parsed.stopReason !== 'tool_use' || parsed.toolCalls.length === 0) {
-        send('on:chat:done', { requestId: _requestId })
+        send('on:chat:done', { requestId: _requestId, usage: cumulativeUsage })
         return
       }
 
@@ -187,6 +188,8 @@ function forwardSSEEvent(
         send('on:chat:chunk', { requestId, token: delta.text })
       } else if (delta?.type === 'thinking_delta') {
         send('on:chat:thinking', { requestId, content: delta.thinking })
+      } else if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
+        send('on:chat:tool-call-args-delta', { requestId, index: event.index, delta: delta.partial_json })
       }
       break
     }
@@ -211,17 +214,18 @@ function forwardSSEEvent(
       send('on:chat:tool-call-update', { requestId, index, status: 'completed', completedAt: Date.now() })
       break
     }
-    case 'input_json_delta': {
-      const delta = event.delta as string | undefined
-      if (delta) {
-        send('on:chat:tool-call-args-delta', { requestId, index: event.index, delta })
-      }
-      break
-    }
     case 'message_delta': {
       const delta = event.delta as Record<string, unknown> | undefined
       if (delta?.stop_reason) {
         send('on:chat:stop-reason', { requestId, stopReason: delta.stop_reason })
+      }
+      break
+    }
+    case 'message_start': {
+      const msg = event.message as Record<string, unknown> | undefined
+      if (msg?.usage) {
+        const usage = msg.usage as Record<string, unknown>
+        send('on:chat:usage', { requestId, inputTokens: usage.input_tokens ?? 0, outputTokens: 0 })
       }
       break
     }
@@ -288,11 +292,19 @@ async function parseSSEStream(
       // 转发事件给渲染进程
       forwardSSEEvent(send, requestId, event)
 
-      // 累积文本
+      // 累积文本 & tool_use 参数 JSON（都在 content_block_delta 事件中）
       if (type === 'content_block_delta') {
         const delta = event.delta as Record<string, unknown> | undefined
         if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
           textContent += delta.text
+        }
+        // Anthropic 格式：delta.type === 'input_json_delta'，字段为 partial_json
+        if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
+          const idx = event.index as number
+          const buf = toolJsonBuffers.get(idx)
+          if (buf) {
+            buf.json += delta.partial_json
+          }
         }
       }
 
@@ -304,16 +316,6 @@ async function parseSSEStream(
           const callIndex = toolCalls.length
           toolCalls.push({ id: cb.id as string, name: cb.name as string, args: {} })
           toolJsonBuffers.set(idx, { callIndex, json: '' })
-        }
-      }
-
-      // 累积 tool_use 参数 JSON
-      if (type === 'input_json_delta') {
-        const idx = event.index as number
-        const delta = event.delta as string | undefined
-        const buf = toolJsonBuffers.get(idx)
-        if (delta && buf) {
-          buf.json += delta
         }
       }
 
@@ -447,6 +449,7 @@ async function executeTool(name: string, args: Record<string, unknown>, targetTa
       case 'click_element': {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
+        if (!args.selector || typeof args.selector !== 'string') return { error: 'selector is required' }
         const selector = args.selector as string
         await wc.executeJavaScript(`document.querySelector('${cssEscape(selector)}')?.click()`)
         return { success: true }
@@ -455,6 +458,7 @@ async function executeTool(name: string, args: Record<string, unknown>, targetTa
       case 'type_text': {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
+        if (!args.text || typeof args.text !== 'string') return { error: 'text is required' }
         const text = (args.text as string).replace(/'/g, "\\'")
         const selector = args.selector as string | undefined
         if (selector) {
@@ -545,6 +549,8 @@ async function executeTool(name: string, args: Record<string, unknown>, targetTa
       case 'select_option': {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
+        if (!args.selector || typeof args.selector !== 'string') return { error: 'selector is required' }
+        if (!args.value || typeof args.value !== 'string') return { error: 'value is required' }
         const selector = args.selector as string
         const value = (args.value as string).replace(/'/g, "\\'")
         await wc.executeJavaScript(`
@@ -557,6 +563,7 @@ async function executeTool(name: string, args: Record<string, unknown>, targetTa
       case 'hover_element': {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
+        if (!args.selector || typeof args.selector !== 'string') return { error: 'selector is required' }
         const selector = args.selector as string
         await wc.executeJavaScript(`
           const el = document.querySelector('${cssEscape(selector)}')
@@ -601,6 +608,20 @@ async function executeTool(name: string, args: Record<string, unknown>, targetTa
           return await extractInteractiveNodes(wc, viewportOnly)
         } catch (err) {
           return { error: `Failed to get interactive nodes: ${err instanceof Error ? err.message : String(err)}` }
+        }
+      }
+
+      case 'get_interactive_node_detail': {
+        const wc = getWebContentsFromManager(args.tabId as string | undefined)
+        if (!wc) return { error: 'Tab not found' }
+        const pageCheck = checkPageAvailable(wc)
+        if (pageCheck) return pageCheck
+        try {
+          const selector = args.selector as string
+          if (!selector) return { error: 'selector is required' }
+          return await extractInteractiveNodeDetail(wc, selector)
+        } catch (err) {
+          return { error: `Failed to get node detail: ${err instanceof Error ? err.message : String(err)}` }
         }
       }
 

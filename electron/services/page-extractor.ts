@@ -52,8 +52,15 @@ export interface PageMarkdown {
   truncated: boolean
 }
 
-export interface InteractiveNode {
-  id: number
+/** 交互节点简要信息（get_interactive_nodes 返回） */
+export interface InteractiveNodeSimple {
+  name: string
+  text: string
+  selector: string
+}
+
+/** 交互节点详细信息（get_interactive_node_detail 返回） */
+export interface InteractiveNodeDetail {
   tag: string
   role: string
   name: string
@@ -62,10 +69,19 @@ export interface InteractiveNode {
   rect: { x: number; y: number; width: number; height: number }
   visible: boolean
   clickable: boolean
+  attributes: Record<string, string>
+  styles: {
+    display: string
+    visibility: string
+    opacity: string
+    cursor: string
+  }
+  value?: string
+  href?: string
 }
 
 export interface InteractiveNodesResult {
-  nodes: InteractiveNode[]
+  nodes: InteractiveNodeSimple[]
   viewport: { width: number; height: number; scrollX: number; scrollY: number }
 }
 
@@ -170,7 +186,7 @@ export async function extractPageMarkdown(
 }
 
 /**
- * 提取页面中可见的交互节点
+ * 提取页面中可见的交互节点（简要信息：name, text, selector）
  * 筛选规则：button、a[href]、input、textarea、select、[role]、[tabindex]
  * 可见性过滤：display !== none、visibility !== hidden、opacity > 0、rect 合理
  * 不穿透 shadow DOM
@@ -219,7 +235,6 @@ export async function extractInteractiveNodes(
     }
 
     function isInteractive(el) {
-      // input type=hidden 排除（必须在 INTERACTIVE_TAGS 检查之前，否则会被提前返回 true）
       if (el.tagName === 'INPUT' && el.type === 'hidden') return false;
       if (INTERACTIVE_TAGS.has(el.tagName)) return true;
       if (el.tagName === 'A' && el.hasAttribute('href')) return true;
@@ -230,9 +245,7 @@ export async function extractInteractiveNodes(
     }
 
     function generateSelector(el) {
-      // 优先 id
       if (el.id) return '#' + CSS.escape(el.id);
-      // 唯一 class
       if (el.className && typeof el.className === 'string') {
         const classes = el.className.trim().split(/\\s+/).filter(c => c && !c.startsWith('__'));
         for (const cls of classes) {
@@ -240,7 +253,6 @@ export async function extractInteractiveNodes(
           if (matches.length === 1) return '.' + CSS.escape(cls);
         }
       }
-      // tag + nth-child
       const parent = el.parentElement;
       if (parent) {
         const siblings = Array.from(parent.children);
@@ -251,7 +263,6 @@ export async function extractInteractiveNodes(
     }
 
     function getAccessibleName(el) {
-      // aria-labelledby 需要查找引用元素，单独处理以避免三元运算符优先级问题
       const labelledBy = el.getAttribute('aria-labelledby');
       if (labelledBy) {
         const labelEl = document.getElementById(labelledBy);
@@ -268,7 +279,6 @@ export async function extractInteractiveNodes(
     }
 
     const nodes = [];
-    let id = 0;
     const allElements = document.querySelectorAll('*');
 
     for (const el of allElements) {
@@ -276,32 +286,97 @@ export async function extractInteractiveNodes(
       if (!isVisible(el)) continue;
       if (${viewportOnly} && !isInViewport(el)) continue;
 
-      const rect = el.getBoundingClientRect();
-      const role = el.getAttribute('role') || el.tagName.toLowerCase();
-
-      id++;
       nodes.push({
-        id,
-        tag: el.tagName.toLowerCase(),
-        role,
         name: getAccessibleName(el),
         text: (el.textContent || '').trim().slice(0, 200),
         selector: generateSelector(el),
-        rect: {
-          x: Math.round(rect.x),
-          y: Math.round(rect.y),
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
-        },
-        visible: true,
-        clickable: el.tagName === 'BUTTON' || el.tagName === 'A' ||
-                   role === 'button' || role === 'link' ||
-                   el.hasAttribute('onclick') ||
-                   getComputedStyle(el).cursor === 'pointer',
       });
     }
 
     return { nodes, viewport };
+  })()`)
+
+  return result
+}
+
+/**
+ * 根据 CSS 选择器获取单个交互节点的详细信息
+ * 返回 tag、role、name、text、selector、rect、visible、clickable、attributes、styles 等
+ */
+export async function extractInteractiveNodeDetail(
+  wc: Electron.WebContents,
+  selector: string,
+): Promise<InteractiveNodeDetail | { error: string }> {
+  const result = await wc.executeJavaScript(`(function() {
+    const selector = ${JSON.stringify(selector)};
+    const el = document.querySelector(selector);
+    if (!el) return { error: 'Element not found for selector: ' + selector };
+
+    function getAccessibleName(el) {
+      const labelledBy = el.getAttribute('aria-labelledby');
+      if (labelledBy) {
+        const labelEl = document.getElementById(labelledBy);
+        if (labelEl && labelEl.textContent) return labelEl.textContent.trim().slice(0, 100);
+      }
+      return (
+        el.getAttribute('aria-label') ||
+        el.getAttribute('title') ||
+        el.getAttribute('placeholder') ||
+        el.getAttribute('alt') ||
+        (el.textContent || '').trim().slice(0, 100) ||
+        ''
+      );
+    }
+
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    const role = el.getAttribute('role') || el.tagName.toLowerCase();
+
+    // 收集有意义的属性（排除 class/style/事件等噪音）
+    const skipAttrs = new Set(['class', 'style', 'id', 'tabindex']);
+    const attributes = {};
+    for (const attr of el.attributes) {
+      if (!skipAttrs.has(attr.name) && !attr.name.startsWith('on')) {
+        attributes[attr.name] = attr.value;
+      }
+    }
+
+    const detail = {
+      tag: el.tagName.toLowerCase(),
+      role,
+      name: getAccessibleName(el),
+      text: (el.textContent || '').trim().slice(0, 500),
+      selector: selector,
+      rect: {
+        x: Math.round(rect.x),
+        y: Math.round(rect.y),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      },
+      visible: style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0,
+      clickable: el.tagName === 'BUTTON' || el.tagName === 'A' ||
+                 role === 'button' || role === 'link' ||
+                 el.hasAttribute('onclick') ||
+                 style.cursor === 'pointer',
+      attributes,
+      styles: {
+        display: style.display,
+        visibility: style.visibility,
+        opacity: style.opacity,
+        cursor: style.cursor,
+      },
+    };
+
+    // 输入类元素附加 value
+    if ('value' in el) {
+      detail.value = el.value;
+    }
+    // 链接附加 href
+    if (el.tagName === 'A' && el.hasAttribute('href')) {
+      detail.href = el.href;
+    }
+
+    return detail;
   })()`)
 
   return result

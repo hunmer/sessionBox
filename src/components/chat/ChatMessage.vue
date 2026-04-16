@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import type { ChatMessage as ChatMessageType, ToolCall } from '@/types'
 import ThinkingBlock from './ThinkingBlock.vue'
 import ToolCallCard from './ToolCallCard.vue'
@@ -33,6 +33,57 @@ const displayToolCalls = computed(() => {
 })
 
 const isUser = computed(() => props.message.role === 'user')
+
+// --- 执行时间统计 ---
+const elapsedMs = ref(0)
+const frozenDuration = ref<number | null>(null)
+let timer: ReturnType<typeof setInterval> | null = null
+
+function startTimer() {
+  stopTimer()
+  elapsedMs.value = Date.now() - props.message.createdAt
+  timer = setInterval(() => {
+    elapsedMs.value = Date.now() - props.message.createdAt
+  }, 100)
+}
+
+function stopTimer() {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+
+// streaming 结束时冻结持续时间
+watch(() => props.isStreaming, (streaming, wasStreaming) => {
+  if (wasStreaming && !streaming) {
+    frozenDuration.value = Date.now() - props.message.createdAt
+    stopTimer()
+  }
+  if (streaming && !wasStreaming) {
+    startTimer()
+  }
+}, { immediate: true })
+
+onUnmounted(() => stopTimer())
+
+/** 实际展示的持续时间（毫秒），仅对 assistant 消息有值 */
+const durationMs = computed(() => {
+  if (isUser.value) return null
+  if (frozenDuration.value !== null) return frozenDuration.value
+  if (props.isStreaming) return elapsedMs.value
+  return null
+})
+
+function formatDuration(ms: number): string {
+  const totalSeconds = ms / 1000
+  if (totalSeconds < 60) {
+    return `${totalSeconds.toFixed(1)}s`
+  }
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = (totalSeconds % 60).toFixed(0)
+  return `${minutes}m ${seconds}s`
+}
 
 /**
  * 将文本内容和工具调用按顺序交替排列。
@@ -121,6 +172,18 @@ const segments = computed<ContentSegment[]>(() => {
           <ToolCallCard :tool-call="seg.toolCall" />
         </div>
       </template>
+
+      <!-- 执行时间统计 -->
+      <div
+        v-if="durationMs !== null"
+        class="text-[11px] text-muted-foreground/60 mt-0.5"
+        :class="isUser ? 'text-right' : ''"
+      >
+        <span class="inline-flex items-center gap-1">
+          <span v-if="isStreaming" class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+          {{ formatDuration(durationMs) }}
+        </span>
+      </div>
     </div>
   </div>
 </template>

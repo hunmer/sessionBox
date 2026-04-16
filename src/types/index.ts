@@ -187,6 +187,11 @@ export interface ToolCall {
   textPosition?: number
 }
 
+export interface TokenUsage {
+  inputTokens: number
+  outputTokens: number
+}
+
 export interface ChatMessage {
   id: string
   sessionId: string
@@ -197,6 +202,7 @@ export interface ChatMessage {
   thinking?: string
   images?: string[]
   modelId?: string
+  usage?: TokenUsage
   createdAt: number
 }
 
