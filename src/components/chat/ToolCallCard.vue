@@ -18,6 +18,15 @@ const statusConfig: Record<string, { label: string; class: string; icon: string 
 
 const config = computed(() => statusConfig[props.toolCall.status] ?? statusConfig.pending)
 
+const hasArgs = computed(() => {
+  return props.toolCall.args && Object.keys(props.toolCall.args).length > 0
+})
+
+const formattedArgs = computed(() => {
+  if (!hasArgs.value) return ''
+  return JSON.stringify(props.toolCall.args, null, 2)
+})
+
 const isImageResult = computed(() => {
   const result = props.toolCall.result
   return result && typeof result === 'object' && '_isImageContent' in result
@@ -37,10 +46,8 @@ const imageUrl = computed(() => {
         {{ config.icon }} {{ config.label }}
       </span>
     </div>
-    <div class="px-3 pb-1.5 text-muted-foreground">
-      <div class="font-mono text-[11px] bg-muted/50 rounded px-2 py-1 overflow-x-auto">
-        {{ JSON.stringify(toolCall.args, null, 2) }}
-      </div>
+    <div v-if="hasArgs" class="px-3 pb-1.5 text-muted-foreground">
+      <pre class="font-mono text-[11px] bg-muted/50 rounded px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all m-0">{{ formattedArgs }}</pre>
     </div>
     <Collapsible v-if="toolCall.result != null || toolCall.error" v-model:open="showResult">
       <CollapsibleTrigger class="w-full px-3 pb-1 text-left text-muted-foreground hover:text-foreground cursor-pointer text-[11px]">

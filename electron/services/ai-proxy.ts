@@ -14,6 +14,7 @@ interface ProxyRequest {
   stream: boolean
   maxTokens?: number
   thinking?: { type: 'enabled'; budgetTokens: number }
+  targetTabId?: string
 }
 
 /**
@@ -25,7 +26,7 @@ export async function proxyChatCompletions(
   mainWindow: BrowserWindow,
   params: ProxyRequest,
 ): Promise<void> {
-  const { _requestId, providerId, modelId, messages, tools, stream, maxTokens, thinking } = params
+  const { _requestId, providerId, modelId, messages, tools, stream, maxTokens, thinking, targetTabId } = params
   const send = (channel: string, data: unknown) => {
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send(channel, data)
@@ -122,7 +123,7 @@ export async function proxyChatCompletions(
       const toolResults: Array<Record<string, unknown>> = []
       for (const tc of parsed.toolCalls) {
         console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
-        const result = await executeTool(tc.name, tc.args)
+        const result = await executeTool(tc.name, tc.args, targetTabId)
 
         // 构建工具结果内容：图片需要结构化数组格式
         let toolResultContent: string | Array<Record<string, unknown>>
@@ -316,13 +317,20 @@ async function parseSSEStream(
         }
       }
 
-      // tool_use 参数结束 → 解析 JSON
+      // tool_use 参数结束 → 解析 JSON 并通知渲染进程
       if (type === 'content_block_stop') {
         const idx = event.index as number
         const buf = toolJsonBuffers.get(idx)
         if (buf) {
           try {
-            toolCalls[buf.callIndex].args = JSON.parse(buf.json || '{}')
+            const parsed = JSON.parse(buf.json || '{}')
+            toolCalls[buf.callIndex].args = parsed
+            // 将完整 args 回传给渲染进程
+            send('on:chat:tool-call-args', {
+              requestId,
+              toolUseId: toolCalls[buf.callIndex].id,
+              args: parsed,
+            })
           } catch {
             console.error(`[ai-proxy] failed to parse tool args JSON: ${buf.json}`)
           }
@@ -348,7 +356,7 @@ async function parseSSEStream(
 /**
  * 根据工具名在主进程内执行对应操作，返回结果。
  */
-async function executeTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+async function executeTool(name: string, args: Record<string, unknown>, targetTabId?: string): Promise<unknown> {
   console.log(`[ai-proxy executeTool] name=${name}, args=${JSON.stringify(args)}`)
 
   try {
@@ -382,6 +390,30 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
 
       case 'list_pages': {
         return listPages()
+      }
+
+      case 'get_active_tab': {
+        const activeTabId = targetTabId || webviewManager.getActiveTabId()
+        if (!activeTabId) {
+          return { error: '没有选中的标签页' }
+        }
+        const viewInfo = webviewManager.getViewInfo(activeTabId)
+        const tabs = listTabs()
+        const tab = tabs.find((t) => t.id === activeTabId)
+        if (!tab) {
+          return { error: `标签页 ${activeTabId} 不存在` }
+        }
+        const page = tab.pageId ? getPageById(tab.pageId) : undefined
+        const group = page?.groupId ? getGroupById(page.groupId) : undefined
+        return {
+          tabId: tab.id,
+          pageId: tab.pageId,
+          title: tab.title,
+          url: viewInfo?.url ?? tab.url,
+          isFrozen: webviewManager.isFrozen(tab.id),
+          groupName: group?.name,
+          containerId: page?.containerId,
+        }
       }
 
       case 'create_tab': {

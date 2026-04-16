@@ -63,6 +63,7 @@ export async function runAgentStream(
       tools,
       stream: true,
       maxTokens: model.maxTokens || 4096,
+      targetTabId: targetTabId ?? undefined,
       ...(model.supportsThinking ? { thinking: { type: 'enabled' as const, budgetTokens: 2000 } } : {}),
     })
   } catch (error) {

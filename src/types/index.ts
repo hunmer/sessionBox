@@ -183,6 +183,8 @@ export interface ToolCall {
   error?: string
   startedAt?: number
   completedAt?: number
+  /** 工具调用在文本中的位置（字符偏移量），用于按顺序穿插渲染 */
+  textPosition?: number
 }
 
 export interface ChatMessage {

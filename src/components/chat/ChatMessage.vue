@@ -5,6 +5,10 @@ import ThinkingBlock from './ThinkingBlock.vue'
 import ToolCallCard from './ToolCallCard.vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
+type ContentSegment =
+  | { type: 'text'; content: string }
+  | { type: 'tool-call'; toolCall: ToolCall }
+
 const props = defineProps<{
   message: ChatMessageType
   isStreaming?: boolean
@@ -29,6 +33,47 @@ const displayToolCalls = computed(() => {
 })
 
 const isUser = computed(() => props.message.role === 'user')
+
+/**
+ * 将文本内容和工具调用按顺序交替排列。
+ * 每个 tool call 记录了 textPosition（在文本中的字符偏移量），
+ * 据此将文本切分为段，穿插渲染。
+ */
+const segments = computed<ContentSegment[]>(() => {
+  const content = displayContent.value || ''
+  const toolCalls = displayToolCalls.value
+
+  if (!toolCalls?.length) {
+    return content ? [{ type: 'text', content }] : []
+  }
+
+  // 按 textPosition 排序，无 textPosition 的排在末尾
+  const sorted = [...toolCalls].sort((a, b) => {
+    const posA = a.textPosition ?? Infinity
+    const posB = b.textPosition ?? Infinity
+    return posA - posB
+  })
+
+  const result: ContentSegment[] = []
+  let cursor = 0
+
+  for (const tc of sorted) {
+    const pos = tc.textPosition ?? cursor
+    // 插入工具调用前的文本段
+    if (pos > cursor) {
+      result.push({ type: 'text', content: content.slice(cursor, pos) })
+    }
+    result.push({ type: 'tool-call', toolCall: tc })
+    cursor = pos
+  }
+
+  // 剩余文本
+  if (cursor < content.length) {
+    result.push({ type: 'text', content: content.slice(cursor) })
+  }
+
+  return result
+})
 </script>
 
 <template>
@@ -57,25 +102,25 @@ const isUser = computed(() => props.message.role === 'user')
 
       <!-- 正在思考占位 -->
       <div
-        v-if="isStreaming && !displayContent"
+        v-if="isStreaming && !displayContent && !displayToolCalls?.length"
         class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-muted-foreground bg-muted"
       >
         <span class="thinking-dots">正在思考</span>
       </div>
 
-      <!-- 文本内容 -->
-      <div
-        v-if="displayContent"
-        class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden"
-        :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
-      >
-        <div class="chat-markdown prose prose-sm dark:prose-invert max-w-none" v-html="renderMarkdown(displayContent)" />
-      </div>
-
-      <!-- 工具调用卡片 -->
-      <div v-if="displayToolCalls?.length" class="space-y-1 max-w-[85%]">
-        <ToolCallCard v-for="tc in displayToolCalls" :key="tc.id" :tool-call="tc" />
-      </div>
+      <!-- 按顺序穿插渲染文本和工具调用 -->
+      <template v-for="(seg, i) in segments" :key="i">
+        <div
+          v-if="seg.type === 'text' && seg.content"
+          class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden"
+          :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
+        >
+          <div class="chat-markdown prose prose-sm dark:prose-invert max-w-none" v-html="renderMarkdown(seg.content)" />
+        </div>
+        <div v-else-if="seg.type === 'tool-call'" class="max-w-[85%]">
+          <ToolCallCard :tool-call="seg.toolCall" />
+        </div>
+      </template>
     </div>
   </div>
 </template>

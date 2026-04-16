@@ -7,10 +7,17 @@ export interface ToolResultEvent {
   result: unknown
 }
 
+export interface ToolCallArgsEvent {
+  requestId: string
+  toolUseId: string
+  args: Record<string, unknown>
+}
+
 export interface StreamCallbacks {
   onToken: (token: string) => void
   onToolCall: (call: ToolCall) => void
   onToolResult: (event: ToolResultEvent) => void
+  onToolCallArgs: (event: ToolCallArgsEvent) => void
   onThinking: (content: string) => void
   onDone: () => void
   onError: (error: Error) => void
@@ -43,6 +50,14 @@ export function listenToChatStream(requestId: string, callbacks: StreamCallbacks
     window.api.on('chat:tool-result', (data: any) => {
       if (data.requestId === requestId) {
         callbacks.onToolResult(data)
+      }
+    }),
+  )
+
+  unsubscribers.push(
+    window.api.on('chat:tool-call-args', (data: any) => {
+      if (data.requestId === requestId) {
+        callbacks.onToolCallArgs(data)
       }
     }),
   )

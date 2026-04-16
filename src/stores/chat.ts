@@ -185,7 +185,15 @@ export const useChatStore = defineStore('chat', () => {
             streamingToken.value += token
           },
           onToolCall: (call: ToolCall) => {
+            // 记录工具调用在当前文本中的位置，用于按顺序穿插渲染
+            call.textPosition = streamingToken.value.length
             streamingToolCalls.value.push(call)
+          },
+          onToolCallArgs: (event: { toolUseId: string; args: Record<string, unknown> }) => {
+            const tc = streamingToolCalls.value.find((t) => t.id === event.toolUseId)
+            if (tc) {
+              tc.args = event.args
+            }
           },
           onToolResult: (event: { toolUseId: string; name: string; result: unknown }) => {
             // 找到对应的 ToolCall，更新状态和结果

@@ -199,6 +199,7 @@ export interface ChatCompletionParams {
   stream: boolean
   maxTokens?: number
   thinking?: { type: 'enabled'; budgetTokens: number }
+  targetTabId?: string
 }
 
 // IPC API 定义

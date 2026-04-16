@@ -40,6 +40,7 @@ export const BROWSER_TOOL_LIST: ToolMeta[] = [
   { name: 'get_page_summary', description: '获取页面结构化摘要（标题、heading、链接、meta）', category: '页面信息' },
   { name: 'get_page_markdown', description: '获取页面正文内容的 Markdown 表示', category: '页面信息' },
   { name: 'get_interactive_nodes', description: '获取页面中可见的交互节点列表', category: '页面信息' },
+  { name: 'get_active_tab', description: '获取当前对话选中的目标标签页信息', category: '标签页管理' },
 ]
 
 /**
@@ -264,6 +265,15 @@ export function createBrowserTools(targetTabId: string | null): ToolDefinition[]
           tabId: tabIdField,
           viewportOnly: { type: 'boolean', description: '是否仅返回视口内元素，默认 true', default: true },
         },
+      },
+    },
+
+    {
+      name: 'get_active_tab',
+      description: '获取当前对话中用户选中的目标标签页信息（BrowserViewPicker 中选择的标签页）。返回标签页 ID、标题、URL 等信息。当不确定应操作哪个标签页时，应先调用此工具确认目标。',
+      input_schema: {
+        type: 'object',
+        properties: {},
       },
     },
   ]
