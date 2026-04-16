@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useShortcutStore } from '@/stores/shortcut'
 import { Kbd } from '@/components/ui/kbd'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -217,38 +218,40 @@ onUnmounted(() => {
           >
             <Separator v-if="i > 0" class="my-0.5" />
             <div
-              class="flex items-center justify-between py-1.5 px-1 rounded transition-opacity"
+              class="flex items-center gap-3 py-1.5 px-1 rounded transition-opacity"
               :class="item.enabled ? 'opacity-100' : 'opacity-50'"
             >
-              <span class="text-sm text-muted-foreground">{{ item.label }}</span>
-              <div class="flex items-center gap-3">
-                <!-- 启用/禁用开关 -->
-                <Switch
-                  :model-value="item.enabled"
-                  @update:model-value="onEnabledChange(item.id, $event)"
-                  class="scale-75"
-                />
+              <!-- 启用/禁用开关（最左侧） -->
+              <Switch
+                :model-value="item.enabled"
+                @update:model-value="onEnabledChange(item.id, $event)"
+                class="scale-75 shrink-0"
+              />
 
-                <!-- 全局注册开关 -->
+              <span class="text-sm text-muted-foreground min-w-0">{{ item.label }}</span>
+
+              <div class="flex items-center gap-3 ml-auto">
+                <!-- 全局注册（Checkbox） -->
                 <label
                   v-if="item.supportsGlobal"
-                  class="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer"
+                  class="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0"
+                  :class="!item.enabled ? 'pointer-events-none' : 'cursor-pointer'"
                 >
-                  <span>全局</span>
-                  <Switch
+                  <Checkbox
                     :model-value="item.global"
                     :disabled="!item.enabled"
                     @update:model-value="onGlobalChange(item.id, $event)"
-                    class="scale-75"
+                    class="scale-90"
                   />
+                  <span>全局</span>
                 </label>
 
                 <!-- 快捷键显示/录制区域 -->
                 <button
-                  class="flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted/50 hover:bg-muted transition-colors min-w-[80px] justify-center cursor-pointer"
+                  class="flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted/50 hover:bg-muted transition-colors min-w-[80px] justify-center shrink-0"
                   :class="[
                     recordingId === item.id ? 'border-primary ring-1 ring-primary/30 bg-primary/5' : '',
-                    !item.enabled ? 'pointer-events-none opacity-50' : ''
+                    !item.enabled ? 'pointer-events-none opacity-50' : 'cursor-pointer'
                   ]"
                   :disabled="!item.enabled"
                   @click="startRecording(item.id)"
