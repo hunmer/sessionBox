@@ -1,51 +1,69 @@
 import { globalShortcut, BrowserWindow } from 'electron'
 import { getShortcutBindings, setShortcutBindings } from './store'
 
+/** 快捷键分组 */
+export type ShortcutGroup = 'tab' | 'navigation' | 'view' | 'tools' | 'window'
+
 /** 功能定义 */
 export interface ShortcutAction {
   id: string
   label: string
   defaultAccelerator: string
   supportsGlobal: boolean
+  group: ShortcutGroup
 }
+
+/** 分组显示信息 */
+export const SHORTCUT_GROUPS: { key: ShortcutGroup; label: string }[] = [
+  { key: 'tab', label: '标签页' },
+  { key: 'navigation', label: '导航' },
+  { key: 'view', label: '视图' },
+  { key: 'tools', label: '工具' },
+  { key: 'window', label: '窗口' }
+]
 
 /** 预定义功能注册表 */
 export const SHORTCUT_ACTIONS: ShortcutAction[] = [
-  { id: 'new-tab', label: '新建标签页', defaultAccelerator: 'CmdOrCtrl+T', supportsGlobal: true },
-  { id: 'close-tab', label: '关闭当前标签页', defaultAccelerator: 'CmdOrCtrl+W', supportsGlobal: true },
-  { id: 'next-tab', label: '下一个标签页', defaultAccelerator: 'CmdOrCtrl+Tab', supportsGlobal: true },
-  { id: 'prev-tab', label: '上一个标签页', defaultAccelerator: 'CmdOrCtrl+Shift+Tab', supportsGlobal: true },
-  { id: 'toggle-sidebar', label: '切换侧边栏', defaultAccelerator: 'CmdOrCtrl+B', supportsGlobal: true },
-  { id: 'new-container', label: '新建容器', defaultAccelerator: 'CmdOrCtrl+N', supportsGlobal: true },
-  { id: 'reload-tab', label: '刷新当前页', defaultAccelerator: 'CmdOrCtrl+R', supportsGlobal: true },
-  { id: 'go-back', label: '后退', defaultAccelerator: 'Alt+Left', supportsGlobal: true },
-  { id: 'go-forward', label: '前进', defaultAccelerator: 'Alt+Right', supportsGlobal: true },
-  { id: 'focus-address', label: '聚焦地址栏', defaultAccelerator: 'CmdOrCtrl+L', supportsGlobal: true },
-  { id: 'toggle-fullscreen', label: '切换全屏', defaultAccelerator: 'F11', supportsGlobal: true },
-  { id: 'restore-tab', label: '恢复关闭的标签页', defaultAccelerator: 'CmdOrCtrl+Shift+T', supportsGlobal: true },
-  { id: 'reload-tab-f5', label: '刷新页面 (F5)', defaultAccelerator: 'F5', supportsGlobal: true },
-  { id: 'force-reload', label: '强制刷新（清除缓存）', defaultAccelerator: 'CmdOrCtrl+Shift+R', supportsGlobal: true },
-  { id: 'toggle-bookmark-bar', label: '显示/隐藏书签栏', defaultAccelerator: 'CmdOrCtrl+Shift+B', supportsGlobal: true },
-  { id: 'open-downloads', label: '打开下载页面', defaultAccelerator: 'CmdOrCtrl+J', supportsGlobal: true },
-  { id: 'open-history', label: '打开历史记录', defaultAccelerator: 'CmdOrCtrl+H', supportsGlobal: true },
-  { id: 'zoom-in', label: '放大页面', defaultAccelerator: 'CmdOrCtrl+Plus', supportsGlobal: true },
-  { id: 'zoom-out', label: '缩小页面', defaultAccelerator: 'CmdOrCtrl+-', supportsGlobal: true },
-  { id: 'zoom-reset', label: '重置页面缩放', defaultAccelerator: 'CmdOrCtrl+0', supportsGlobal: true },
-  { id: 'open-devtools', label: '打开开发者工具', defaultAccelerator: 'F12', supportsGlobal: true },
-  { id: 'open-devtools-alt', label: '打开开发者工具 (备用)', defaultAccelerator: 'CmdOrCtrl+Shift+I', supportsGlobal: true },
-  { id: 'focus-address-f6', label: '聚焦地址栏 (F6)', defaultAccelerator: 'F6', supportsGlobal: true },
-  { id: 'goto-tab-1', label: '跳转到第 1 个标签页', defaultAccelerator: 'CmdOrCtrl+1', supportsGlobal: true },
-  { id: 'goto-tab-2', label: '跳转到第 2 个标签页', defaultAccelerator: 'CmdOrCtrl+2', supportsGlobal: true },
-  { id: 'goto-tab-3', label: '跳转到第 3 个标签页', defaultAccelerator: 'CmdOrCtrl+3', supportsGlobal: true },
-  { id: 'goto-tab-4', label: '跳转到第 4 个标签页', defaultAccelerator: 'CmdOrCtrl+4', supportsGlobal: true },
-  { id: 'goto-tab-5', label: '跳转到第 5 个标签页', defaultAccelerator: 'CmdOrCtrl+5', supportsGlobal: true },
-  { id: 'goto-tab-6', label: '跳转到第 6 个标签页', defaultAccelerator: 'CmdOrCtrl+6', supportsGlobal: true },
-  { id: 'goto-tab-7', label: '跳转到第 7 个标签页', defaultAccelerator: 'CmdOrCtrl+7', supportsGlobal: true },
-  { id: 'goto-tab-8', label: '跳转到第 8 个标签页', defaultAccelerator: 'CmdOrCtrl+8', supportsGlobal: true },
-  { id: 'goto-tab-last', label: '跳转到最后一个标签页', defaultAccelerator: 'CmdOrCtrl+9', supportsGlobal: true },
-  { id: 'tab-overview', label: '标签页概览', defaultAccelerator: 'CmdOrCtrl+Shift+A', supportsGlobal: true },
-  { id: 'command-palette', label: '命令面板', defaultAccelerator: 'CmdOrCtrl+K', supportsGlobal: true },
-  { id: 'toggle-window', label: '唤起/最小化主窗口', defaultAccelerator: '', supportsGlobal: true }
+  // 标签页
+  { id: 'new-tab', label: '新建标签页', defaultAccelerator: 'CmdOrCtrl+T', supportsGlobal: true, group: 'tab' },
+  { id: 'close-tab', label: '关闭当前标签页', defaultAccelerator: 'CmdOrCtrl+W', supportsGlobal: true, group: 'tab' },
+  { id: 'next-tab', label: '下一个标签页', defaultAccelerator: 'CmdOrCtrl+Tab', supportsGlobal: true, group: 'tab' },
+  { id: 'prev-tab', label: '上一个标签页', defaultAccelerator: 'CmdOrCtrl+Shift+Tab', supportsGlobal: true, group: 'tab' },
+  { id: 'restore-tab', label: '恢复关闭的标签页', defaultAccelerator: 'CmdOrCtrl+Shift+T', supportsGlobal: true, group: 'tab' },
+  { id: 'goto-tab-1', label: '跳转到第 1 个标签页', defaultAccelerator: 'CmdOrCtrl+1', supportsGlobal: true, group: 'tab' },
+  { id: 'goto-tab-2', label: '跳转到第 2 个标签页', defaultAccelerator: 'CmdOrCtrl+2', supportsGlobal: true, group: 'tab' },
+  { id: 'goto-tab-3', label: '跳转到第 3 个标签页', defaultAccelerator: 'CmdOrCtrl+3', supportsGlobal: true, group: 'tab' },
+  { id: 'goto-tab-4', label: '跳转到第 4 个标签页', defaultAccelerator: 'CmdOrCtrl+4', supportsGlobal: true, group: 'tab' },
+  { id: 'goto-tab-5', label: '跳转到第 5 个标签页', defaultAccelerator: 'CmdOrCtrl+5', supportsGlobal: true, group: 'tab' },
+  { id: 'goto-tab-6', label: '跳转到第 6 个标签页', defaultAccelerator: 'CmdOrCtrl+6', supportsGlobal: true, group: 'tab' },
+  { id: 'goto-tab-7', label: '跳转到第 7 个标签页', defaultAccelerator: 'CmdOrCtrl+7', supportsGlobal: true, group: 'tab' },
+  { id: 'goto-tab-8', label: '跳转到第 8 个标签页', defaultAccelerator: 'CmdOrCtrl+8', supportsGlobal: true, group: 'tab' },
+  { id: 'goto-tab-last', label: '跳转到最后一个标签页', defaultAccelerator: 'CmdOrCtrl+9', supportsGlobal: true, group: 'tab' },
+  { id: 'tab-overview', label: '标签页概览', defaultAccelerator: 'CmdOrCtrl+Shift+A', supportsGlobal: true, group: 'tab' },
+  // 导航
+  { id: 'reload-tab', label: '刷新当前页', defaultAccelerator: 'CmdOrCtrl+R', supportsGlobal: true, group: 'navigation' },
+  { id: 'reload-tab-f5', label: '刷新页面 (F5)', defaultAccelerator: 'F5', supportsGlobal: true, group: 'navigation' },
+  { id: 'force-reload', label: '强制刷新（清除缓存）', defaultAccelerator: 'CmdOrCtrl+Shift+R', supportsGlobal: true, group: 'navigation' },
+  { id: 'go-back', label: '后退', defaultAccelerator: 'Alt+Left', supportsGlobal: true, group: 'navigation' },
+  { id: 'go-forward', label: '前进', defaultAccelerator: 'Alt+Right', supportsGlobal: true, group: 'navigation' },
+  // 视图
+  { id: 'toggle-sidebar', label: '切换侧边栏', defaultAccelerator: 'CmdOrCtrl+B', supportsGlobal: true, group: 'view' },
+  { id: 'toggle-fullscreen', label: '切换全屏', defaultAccelerator: 'F11', supportsGlobal: true, group: 'view' },
+  { id: 'toggle-bookmark-bar', label: '显示/隐藏书签栏', defaultAccelerator: 'CmdOrCtrl+Shift+B', supportsGlobal: true, group: 'view' },
+  { id: 'zoom-in', label: '放大页面', defaultAccelerator: 'CmdOrCtrl+Plus', supportsGlobal: true, group: 'view' },
+  { id: 'zoom-out', label: '缩小页面', defaultAccelerator: 'CmdOrCtrl+-', supportsGlobal: true, group: 'view' },
+  { id: 'zoom-reset', label: '重置页面缩放', defaultAccelerator: 'CmdOrCtrl+0', supportsGlobal: true, group: 'view' },
+  // 工具
+  { id: 'focus-address', label: '聚焦地址栏', defaultAccelerator: 'CmdOrCtrl+L', supportsGlobal: true, group: 'tools' },
+  { id: 'focus-address-f6', label: '聚焦地址栏 (F6)', defaultAccelerator: 'F6', supportsGlobal: true, group: 'tools' },
+  { id: 'open-devtools', label: '打开开发者工具', defaultAccelerator: 'F12', supportsGlobal: true, group: 'tools' },
+  { id: 'open-devtools-alt', label: '打开开发者工具 (备用)', defaultAccelerator: 'CmdOrCtrl+Shift+I', supportsGlobal: true, group: 'tools' },
+  { id: 'open-downloads', label: '打开下载页面', defaultAccelerator: 'CmdOrCtrl+J', supportsGlobal: true, group: 'tools' },
+  { id: 'open-history', label: '打开历史记录', defaultAccelerator: 'CmdOrCtrl+H', supportsGlobal: true, group: 'tools' },
+  { id: 'command-palette', label: '命令面板', defaultAccelerator: 'CmdOrCtrl+K', supportsGlobal: true, group: 'tools' },
+  { id: 'new-container', label: '新建容器', defaultAccelerator: 'CmdOrCtrl+N', supportsGlobal: true, group: 'tools' },
+  // 窗口
+  { id: 'toggle-window', label: '唤起/最小化主窗口', defaultAccelerator: '', supportsGlobal: true, group: 'window' }
 ]
 
 /** 快捷键绑定 */
@@ -53,6 +71,7 @@ export interface ShortcutBinding {
   id: string
   accelerator: string
   global: boolean
+  enabled: boolean
 }
 
 /** 获取功能的有效快捷键（用户自定义或默认） */
@@ -72,7 +91,8 @@ export function getMergedBindings(): ShortcutBinding[] {
     return {
       id: action.id,
       accelerator: custom?.accelerator ?? action.defaultAccelerator,
-      global: custom?.global ?? false
+      global: custom?.global ?? false,
+      enabled: custom?.enabled ?? true
     }
   })
 }
@@ -84,7 +104,7 @@ export function registerGlobalShortcuts(): void {
 
   const bindings = getMergedBindings()
   for (const binding of bindings) {
-    if (!binding.global || !binding.accelerator) continue
+    if (!binding.enabled || !binding.global || !binding.accelerator) continue
 
     try {
       globalShortcut.register(binding.accelerator, () => {
@@ -118,14 +138,14 @@ export function unregisterGlobalShortcuts(): void {
 }
 
 /** 更新单个快捷键绑定 */
-export function updateShortcutBinding(id: string, accelerator: string, isGlobal: boolean): { success: boolean; error?: string; conflictId?: string } {
+export function updateShortcutBinding(id: string, accelerator: string, isGlobal: boolean, enabled: boolean = true): { success: boolean; error?: string; conflictId?: string } {
   const action = SHORTCUT_ACTIONS.find(a => a.id === id)
   if (!action) return { success: false, error: '功能不存在' }
 
-  // 冲突检测：检查快捷键是否已被其他功能占用
-  if (accelerator) {
-    const bindings = getMergedBindings()
-    const conflict = bindings.find(b => b.id !== id && b.accelerator === accelerator)
+  // 冲突检测：检查快捷键是否已被其他功能占用（仅启用状态下检测）
+  if (accelerator && enabled) {
+    const mergedBindings = getMergedBindings()
+    const conflict = mergedBindings.find(b => b.id !== id && b.accelerator === accelerator && b.enabled)
     if (conflict) {
       const conflictAction = SHORTCUT_ACTIONS.find(a => a.id === conflict.id)
       return { success: false, error: `快捷键已被「${conflictAction?.label}」占用`, conflictId: conflict.id }
@@ -135,7 +155,7 @@ export function updateShortcutBinding(id: string, accelerator: string, isGlobal:
   // 保存到 store
   const bindings = getShortcutBindings()
   const idx = bindings.findIndex(b => b.id === id)
-  const binding: ShortcutBinding = { id, accelerator, global: isGlobal }
+  const binding: ShortcutBinding = { id, accelerator, global: isGlobal, enabled }
   if (idx >= 0) {
     bindings[idx] = binding
   } else {
@@ -151,7 +171,7 @@ export function updateShortcutBinding(id: string, accelerator: string, isGlobal:
 
 /** 清除单个快捷键 */
 export function clearShortcutBinding(id: string): void {
-  updateShortcutBinding(id, '', false)
+  updateShortcutBinding(id, '', false, true)
 }
 
 /** 将 before-input-event 的键盘输入转为 Electron accelerator 格式 */
@@ -197,17 +217,17 @@ export function inputEventToAccelerator(input: Electron.Input): string | null {
   return parts.join('+')
 }
 
-/** 根据 accelerator 查找匹配的本地快捷键（非全局） */
+/** 根据 accelerator 查找匹配的本地快捷键（非全局，且已启用） */
 export function findLocalShortcutMatch(accelerator: string): string | null {
   const bindings = getMergedBindings()
-  const match = bindings.find(b => b.accelerator === accelerator && !b.global)
+  const match = bindings.find(b => b.accelerator === accelerator && !b.global && b.enabled)
   return match?.id ?? null
 }
 
-/** 根据 accelerator 查找匹配的任意快捷键（含全局） */
+/** 根据 accelerator 查找匹配的任意快捷键（含全局，且已启用） */
 export function findAnyShortcutMatch(accelerator: string): string | null {
   const bindings = getMergedBindings()
-  const match = bindings.find(b => b.accelerator === accelerator)
+  const match = bindings.find(b => b.accelerator === accelerator && b.enabled)
   return match?.id ?? null
 }
 

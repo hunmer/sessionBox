@@ -1,33 +1,44 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { ShortcutItem } from '../../preload/index'
+import type { ShortcutItem, ShortcutGroup } from '../../preload/index'
 
 const api = window.api
 
 export const useShortcutStore = defineStore('shortcut', () => {
   const shortcuts = ref<ShortcutItem[]>([])
+  const groups = ref<ShortcutGroup[]>([])
   const loading = ref(false)
 
   async function load() {
     loading.value = true
     try {
-      shortcuts.value = await api.shortcut.list()
+      const result = await api.shortcut.list()
+      groups.value = result.groups
+      shortcuts.value = result.shortcuts
     } finally {
       loading.value = false
     }
   }
 
-  async function updateShortcut(id: string, accelerator: string, isGlobal: boolean) {
-    console.log('[ShortcutStore] updateShortcut:', { id, accelerator, isGlobal })
-    const result = await api.shortcut.update(id, accelerator, isGlobal)
-    console.log('[ShortcutStore] IPC result:', result)
+  async function updateShortcut(id: string, accelerator: string, isGlobal: boolean, enabled?: boolean) {
+    const result = await api.shortcut.update(id, accelerator, isGlobal, enabled)
     if (result.success) {
       const idx = shortcuts.value.findIndex(s => s.id === id)
       if (idx >= 0) {
-        shortcuts.value.splice(idx, 1, { ...shortcuts.value[idx], accelerator, global: isGlobal })
-        console.log('[ShortcutStore] local state updated')
-      } else {
-        console.warn('[ShortcutStore] item not found:', id)
+        const updated = { ...shortcuts.value[idx], accelerator, global: isGlobal }
+        if (enabled !== undefined) updated.enabled = enabled
+        shortcuts.value.splice(idx, 1, updated)
+      }
+    }
+    return result
+  }
+
+  async function toggleEnabled(id: string, enabled: boolean) {
+    const result = await api.shortcut.toggle(id, enabled)
+    if (result.success) {
+      const idx = shortcuts.value.findIndex(s => s.id === id)
+      if (idx >= 0) {
+        shortcuts.value.splice(idx, 1, { ...shortcuts.value[idx], enabled })
       }
     }
     return result
@@ -46,5 +57,10 @@ export const useShortcutStore = defineStore('shortcut', () => {
     await load()
   }
 
-  return { shortcuts, loading, load, updateShortcut, clearShortcut, resetShortcuts }
+  /** 按 group 过滤快捷键 */
+  function getShortcutsByGroup(group: string): ShortcutItem[] {
+    return shortcuts.value.filter(s => s.group === group)
+  }
+
+  return { shortcuts, groups, loading, load, updateShortcut, toggleEnabled, clearShortcut, resetShortcuts, getShortcutsByGroup }
 })

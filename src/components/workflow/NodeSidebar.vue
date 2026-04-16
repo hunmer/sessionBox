@@ -52,43 +52,45 @@ function getIcon(name: string) {
       </div>
     </div>
 
-    <ScrollArea class="flex-1">
-      <div class="p-2 space-y-1">
-        <Collapsible
-          v-for="(nodes, category) in categories"
-          :key="category"
-          :open="openCategories[category] ?? true"
-          @update:open="openCategories[category] = $event"
-        >
-          <CollapsibleTrigger class="flex items-center w-full px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded hover:bg-muted/50">
-            <span>{{ category }}</span>
-            <span class="ml-auto text-[10px]">{{ nodes.length }}</span>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div class="space-y-0.5 mt-0.5">
-              <div
-                v-for="node in nodes"
-                :key="node.type"
-                draggable="true"
-                class="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-grab hover:bg-muted/50 active:cursor-grabbing"
-                @dragstart="onDragStart($event, node.type)"
-              >
-                <component
-                  :is="getIcon(node.icon)"
-                  v-if="getIcon(node.icon)"
-                  class="w-3.5 h-3.5 text-muted-foreground shrink-0"
-                />
-                <div class="min-w-0">
-                  <div class="truncate">{{ node.label }}</div>
-                  <div v-if="node.description" class="text-[10px] text-muted-foreground truncate">
-                    {{ node.description }}
+    <div class="flex-1 min-h-0 overflow-hidden">
+      <ScrollArea class="h-full">
+        <div class="p-2 space-y-1">
+          <Collapsible
+            v-for="(nodes, category) in categories"
+            :key="category"
+            :open="openCategories[category] ?? true"
+            @update:open="openCategories[category] = $event"
+          >
+            <CollapsibleTrigger class="flex items-center w-full px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded hover:bg-muted/50">
+              <span>{{ category }}</span>
+              <span class="ml-auto text-[10px]">{{ nodes.length }}</span>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div class="space-y-0.5 mt-0.5">
+                <div
+                  v-for="node in nodes"
+                  :key="node.type"
+                  draggable="true"
+                  class="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-grab hover:bg-muted/50 active:cursor-grabbing"
+                  @dragstart="onDragStart($event, node.type)"
+                >
+                  <component
+                    :is="getIcon(node.icon)"
+                    v-if="getIcon(node.icon)"
+                    class="w-3.5 h-3.5 text-muted-foreground shrink-0"
+                  />
+                  <div class="min-w-0">
+                    <div class="truncate">{{ node.label }}</div>
+                    <div v-if="node.description" class="text-[10px] text-muted-foreground truncate">
+                      {{ node.description }}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-    </ScrollArea>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      </ScrollArea>
+    </div>
   </div>
 </template>
