@@ -65,7 +65,7 @@ const displayLog = computed(() => store.selectedExecutionLog)
 </script>
 
 <template>
-  <div class="border-t border-border bg-background">
+  <div class="border-t border-border bg-background flex flex-col h-full">
     <!-- 控制栏 -->
     <div class="flex items-center gap-2 px-3 py-1.5">
       <Button
@@ -126,7 +126,7 @@ const displayLog = computed(() => store.selectedExecutionLog)
     </div>
 
     <!-- 展开区域：左右分栏 -->
-    <div v-if="expanded" class="border-t border-border" style="height: 280px">
+    <div v-if="expanded" class="border-t border-border flex-1 min-h-0">
       <ResizablePanelGroup direction="horizontal">
         <!-- 左侧：历史执行列表 -->
         <ResizablePanel :default-size="25" :min-size="15" :max-size="40">

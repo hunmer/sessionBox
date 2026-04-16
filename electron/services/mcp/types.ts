@@ -6,6 +6,7 @@ import type { BrowserWindow } from 'electron'
  */
 export interface ToolContext {
   store: typeof import('../store')
+  bookmarkStore: typeof import('../bookmark-store')
   webviewManager: any
   mainWindow: BrowserWindow | null
 }

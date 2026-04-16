@@ -103,7 +103,7 @@ export function registerQueryTools(server: McpServer, ctx: ToolContext): number 
     'list_bookmarks',
     'List all bookmarks',
     async () => {
-      const bookmarks = ctx.store.listBookmarks()
+      const bookmarks = ctx.bookmarkStore.listBookmarks()
       return text(bookmarks)
     }
   )

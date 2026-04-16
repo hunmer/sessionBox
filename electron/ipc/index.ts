@@ -15,21 +15,6 @@ import {
   updateContainer,
   deleteContainer,
   getContainerById,
-  listBookmarks,
-  createBookmark,
-  updateBookmark,
-  deleteBookmark,
-  reorderBookmarks,
-  batchCreateBookmarks,
-  listBookmarkFolders,
-  createBookmarkFolder,
-  updateBookmarkFolder,
-  deleteBookmarkFolder,
-  reorderBookmarkFolders,
-  batchCreateBookmarkFolders,
-  batchDeleteBookmarks,
-  deleteEmptyBookmarkFolders,
-  migrateBookmarks,
   listWorkspaces,
   createWorkspace,
   updateWorkspace,
@@ -57,9 +42,24 @@ import {
   getPageById,
   getPagesByContainer,
   migrateContainersToPages,
-  migrateTabContainerIdToPageId,
-  migrateBookmarkContainerIdToPageId
+  migrateTabContainerIdToPageId
 } from '../services/store'
+import {
+  listBookmarks,
+  createBookmark,
+  updateBookmark,
+  deleteBookmark,
+  reorderBookmarks,
+  batchCreateBookmarks,
+  listBookmarkFolders,
+  createBookmarkFolder,
+  updateBookmarkFolder,
+  deleteBookmarkFolder,
+  reorderBookmarkFolders,
+  batchCreateBookmarkFolders,
+  batchDeleteBookmarks,
+  deleteEmptyBookmarkFolders
+} from '../services/bookmark-store'
 import {
   listPasswords,
   listPasswordsBySite,
@@ -67,7 +67,7 @@ import {
   updatePassword,
   deletePassword,
   clearAllPasswords
-} from '../services/store'
+} from '../services/password-store'
 import {
   listSearchEngines,
   setSearchEngines,
@@ -117,10 +117,6 @@ export function registerIpcHandlers(): void {
   // ====== Page 数据迁移 ======
   migrateContainersToPages()
   migrateTabContainerIdToPageId()
-  migrateBookmarkContainerIdToPageId()
-
-  // ====== 书签数据迁移 ======
-  migrateBookmarks()
 
   // ====== 嗅探器 ======
   registerSnifferIpcHandlers()

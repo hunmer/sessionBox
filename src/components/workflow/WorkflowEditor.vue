@@ -28,6 +28,8 @@ import { Plus, FolderOpen } from 'lucide-vue-next'
 
 const store = useWorkflowStore()
 const listDialogOpen = ref(false)
+const isEditingName = ref(false)
+const editingName = ref('')
 
 // ====== 面板尺寸持久化 ======
 const PANEL_SIZES_KEY = 'workflow-panel-sizes'
@@ -54,7 +56,15 @@ watch(() => store.currentWorkflow, (val) => {
   if (val) store.saveDraft()
 }, { deep: true })
 
-const { onConnect, project, vueFlowRef, onViewportChange, setViewport, fitView, addEdges, connectionLineStyle } = useVueFlow()
+const { onConnect, onNodesChange, project, vueFlowRef, onViewportChange, setViewport, fitView, addEdges, connectionLineStyle } = useVueFlow()
+
+onNodesChange((changes) => {
+  for (const change of changes) {
+    if (change.type === 'remove') {
+      store.removeNode(change.id)
+    }
+  }
+})
 
 const nodeTypes = {
   custom: markRaw(CustomNodeWrapper),
@@ -156,6 +166,28 @@ function openWorkflow() {
   listDialogOpen.value = true
 }
 
+const nameInput = ref<HTMLInputElement | null>(null)
+
+function startEditName() {
+  if (!store.currentWorkflow) return
+  editingName.value = store.currentWorkflow.name || ''
+  isEditingName.value = true
+  nextTick(() => nameInput.value?.focus())
+}
+
+function finishEditName() {
+  if (!store.currentWorkflow || !isEditingName.value) return
+  const trimmed = editingName.value.trim()
+  if (trimmed) {
+    store.currentWorkflow.name = trimmed
+  }
+  isEditingName.value = false
+}
+
+function cancelEditName() {
+  isEditingName.value = false
+}
+
 async function saveWorkflow() {
   if (store.currentWorkflow) {
     await store.saveWorkflow(store.currentWorkflow)
@@ -191,7 +223,20 @@ async function onListSelect(workflow: any) {
           </MenubarContent>
         </MenubarMenu>
       </Menubar>
-      <span class="ml-3 text-xs text-muted-foreground truncate">
+      <input
+        v-if="isEditingName"
+        ref="nameInput"
+        v-model="editingName"
+        class="ml-3 text-xs bg-transparent border border-border rounded px-1 py-0.5 outline-none focus:border-primary w-40"
+        @blur="finishEditName"
+        @keydown.enter="finishEditName"
+        @keydown.escape="cancelEditName"
+      />
+      <span
+        v-else
+        class="ml-3 text-xs text-muted-foreground truncate cursor-pointer hover:text-foreground"
+        @dblclick="startEditName"
+      >
         {{ store.currentWorkflow?.name || '未命名工作流' }}
       </span>
     </div>
@@ -225,46 +270,54 @@ async function onListSelect(workflow: any) {
 
     <!-- 编辑器：有工作流时展示 -->
     <template v-else>
-      <ResizablePanelGroup
-        direction="horizontal"
-        class="flex-1 min-h-0 overflow-hidden"
-        @layout="handlePanelResize"
-      >
-        <ResizablePanel :default-size="panelSizes[0]" :min-size="10" :max-size="35">
-          <NodeSidebar />
-        </ResizablePanel>
-
-        <ResizableHandle with-handle />
-
-        <ResizablePanel :default-size="panelSizes[1]" :min-size="30">
-          <VueFlow
-            :nodes="nodes"
-            :edges="edges"
-            :node-types="nodeTypes"
-            :min-zoom="0.2"
-            :max-zoom="4"
-            :connection-mode="'loose'"
-            @connect="handleConnect"
-            @dragover="onDragOver"
-            @drop="onDrop"
-            @node-click="onNodeClick"
-            @pane-click="onPaneClick"
-            class="h-full"
+      <ResizablePanelGroup direction="vertical">
+        <ResizablePanel :default-size="82" :min-size="40">
+          <ResizablePanelGroup
+            direction="horizontal"
+            class="h-full overflow-hidden"
+            @layout="handlePanelResize"
           >
-            <Background />
-            <MiniMap />
-            <Controls />
-          </VueFlow>
+            <ResizablePanel :default-size="panelSizes[0]" :min-size="10" :max-size="35">
+              <NodeSidebar />
+            </ResizablePanel>
+
+            <ResizableHandle with-handle />
+
+            <ResizablePanel :default-size="panelSizes[1]" :min-size="30">
+              <VueFlow
+                :nodes="nodes"
+                :edges="edges"
+                :node-types="nodeTypes"
+                :min-zoom="0.2"
+                :max-zoom="4"
+                :connection-mode="'loose'"
+                @connect="handleConnect"
+                @dragover="onDragOver"
+                @drop="onDrop"
+                @node-click="onNodeClick"
+                @pane-click="onPaneClick"
+                class="h-full"
+              >
+                <Background />
+                <MiniMap />
+                <Controls />
+              </VueFlow>
+            </ResizablePanel>
+
+            <ResizableHandle with-handle />
+
+            <ResizablePanel :default-size="panelSizes[2]" :min-size="15" :max-size="50">
+              <NodeProperties />
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </ResizablePanel>
 
         <ResizableHandle with-handle />
 
-        <ResizablePanel :default-size="panelSizes[2]" :min-size="15" :max-size="50">
-          <NodeProperties />
+        <ResizablePanel :default-size="18" :min-size="8" :max-size="60">
+          <ExecutionBar />
         </ResizablePanel>
       </ResizablePanelGroup>
-
-      <ExecutionBar />
     </template>
 
     <WorkflowListDialog

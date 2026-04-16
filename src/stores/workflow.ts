@@ -103,13 +103,14 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   async function saveWorkflow(workflow: Workflow): Promise<void> {
-    const existing = workflows.value.find((w) => w.id === workflow.id)
+    const plain = JSON.parse(JSON.stringify(workflow)) as Workflow
+    const existing = workflows.value.find((w) => w.id === plain.id)
     const now = Date.now()
     if (existing) {
-      await api().workflow.update(workflow.id, { ...workflow, updatedAt: now })
-      Object.assign(existing, { ...workflow, updatedAt: now })
+      await api().workflow.update(plain.id, { ...plain, updatedAt: now })
+      Object.assign(existing, { ...plain, updatedAt: now })
     } else {
-      const created = await api().workflow.create({ ...workflow, createdAt: now, updatedAt: now })
+      const created = await api().workflow.create({ ...plain, createdAt: now, updatedAt: now })
       workflows.value.push(created)
       currentWorkflow.value = created
     }

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import * as store from '../store'
+import * as bookmarkStore from '../bookmark-store'
 import { webviewManager } from '../webview-manager'
 import { registerAllTools } from './tools'
 import type { ToolContext, McpStatus } from './types'
@@ -27,6 +28,7 @@ class McpServerService {
 
     const ctx: ToolContext = {
       store,
+      bookmarkStore,
       webviewManager,
       mainWindow: webviewManager.getMainWindow()
     }
