@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, markRaw, watch, nextTick } from 'vue'
-import { VueFlow, useVueFlow, ConnectionMode } from '@vue-flow/core'
+import { VueFlow, useVueFlow, ConnectionMode, MarkerType } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { MiniMap } from '@vue-flow/minimap'
 import { Controls } from '@vue-flow/controls'
@@ -59,6 +59,7 @@ watch(() => store.currentWorkflow, (val) => {
 
 const {
   onNodesChange,
+  onEdgesChange,
   project,
   vueFlowRef,
   onViewportChange,
@@ -71,6 +72,16 @@ onNodesChange((changes) => {
   for (const change of changes) {
     if (change.type === 'remove') {
       store.removeNode(change.id)
+    } else if (change.type === 'position' && change.position) {
+      store.updateNodePosition(change.id, change.position)
+    }
+  }
+})
+
+onEdgesChange((changes) => {
+  for (const change of changes) {
+    if (change.type === 'remove') {
+      store.removeEdge(change.id)
     }
   }
 })
@@ -131,15 +142,15 @@ const edges = computed(() =>
     sourceHandle: e.sourceHandle,
     targetHandle: e.targetHandle,
     animated: true,
-    style: { stroke: 'hsl(var(--border))' },
+    markerEnd: MarkerType.ArrowClosed,
+    style: {
+      stroke: 'var(--primary)',
+      strokeWidth: 2.5,
+    },
   })),
 )
 
 function handleConnect(params: any) {
-  if (import.meta.env.DEV) {
-    console.debug('[workflow-flow] connect', params)
-  }
-
   store.addEdge(
     params.source,
     params.target,
@@ -148,43 +159,10 @@ function handleConnect(params: any) {
   )
 }
 
-function handleConnectStart(params: any) {
-  if (!import.meta.env.DEV) return
-  console.debug('[workflow-flow] connect:start', params)
-}
-
-function handleConnectEnd(params: any) {
-  if (!import.meta.env.DEV) return
-  console.debug('[workflow-flow] connect:end', params)
-}
-
 function handleNodesInitialized(nodes: any[]) {
   nextTick(() => {
     updateNodeInternals(nodes.map((node) => node.id))
-
-    if (!import.meta.env.DEV || !vueFlowRef.value) return
-
-    const handles = Array.from(vueFlowRef.value.querySelectorAll('.vue-flow__handle')).map((node) => {
-      const el = node as HTMLElement
-      return {
-        dataId: el.dataset.id ?? null,
-        nodeId: el.dataset.nodeid ?? null,
-        handleId: el.dataset.handleid ?? null,
-        handlePos: el.dataset.handlepos ?? null,
-        classes: el.className,
-      }
-    })
-
-    console.debug('[workflow-flow] nodes:initialized', {
-      nodeCount: nodes.length,
-      handleCount: handles.length,
-      handles,
-    })
   })
-}
-
-function handleFlowError(error: unknown) {
-  console.warn('[workflow-flow] error', error)
 }
 
 function onDragOver(event: DragEvent) {
@@ -339,25 +317,22 @@ async function onListSelect(workflow: any) {
             <ResizableHandle with-handle />
 
             <ResizablePanel :default-size="panelSizes[1]" :min-size="30">
-          <VueFlow
-            :id="FLOW_ID"
-            :nodes="nodes"
-            :edges="edges"
-            :node-types="nodeTypes"
-            :min-zoom="0.2"
-            :max-zoom="4"
-            :connection-mode="ConnectionMode.Loose"
-            @connect="handleConnect"
-            @connect-start="handleConnectStart"
-            @connect-end="handleConnectEnd"
-            @dragover="onDragOver"
-            @drop="onDrop"
-            @node-click="onNodeClick"
-            @nodes-initialized="handleNodesInitialized"
-            @pane-click="onPaneClick"
-            @error="handleFlowError"
-            class="h-full"
-          >
+              <VueFlow
+                :id="FLOW_ID"
+                :nodes="nodes"
+                :edges="edges"
+                :node-types="nodeTypes"
+                :min-zoom="0.2"
+                :max-zoom="4"
+                :connection-mode="ConnectionMode.Loose"
+                @connect="handleConnect"
+                @dragover="onDragOver"
+                @drop="onDrop"
+                @node-click="onNodeClick"
+                @nodes-initialized="handleNodesInitialized"
+                @pane-click="onPaneClick"
+                class="h-full"
+              >
                 <Background />
                 <MiniMap />
                 <Controls />

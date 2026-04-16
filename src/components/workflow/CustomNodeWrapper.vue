@@ -52,33 +52,9 @@ function handleClone() {
   store.cloneNode(String(props.id))
 }
 
-function debugHandleMouseDown(side: 'source' | 'target', event: MouseEvent) {
-  if (!import.meta.env.DEV) return
-
-  const el = event.currentTarget as HTMLElement | null
-  console.debug('[workflow-flow] handle:mousedown', {
-    side,
-    nodeId: props.id,
-    handleId: el?.dataset.handleid ?? null,
-    handlePos: el?.dataset.handlepos ?? null,
-    classes: el?.className ?? null,
-    connectable: props.connectable,
-  })
-}
-
 function refreshNodeInternals(reason: string) {
   nextTick(() => {
     updateNodeInternals([props.id])
-
-    if (!import.meta.env.DEV) return
-
-    console.debug('[workflow-flow] updateNodeInternals', {
-      nodeId: props.id,
-      reason,
-      dimensions: props.dimensions,
-      selected: props.selected,
-      connectable: props.connectable,
-    })
   })
 }
 
@@ -105,7 +81,6 @@ onMounted(() => {
       :position="Position.Left"
       :connectable="props.connectable"
       class="!z-10 !w-3 !h-3 !bg-blue-500 !border-2 !border-blue-300"
-      @mousedown="debugHandleMouseDown('target', $event)"
     />
 
     <!-- 悬浮删除按钮 -->
@@ -147,7 +122,6 @@ onMounted(() => {
       :position="Position.Right"
       :connectable="props.connectable"
       class="!z-10 !w-3 !h-3 !bg-emerald-500 !border-2 !border-emerald-300"
-      @mousedown="debugHandleMouseDown('source', $event)"
     />
   </div>
 </template>
