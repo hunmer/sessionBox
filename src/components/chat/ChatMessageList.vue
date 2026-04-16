@@ -49,19 +49,13 @@ function handleScroll() {
 
     <!-- 消息列表 -->
     <ChatMessage
-      v-for="msg in messages"
+      v-for="(msg, index) in messages"
       :key="msg.id"
       :message="msg"
-    />
-
-    <!-- 流式输出中的最后一条 assistant 消息 -->
-    <ChatMessage
-      v-if="isStreaming && messages.length > 0"
-      :message="messages[messages.length - 1]"
-      :is-streaming="true"
-      :streaming-content="streamingToken"
-      :streaming-thinking="streamingThinking"
-      :streaming-tool-calls="streamingToolCalls"
+      :is-streaming="isStreaming && index === messages.length - 1 && msg.role === 'assistant'"
+      :streaming-content="isStreaming && index === messages.length - 1 ? streamingToken : undefined"
+      :streaming-thinking="isStreaming && index === messages.length - 1 ? streamingThinking : undefined"
+      :streaming-tool-calls="isStreaming && index === messages.length - 1 ? streamingToolCalls : undefined"
     />
   </div>
 </template>

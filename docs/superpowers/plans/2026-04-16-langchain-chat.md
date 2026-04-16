@@ -1666,8 +1666,32 @@ export function createBrowserTools(targetTabId: string | null): DynamicStructure
       description: '列出所有打开的标签页。',
       schema: z.object({}),
       func: async () => {
-        const tabs = await window.api.tab.list()
-        return JSON.stringify(tabs)
+        console.log('[list_tabs] tool called, checking window.api availability...')
+        console.log('[list_tabs] typeof window:', typeof window)
+        console.log('[list_tabs] typeof window.api:', typeof window?.api)
+        console.log('[list_tabs] typeof window.api?.tab:', typeof window?.api?.tab)
+        console.log('[list_tabs] typeof window.api?.tab?.list:', typeof window?.api?.tab?.list)
+
+        if (!window?.api?.tab?.list) {
+          const errMsg = '[list_tabs] ERROR: window.api.tab.list is not available! ' +
+            `window=${typeof window}, api=${typeof window?.api}, tab=${typeof window?.api?.tab}, list=${typeof window?.api?.tab?.list}`
+          console.error(errMsg)
+          return JSON.stringify({ error: errMsg, debug: { hasWindow: typeof window !== 'undefined', hasApi: !!window?.api, hasTab: !!window?.api?.tab, hasList: !!window?.api?.tab?.list } })
+        }
+
+        try {
+          const tabs = await window.api.tab.list()
+          console.log('[list_tabs] IPC returned:', JSON.stringify(tabs))
+          console.log('[list_tabs] tab count:', Array.isArray(tabs) ? tabs.length : 'NOT_AN_ARRAY')
+          if (Array.isArray(tabs) && tabs.length > 0) {
+            console.log('[list_tabs] first tab:', JSON.stringify(tabs[0]))
+          }
+          return JSON.stringify(tabs)
+        } catch (err) {
+          const errMsg = `[list_tabs] IPC call failed: ${err instanceof Error ? err.message : String(err)}`
+          console.error(errMsg, err)
+          return JSON.stringify({ error: errMsg })
+        }
       },
     }),
 

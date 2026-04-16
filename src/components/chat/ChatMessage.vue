@@ -55,6 +55,14 @@ const isUser = computed(() => props.message.role === 'user')
       <!-- 思考内容 -->
       <ThinkingBlock v-if="displayThinking" :content="displayThinking" />
 
+      <!-- 正在思考占位 -->
+      <div
+        v-if="isStreaming && !displayContent"
+        class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-muted-foreground bg-muted"
+      >
+        <span class="thinking-dots">正在思考</span>
+      </div>
+
       <!-- 文本内容 -->
       <div
         v-if="displayContent"
@@ -91,3 +99,18 @@ function renderMarkdown(text: string): string {
   return marked.parse(text) as string
 }
 </script>
+
+<style scoped>
+.thinking-dots::after {
+  content: '';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+  100% { content: ''; }
+}
+</style>
