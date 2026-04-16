@@ -221,7 +221,9 @@ export const useChatStore = defineStore('chat', () => {
                 toolCalls: streamingToolCalls.value.length > 0
                   ? JSON.parse(JSON.stringify(toRaw(streamingToolCalls.value)))
                   : undefined,
-                usage: streamingUsage.value ?? undefined,
+                usage: streamingUsage.value
+                  ? { ...toRaw(streamingUsage.value) }
+                  : undefined,
               }
               await dbUpdateMessage(assistantMsg.id, updates)
               const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)

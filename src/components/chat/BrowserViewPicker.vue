@@ -41,6 +41,15 @@ watch(
   }
 )
 
+/** trigger 中显示的文本 */
+const displayLabel = computed(() => {
+  if (!chatStore.targetTabId) {
+    return currentTabLabel.value
+  }
+  const tab = tabStore.tabs.find((t) => t.id === chatStore.targetTabId)
+  return tab?.title || (tab ? getDomain(tab.url) : currentTabLabel.value)
+})
+
 function getCurrentValue(): string {
   return chatStore.targetTabId ?? CURRENT_VALUE
 }
@@ -56,14 +65,12 @@ function handleChange(value: string): void {
     @update:model-value="handleChange"
   >
     <SelectTrigger class="h-7 text-xs w-[160px]">
-      <SelectValue placeholder="选择标签页" />
+      <span class="truncate">{{ displayLabel }}</span>
+      <span v-if="!chatStore.targetTabId" class="shrink-0 text-[10px] text-muted-foreground/60 ml-1">(跟随)</span>
     </SelectTrigger>
     <SelectContent>
       <SelectItem :value="CURRENT_VALUE" class="text-xs">
-        <span class="flex items-center gap-1">
-          <span class="text-muted-foreground">{{ currentTabLabel }}</span>
-          <span class="text-[10px] text-muted-foreground/60">(跟随)</span>
-        </span>
+        {{ currentTabLabel }}
       </SelectItem>
       <SelectItem
         v-for="tab in tabStore.tabs"
