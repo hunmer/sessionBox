@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'fs'
 import { getAIProvider, listTabs, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
 import { webviewManager } from './webview-manager'
 import { extractPageSummary, extractPageMarkdown, extractInteractiveNodes, extractInteractiveNodeDetail } from './page-extractor'
+import { writeSkill, readSkill, listSkills, searchSkill, extractCodeBlocks, replaceParams } from './skill-store'
 
 interface ProxyRequest {
   _requestId: string
@@ -675,6 +676,91 @@ async function executeTool(name: string, args: Record<string, unknown>, targetTa
           return await extractInteractiveNodeDetail(wc, selector)
         } catch (err) {
           return { error: `Failed to get node detail: ${err instanceof Error ? err.message : String(err)}` }
+        }
+      }
+
+      // ===== 技能管理工具 =====
+      case 'write_skill': {
+        const skillName = args.name as string
+        const skillDesc = args.description as string
+        const skillContent = args.content as string
+        if (!skillName || !skillDesc || !skillContent) {
+          return { error: 'name, description, content 均为必填' }
+        }
+        try {
+          const skill = writeSkill(skillName, skillDesc, skillContent)
+          return { success: true, name: skill.name, message: `Skill "${skill.name}" 已保存` }
+        } catch (err) {
+          return { error: `保存失败: ${err instanceof Error ? err.message : String(err)}` }
+        }
+      }
+
+      case 'read_skill': {
+        const skillName = args.name as string
+        if (!skillName) return { error: 'name 为必填' }
+        const skill = readSkill(skillName)
+        if (!skill) return { error: `Skill "${skillName}" 不存在` }
+        return { name: skill.name, description: skill.description, content: skill.content, updated: skill.updated }
+      }
+
+      case 'list_skills': {
+        const skills = listSkills()
+        return { skills, total: skills.length }
+      }
+
+      case 'search_skill': {
+        const query = args.name as string
+        if (!query) return { error: 'name (搜索关键词) 为必填' }
+        const results = searchSkill(query)
+        return { skills: results, total: results.length }
+      }
+
+      case 'exec_skill': {
+        const skillName = args.name as string
+        const params = (args.params as Record<string, unknown>) ?? {}
+        if (!skillName) return { error: 'name 为必填' }
+
+        const skill = readSkill(skillName)
+        if (!skill) {
+          // 找不到时自动搜索，返回候选列表
+          const candidates = searchSkill(skillName)
+          if (candidates.length > 0) {
+            return { error: `Skill "${skillName}" 不存在`, suggestion: '以下是相近的 Skill：', candidates }
+          }
+          return { error: `Skill "${skillName}" 不存在，也没有相近匹配` }
+        }
+
+        // 提取 JS 代码块并在目标标签页中执行
+        const codeBlocks = extractCodeBlocks(skill.content)
+        const results: Array<{ step: number; success: boolean; result?: unknown; error?: string }> = []
+
+        if (codeBlocks.length > 0) {
+          const wc = getWebContentsFromManager(targetTabId)
+          if (!wc) {
+            return {
+              name: skill.name,
+              description: skill.description,
+              content: skill.content,
+              executionError: '没有可用的标签页来执行代码块',
+            }
+          }
+
+          for (let i = 0; i < codeBlocks.length; i++) {
+            const code = replaceParams(codeBlocks[i], params)
+            try {
+              const result = await wc.executeJavaScript(`(function() { ${code} })()`)
+              results.push({ step: i + 1, success: true, result })
+            } catch (err) {
+              results.push({ step: i + 1, success: false, error: err instanceof Error ? err.message : String(err) })
+            }
+          }
+        }
+
+        return {
+          name: skill.name,
+          description: skill.description,
+          steps: skill.content,
+          executionResults: results.length > 0 ? results : undefined,
         }
       }
 

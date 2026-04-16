@@ -6,6 +6,11 @@ import ToolCallCard from './ToolCallCard.vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Copy, RefreshCw, Trash2, Pencil, Check } from 'lucide-vue-next'
+import { Markdown } from 'vue-stream-markdown'
+import 'vue-stream-markdown/index.css'
+import { useThemeStore } from '@/stores/theme'
+
+const themeStore = useThemeStore()
 
 type ContentSegment =
   | { type: 'text'; content: string }
@@ -270,7 +275,12 @@ const segments = computed<ContentSegment[]>(() => {
           class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden"
           :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
         >
-          <div class="chat-markdown prose prose-sm dark:prose-invert max-w-none" v-html="renderMarkdown(seg.content)" />
+          <Markdown
+            class="chat-markdown"
+            :content="seg.content"
+            :mode="isStreaming ? 'streaming' : 'static'"
+            :is-dark="themeStore.theme === 'dark'"
+          />
           <!-- 统计信息嵌入最后一个文本气泡右下角 -->
           <div
             v-if="i === lastTextSegmentIndex && showStats"
@@ -356,37 +366,7 @@ const segments = computed<ContentSegment[]>(() => {
   </div>
 </template>
 
-<script lang="ts">
-import { marked } from 'marked'
-import hljs from 'highlight.js'
-import 'highlight.js/styles/github-dark.css'
-
-// 配置 marked 高亮
-marked.setOptions({
-  highlight(code: string, lang: string) {
-    if (lang && hljs.getLanguage(lang)) {
-      return hljs.highlight(code, { language: lang }).value
-    }
-    return hljs.highlightAuto(code).value
-  },
-})
-
-function renderMarkdown(text: string): string {
-  return marked.parse(text) as string
-}
-</script>
-
 <style scoped>
-.chat-markdown :deep(table) {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.chat-markdown :deep(pre) {
-  max-width: 100%;
-  overflow-x: auto;
-}
 
 .thinking-dots::after {
   content: '';
