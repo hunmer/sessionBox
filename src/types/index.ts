@@ -280,3 +280,15 @@ export interface BrowserScreenshotArgs {
   tabId?: string
   format?: 'png' | 'jpeg'
 }
+
+// 工作流
+export type {
+  WorkflowFolder,
+  WorkflowNode,
+  WorkflowEdge,
+  Workflow,
+  NodeProperty,
+  NodeTypeDefinition,
+  ExecutionStep,
+  ExecutionLog,
+} from '@/lib/workflow/types'
