@@ -53,6 +53,7 @@ function handleClear() {
       :streaming-token="chatStore.streamingToken"
       :streaming-tool-calls="chatStore.streamingToolCalls"
       :streaming-thinking="chatStore.streamingThinking"
+      :streaming-usage="chatStore.streamingUsage"
     />
 
     <!-- 输入区域 -->

@@ -9,6 +9,7 @@ const props = defineProps<{
   streamingToken: string
   streamingToolCalls: ToolCall[]
   streamingThinking: string
+  streamingUsage: { inputTokens: number; outputTokens: number } | null
 }>()
 
 const containerRef = ref<HTMLDivElement>()
@@ -56,6 +57,7 @@ function handleScroll() {
       :streaming-content="isStreaming && index === messages.length - 1 ? streamingToken : undefined"
       :streaming-thinking="isStreaming && index === messages.length - 1 ? streamingThinking : undefined"
       :streaming-tool-calls="isStreaming && index === messages.length - 1 ? streamingToolCalls : undefined"
+      :streaming-usage="isStreaming && index === messages.length - 1 ? streamingUsage : undefined"
     />
   </div>
 </template>

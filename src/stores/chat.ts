@@ -32,6 +32,7 @@ export const useChatStore = defineStore('chat', () => {
   const streamingToken = ref('')
   const streamingToolCalls = ref<ToolCall[]>([])
   const streamingThinking = ref('')
+  const streamingUsage = ref<{ inputTokens: number; outputTokens: number } | null>(null)
   const abortController = ref<AbortController | null>(null)
 
   // ===== 工具启用状态 =====
@@ -164,6 +165,7 @@ export const useChatStore = defineStore('chat', () => {
     streamingToken.value = ''
     streamingToolCalls.value = []
     streamingThinking.value = ''
+    streamingUsage.value = null
 
     try {
       const controller = new AbortController()
@@ -207,6 +209,9 @@ export const useChatStore = defineStore('chat', () => {
           onThinking: (thinkContent: string) => {
             streamingThinking.value += thinkContent
           },
+          onUsage: (usage) => {
+            streamingUsage.value = usage
+          },
           onDone: async () => {
             // toRaw 解除 Vue 响应式 Proxy，确保 IndexedDB 可序列化
             const updates: Partial<ChatMessage> = {
@@ -215,6 +220,7 @@ export const useChatStore = defineStore('chat', () => {
               toolCalls: streamingToolCalls.value.length > 0
                 ? JSON.parse(JSON.stringify(toRaw(streamingToolCalls.value)))
                 : undefined,
+              usage: streamingUsage.value ?? undefined,
             }
             await dbUpdateMessage(assistantMsg.id, updates)
             const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
@@ -302,6 +308,7 @@ export const useChatStore = defineStore('chat', () => {
     streamingToken,
     streamingToolCalls,
     streamingThinking,
+    streamingUsage,
     currentSession,
     enabledTools,
     enabledToolNames,

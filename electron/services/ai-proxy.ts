@@ -252,11 +252,13 @@ interface ParsedStream {
 
 /**
  * 解析完整 SSE 流，同时转发事件到渲染进程并累积 tool_use 信息。
+ * cumulativeUsage 用于跨多轮 tool_use 循环累积 token 用量。
  */
 async function parseSSEStream(
   body: NodeJS.ReadableStream,
   send: (channel: string, data: unknown) => void,
   requestId: string,
+  cumulativeUsage: { inputTokens: number; outputTokens: number },
 ): Promise<ParsedStream> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
@@ -340,11 +342,26 @@ async function parseSSEStream(
         }
       }
 
-      // stop_reason
+      // stop_reason & usage
       if (type === 'message_delta') {
         const delta = event.delta as Record<string, unknown> | undefined
         if (delta?.stop_reason) {
           stopReason = delta.stop_reason as string
+        }
+        // message_delta 事件携带本輪 output_tokens
+        const usage = event.usage as Record<string, unknown> | undefined
+        if (usage?.output_tokens) {
+          cumulativeUsage.outputTokens += usage.output_tokens as number
+          send('on:chat:usage', { requestId, ...cumulativeUsage })
+        }
+      }
+
+      // message_start 携带本輪 input_tokens
+      if (type === 'message_start') {
+        const msg = event.message as Record<string, unknown> | undefined
+        const usage = msg?.usage as Record<string, unknown> | undefined
+        if (usage?.input_tokens) {
+          cumulativeUsage.inputTokens += usage.input_tokens as number
         }
       }
     }

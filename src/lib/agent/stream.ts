@@ -19,6 +19,7 @@ export interface StreamCallbacks {
   onToolResult: (event: ToolResultEvent) => void
   onToolCallArgs: (event: ToolCallArgsEvent) => void
   onThinking: (content: string) => void
+  onUsage: (usage: { inputTokens: number; outputTokens: number }) => void
   onDone: () => void
   onError: (error: Error) => void
 }
@@ -73,6 +74,10 @@ export function listenToChatStream(requestId: string, callbacks: StreamCallbacks
   unsubscribers.push(
     window.api.on('chat:done', (data: any) => {
       if (data.requestId === requestId) {
+        // 如果 done 事件携带 usage，先回调
+        if (data.usage) {
+          callbacks.onUsage(data.usage)
+        }
         callbacks.onDone()
         unsubscribers.forEach((fn) => fn())
       }
@@ -84,6 +89,14 @@ export function listenToChatStream(requestId: string, callbacks: StreamCallbacks
       if (data.requestId === requestId) {
         callbacks.onError(new Error(data.error))
         unsubscribers.forEach((fn) => fn())
+      }
+    }),
+  )
+
+  unsubscribers.push(
+    window.api.on('chat:usage', (data: any) => {
+      if (data.requestId === requestId) {
+        callbacks.onUsage({ inputTokens: data.inputTokens, outputTokens: data.outputTokens })
       }
     }),
   )

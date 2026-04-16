@@ -15,6 +15,7 @@ const props = defineProps<{
   streamingContent?: string
   streamingThinking?: string
   streamingToolCalls?: ToolCall[]
+  streamingUsage?: { inputTokens: number; outputTokens: number } | null
 }>()
 
 const displayContent = computed(() => {
@@ -83,6 +84,18 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = (totalSeconds % 60).toFixed(0)
   return `${minutes}m ${seconds}s`
+}
+
+/** 展示的 token 用量，streaming 时取实时数据，否则取消息持久化数据 */
+const displayUsage = computed(() => {
+  if (isUser.value) return null
+  if (props.isStreaming && props.streamingUsage) return props.streamingUsage
+  return props.message.usage ?? null
+})
+
+function formatTokenCount(n: number): string {
+  if (n < 1000) return String(n)
+  return `${(n / 1000).toFixed(1)}k`
 }
 
 /**
@@ -173,15 +186,19 @@ const segments = computed<ContentSegment[]>(() => {
         </div>
       </template>
 
-      <!-- 执行时间统计 -->
+      <!-- 执行时间 & Token 统计 -->
       <div
-        v-if="durationMs !== null"
-        class="text-[11px] text-muted-foreground/60 mt-0.5"
+        v-if="durationMs !== null || displayUsage"
+        class="text-[11px] text-muted-foreground/60 mt-0.5 inline-flex items-center gap-2"
         :class="isUser ? 'text-right' : ''"
       >
-        <span class="inline-flex items-center gap-1">
+        <span v-if="durationMs !== null" class="inline-flex items-center gap-1">
           <span v-if="isStreaming" class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
           {{ formatDuration(durationMs) }}
+        </span>
+        <span v-if="displayUsage" class="inline-flex items-center gap-1.5">
+          <span title="输入 tokens">&#8594; {{ formatTokenCount(displayUsage.inputTokens) }}</span>
+          <span title="输出 tokens">&#8592; {{ formatTokenCount(displayUsage.outputTokens) }}</span>
         </span>
       </div>
     </div>

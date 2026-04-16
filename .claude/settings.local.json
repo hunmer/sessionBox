@@ -4,7 +4,9 @@
       "mcp__shadcnVue__get_add_command_for_items",
       "mcp__shadcnVue__view_items_in_registries",
       "mcp__fetch__fetch",
-      "mcp__shadcn__get_add_command_for_items"
+      "mcp__shadcn__get_add_command_for_items",
+      "mcp__shadcnVue__search_items_in_registries",
+      "mcp__shadcnVue__get_item_examples_from_registries"
     ]
   }
 }
