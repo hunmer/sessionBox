@@ -47,7 +47,7 @@ function copyConfig() {
         <Server class="w-5 h-5" />
         <h3 class="text-lg font-semibold">MCP Server</h3>
       </div>
-      <Switch :checked="mcpStore.enabled" @update:checked="toggleEnabled" />
+      <Switch :model-value="mcpStore.enabled" @update:model-value="toggleEnabled" />
     </div>
 
     <div class="space-y-3 text-sm">

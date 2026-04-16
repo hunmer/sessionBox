@@ -122,7 +122,7 @@ async function handleToggleProvider(provider: AIProvider) {
                 <span class="text-sm font-medium">{{ provider.name }}</span>
               </div>
               <div class="flex items-center gap-2">
-                <Switch :checked="provider.enabled" @update:checked="handleToggleProvider(provider)" />
+                <Switch :model-value="provider.enabled" @update:model-value="handleToggleProvider(provider)" />
                 <Button variant="ghost" size="icon" class="h-6 w-6" @click="handleTestConnection(provider.id)">
                   <Loader2 v-if="testing" class="h-3 w-3 animate-spin" />
                   <TestTube2 v-else class="h-3 w-3" />
@@ -149,8 +149,8 @@ async function handleToggleProvider(provider: AIProvider) {
                   <Input v-model="newModelName" placeholder="显示名称" class="h-7 text-xs" />
                   <Input v-model.number="newModelMaxTokens" type="number" placeholder="maxTokens" class="h-7 text-xs" />
                   <div class="flex items-center gap-3 text-xs">
-                    <label class="flex items-center gap-1"><Switch v-model:checked="newModelSupportsVision" class="scale-75" /> 视觉</label>
-                    <label class="flex items-center gap-1"><Switch v-model:checked="newModelSupportsThinking" class="scale-75" /> 思考</label>
+                    <label class="flex items-center gap-1"><Switch :model-value="newModelSupportsVision" @update:model-value="newModelSupportsVision = $event" class="scale-75" /> 视觉</label>
+                    <label class="flex items-center gap-1"><Switch :model-value="newModelSupportsThinking" @update:model-value="newModelSupportsThinking = $event" class="scale-75" /> 思考</label>
                   </div>
                   <div class="flex gap-1">
                     <Button size="sm" class="h-6 text-xs" @click="handleAddModel(provider.id)">添加</Button>
