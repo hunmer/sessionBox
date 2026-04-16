@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, markRaw, watch, nextTick } from 'vue'
-import { VueFlow, useVueFlow } from '@vue-flow/core'
+import { VueFlow, useVueFlow, ConnectionMode } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { MiniMap } from '@vue-flow/minimap'
 import { Controls } from '@vue-flow/controls'
@@ -30,6 +30,7 @@ const store = useWorkflowStore()
 const listDialogOpen = ref(false)
 const isEditingName = ref(false)
 const editingName = ref('')
+const FLOW_ID = 'workflow-editor-flow'
 
 // ====== 面板尺寸持久化 ======
 const PANEL_SIZES_KEY = 'workflow-panel-sizes'
@@ -56,7 +57,15 @@ watch(() => store.currentWorkflow, (val) => {
   if (val) store.saveDraft()
 }, { deep: true })
 
-const { onConnect, onNodesChange, project, vueFlowRef, onViewportChange, setViewport, fitView, addEdges, connectionLineStyle } = useVueFlow()
+const {
+  onNodesChange,
+  project,
+  vueFlowRef,
+  onViewportChange,
+  setViewport,
+  fitView,
+  updateNodeInternals,
+} = useVueFlow(FLOW_ID)
 
 onNodesChange((changes) => {
   for (const change of changes) {
@@ -119,17 +128,63 @@ const edges = computed(() =>
     id: e.id,
     source: e.source,
     target: e.target,
+    sourceHandle: e.sourceHandle,
+    targetHandle: e.targetHandle,
     animated: true,
     style: { stroke: 'hsl(var(--border))' },
   })),
 )
 
-onConnect((params: any) => {
-  store.addEdge(params.source, params.target)
-})
-
 function handleConnect(params: any) {
-  store.addEdge(params.source, params.target)
+  if (import.meta.env.DEV) {
+    console.debug('[workflow-flow] connect', params)
+  }
+
+  store.addEdge(
+    params.source,
+    params.target,
+    params.sourceHandle ?? null,
+    params.targetHandle ?? null,
+  )
+}
+
+function handleConnectStart(params: any) {
+  if (!import.meta.env.DEV) return
+  console.debug('[workflow-flow] connect:start', params)
+}
+
+function handleConnectEnd(params: any) {
+  if (!import.meta.env.DEV) return
+  console.debug('[workflow-flow] connect:end', params)
+}
+
+function handleNodesInitialized(nodes: any[]) {
+  nextTick(() => {
+    updateNodeInternals(nodes.map((node) => node.id))
+
+    if (!import.meta.env.DEV || !vueFlowRef.value) return
+
+    const handles = Array.from(vueFlowRef.value.querySelectorAll('.vue-flow__handle')).map((node) => {
+      const el = node as HTMLElement
+      return {
+        dataId: el.dataset.id ?? null,
+        nodeId: el.dataset.nodeid ?? null,
+        handleId: el.dataset.handleid ?? null,
+        handlePos: el.dataset.handlepos ?? null,
+        classes: el.className,
+      }
+    })
+
+    console.debug('[workflow-flow] nodes:initialized', {
+      nodeCount: nodes.length,
+      handleCount: handles.length,
+      handles,
+    })
+  })
+}
+
+function handleFlowError(error: unknown) {
+  console.warn('[workflow-flow] error', error)
 }
 
 function onDragOver(event: DragEvent) {
@@ -284,20 +339,25 @@ async function onListSelect(workflow: any) {
             <ResizableHandle with-handle />
 
             <ResizablePanel :default-size="panelSizes[1]" :min-size="30">
-              <VueFlow
-                :nodes="nodes"
-                :edges="edges"
-                :node-types="nodeTypes"
-                :min-zoom="0.2"
-                :max-zoom="4"
-                :connection-mode="'loose'"
-                @connect="handleConnect"
-                @dragover="onDragOver"
-                @drop="onDrop"
-                @node-click="onNodeClick"
-                @pane-click="onPaneClick"
-                class="h-full"
-              >
+          <VueFlow
+            :id="FLOW_ID"
+            :nodes="nodes"
+            :edges="edges"
+            :node-types="nodeTypes"
+            :min-zoom="0.2"
+            :max-zoom="4"
+            :connection-mode="ConnectionMode.Loose"
+            @connect="handleConnect"
+            @connect-start="handleConnectStart"
+            @connect-end="handleConnectEnd"
+            @dragover="onDragOver"
+            @drop="onDrop"
+            @node-click="onNodeClick"
+            @nodes-initialized="handleNodesInitialized"
+            @pane-click="onPaneClick"
+            @error="handleFlowError"
+            class="h-full"
+          >
                 <Background />
                 <MiniMap />
                 <Controls />

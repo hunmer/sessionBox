@@ -105,6 +105,11 @@ export function migrateBookmarksAndPasswords(): void {
     } else {
       console.log('[Migration] Created empty bookmark-store.json')
     }
+
+    // 迁移成功，移除旧数据
+    store.delete('bookmarks')
+    store.delete('bookmarkFolders')
+    console.log('[Migration] Removed bookmarks/bookmarkFolders from electron-store')
   }
 
   // 迁移密码
@@ -118,5 +123,9 @@ export function migrateBookmarksAndPasswords(): void {
     } else {
       console.log('[Migration] Created empty password-store.json')
     }
+
+    // 迁移成功，移除旧数据
+    store.delete('passwords')
+    console.log('[Migration] Removed passwords from electron-store')
   }
 }

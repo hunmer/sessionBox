@@ -216,13 +216,32 @@ export const useWorkflowStore = defineStore('workflow', () => {
     if (node) node.label = label
   }
 
-  function addEdge(source: string, target: string): void {
+  function addEdge(
+    source: string,
+    target: string,
+    sourceHandle: string | null = null,
+    targetHandle: string | null = null,
+  ): void {
     if (!currentWorkflow.value) return
-    if (currentWorkflow.value.edges.some((e) => e.source === source && e.target === target)) return
+
+    if (
+      currentWorkflow.value.edges.some(
+        (e) =>
+          e.source === source
+          && e.target === target
+          && (e.sourceHandle ?? null) === sourceHandle
+          && (e.targetHandle ?? null) === targetHandle,
+      )
+    ) {
+      return
+    }
+
     currentWorkflow.value.edges.push({
-      id: `e-${source}-${target}`,
+      id: `e-${source}-${sourceHandle ?? 'default'}-${target}-${targetHandle ?? 'default'}`,
       source,
       target,
+      sourceHandle,
+      targetHandle,
     })
   }
 

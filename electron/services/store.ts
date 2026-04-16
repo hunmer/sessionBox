@@ -244,8 +244,6 @@ interface StoreSchema {
   pages: Page[]
   proxies: Proxy[]
   tabs: Tab[]
-  bookmarkFolders: BookmarkFolder[]
-  bookmarks: Bookmark[]
   extensions: Extension[]
   containerExtensions: Record<string, string[]>  // containerId -> extensionIds
   windowState: WindowState
@@ -259,7 +257,6 @@ interface StoreSchema {
   updateSources: UpdateSource[]
   activeUpdateSourceId: string
   snifferDomains: string[]
-  passwords: PasswordEntry[]
   searchEngines: SearchEngine[]
   defaultSearchEngineId: string
   defaultContainerId: string  // 默认容器 ID，用于外部链接打开
@@ -279,8 +276,6 @@ const defaults: StoreSchema = {
   pages: [],
   proxies: [],
   tabs: [],
-  bookmarkFolders: [],
-  bookmarks: [],
   extensions: [],
   containerExtensions: {},
   windowState: { width: 1280, height: 800, isMaximized: false },
@@ -300,7 +295,6 @@ const defaults: StoreSchema = {
   ],
   activeUpdateSourceId: 'github',
   snifferDomains: [],
-  passwords: [],
   searchEngines: [
     { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=%s', icon: 'Search' },
     { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=%s', icon: 'Search' },
@@ -581,28 +575,6 @@ export function migrateTabContainerIdToPageId(): void {
   }
 }
 
-/** 将 Bookmark 的 containerId 迁移为 pageId */
-export function migrateBookmarkContainerIdToPageId(): void {
-  const bookmarks = getCollection<Record<string, any>>('bookmarks')
-  const pages = getCollection('pages')
-  let updated = false
-
-  const newBookmarks = bookmarks.map(b => {
-    if (b.pageId) return b
-    if (b.containerId) {
-      const page = pages.find((p: Page) => p.containerId === b.containerId)
-      updated = true
-      return { ...b, pageId: page?.id ?? '' }
-    }
-    return b
-  })
-
-  if (updated) {
-    setCollection('bookmarks', newBookmarks)
-    console.log('[Migration] Updated bookmarks with pageId')
-  }
-}
-
 // ====== 代理操作 ======
 
 export function listProxies(): Proxy[] {
@@ -698,225 +670,12 @@ export function saveTabs(tabs: Tab[]): void {
   setCollection('tabs', tabs)
 }
 
-// ====== 书签操作 ======
-
-export function listBookmarks(folderId?: string): Bookmark[] {
-  const sites = getCollection('bookmarks').sort((a, b) => a.order - b.order)
-  if (folderId) return sites.filter((s) => s.folderId === folderId)
-  return sites
-}
-
-export function createBookmark(data: Omit<Bookmark, 'id'>): Bookmark {
-  const sites = getCollection('bookmarks')
-  const site: Bookmark = { ...data, id: randomUUID() }
-  sites.push(site)
-  setCollection('bookmarks', sites)
-  try { pluginEventBus.emit('bookmark:created', site) } catch {}
-  return site
-}
-
-export function updateBookmark(id: string, data: Partial<Omit<Bookmark, 'id'>>): void {
-  const sites = getCollection('bookmarks')
-  const idx = sites.findIndex((s) => s.id === id)
-  if (idx === -1) throw new Error(`书签 ${id} 不存在`)
-  sites[idx] = { ...sites[idx], ...data }
-  setCollection('bookmarks', sites)
-  try { pluginEventBus.emit('bookmark:updated', { id, ...data }) } catch {}
-}
-
-export function deleteBookmark(id: string): void {
-  const sites = getCollection('bookmarks').filter((s) => s.id !== id)
-  setCollection('bookmarks', sites)
-  try { pluginEventBus.emit('bookmark:deleted', id) } catch {}
-}
-
-export function batchDeleteBookmarks(ids: string[]): void {
-  const idSet = new Set(ids)
-  const sites = getCollection('bookmarks').filter((s) => !idSet.has(s.id))
-  setCollection('bookmarks', sites)
-  try { pluginEventBus.emit('bookmark:batch-deleted', ids) } catch {}
-}
-
-export function reorderBookmarks(ids: string[]): void {
-  const sites = getCollection('bookmarks')
-  ids.forEach((id, order) => {
-    const s = sites.find((s) => s.id === id)
-    if (s) s.order = order
-  })
-  setCollection('bookmarks', sites)
-}
-
-// ====== 书签文件夹操作 ======
-
-export function listBookmarkFolders(): BookmarkFolder[] {
-  return getCollection('bookmarkFolders').sort((a, b) => a.order - b.order)
-}
-
-export function createBookmarkFolder(data: Omit<BookmarkFolder, 'id'>): BookmarkFolder {
-  const folders = getCollection('bookmarkFolders')
-  const folder: BookmarkFolder = { ...data, id: randomUUID() }
-  folders.push(folder)
-  setCollection('bookmarkFolders', folders)
-  try { pluginEventBus.emit('bookmark-folder:created', folder) } catch {}
-  return folder
-}
-
-export function updateBookmarkFolder(id: string, data: Partial<Omit<BookmarkFolder, 'id'>>): void {
-  const folders = getCollection('bookmarkFolders')
-  const idx = folders.findIndex((f) => f.id === id)
-  if (idx === -1) throw new Error(`文件夹 ${id} 不存在`)
-  folders[idx] = { ...folders[idx], ...data }
-  setCollection('bookmarkFolders', folders)
-  try { pluginEventBus.emit('bookmark-folder:updated', { id, ...data }) } catch {}
-}
-
-export function deleteBookmarkFolder(id: string): void {
-  // 级联删除子文件夹
-  const folders = getCollection('bookmarkFolders')
-  const childIds = collectChildFolderIds(folders, id)
-  const idsToDelete = [id, ...childIds]
-  setCollection('bookmarkFolders', folders.filter((f) => !idsToDelete.includes(f.id)))
-  // 级联删除文件夹内的书签
-  const sites = getCollection('bookmarks').filter((s) => !idsToDelete.includes(s.folderId))
-  setCollection('bookmarks', sites)
-  try { pluginEventBus.emit('bookmark-folder:deleted', id) } catch {}
-}
-
-/** 批量删除空文件夹（无书签且无子文件夹），返回被删除的文件夹 ID */
-export function deleteEmptyBookmarkFolders(): string[] {
-  const folders = getCollection('bookmarkFolders')
-  const bookmarks = getCollection('bookmarks')
-
-  // 找出所有空文件夹：没有直接子书签且没有子文件夹
-  const emptyIds = new Set<string>()
-  for (const folder of folders) {
-    const hasChildFolders = folders.some((f) => f.parentId === folder.id && !emptyIds.has(f.id))
-    const hasBookmarks = bookmarks.some((b) => b.folderId === folder.id)
-    if (!hasChildFolders && !hasBookmarks) {
-      emptyIds.add(folder.id)
-    }
-  }
-
-  if (emptyIds.size === 0) return []
-
-  // 删除后可能导致父级也变空，迭代清理
-  let changed = true
-  while (changed) {
-    changed = false
-    for (const folder of folders) {
-      if (emptyIds.has(folder.id)) continue
-      const hasChildFolders = folders.some((f) => f.parentId === folder.id && !emptyIds.has(f.id))
-      const hasBookmarks = bookmarks.some((b) => b.folderId === folder.id)
-      if (!hasChildFolders && !hasBookmarks) {
-        emptyIds.add(folder.id)
-        changed = true
-      }
-    }
-  }
-
-  setCollection(
-    'bookmarkFolders',
-    folders.filter((f) => !emptyIds.has(f.id))
-  )
-  return [...emptyIds]
-}
-
-export function reorderBookmarkFolders(ids: string[]): void {
-  const folders = getCollection('bookmarkFolders')
-  ids.forEach((id, order) => {
-    const f = folders.find((f) => f.id === id)
-    if (f) f.order = order
-  })
-  setCollection('bookmarkFolders', folders)
-}
-
-export function batchCreateBookmarkFolders(
-  items: Omit<BookmarkFolder, 'id'>[]
-): BookmarkFolder[] {
-  const folders = getCollection('bookmarkFolders')
-  const created: BookmarkFolder[] = []
-  for (const data of items) {
-    const folder: BookmarkFolder = { ...data, id: randomUUID() }
-    folders.push(folder)
-    created.push(folder)
-  }
-  setCollection('bookmarkFolders', folders)
-  return created
-}
-
-export function batchCreateBookmarks(items: Omit<Bookmark, 'id'>[]): Bookmark[] {
-  const sites = getCollection('bookmarks')
-  const created: Bookmark[] = []
-  for (const data of items) {
-    const bookmark: Bookmark = { ...data, id: randomUUID() }
-    sites.push(bookmark)
-    created.push(bookmark)
-  }
-  setCollection('bookmarks', sites)
-  return created
-}
-
-/** 递归收集所有子文件夹 ID */
-function collectChildFolderIds(folders: BookmarkFolder[], parentId: string): string[] {
-  const children = folders.filter((f) => f.parentId === parentId)
-  const ids: string[] = []
-  for (const child of children) {
-    ids.push(child.id)
-    ids.push(...collectChildFolderIds(folders, child.id))
-  }
-  return ids
-}
-
 function collectChildWorkflowFolderIds(folders: WorkflowFolder[], parentId: string): string[] {
   const children = folders.filter((f) => f.parentId === parentId)
   return children.reduce<string[]>(
     (acc, child) => [...acc, child.id, ...collectChildWorkflowFolderIds(folders, child.id)],
     [],
   )
-}
-
-// ====== 书签数据迁移 ======
-
-/** 迁移旧存储键名 favoriteSites → bookmarks，以及检测旧数据（无 folderId 字段） */
-export function migrateBookmarks(): void {
-  // 迁移存储键名
-  if (store.has('favoriteSites')) {
-    const oldData = store.get('favoriteSites', [])
-    if (oldData.length > 0 && !store.has('bookmarks')) {
-      setCollection('bookmarks', oldData)
-    }
-    store.delete('favoriteSites')
-  }
-
-  const sites = getCollection('bookmarks')
-  if (sites.length === 0) return
-
-  // 检查是否需要迁移（旧数据没有 folderId 字段）
-  const needsMigration = sites.some((s) => !('folderId' in s) || s.folderId === undefined)
-  if (!needsMigration) return
-
-  // 确保至少有一个根级文件夹用于迁移旧书签
-  let folders = getCollection('bookmarkFolders')
-  if (folders.length === 0) {
-    const defaultFolder = { id: randomUUID(), name: '默认文件夹', parentId: null, order: 0 }
-    folders.push(defaultFolder)
-    setCollection('bookmarkFolders', folders)
-  }
-  // 如果存在旧的 __bookmark_bar__ 文件夹，重命名为"默认文件夹"
-  const barFolder = folders.find((f) => f.id === BOOKMARK_BAR_FOLDER_ID)
-  if (barFolder) {
-    barFolder.name = '默认文件夹'
-    setCollection('bookmarkFolders', folders)
-  }
-  const fallbackFolderId = folders[0].id
-
-  // 迁移旧书签：赋予 folderId 和 order
-  const migrated = sites.map((s, index) => ({
-    ...s,
-    folderId: s.folderId || fallbackFolderId,
-    order: s.order ?? index
-  }))
-  setCollection('bookmarks', migrated)
 }
 
 // ====== 扩展操作 ======
@@ -1200,43 +959,6 @@ export function addSnifferDomain(domain: string): void {
 export function removeSnifferDomain(domain: string): void {
   const domains = getSnifferDomains().filter(d => d !== domain)
   store.set('snifferDomains', domains)
-}
-
-// ====== 密码/笔记管理 ======
-
-export function listPasswords(): PasswordEntry[] {
-  return getCollection('passwords').sort((a, b) => a.order - b.order)
-}
-
-export function listPasswordsBySite(siteOrigin: string): PasswordEntry[] {
-  return getCollection('passwords')
-    .filter((p) => p.siteOrigin === siteOrigin)
-    .sort((a, b) => a.order - b.order)
-}
-
-export function createPassword(data: Omit<PasswordEntry, 'id'>): PasswordEntry {
-  const passwords = getCollection('passwords')
-  const entry: PasswordEntry = { ...data, id: randomUUID() }
-  passwords.push(entry)
-  setCollection('passwords', passwords)
-  return entry
-}
-
-export function updatePassword(id: string, data: Partial<Omit<PasswordEntry, 'id'>>): void {
-  const passwords = getCollection('passwords')
-  const idx = passwords.findIndex((p) => p.id === id)
-  if (idx === -1) throw new Error(`密码条目 ${id} 不存在`)
-  passwords[idx] = { ...passwords[idx], ...data, updatedAt: Date.now() }
-  setCollection('passwords', passwords)
-}
-
-export function deletePassword(id: string): void {
-  const passwords = getCollection('passwords').filter((p) => p.id !== id)
-  setCollection('passwords', passwords)
-}
-
-export function clearAllPasswords(): void {
-  setCollection('passwords', [])
 }
 
 // ====== 搜索引擎操作 ======

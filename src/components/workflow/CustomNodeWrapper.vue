@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Handle, Position } from '@vue-flow/core'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import { NodeResizer } from '@vue-flow/node-resizer'
 import { X } from 'lucide-vue-next'
@@ -10,6 +10,7 @@ import { useWorkflowStore } from '@/stores/workflow'
 
 const props = defineProps<NodeProps>()
 const store = useWorkflowStore()
+const { updateNodeInternals } = useVueFlow()
 
 const isEditing = ref(false)
 const editLabel = ref('')
@@ -51,7 +52,41 @@ function handleClone() {
   store.cloneNode(String(props.id))
 }
 
+function debugHandleMouseDown(side: 'source' | 'target', event: MouseEvent) {
+  if (!import.meta.env.DEV) return
+
+  const el = event.currentTarget as HTMLElement | null
+  console.debug('[workflow-flow] handle:mousedown', {
+    side,
+    nodeId: props.id,
+    handleId: el?.dataset.handleid ?? null,
+    handlePos: el?.dataset.handlepos ?? null,
+    classes: el?.className ?? null,
+    connectable: props.connectable,
+  })
+}
+
+function refreshNodeInternals(reason: string) {
+  nextTick(() => {
+    updateNodeInternals([props.id])
+
+    if (!import.meta.env.DEV) return
+
+    console.debug('[workflow-flow] updateNodeInternals', {
+      nodeId: props.id,
+      reason,
+      dimensions: props.dimensions,
+      selected: props.selected,
+      connectable: props.connectable,
+    })
+  })
+}
+
 const displayLabel = computed(() => props.data?.label || definition.value?.label || props.type)
+
+onMounted(() => {
+  refreshNodeInternals('mounted')
+})
 </script>
 
 <template>
@@ -70,6 +105,7 @@ const displayLabel = computed(() => props.data?.label || definition.value?.label
       :position="Position.Left"
       :connectable="props.connectable"
       class="!z-10 !w-3 !h-3 !bg-blue-500 !border-2 !border-blue-300"
+      @mousedown="debugHandleMouseDown('target', $event)"
     />
 
     <!-- 悬浮删除按钮 -->
@@ -111,6 +147,7 @@ const displayLabel = computed(() => props.data?.label || definition.value?.label
       :position="Position.Right"
       :connectable="props.connectable"
       class="!z-10 !w-3 !h-3 !bg-emerald-500 !border-2 !border-emerald-300"
+      @mousedown="debugHandleMouseDown('source', $event)"
     />
   </div>
 </template>

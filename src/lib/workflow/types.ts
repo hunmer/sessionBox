@@ -23,6 +23,8 @@ export interface WorkflowEdge {
   id: string
   source: string
   target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
 }
 
 /** 工作流 */
