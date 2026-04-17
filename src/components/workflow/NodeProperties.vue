@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { resolveLucideIcon } from '@/lib/lucide-resolver'
-import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight, Import, FileDown } from 'lucide-vue-next'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight, Import, FileDown, Info } from 'lucide-vue-next'
 import OutputFieldEditor from './OutputFieldEditor.vue'
 import VariablePicker from './VariablePicker.vue'
 import {
@@ -212,14 +213,21 @@ function confirmImport() {
       <ScrollArea class="flex-1">
         <div class="p-3 space-y-3">
           <div v-for="prop in definition.properties" :key="prop.key" class="space-y-1">
-            <label class="text-xs font-medium">
+            <label class="text-xs font-medium flex items-center gap-1">
               {{ prop.label }}
               <span v-if="prop.required" class="text-red-500">*</span>
+              <TooltipProvider v-if="prop.tooltip" :delay-duration="300">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Info class="w-3 h-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" class="max-w-[240px]">
+                    <p>{{ prop.tooltip }}</p>
+                    <p class="text-[10px] opacity-60 mt-0.5">类型: {{ prop.type }}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </label>
-
-            <p v-if="prop.description" class="text-[10px] text-muted-foreground">
-              {{ prop.description }}
-            </p>
 
             <!-- text + 变量按钮 -->
             <div v-if="prop.type === 'text'" class="flex gap-1">

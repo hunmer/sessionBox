@@ -60,7 +60,7 @@ export interface NodeProperty {
   readonly?: boolean
   default?: any
   options?: { label: string; value: string }[]
-  description?: string
+  tooltip?: string
 }
 
 /** 节点连接点配置 */

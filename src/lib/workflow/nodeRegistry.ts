@@ -13,7 +13,7 @@ function schemaToProps(
       label: schema.description || key,
       type: inferPropType(schema),
       required: required?.includes(key),
-      description: schema.description,
+      tooltip: schema.description,
     }
     if (schema.enum) {
       prop.type = 'select'
@@ -258,7 +258,7 @@ const customNodeDefinitions: NodeTypeDefinition[] = [
         label: '代码',
         type: 'code',
         required: true,
-        description: 'JavaScript 代码，可使用 context 变量。返回值将写入 context[this.id]',
+        tooltip: 'JavaScript 代码，可使用 context 变量。返回值将写入 context[this.id]',
       },
     ],
   },
@@ -274,7 +274,7 @@ const customNodeDefinitions: NodeTypeDefinition[] = [
         label: '消息内容',
         type: 'text',
         required: true,
-        description: '要显示的消息文本',
+        tooltip: '要显示的消息文本',
       },
       {
         key: 'type',
@@ -302,13 +302,13 @@ const customNodeDefinitions: NodeTypeDefinition[] = [
         label: 'Prompt',
         type: 'textarea',
         required: true,
-        description: 'AI 提示词，可用 {{context.nodeId.field}} 引用上下文变量',
+        tooltip: 'AI 提示词，可用 {{context.nodeId.field}} 引用上下文变量',
       },
       {
         key: 'systemPrompt',
         label: '系统提示词',
         type: 'textarea',
-        description: '可选的系统级提示词',
+        tooltip: '可选的系统级提示词',
       },
     ],
   },
