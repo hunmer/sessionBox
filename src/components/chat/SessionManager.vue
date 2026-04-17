@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import {
   DropdownMenu,
@@ -11,6 +12,9 @@ import { Button } from '@/components/ui/button'
 import { MessageSquarePlus, Trash2, History } from 'lucide-vue-next'
 
 const chatStore = useChatStore()
+const agentSessions = computed(() =>
+  chatStore.sessions.filter((s) => !s.workflowId).slice(0, 20)
+)
 
 function formatTime(timestamp: number): string {
   const date = new Date(timestamp)
@@ -43,9 +47,9 @@ async function handleDeleteSession(id: string) {
         <MessageSquarePlus class="h-4 w-4 mr-2" />
         新建对话
       </DropdownMenuItem>
-      <DropdownMenuSeparator v-if="chatStore.sessions.length" />
+      <DropdownMenuSeparator v-if="agentSessions.length" />
       <DropdownMenuItem
-        v-for="session in chatStore.sessions.slice(0, 20)"
+        v-for="session in agentSessions"
         :key="session.id"
         class="flex items-center justify-between cursor-pointer"
         :class="session.id === chatStore.currentSessionId ? 'bg-accent' : ''"
