@@ -7,19 +7,19 @@ import NodeProperties from './NodeProperties.vue'
 import VersionControl from './VersionControl.vue'
 import OperationHistory from './OperationHistory.vue'
 import ChatPanel from '@/components/chat/ChatPanel.vue'
-import { useChatStore } from '@/stores/chat'
+import { createChatStore } from '@/stores/chat'
 import { useWorkflowStore } from '@/stores/workflow'
 
-const chatStore = useChatStore()
 const workflowStore = useWorkflowStore()
 const activeTab = ref('properties')
+const workflowChat = createChatStore('workflow')
 
 // 监听 tab 切换，自动绑定工作流会话
 watch(activeTab, async (tab) => {
   if (tab === 'ai-assistant') {
     const workflowId = workflowStore.currentWorkflow?.id
     if (workflowId) {
-      await chatStore.switchToWorkflowSession(workflowId)
+      await workflowChat.switchToWorkflowSession(workflowId)
     }
   }
 })
@@ -83,7 +83,7 @@ watch(activeTab, async (tab) => {
       </TabsContent>
 
       <TabsContent value="ai-assistant" class="flex-1 min-h-0 mt-0">
-        <ChatPanel source="workflow" />
+        <ChatPanel :chat="workflowChat" embedded />
       </TabsContent>
     </Tabs>
   </div>

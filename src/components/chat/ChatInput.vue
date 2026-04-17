@@ -40,7 +40,7 @@ import {
   ImagePlus, Send, Square, Trash2, Wrench, ScrollText,
   Copy, Check, Pencil, Loader2,
 } from 'lucide-vue-next'
-import { useChatStore } from '@/stores/chat'
+import { useChatUIStore } from '@/stores/chat-ui'
 import { BROWSER_TOOL_LIST } from '@/lib/agent/tools'
 import type { ToolMeta } from '@/lib/agent/tools'
 
@@ -69,7 +69,7 @@ const emit = defineEmits<{
   clear: []
 }>()
 
-const chatStore = useChatStore()
+const chatUIStore = useChatUIStore()
 
 const inputText = ref('')
 const images = ref<string[]>([])
@@ -87,7 +87,7 @@ const groupedTools = computed(() => {
 
 /** 已启用工具数量 */
 const enabledCount = computed(() => {
-  return BROWSER_TOOL_LIST.filter((t) => chatStore.enabledTools[t.name] !== false).length
+  return BROWSER_TOOL_LIST.filter((t) => chatUIStore.enabledTools[t.name] !== false).length
 })
 
 function handleKeydown(e: KeyboardEvent) {
@@ -304,8 +304,8 @@ async function confirmDelete() {
                   <span class="text-[11px] text-muted-foreground leading-tight">{{ tool.description }}</span>
                 </div>
                 <Switch
-                  :model-value="chatStore.enabledTools[tool.name] !== false"
-                  @update:model-value="chatStore.toggleTool(tool.name)"
+                  :model-value="chatUIStore.enabledTools[tool.name] !== false"
+                  @update:model-value="chatUIStore.toggleTool(tool.name)"
                   class="shrink-0"
                 />
               </DropdownMenuItem>

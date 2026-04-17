@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useChatStore } from '@/stores/chat'
+import type { ChatStoreInstance } from '@/stores/chat'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,9 +11,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { MessageSquarePlus, Trash2, History } from 'lucide-vue-next'
 
-const chatStore = useChatStore()
-const agentSessions = computed(() =>
-  chatStore.sessions.filter((s) => !s.workflowId).slice(0, 20)
+const props = defineProps<{
+  chat: ChatStoreInstance
+}>()
+
+const recentSessions = computed(() =>
+  props.chat.sessions.slice(0, 20)
 )
 
 function formatTime(timestamp: number): string {
@@ -27,11 +30,11 @@ function formatTime(timestamp: number): string {
 }
 
 async function handleNewSession() {
-  await chatStore.createSession()
+  await props.chat.createSession()
 }
 
 async function handleDeleteSession(id: string) {
-  await chatStore.deleteSessionById(id)
+  await props.chat.deleteSessionById(id)
 }
 </script>
 
@@ -47,13 +50,13 @@ async function handleDeleteSession(id: string) {
         <MessageSquarePlus class="h-4 w-4 mr-2" />
         新建对话
       </DropdownMenuItem>
-      <DropdownMenuSeparator v-if="agentSessions.length" />
+      <DropdownMenuSeparator v-if="recentSessions.length" />
       <DropdownMenuItem
-        v-for="session in agentSessions"
+        v-for="session in recentSessions"
         :key="session.id"
         class="flex items-center justify-between cursor-pointer"
-        :class="session.id === chatStore.currentSessionId ? 'bg-accent' : ''"
-        @click="chatStore.switchSession(session.id)"
+        :class="session.id === chat.currentSessionId ? 'bg-accent' : ''"
+        @click="chat.switchSession(session.id)"
       >
         <div class="flex-1 min-w-0">
           <div class="text-sm truncate">{{ session.title }}</div>

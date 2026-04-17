@@ -31,7 +31,8 @@ import { useWorkspaceStore } from '@/stores/workspace'
 import { useHomepageStore } from '@/stores/homepage'
 import { usePasswordStore } from '@/stores/password'
 import { useMcpStore } from '@/stores/mcp'
-import { useChatStore } from '@/stores/chat'
+import { createChatStore } from '@/stores/chat'
+import { useChatUIStore } from '@/stores/chat-ui'
 import { useAIProviderStore } from '@/stores/ai-provider'
 import ChatPanel from '@/components/chat/ChatPanel.vue'
 import { useIpcEvent } from '@/composables/useIpc'
@@ -49,7 +50,8 @@ const homepageStore = useHomepageStore()
 const passwordStore = usePasswordStore()
 const splitStore = useSplitStore()
 const mcpStore = useMcpStore()
-const chatStore = useChatStore()
+const chatStore = createChatStore('agent')
+const chatUIStore = useChatUIStore()
 const aiProviderStore = useAIProviderStore()
 
 const proxyDialogOpen = ref(false)
@@ -314,7 +316,7 @@ function handleLayout(sizes: number[]) {
       localStorage.setItem(VERTICAL_TAB_STORAGE_KEY, String(Math.round(sizes[1])))
     }
     // ChatPanel 始终是最后一个面板
-    if (chatStore.isPanelVisible) {
+    if (chatUIStore.isPanelVisible) {
       const chatWidth = Math.round(sizes[sizes.length - 1])
       if (chatWidth >= CHAT_PANEL_MIN_SIZE && chatWidth <= CHAT_PANEL_MAX_SIZE) {
         localStorage.setItem(CHAT_PANEL_STORAGE_KEY, String(chatWidth))
@@ -738,10 +740,10 @@ useIpcEvent('shortcut', (actionId) => {
         </ResizablePanel>
 
         <!-- 聊天面板（可调整宽度，默认 380px） -->
-        <template v-if="chatStore.isPanelVisible">
+        <template v-if="chatUIStore.isPanelVisible">
           <ResizableHandle />
           <ResizablePanel size-unit="px" :default-size="chatPanelDefaultSize" :min-size="280" :max-size="600">
-            <ChatPanel />
+            <ChatPanel :chat="chatStore" />
           </ResizablePanel>
         </template>
 

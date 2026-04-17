@@ -166,7 +166,8 @@ export type { PluginInfo, PluginMeta, PluginContext, PluginInstance, RemotePlugi
 export interface ChatSession {
   id: string
   title: string
-  workflowId?: string | null  // 新增：绑定的工作流 ID
+  scope: string               // 会话归属的作用域（agent / workflow / ...）
+  workflowId?: string | null  // 绑定的工作流 ID
   browserViewId: string | null
   modelId: string
   providerId: string

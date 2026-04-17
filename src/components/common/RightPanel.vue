@@ -25,10 +25,10 @@ import SnifferMiniPopover from './SnifferMiniPopover.vue'
 import PluginMiniPopover from './PluginMiniPopover.vue'
 import PluginSettings from '@/components/plugins/PluginSettings.vue'
 import WorkflowDialog from '@/components/workflow/WorkflowDialog.vue'
-import { useChatStore } from '@/stores/chat'
+import { useChatUIStore } from '@/stores/chat-ui'
 
 const tabStore = useTabStore()
-const chatStore = useChatStore()
+const chatUIStore = useChatUIStore()
 const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
 
 const emit = defineEmits<{
@@ -164,7 +164,7 @@ function openFullPage(site: string) {
             variant="ghost"
             size="icon"
             class="h-8 w-8"
-            @click="chatStore.togglePanel()"
+            @click="chatUIStore.togglePanel()"
           >
             <MessageSquare class="h-4 w-4" />
           </Button>

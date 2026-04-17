@@ -15,6 +15,16 @@ class ChatDB extends Dexie {
       sessions: 'id, updatedAt, createdAt, workflowId',
       messages: 'id, sessionId, createdAt, [sessionId+createdAt]',
     })
+    this.version(3).stores({
+      sessions: 'id, updatedAt, createdAt, scope, workflowId',
+      messages: 'id, sessionId, createdAt, [sessionId+createdAt]',
+    }).upgrade(tx => {
+      return tx.table('sessions').toCollection().modify(session => {
+        if (!session.scope) {
+          session.scope = session.workflowId ? 'workflow' : 'agent'
+        }
+      })
+    })
   }
 }
 
@@ -24,6 +34,7 @@ export const MAX_MESSAGES_PER_SESSION = 5000
 // ===== 会话操作 =====
 
 export async function createSession(
+  scope: string,
   modelId: string,
   providerId: string,
   browserViewId: string | null = null,
@@ -34,6 +45,7 @@ export async function createSession(
   const session: ChatSession = {
     id,
     title: '新对话',
+    scope,
     workflowId,
     browserViewId,
     modelId,
@@ -48,6 +60,14 @@ export async function createSession(
 
 export async function listSessions(): Promise<ChatSession[]> {
   return chatDb.sessions.orderBy('updatedAt').reverse().toArray()
+}
+
+export async function listSessionsByScope(scope: string): Promise<ChatSession[]> {
+  return chatDb.sessions
+    .where('scope')
+    .equals(scope)
+    .reverse()
+    .sortBy('updatedAt')
 }
 
 export async function deleteSession(id: string): Promise<void> {
