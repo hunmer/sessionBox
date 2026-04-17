@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, markRaw, watch, nextTick } from 'vue'
+import { ref, computed, markRaw, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { VueFlow, useVueFlow, ConnectionMode, MarkerType } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { MiniMap } from '@vue-flow/minimap'
@@ -199,6 +199,9 @@ const {
   onViewportChange,
   setViewport,
   fitView,
+  zoomIn,
+  zoomOut,
+  zoomTo,
   updateNodeInternals,
   getSelectedNodes,
   getSelectedEdges,
@@ -615,6 +618,34 @@ function handleKeyDown(e: KeyboardEvent) {
     deleteSelected()
   }
 }
+
+// ====== 监听主进程转发的缩放事件 ======
+function onWorkflowZoomIn(e: Event) {
+  zoomIn()
+  ;(e as CustomEvent).preventDefault()
+}
+
+function onWorkflowZoomOut(e: Event) {
+  zoomOut()
+  ;(e as CustomEvent).preventDefault()
+}
+
+function onWorkflowZoomReset(e: Event) {
+  zoomTo(1)
+  ;(e as CustomEvent).preventDefault()
+}
+
+onMounted(() => {
+  window.addEventListener('workflow:zoom-in', onWorkflowZoomIn)
+  window.addEventListener('workflow:zoom-out', onWorkflowZoomOut)
+  window.addEventListener('workflow:zoom-reset', onWorkflowZoomReset)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('workflow:zoom-in', onWorkflowZoomIn)
+  window.removeEventListener('workflow:zoom-out', onWorkflowZoomOut)
+  window.removeEventListener('workflow:zoom-reset', onWorkflowZoomReset)
+})
 </script>
 
 <template>

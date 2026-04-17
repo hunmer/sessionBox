@@ -579,12 +579,15 @@ useIpcEvent('shortcut', (actionId) => {
       tabStore.openInternalPage('history')
       break
     case 'zoom-in':
+      if (!window.dispatchEvent(new CustomEvent('workflow:zoom-in', { cancelable: true, detail: true }))) break
       if (tab) tabStore.zoomIn(tab.id)
       break
     case 'zoom-out':
+      if (!window.dispatchEvent(new CustomEvent('workflow:zoom-out', { cancelable: true, detail: true }))) break
       if (tab) tabStore.zoomOut(tab.id)
       break
     case 'zoom-reset':
+      if (!window.dispatchEvent(new CustomEvent('workflow:zoom-reset', { cancelable: true, detail: true }))) break
       if (tab) tabStore.zoomReset(tab.id)
       break
     case 'open-devtools':

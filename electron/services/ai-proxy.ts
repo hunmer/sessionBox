@@ -232,11 +232,15 @@ export async function proxyChatCompletions(
         }
 
         // 通知渲染进程：工具执行完成 + 结果
+        // 安全序列化：部分工具可能返回不可直接克隆的对象（如 electron-store 的代理对象）
+        const safeResult = typeof result === 'string'
+          ? result
+          : JSON.parse(JSON.stringify(result))
         send('on:chat:tool-result', {
           requestId: _requestId,
           toolUseId: tc.id,
           name: tc.name,
-          result,
+          result: safeResult,
         })
 
         toolResults.push({
