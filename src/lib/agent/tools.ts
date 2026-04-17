@@ -395,15 +395,6 @@ export const BROWSER_TOOL_LIST: ToolMeta[] = [
     suitableFor: ['按关键词查找技能', '不确定完整技能名时搜索'],
   },
   {
-    name: 'exec_skill',
-    description: '按名称执行一个 Skill，传入参数',
-    category: '技能管理',
-    discoveryCategory: 'skill',
-    tags: ['action', 'skill', 'execute'],
-    riskLevel: 'medium',
-    suitableFor: ['执行已保存技能', '复用业务任务封装'],
-  },
-  {
     name: 'delay',
     description: '延迟等待指定时间后继续执行，用于等待页面加载、AJAX 完成或动画结束',
     category: '辅助工具',
@@ -467,7 +458,6 @@ const TOOL_EXAMPLE_INPUTS: Record<string, Record<string, unknown>> = {
   read_skill: { name: 'open-example' },
   list_skills: {},
   search_skill: { name: 'example' },
-  exec_skill: { name: 'open-example', params: { url: 'https://example.com' } },
   delay: { milliseconds: 2000, reason: '等待页面加载完成' },
   inject_js: { webContentId: 5, code: 'return document.title' },
 }
@@ -849,24 +839,6 @@ export function createBrowserTools(_targetTabId: string | null): ToolDefinition[
         type: 'object',
         properties: {
           name: { type: 'string', description: '搜索关键词（支持模糊匹配）' },
-        },
-        required: ['name'],
-      },
-    },
-    {
-      name: 'exec_skill',
-      description:
-        '按名称执行一个已保存的 Skill。Skill 的 Markdown 正文中 ```js 代码块会被提取并按顺序执行，步骤中的参数占位符会被替换。当用户说"执行 skill"、"运行技能"时使用。找不到时建议先 search_skill。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: '要执行的 Skill 名称' },
-          params: {
-            type: 'object',
-            description:
-              '传给 Skill 的参数键值对，对应 Skill 内容中的占位符。例如 { "url": "https://example.com", "count": 5 }',
-            properties: {},
-          },
         },
         required: ['name'],
       },

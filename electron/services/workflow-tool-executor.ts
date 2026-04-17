@@ -57,7 +57,6 @@ const NODE_TYPE_DEFINITIONS: NodeTypeDefinition[] = [
   { type: 'read_skill', label: '读取技能', category: '技能管理', description: '按名称读取 Skill 内容' },
   { type: 'list_skills', label: '列出技能', category: '技能管理', description: '列出所有已保存的 Skill' },
   { type: 'search_skill', label: '搜索技能', category: '技能管理', description: '按名称模糊搜索 Skill' },
-  { type: 'exec_skill', label: '执行技能', category: '技能管理', description: '按名称执行一个 Skill' },
   // 辅助工具
   { type: 'inject_js', label: '注入 JS', category: '辅助工具', description: '向指定 WebContents 注入并执行 JavaScript 代码' },
 ]

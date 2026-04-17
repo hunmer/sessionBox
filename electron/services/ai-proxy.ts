@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'fs'
 import { getAIProvider, listTabs, createTab, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
 import { webviewManager } from './webview-manager'
 import { extractPageSummary, extractPageMarkdown, extractInteractiveNodes, extractInteractiveNodeDetail } from './page-extractor'
-import { writeSkill, readSkill, listSkills, searchSkill, extractCodeBlocks, replaceParams } from './skill-store'
+import { writeSkill, readSkill, listSkills, searchSkill } from './skill-store'
 import {
   buildCategoryListResponse,
   buildToolDetailResponse,
@@ -895,7 +895,60 @@ export async function executeTool(
         const selector = args.selector as string
         if (!selector) return { error: 'selector is required' }
         try {
-          const html = await wc.executeJavaScript(`document.querySelector('${cssEscape(selector)}')?.outerHTML ?? null`)
+          const html = await wc.executeJavaScript(`
+            (function() {
+              const el = document.querySelector('${cssEscape(selector)}');
+              if (!el) return null;
+
+              const clone = el.cloneNode(true);
+
+              // 移除 script / style / noscript
+              clone.querySelectorAll('script, style, noscript, svg, path').forEach(n => n.remove());
+
+              // 移除注释节点
+              const walker = document.createTreeWalker(clone, NodeFilter.SHOW_COMMENT);
+              const comments = [];
+              while (walker.nextNode()) comments.push(walker.currentNode);
+              comments.forEach(n => n.remove());
+
+              // 收集关键属性白名单（按标签类型）
+              const keepAttrs = {
+                '*': ['id', 'class', 'role', 'aria-label', 'aria-expanded', 'aria-selected', 'aria-checked', 'aria-disabled', 'placeholder', 'type', 'name', 'value', 'href', 'src', 'alt', 'title', 'disabled', 'readonly', 'required', 'checked', 'selected'],
+                'input': ['type', 'name', 'value', 'placeholder', 'disabled', 'readonly', 'required', 'checked'],
+                'a': ['href', 'target'],
+                'img': ['src', 'alt'],
+                'form': ['action', 'method'],
+                'option': ['value', 'selected'],
+              };
+              const globalSet = new Set(keepAttrs['*']);
+
+              clone.querySelectorAll('*').forEach(node => {
+                const tagAttrs = keepAttrs[node.tagName.toLowerCase()] || [];
+                const allowed = new Set([...globalSet, ...tagAttrs]);
+                [...node.attributes].forEach(attr => {
+                  if (!allowed.has(attr.name)) node.removeAttribute(attr.name);
+                });
+              });
+
+              let raw = clone.outerHTML;
+
+              // 解码 HTML 实体
+              const txt = document.createElement('textarea');
+
+              // 多轮解码：&amp;quot; -> &quot; -> "
+              for (let i = 0; i < 2; i++) {
+                txt.innerHTML = raw;
+                raw = txt.value;
+              }
+
+              // 压缩空白：多个空白字符变一个空格，去掉标签间空白
+              raw = raw.replace(/\\s+/g, ' ');
+              raw = raw.replace(/\\s*>/g, '>');
+              raw = raw.replace(/<\\s*/g, '<');
+
+              return raw;
+            })()
+          `)
           if (!html) return { error: `Element not found: ${selector}` }
           return { html }
         } catch (err) {
@@ -1047,60 +1100,6 @@ export async function executeTool(
         return { skills: results, total: results.length }
       }
 
-      case 'exec_skill': {
-        const skillName = args.name as string
-        const params = (args.params as Record<string, unknown>) ?? {}
-        if (!skillName) return { error: 'name 为必填' }
-
-        const skill = readSkill(skillName)
-        if (!skill) {
-          // 找不到时自动搜索，返回候选列表
-          const candidates = searchSkill(skillName)
-          if (candidates.length > 0) {
-            return { error: `Skill "${skillName}" 不存在`, suggestion: '以下是相近的 Skill：', candidates }
-          }
-          return { error: `Skill "${skillName}" 不存在，也没有相近匹配` }
-        }
-
-        // 提取 JS 代码块并在目标标签页中执行
-        const codeBlocks = extractCodeBlocks(skill.content)
-        const results: Array<{ step: number; success: boolean; result?: unknown; error?: string }> = []
-
-        if (codeBlocks.length > 0) {
-          const wc = getWebContentsFromManager(targetTabId)
-          if (!wc) {
-            return {
-              name: skill.name,
-              description: skill.description,
-              content: skill.content,
-              executionError: '没有可用的标签页来执行代码块',
-            }
-          }
-
-          for (let i = 0; i < codeBlocks.length; i++) {
-            const code = replaceParams(codeBlocks[i], params)
-            try {
-              const result = await wc.executeJavaScript(buildSkillExecutionScript(code, params, targetTabId))
-              results.push({ step: i + 1, success: true, result })
-            } catch (err) {
-              results.push({
-                step: i + 1,
-                success: false,
-                error: err instanceof Error ? err.message : String(err),
-                result: { code },
-              })
-            }
-          }
-        }
-
-        return {
-          name: skill.name,
-          description: skill.description,
-          steps: skill.content,
-          executionResults: results.length > 0 ? results : undefined,
-        }
-      }
-
       case 'inject_js': {
         const wcId = args.webContentId as number
         if (!wcId) return { error: 'webContentId is required' }
@@ -1156,341 +1155,6 @@ function cssEscape(selector: string): string {
   return selector.replace(/'/g, "\\'")
 }
 
-function serializeForScript(value: unknown): string {
-  return JSON.stringify(value ?? null)
-    .replace(/</g, '\\u003c')
-    .replace(/>/g, '\\u003e')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029')
-}
-
-function buildSkillExecutionScript(
-  code: string,
-  params: Record<string, unknown>,
-  targetTabId?: string,
-): string {
-  const serializedParams = serializeForScript(params)
-  const serializedTabId = serializeForScript(targetTabId ?? null)
-
-  return `(() => {
-    const params = ${serializedParams}
-    const tabId = ${serializedTabId}
-
-    const ensureElement = (selector, fnName = 'query') => {
-      if (typeof selector !== 'string' || !selector) {
-        throw new Error(\`\${fnName}: selector is required\`)
-      }
-
-      const el = document.querySelector(selector)
-      if (!el) {
-        throw new Error(\`\${fnName}: element not found for selector \${selector}\`)
-      }
-      return el
-    }
-
-    const normalizeObjectArgs = (value, fnName) => {
-      if (value === undefined || value === null) return {}
-      if (typeof value === 'object' && !Array.isArray(value)) return value
-      throw new Error(\`\${fnName}: arguments must be an object or empty\`)
-    }
-
-    const getAccessibleName = (el) => {
-      const labelledBy = el.getAttribute('aria-labelledby')
-      if (labelledBy) {
-        const labelEl = document.getElementById(labelledBy)
-        if (labelEl && labelEl.textContent) return labelEl.textContent.trim().slice(0, 100)
-      }
-      return (
-        el.getAttribute('aria-label') ||
-        el.getAttribute('title') ||
-        el.getAttribute('placeholder') ||
-        el.getAttribute('alt') ||
-        (el.textContent || '').trim().slice(0, 100) ||
-        ''
-      )
-    }
-
-    const generateSelector = (el) => {
-      if (el.id) return '#' + CSS.escape(el.id)
-      if (el.className && typeof el.className === 'string') {
-        const classes = el.className.trim().split(/\\s+/).filter((cls) => cls && !cls.startsWith('__'))
-        for (const cls of classes) {
-          const selector = '.' + CSS.escape(cls)
-          if (document.querySelectorAll(selector).length === 1) return selector
-        }
-      }
-      const parent = el.parentElement
-      if (!parent) return el.tagName.toLowerCase()
-      const siblings = Array.from(parent.children)
-      const index = siblings.indexOf(el) + 1
-      return el.tagName.toLowerCase() + ':nth-child(' + index + ')'
-    }
-
-    const input_text = async (arg1, arg2) => {
-      const options = typeof arg1 === 'object' && arg1 !== null
-        ? arg1
-        : { selector: arg1, text: arg2 }
-      const selector = options.selector
-      const text = options.text
-
-      if (typeof text !== 'string') {
-        throw new Error('input_text: text must be a string')
-      }
-
-      const el = ensureElement(selector, 'input_text')
-      if (!(el instanceof HTMLElement)) {
-        throw new Error(\`input_text: unsupported element for selector \${selector}\`)
-      }
-
-      el.focus()
-      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-        el.value = text
-        el.dispatchEvent(new Event('input', { bubbles: true }))
-        el.dispatchEvent(new Event('change', { bubbles: true }))
-        return { success: true }
-      }
-
-      if (el.isContentEditable) {
-        el.textContent = text
-        el.dispatchEvent(new Event('input', { bubbles: true }))
-        return { success: true }
-      }
-
-      throw new Error(\`input_text: selector \${selector} is not an input, textarea, or contenteditable element\`)
-    }
-
-    const click_element = async (arg) => {
-      const options = typeof arg === 'object' && arg !== null ? arg : { selector: arg }
-      const selector = options.selector
-      const el = ensureElement(selector, 'click_element')
-      if (!(el instanceof HTMLElement)) {
-        throw new Error(\`click_element: unsupported element for selector \${selector}\`)
-      }
-
-      el.click()
-      return { success: true }
-    }
-
-    const hover_element = async (arg) => {
-      const options = typeof arg === 'object' && arg !== null ? arg : { selector: arg }
-      const selector = options.selector
-      const el = ensureElement(selector, 'hover_element')
-      if (!(el instanceof HTMLElement)) {
-        throw new Error(\`hover_element: unsupported element for selector \${selector}\`)
-      }
-
-      el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
-      el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
-      return { success: true }
-    }
-
-    const select_option = async (arg1, arg2) => {
-      const options = typeof arg1 === 'object' && arg1 !== null
-        ? arg1
-        : { selector: arg1, value: arg2 }
-      const selector = options.selector
-      const value = options.value
-
-      if (typeof value !== 'string') {
-        throw new Error('select_option: value must be a string')
-      }
-
-      const el = ensureElement(selector, 'select_option')
-      if (!(el instanceof HTMLSelectElement)) {
-        throw new Error(\`select_option: selector \${selector} is not a select element\`)
-      }
-
-      el.value = value
-      el.dispatchEvent(new Event('change', { bubbles: true }))
-      return { success: true }
-    }
-
-    const scroll_page = async (arg) => {
-      const options = typeof arg === 'object' && arg !== null ? arg : { direction: arg }
-      const direction = options.direction
-      const amount = typeof options.amount === 'number' ? options.amount : 300
-      const scrollMap = {
-        up: [0, -amount],
-        down: [0, amount],
-        left: [-amount, 0],
-        right: [amount, 0],
-      }
-      const delta = scrollMap[direction]
-      if (!delta) {
-        throw new Error('scroll_page: direction must be one of up/down/left/right')
-      }
-
-      window.scrollBy(delta[0], delta[1])
-      return { success: true }
-    }
-
-    const get_dom = async (arg) => {
-      const options = typeof arg === 'object' && arg !== null ? arg : { selector: arg }
-      const selector = options.selector
-      const el = ensureElement(selector, 'get_dom')
-      return { html: el.outerHTML }
-    }
-
-    const get_page_content = async () => ({
-      content: document.body?.innerText ?? '',
-    })
-
-    const get_page_summary = async () => {
-      const getMeta = (name) => {
-        const el = document.querySelector('meta[name="' + name + '"]') ||
-          document.querySelector('meta[property="' + name + '"]')
-        return el ? el.getAttribute('content') || '' : ''
-      }
-
-      return {
-        title: document.title || '',
-        url: location.href,
-        description: getMeta('description'),
-        headings: Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6')).map((h) => ({
-          level: Number.parseInt(h.tagName[1], 10),
-          text: (h.textContent || '').trim(),
-        })),
-        links: Array.from(document.querySelectorAll('a[href]')).slice(0, 50).map((a) => ({
-          text: (a.textContent || '').trim(),
-          href: a.href,
-        })),
-        meta: {
-          author: getMeta('author'),
-          keywords: getMeta('keywords'),
-          ogTitle: getMeta('og:title'),
-          ogDescription: getMeta('og:description'),
-        },
-      }
-    }
-
-    const get_page_markdown = async (arg) => {
-      const options = normalizeObjectArgs(arg, 'get_page_markdown')
-      const maxLength = typeof options.maxLength === 'number' ? options.maxLength : 10000
-      let markdown = document.body?.innerText ?? ''
-      let truncated = false
-
-      if (markdown.length > maxLength) {
-        markdown = markdown.slice(0, maxLength) + '\\n\\n[truncated]'
-        truncated = true
-      }
-
-      return {
-        title: document.title || '',
-        byline: '',
-        excerpt: '',
-        markdown,
-        contentLength: (document.body?.innerText ?? '').length,
-        truncated,
-      }
-    }
-
-    const get_interactive_nodes = async (arg) => {
-      const options = normalizeObjectArgs(arg, 'get_interactive_nodes')
-      const viewportOnly = options.viewportOnly !== false
-
-      const INTERACTIVE_TAGS = new Set([
-        'BUTTON', 'A', 'INPUT', 'TEXTAREA', 'SELECT',
-        'SUMMARY', 'DETAILS', 'OPTION', 'LABEL',
-      ])
-      const INTERACTIVE_ROLES = new Set([
-        'button', 'link', 'textbox', 'checkbox', 'radio',
-        'combobox', 'menuitem', 'tab', 'switch', 'slider',
-        'searchbox', 'menu', 'menubar', 'toolbar', 'dialog',
-        'treeitem', 'option', 'gridcell',
-      ])
-
-      const viewport = {
-        width: window.innerWidth,
-        height: window.innerHeight,
-        scrollX: window.scrollX,
-        scrollY: window.scrollY,
-      }
-
-      const isVisible = (el) => {
-        const style = getComputedStyle(el)
-        if (style.display === 'none') return false
-        if (style.visibility === 'hidden') return false
-        if (Number.parseFloat(style.opacity) <= 0) return false
-        const rect = el.getBoundingClientRect()
-        return rect.width > 0 && rect.height > 0
-      }
-
-      const isInViewport = (el) => {
-        const rect = el.getBoundingClientRect()
-        return rect.top < viewport.height && rect.bottom > 0 && rect.left < viewport.width && rect.right > 0
-      }
-
-      const isInteractive = (el) => {
-        if (el.tagName === 'INPUT' && el.type === 'hidden') return false
-        if (INTERACTIVE_TAGS.has(el.tagName)) return true
-        if (el.tagName === 'A' && el.hasAttribute('href')) return true
-        const role = el.getAttribute('role')
-        if (role && INTERACTIVE_ROLES.has(role)) return true
-        return el.hasAttribute('tabindex') && el.getAttribute('tabindex') !== '-1'
-      }
-
-      const nodes = []
-      for (const el of document.querySelectorAll('*')) {
-        if (!isInteractive(el)) continue
-        if (!isVisible(el)) continue
-        if (viewportOnly && !isInViewport(el)) continue
-
-        nodes.push({
-          name: getAccessibleName(el),
-          text: (el.textContent || '').trim().slice(0, 200),
-          selector: generateSelector(el),
-        })
-      }
-
-      return Object.assign(nodes, { nodes, viewport })
-    }
-
-    const get_interactive_node_detail = async (arg) => {
-      const options = typeof arg === 'object' && arg !== null ? arg : { selector: arg }
-      const selector = options.selector
-      const el = ensureElement(selector, 'get_interactive_node_detail')
-      const rect = el.getBoundingClientRect()
-      const style = getComputedStyle(el)
-      const attributes = {}
-      const skipAttrs = new Set(['class', 'style', 'id', 'tabindex'])
-
-      for (const attr of Array.from(el.attributes || [])) {
-        if (!skipAttrs.has(attr.name) && !attr.name.startsWith('on')) {
-          attributes[attr.name] = attr.value
-        }
-      }
-
-      return {
-        tag: el.tagName.toLowerCase(),
-        role: el.getAttribute('role') || el.tagName.toLowerCase(),
-        name: getAccessibleName(el),
-        text: (el.textContent || '').trim().slice(0, 200),
-        selector,
-        rect: {
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        },
-        visible: style.display !== 'none' && style.visibility !== 'hidden' && Number.parseFloat(style.opacity) > 0,
-        clickable: typeof el.onclick === 'function' || el.tagName === 'BUTTON' || (el.tagName === 'A' && el.hasAttribute('href')),
-        attributes,
-        styles: {
-          display: style.display,
-          visibility: style.visibility,
-          opacity: style.opacity,
-          cursor: style.cursor,
-        },
-        value: 'value' in el ? el.value : undefined,
-        href: 'href' in el ? el.href : undefined,
-      }
-    }
-
-    return (async () => {
-      ${code}
-    })()
-  })()`
-}
 
 /**
  * 测试供应商连接是否正常

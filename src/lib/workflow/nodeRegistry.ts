@@ -200,13 +200,6 @@ const toolSchemas: Record<string, { properties: Record<string, any>; required?: 
     properties: { name: { type: 'string', description: '搜索关键词' } },
     required: ['name'],
   },
-  exec_skill: {
-    properties: {
-      name: { type: 'string', description: '要执行的 Skill 名称' },
-      params: { type: 'object', description: '传给 Skill 的参数键值对' },
-    },
-    required: ['name'],
-  },
   inject_js: {
     properties: {
       webContentId: { type: 'number', description: '目标 WebContents ID（Electron webContents.id）' },
@@ -250,7 +243,6 @@ function getToolIcon(name: string): string {
     read_skill: 'BookOpen',
     list_skills: 'List',
     search_skill: 'Search',
-    exec_skill: 'Play',
     inject_js: 'FileCode',
     run_code: 'Terminal',
     toast: 'Bell',
