@@ -7,6 +7,11 @@ const props = defineProps<{
   toolCall: ToolCall
 }>()
 
+const emit = defineEmits<{
+  rerun: [toolCall: ToolCall]
+}>()
+
+const isRerunning = ref(false)
 const showArgs = ref(true)
 const showResult = ref(false)
 const copied = ref(false)
@@ -80,6 +85,19 @@ const duration = computed(() => {
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(1)}s`
 })
+
+const isFinished = computed(() => props.toolCall.status === 'completed' || props.toolCall.status === 'error')
+
+async function handleRerun() {
+  if (isRerunning.value) return
+  showResult.value = true
+  isRerunning.value = true
+  try {
+    emit('rerun', props.toolCall)
+  } finally {
+    isRerunning.value = false
+  }
+}
 </script>
 
 <template>
@@ -90,9 +108,23 @@ const duration = computed(() => {
         <span class="font-mono font-medium text-foreground">{{ toolCall.name }}</span>
         <span v-if="duration" class="text-[10px] text-muted-foreground">{{ duration }}</span>
       </div>
-      <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" :class="config.class">
-        {{ config.icon }} {{ config.label }}
-      </span>
+      <div class="flex items-center gap-1">
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" :class="config.class">
+          {{ config.icon }} {{ config.label }}
+        </span>
+        <button
+          v-if="isFinished"
+          class="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          :class="{ 'animate-spin': isRerunning }"
+          title="重新运行"
+          @click="handleRerun"
+        >
+          <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- 输入参数 -->

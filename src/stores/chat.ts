@@ -472,6 +472,54 @@ export const useChatStore = defineStore('chat', () => {
     await streamAssistantReply(newContent, list.value[index].images, source)
   }
 
+  /** 单独重新运行某个工具调用 */
+  async function rerunTool(messageId: string, toolCallId: string) {
+    const { list, source } = resolveMessageSource(messageId)
+    const msgIndex = list.value.findIndex((m) => m.id === messageId)
+    if (msgIndex === -1) return
+    const msg = list.value[msgIndex]
+    if (!msg.toolCalls) return
+    const tcIndex = msg.toolCalls.findIndex((tc) => tc.id === toolCallId)
+    if (tcIndex === -1) return
+
+    const tc = msg.toolCalls[tcIndex]
+
+    // 标记为 running
+    const updatedCalls = [...msg.toolCalls]
+    updatedCalls[tcIndex] = { ...tc, status: 'running' as const, result: undefined, error: undefined, startedAt: Date.now(), completedAt: undefined }
+    const updates: Partial<ChatMessage> = { toolCalls: updatedCalls }
+    list.value[msgIndex] = { ...msg, ...updates }
+
+    try {
+      const result = await window.api.agent.execTool(tc.name, tc.args)
+      const now = Date.now()
+      const hasError = result && typeof result === 'object' && 'error' in result
+      const finalCalls = [...updatedCalls]
+      finalCalls[tcIndex] = {
+        ...updatedCalls[tcIndex],
+        status: hasError ? 'error' : ('completed' as const),
+        result: hasError ? undefined : result,
+        error: hasError ? (result as { error: string }).error : undefined,
+        completedAt: now,
+      }
+      const finalUpdates: Partial<ChatMessage> = { toolCalls: finalCalls }
+      await dbUpdateMessage(messageId, finalUpdates)
+      list.value[msgIndex] = { ...list.value[msgIndex], ...finalUpdates }
+    } catch (err) {
+      const now = Date.now()
+      const finalCalls = [...updatedCalls]
+      finalCalls[tcIndex] = {
+        ...updatedCalls[tcIndex],
+        status: 'error' as const,
+        error: err instanceof Error ? err.message : String(err),
+        completedAt: now,
+      }
+      const finalUpdates: Partial<ChatMessage> = { toolCalls: finalCalls }
+      await dbUpdateMessage(messageId, finalUpdates)
+      list.value[msgIndex] = { ...list.value[msgIndex], ...finalUpdates }
+    }
+  }
+
   // ===== 面板控制 =====
 
   function togglePanel() {
@@ -563,6 +611,7 @@ export const useChatStore = defineStore('chat', () => {
     deleteMessageAndAfter,
     retryMessage,
     editMessage,
+    rerunTool,
     togglePanel,
     setTargetTab,
     toggleTool,

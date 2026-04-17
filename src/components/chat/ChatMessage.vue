@@ -5,12 +5,21 @@ import ThinkingBlock from './ThinkingBlock.vue'
 import ToolCallCard from './ToolCallCard.vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogScrollContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { Copy, RefreshCw, Trash2, Pencil, Check } from 'lucide-vue-next'
 import { Markdown } from 'vue-stream-markdown'
 import 'vue-stream-markdown/index.css'
 import { useThemeStore } from '@/stores/theme'
+import { useChatStore } from '@/stores/chat'
 
 const themeStore = useThemeStore()
+const chatStore = useChatStore()
 
 type ContentSegment =
   | { type: 'text'; content: string }
@@ -55,6 +64,7 @@ const showActions = ref(false)
 const copied = ref(false)
 const isEditing = ref(false)
 const editContent = ref('')
+const showRawDialog = ref(false)
 
 /** 是否可以重试（非流式且是 AI 消息） */
 const canRetry = computed(() => !isUser.value && !props.isStreaming && props.isLastAssistant)
@@ -66,6 +76,11 @@ async function copyContent() {
   await navigator.clipboard.writeText(text)
   copied.value = true
   setTimeout(() => { copied.value = false }, 2000)
+}
+
+/** 重新运行单个工具调用 */
+function handleRerunTool(toolCall: ToolCall) {
+  chatStore.rerunTool(props.message.id, toolCall.id)
 }
 
 /** 进入编辑模式 */
@@ -163,6 +178,21 @@ const displayUsage = computed(() => {
   if (props.isStreaming && props.streamingUsage) return props.streamingUsage
   return props.message.usage ?? null
 })
+
+/** 原始输入文本：对于 assistant 消息，取前一条 user 消息内容 */
+const inputRawText = computed(() => {
+  if (isUser.value) return props.message.content || ''
+  const allMessages = chatStore.messages
+  const idx = allMessages.findIndex(m => m.id === props.message.id)
+  if (idx > 0) {
+    const prev = allMessages[idx - 1]
+    if (prev.role === 'user') return prev.content || ''
+  }
+  return ''
+})
+
+/** 原始输出文本：当前消息的内容 */
+const outputRawText = computed(() => props.message.content || '')
 
 /** 是否显示统计栏（时间或 token） */
 const showStats = computed(() => !isUser.value && (durationMs.value !== null || displayUsage.value !== null))
@@ -303,7 +333,8 @@ const segments = computed<ContentSegment[]>(() => {
           <!-- 统计信息嵌入最后一个文本气泡右下角 -->
           <div
             v-if="i === lastTextSegmentIndex && showStats"
-            class="flex items-center justify-end gap-2 mt-1 pt-1 border-t border-border/10 text-[11px] text-muted-foreground/50"
+            class="flex items-center justify-end gap-2 mt-1 pt-1 border-t border-border/10 text-[11px] text-muted-foreground/50 cursor-pointer hover:text-muted-foreground/80 transition-colors"
+            @click="showRawDialog = true"
           >
             <span v-if="durationMs !== null" class="inline-flex items-center gap-1">
               <span v-if="isStreaming" class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -316,7 +347,7 @@ const segments = computed<ContentSegment[]>(() => {
           </div>
         </div>
         <div v-else-if="seg.type === 'tool-call'" class="max-w-[85%]">
-          <ToolCallCard :tool-call="seg.toolCall" />
+          <ToolCallCard :tool-call="seg.toolCall" @rerun="handleRerunTool" />
         </div>
       </template>
 
@@ -391,6 +422,36 @@ const segments = computed<ContentSegment[]>(() => {
       </div>
     </div>
   </div>
+
+  <!-- 原始文本查看对话框 -->
+  <Dialog v-model:open="showRawDialog">
+    <DialogScrollContent class="max-w-4xl">
+      <DialogHeader>
+        <DialogTitle>原始文本</DialogTitle>
+        <DialogDescription>查看消息的原始输入和输出文本内容</DialogDescription>
+      </DialogHeader>
+      <div class="grid grid-cols-2 gap-4 mt-2">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-muted-foreground">输入</span>
+            <span v-if="displayUsage" class="text-xs text-muted-foreground/60">
+              {{ formatTokenCount(displayUsage.inputTokens) }} tokens
+            </span>
+          </div>
+          <pre class="bg-muted/50 rounded-lg p-3 text-xs leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-y-auto font-mono border">{{ inputRawText }}</pre>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-muted-foreground">输出</span>
+            <span v-if="displayUsage" class="text-xs text-muted-foreground/60">
+              {{ formatTokenCount(displayUsage.outputTokens) }} tokens
+            </span>
+          </div>
+          <pre class="bg-muted/50 rounded-lg p-3 text-xs leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-y-auto font-mono border">{{ outputRawText }}</pre>
+        </div>
+      </div>
+    </DialogScrollContent>
+  </Dialog>
 </template>
 
 <style scoped>
