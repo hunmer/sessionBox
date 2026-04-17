@@ -133,6 +133,7 @@ export function createChatStore(scope: string) {
           mode: 'workflow' as const,
           workflowId: workflowStore.currentWorkflow.id,
           workflowSummary: {
+            id: workflowStore.currentWorkflow.id,
             name: workflowStore.currentWorkflow.name,
             description: workflowStore.currentWorkflow.description,
             nodes: workflowStore.currentWorkflow.nodes.map(n => ({ id: n.id, type: n.type, label: n.label })),
@@ -161,6 +162,9 @@ export function createChatStore(scope: string) {
             onToolResult: (event: { toolUseId: string; name: string; result: unknown }) => {
               const tc = streamingToolCalls.value.find((t) => t.id === event.toolUseId)
               if (tc) {
+                if (tc.completedAt && tc.status === 'completed') {
+                  return
+                }
                 tc.status = 'completed'
                 tc.result = event.result
                 tc.completedAt = Date.now()

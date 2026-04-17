@@ -214,6 +214,14 @@ export interface ChatCompletionParams {
   _workflowId?: string     // 新增
 }
 
+export interface WorkflowToolExecuteRequest {
+  requestId: string
+  toolUseId: string
+  name: string
+  args: Record<string, unknown>
+  workflowId: string
+}
+
 // IPC API 定义
 const api = {
   workspace: {
@@ -518,6 +526,11 @@ const api = {
       ipcRenderer.invoke('chat:abort', requestId),
   },
 
+  workflowTool: {
+    respond: (requestId: string, result: unknown): Promise<{ resolved: boolean }> =>
+      ipcRenderer.invoke('workflow-tool:respond', requestId, result),
+  },
+
   aiProvider: {
     list: (): Promise<any[]> => ipcRenderer.invoke('ai-provider:list'),
     create: (data: any): Promise<any> => ipcRenderer.invoke('ai-provider:create', data),
@@ -709,6 +722,7 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  window.electron = electronAPI
-  window.api = api
+  const globalWindow = window as typeof window & { api: IpcAPI }
+  globalWindow.electron = electronAPI
+  globalWindow.api = api
 }

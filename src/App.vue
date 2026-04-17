@@ -31,6 +31,7 @@ import { useWorkspaceStore } from '@/stores/workspace'
 import { useHomepageStore } from '@/stores/homepage'
 import { usePasswordStore } from '@/stores/password'
 import { useMcpStore } from '@/stores/mcp'
+import { useWorkflowStore } from '@/stores/workflow'
 import { createChatStore } from '@/stores/chat'
 import { useChatUIStore } from '@/stores/chat-ui'
 import { useAIProviderStore } from '@/stores/ai-provider'
@@ -50,6 +51,7 @@ const homepageStore = useHomepageStore()
 const passwordStore = usePasswordStore()
 const splitStore = useSplitStore()
 const mcpStore = useMcpStore()
+const workflowStore = useWorkflowStore()
 const chatStore = createChatStore('agent')
 const chatUIStore = useChatUIStore()
 const aiProviderStore = useAIProviderStore()
@@ -367,6 +369,7 @@ function sendBounds() {
 }
 
 let resizeObserver: ResizeObserver | null = null
+let cleanupWorkflowToolRequests: (() => void) | null = null
 
 function bindWebviewContainerObserver() {
   resizeObserver?.disconnect()
@@ -382,6 +385,7 @@ function bindWebviewContainerObserver() {
 onMounted(async () => {
   startWebviewOverlayDetection()
   window.addEventListener('beforeunload', handleBeforeUnload)
+  cleanupWorkflowToolRequests = workflowStore.listenForWorkflowToolRequests()
 
   await Promise.all([
     workspaceStore.init(),
@@ -436,6 +440,8 @@ onMounted(async () => {
 onUnmounted(() => {
   resizeObserver?.disconnect()
   if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
+  cleanupWorkflowToolRequests?.()
+  cleanupWorkflowToolRequests = null
   closeAllImmersivePanels()
   setForcedWebviewBlocked(false)
   window.removeEventListener('beforeunload', handleBeforeUnload)

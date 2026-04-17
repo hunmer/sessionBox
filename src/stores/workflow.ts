@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { Workflow, WorkflowFolder, WorkflowNode, ExecutionLog } from '@/lib/workflow/types'
 import { WorkflowEngine, type EngineStatus } from '@/lib/workflow/engine'
+import { executeRendererWorkflowTool } from '@/lib/agent/workflow-renderer-tools'
+import type { WorkflowToolExecuteRequest } from '../../preload'
 
 const DRAFT_KEY = 'workflow-draft'
 
@@ -514,7 +516,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
   // ====== AI 助手增量更新 ======
 
-  interface WorkflowChanges {
+  export interface WorkflowChanges {
     upsertNodes: any[]
     deleteNodeIds: string[]
     upsertEdges: any[]
@@ -575,6 +577,20 @@ export const useWorkflowStore = defineStore('workflow', () => {
         mergeWorkflowChanges(data.changes)
       }
     })
+    return cleanup
+  }
+
+  function listenForWorkflowToolRequests() {
+    const cleanup = (window as any).api.on('workflow-tool:execute', async (request: WorkflowToolExecuteRequest) => {
+      const result = executeRendererWorkflowTool(request.name, request.args || {})
+
+      try {
+        await (window as any).api.workflowTool.respond(request.requestId, result)
+      } catch (error) {
+        console.error('[workflow-store] failed to respond workflow tool request', error)
+      }
+    })
+
     return cleanup
   }
 
@@ -648,5 +664,6 @@ export const useWorkflowStore = defineStore('workflow', () => {
     // AI 助手增量更新
     mergeWorkflowChanges,
     listenForFileUpdates,
+    listenForWorkflowToolRequests,
   }
 })

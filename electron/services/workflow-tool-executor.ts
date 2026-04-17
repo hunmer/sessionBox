@@ -77,6 +77,72 @@ export interface WorkflowChanges {
   deleteEdgeIds: string[]
 }
 
+function getArgWorkflowId(args: any): string {
+  return typeof args?.workflow_id === 'string'
+    ? args.workflow_id
+    : (typeof args?.workflowId === 'string' ? args.workflowId : '')
+}
+
+function executeGetWorkflow(args: any): ToolResult {
+  const workflowId = getArgWorkflowId(args)
+  if (!workflowId) {
+    return { success: false, message: '缺少必填参数: workflow_id' }
+  }
+
+  const workflow = getWorkflow(workflowId)
+  if (!workflow) {
+    return { success: false, message: `工作流 ${workflowId} 不存在` }
+  }
+
+  const nodes = JSON.parse(JSON.stringify(workflow.nodes))
+  const edges = JSON.parse(JSON.stringify(workflow.edges))
+  const summarize = args?.summarize !== false
+
+  if (summarize) {
+    return {
+      success: true,
+      message: '工作流文件摘要',
+      data: {
+        workflow: {
+          id: workflow.id,
+          name: workflow.name,
+          description: workflow.description,
+          folderId: workflow.folderId,
+          nodeCount: nodes.length,
+          edgeCount: edges.length,
+          createdAt: workflow.createdAt,
+          updatedAt: workflow.updatedAt,
+          nodes: nodes.map((n: any) => ({
+            id: n.id,
+            type: n.type,
+            label: n.label,
+            nodeState: n.nodeState,
+          })),
+          edges: edges.map((e: any) => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            sourceHandle: e.sourceHandle,
+            targetHandle: e.targetHandle,
+          })),
+        },
+      },
+    }
+  }
+
+  return {
+    success: true,
+    message: '工作流文件完整数据',
+    data: {
+      workflow: {
+        ...workflow,
+        nodes,
+        edges,
+      },
+    },
+  }
+}
+
 // ====== Dagre 自动布局 ======
 
 function autoLayout(nodes: any[], edges: any[]): any[] {
@@ -125,6 +191,10 @@ export async function executeWorkflowTool(
   workflowId: string,
   mainWindow: BrowserWindow,
 ): Promise<ToolResult> {
+  if (name === 'get_workflow') {
+    return executeGetWorkflow(args)
+  }
+
   // 1. 获取工作流
   const workflow = getWorkflow(workflowId)
   if (!workflow) {
@@ -148,41 +218,12 @@ export async function executeWorkflowTool(
 
   // 4. 根据工具名分发处理
   switch (name) {
-    case 'get_workflow': {
-      if (args?.summarize) {
-        const summary = {
-          id: workflow.id,
-          name: workflow.name,
-          description: workflow.description,
-          folderId: workflow.folderId,
-          nodeCount: nodes.length,
-          edgeCount: edges.length,
-          createdAt: workflow.createdAt,
-          updatedAt: workflow.updatedAt,
-          nodes: nodes.map((n: any) => ({
-            id: n.id,
-            type: n.type,
-            label: n.label,
-            nodeState: n.nodeState,
-          })),
-          edges: edges.map((e: any) => ({
-            id: e.id,
-            source: e.source,
-            target: e.target,
-            sourceHandle: e.sourceHandle,
-            targetHandle: e.targetHandle,
-          })),
-        }
-        result = { success: true, message: '工作流摘要', data: { workflow: summary } }
-      } else {
-        result = {
-          success: true,
-          message: '工作流完整数据',
-          data: { workflow: { ...workflow, nodes, edges } },
-        }
+    case 'get_current_workflow':
+      result = {
+        success: false,
+        message: 'get_current_workflow 只能在渲染进程直接读取当前画布数据',
       }
       break
-    }
 
     case 'list_node_types': {
       const category = args?.category

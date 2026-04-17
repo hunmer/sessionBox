@@ -12,6 +12,7 @@ export interface AgentStreamOptions {
   workflowId?: string
   /** 工作流摘要信息（仅 workflow 模式） */
   workflowSummary?: {
+    id: string
     name: string
     description?: string
     nodes: Array<{ id: string; type: string; label: string }>

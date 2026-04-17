@@ -11,7 +11,7 @@ import {
   buildToolListResponse,
   isBrowserBusinessToolName,
 } from '../../src/lib/agent/tools'
-import { executeWorkflowTool } from './workflow-tool-executor'
+import { dispatchWorkflowTool, rejectPendingRendererToolsForRequest } from './workflow-tool-dispatcher'
 
 interface ProxyRequest {
   _requestId: string
@@ -181,7 +181,7 @@ export async function proxyChatCompletions(
         return
       }
 
-      if (!response!.body) {
+      if (!response || !response.body) {
         send('on:chat:error', { requestId: _requestId, error: 'No response body' })
         return
       }
@@ -220,7 +220,14 @@ export async function proxyChatCompletions(
         console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
         let result: any
         if (_mode === 'workflow' && _workflowId) {
-          result = await executeWorkflowTool(tc.name, tc.args, _workflowId, mainWindow)
+          result = await dispatchWorkflowTool(
+            mainWindow,
+            _requestId,
+            tc.id,
+            tc.name,
+            tc.args,
+            _workflowId,
+          )
         } else {
           result = await executeTool(tc.name, tc.args, targetTabId, enabledToolNames)
         }
@@ -281,6 +288,10 @@ export async function proxyChatCompletions(
       error: error instanceof Error ? error.message : String(error),
     })
   } finally {
+    rejectPendingRendererToolsForRequest(
+      _requestId,
+      new Error('聊天请求已结束，渲染进程工具等待已取消'),
+    )
     activeRequests.delete(_requestId)
   }
 }
