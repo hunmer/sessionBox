@@ -14,6 +14,7 @@
     "pack:dir": "npx electron-vite build && npx electron-builder --config electron-builder.json --dir"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
     "@langchain/anthropic": "^1.3.26",

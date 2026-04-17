@@ -11,6 +11,10 @@ class ChatDB extends Dexie {
       sessions: 'id, updatedAt, createdAt',
       messages: 'id, sessionId, createdAt, [sessionId+createdAt]',
     })
+    this.version(2).stores({
+      sessions: 'id, updatedAt, createdAt, workflowId',
+      messages: 'id, sessionId, createdAt, [sessionId+createdAt]',
+    })
   }
 }
 
@@ -23,12 +27,14 @@ export async function createSession(
   modelId: string,
   providerId: string,
   browserViewId: string | null = null,
+  workflowId: string | null = null,
 ): Promise<ChatSession> {
   const id = crypto.randomUUID()
   const now = Date.now()
   const session: ChatSession = {
     id,
     title: '新对话',
+    workflowId,
     browserViewId,
     modelId,
     providerId,

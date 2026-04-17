@@ -210,6 +210,8 @@ export interface ChatCompletionParams {
   thinking?: { type: 'enabled'; budgetTokens: number }
   targetTabId?: string
   enabledToolNames?: string[]
+  _mode?: 'workflow'       // 新增
+  _workflowId?: string     // 新增
 }
 
 // IPC API 定义

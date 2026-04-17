@@ -166,6 +166,7 @@ export type { PluginInfo, PluginMeta, PluginContext, PluginInstance, RemotePlugi
 export interface ChatSession {
   id: string
   title: string
+  workflowId?: string | null  // 新增：绑定的工作流 ID
   browserViewId: string | null
   modelId: string
   providerId: string
@@ -229,11 +230,16 @@ export interface AIModel {
 export interface ChatCompletionParams {
   providerId: string
   modelId: string
+  system?: string
   messages: Array<{ role: string; content: string | Array<Record<string, unknown>> }>
   tools?: Array<Record<string, unknown>>
   stream: boolean
   maxTokens?: number
   thinking?: { type: 'enabled'; budgetTokens: number }
+  _mode?: 'workflow'
+  _workflowId?: string
+  targetTabId?: string
+  enabledToolNames?: string[]
 }
 
 // 浏览器交互工具参数
