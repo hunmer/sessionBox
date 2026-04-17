@@ -303,9 +303,9 @@ function confirmImport() {
 
             <div v-else-if="prop.type === 'checkbox'" class="flex items-center gap-2">
               <Switch
-                :checked="getFieldValue(prop.key)"
+                :model-value="getFieldValue(prop.key)"
                 :disabled="prop.readonly"
-                @update:checked="setFieldValue(prop.key, $event)"
+                @update:model-value="setFieldValue(prop.key, $event)"
               />
               <span class="text-xs text-muted-foreground">{{ prop.readonly ? '(只读)' : '' }}</span>
             </div>

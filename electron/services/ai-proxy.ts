@@ -622,7 +622,14 @@ export async function executeTool(
           })
           win.loadURL(url)
           win.once('ready-to-show', () => win.show())
-          return { success: true, mode: 'window', title: win.getTitle(), url }
+          return {
+            success: true,
+            mode: 'window',
+            windowId: win.id,
+            title: pageId ? (getPageById(pageId)?.name ?? '新窗口') : '新窗口',
+            url,
+            containerId: resolvedContainerId || undefined,
+          }
         }
 
         const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
@@ -636,7 +643,16 @@ export async function executeTool(
           webviewManager.registerPendingView(tab.id, pageId, page.containerId || '', tabUrl)
           mainWindow?.webContents.send('on:tab:created', tab)
           if (active) webviewManager.switchView(tab.id)
-          return { success: true, tabId: tab.id, title: tab.title, url: tabUrl }
+          return {
+            success: true,
+            mode: 'tab',
+            tabId: tab.id,
+            pageId,
+            containerId: page.containerId || undefined,
+            title: tab.title,
+            url: tabUrl,
+            workspaceId,
+          }
         }
 
         const tab = createTab({
@@ -649,7 +665,16 @@ export async function executeTool(
         webviewManager.registerPendingView(tab.id, '', containerId, url)
         mainWindow?.webContents.send('on:tab:created', tab)
         if (active) webviewManager.switchView(tab.id)
-        return { success: true, tabId: tab.id, title: tab.title, url }
+        return {
+          success: true,
+          mode: 'tab',
+          tabId: tab.id,
+          pageId: '',
+          containerId: containerId || undefined,
+          title: tab.title,
+          url,
+          workspaceId,
+        }
       }
 
       case 'navigate_tab': {

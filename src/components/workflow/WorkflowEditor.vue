@@ -543,15 +543,26 @@ function pasteClipboardNodes() {
   notify.success(`已粘贴 ${clipboardNodes.length} 个节点`)
 }
 
-function deleteSelectedNodes() {
-  const selected = getSelectedNodes.value
-  if (!selected.length) return
+function deleteSelected() {
+  const selectedNodes = getSelectedNodes.value
+  const selectedEdges = getSelectedEdges.value
 
-  const count = selected.length
-  for (const node of selected) {
-    store.removeNode(node.id)
+  let count = 0
+
+  // 先删边，再删节点（删节点会连带删除关联边）
+  for (const edge of selectedEdges) {
+    store.removeEdge(edge.id)
+    count++
   }
-  notify.success(`已删除 ${count} 个节点`)
+
+  for (const node of selectedNodes) {
+    store.removeNode(node.id)
+    count++
+  }
+
+  if (count > 0) {
+    notify.success(`已删除 ${count} 个元素`)
+  }
 }
 
 // ====== 快捷键 ======
@@ -601,7 +612,7 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
     e.preventDefault()
-    deleteSelectedNodes()
+    deleteSelected()
   }
 }
 </script>
