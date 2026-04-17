@@ -580,6 +580,7 @@ export async function executeTool(
       case 'create_tab': {
         const url = (args.url as string) || 'https://www.baidu.com'
         const active = args.active !== false // 默认激活
+        const newWindow = args.newWindow as boolean | undefined
         const pageId = (args.pageId as string) || null
         const containerId = (args.containerId as string) || ''
         let workspaceId = args.workspaceId as string | undefined
@@ -599,6 +600,31 @@ export async function executeTool(
             }
           }
         }
+
+        // 新窗口模式：创建独立 BrowserWindow
+        if (newWindow) {
+          const resolvedContainerId = pageId
+            ? (getPageById(pageId)?.containerId || '')
+            : containerId
+          const partition = resolvedContainerId
+            ? `persist:container-${resolvedContainerId}`
+            : undefined
+          const win = new BrowserWindow({
+            width: 1280,
+            height: 800,
+            show: false,
+            autoHideMenuBar: true,
+            title: pageId ? (getPageById(pageId)?.name ?? '新窗口') : '新窗口',
+            webPreferences: {
+              partition,
+              sandbox: false
+            }
+          })
+          win.loadURL(url)
+          win.once('ready-to-show', () => win.show())
+          return { success: true, mode: 'window', title: win.getTitle(), url }
+        }
+
         const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
         const mainWindow = webviewManager.getMainWindow()
 
