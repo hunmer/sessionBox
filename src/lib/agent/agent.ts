@@ -1,5 +1,6 @@
 import { createToolDiscoveryTools } from './tools'
 import { listenToChatStream, type StreamCallbacks } from './stream'
+import { BROWSER_AGENT_SYSTEM_PROMPT } from './system-prompt'
 import { useAIProviderStore } from '@/stores/ai-provider'
 
 /**
@@ -57,8 +58,9 @@ export async function runAgentStream(
       _requestId: requestId,
       providerId: provider.id,
       modelId: model.id,
+      system: BROWSER_AGENT_SYSTEM_PROMPT,
       messages,
-      tools,
+      tools: tools as unknown as Array<Record<string, unknown>>,
       stream: true,
       maxTokens: model.maxTokens || 4096,
       targetTabId: targetTabId ?? undefined,

@@ -376,7 +376,9 @@ const api = {
     get: (id) => electron.ipcRenderer.invoke("workflow:get", id),
     create: (data) => electron.ipcRenderer.invoke("workflow:create", data),
     update: (id, data) => electron.ipcRenderer.invoke("workflow:update", id, data),
-    delete: (id) => electron.ipcRenderer.invoke("workflow:delete", id)
+    delete: (id) => electron.ipcRenderer.invoke("workflow:delete", id),
+    importOpenFile: () => electron.ipcRenderer.invoke("workflow:importOpenFile"),
+    exportSaveFile: (json) => electron.ipcRenderer.invoke("workflow:exportSaveFile", json)
   },
   workflowFolder: {
     list: () => electron.ipcRenderer.invoke("workflowFolder:list"),

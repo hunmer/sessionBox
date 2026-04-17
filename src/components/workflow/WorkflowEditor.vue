@@ -24,9 +24,11 @@ import NodeSidebar from './NodeSidebar.vue'
 import RightPanel from './RightPanel.vue'
 import ExecutionBar from './ExecutionBar.vue'
 import WorkflowListDialog from './WorkflowListDialog.vue'
-import { Plus, FolderOpen } from 'lucide-vue-next'
+import { Plus, FolderOpen, Import } from 'lucide-vue-next'
+import { useNotification } from '@/composables/useNotification'
 
 const store = useWorkflowStore()
+const notify = useNotification()
 const listDialogOpen = ref(false)
 const isEditingName = ref(false)
 const editingName = ref('')
@@ -250,6 +252,42 @@ async function saveWorkflow() {
   }
 }
 
+async function exportWorkflow() {
+  const wf = store.currentWorkflow
+  if (!wf) return
+  const exportData = {
+    name: wf.name,
+    description: wf.description,
+    nodes: wf.nodes,
+    edges: wf.edges,
+  }
+  const result = await (window as any).api.workflow.exportSaveFile(JSON.stringify(exportData, null, 2))
+  if (result?.success) {
+    notify.success('工作流已导出')
+  }
+}
+
+async function importWorkflow() {
+  const result = await (window as any).api.workflow.importOpenFile()
+  if (!result?.json) return
+  try {
+    const data = JSON.parse(result.json)
+    if (!data.nodes || !data.edges) {
+      notify.error('无效的工作流文件')
+      return
+    }
+    store.newWorkflow()
+    const wf = store.currentWorkflow!
+    wf.name = data.name || '导入的工作流'
+    wf.description = data.description
+    wf.nodes = data.nodes
+    wf.edges = data.edges
+    notify.success('工作流已导入')
+  } catch {
+    notify.error('解析工作流文件失败')
+  }
+}
+
 async function onListSelect(workflow: any) {
   if (workflow) {
     await store.loadData()
@@ -291,6 +329,12 @@ function handleKeyDown(e: KeyboardEvent) {
             </MenubarItem>
             <MenubarItem v-if="store.currentWorkflow" class="text-xs" @click="saveWorkflow">
               保存
+            </MenubarItem>
+            <MenubarItem v-if="store.currentWorkflow" class="text-xs" @click="exportWorkflow">
+              导出...
+            </MenubarItem>
+            <MenubarItem class="text-xs" @click="importWorkflow">
+              导入...
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
@@ -336,6 +380,17 @@ function handleKeyDown(e: KeyboardEvent) {
           </div>
           <span class="text-base font-medium">打开工作流</span>
           <span class="text-xs text-muted-foreground text-center">浏览并打开已有工作流</span>
+        </button>
+
+        <button
+          class="group flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50 transition-all cursor-pointer w-52"
+          @click="importWorkflow"
+        >
+          <div class="p-4 rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
+            <Import class="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <span class="text-base font-medium">导入工作流</span>
+          <span class="text-xs text-muted-foreground text-center">从 .workflow 文件导入</span>
         </button>
       </div>
     </div>

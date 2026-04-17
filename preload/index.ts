@@ -202,12 +202,14 @@ export interface DefaultBrowserResult {
 export interface ChatCompletionParams {
   providerId: string
   modelId: string
+  system?: string
   messages: Array<{ role: string; content: string | Array<Record<string, unknown>> }>
   tools?: Array<Record<string, unknown>>
   stream: boolean
   maxTokens?: number
   thinking?: { type: 'enabled'; budgetTokens: number }
   targetTabId?: string
+  enabledToolNames?: string[]
 }
 
 // IPC API 定义
@@ -643,6 +645,10 @@ const api = {
       ipcRenderer.invoke('workflow:update', id, data),
     delete: (id: string): Promise<void> =>
       ipcRenderer.invoke('workflow:delete', id),
+    importOpenFile: (): Promise<{ json: string } | null> =>
+      ipcRenderer.invoke('workflow:importOpenFile'),
+    exportSaveFile: (json: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('workflow:exportSaveFile', json),
   },
 
   workflowFolder: {

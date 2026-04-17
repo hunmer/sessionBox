@@ -5,17 +5,25 @@ import { getAIProvider, listTabs, listGroups, listPages, listWorkspaces, getPage
 import { webviewManager } from './webview-manager'
 import { extractPageSummary, extractPageMarkdown, extractInteractiveNodes, extractInteractiveNodeDetail } from './page-extractor'
 import { writeSkill, readSkill, listSkills, searchSkill, extractCodeBlocks, replaceParams } from './skill-store'
+import {
+  buildCategoryListResponse,
+  buildToolDetailResponse,
+  buildToolListResponse,
+  isBrowserBusinessToolName,
+} from '../../src/lib/agent/tools'
 
 interface ProxyRequest {
   _requestId: string
   providerId: string
   modelId: string
+  system?: string
   messages: Array<{ role: string; content: string | Array<Record<string, unknown>> }>
   tools?: Array<Record<string, unknown>>
   stream: boolean
   maxTokens?: number
   thinking?: { type: 'enabled'; budgetTokens: number }
   targetTabId?: string
+  enabledToolNames?: string[]
 }
 
 /** 可重试的 HTTP 状态码（服务过载、限流、临时故障） */
@@ -41,6 +49,32 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+interface ImageToolContent {
+  mediaType: string
+  data: string
+  width: number
+  height: number
+}
+
+function getImageToolContent(result: unknown): ImageToolContent | null {
+  if (!isRecord(result)) return null
+  if ('_isImageContent' in result) return result as unknown as ImageToolContent
+
+  const data = result.data
+  if (!isRecord(data)) return null
+
+  const nestedResult = data.result
+  if (isRecord(nestedResult) && '_isImageContent' in nestedResult) {
+    return nestedResult as unknown as ImageToolContent
+  }
+
+  return null
+}
+
 /**
  * 将渲染进程的聊天请求代理到 LLM 供应商 API。
  * API Key 仅在主进程内存中组装，不暴露给渲染进程。
@@ -50,7 +84,7 @@ export async function proxyChatCompletions(
   mainWindow: BrowserWindow,
   params: ProxyRequest,
 ): Promise<void> {
-  const { _requestId, providerId, modelId, messages, tools, stream, maxTokens, thinking, targetTabId } = params
+  const { _requestId, providerId, modelId, system, messages, tools, stream, maxTokens, thinking, targetTabId, enabledToolNames } = params
 
   // 创建 AbortController 并注册到全局映射
   const abortController = new AbortController()
@@ -88,6 +122,9 @@ export async function proxyChatCompletions(
         messages: currentMessages,
         max_tokens: maxTokens ?? 4096,
         stream: true,
+      }
+      if (system) {
+        body.system = system
       }
       if (tools && tools.length > 0) {
         body.tools = tools
@@ -178,12 +215,12 @@ export async function proxyChatCompletions(
       const toolResults: Array<Record<string, unknown>> = []
       for (const tc of parsed.toolCalls) {
         console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
-        const result = await executeTool(tc.name, tc.args, targetTabId)
+        const result = await executeTool(tc.name, tc.args, targetTabId, enabledToolNames)
 
         // 构建工具结果内容：图片需要结构化数组格式
         let toolResultContent: string | Array<Record<string, unknown>>
-        if (result && typeof result === 'object' && '_isImageContent' in result) {
-          const img = result as { mediaType: string; data: string; width: number; height: number }
+        const img = getImageToolContent(result)
+        if (img) {
           toolResultContent = [
             { type: 'text', text: `Screenshot captured (${img.width}x${img.height})` },
             { type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } },
@@ -432,11 +469,55 @@ async function parseSSEStream(
 /**
  * 根据工具名在主进程内执行对应操作，返回结果。
  */
-export async function executeTool(name: string, args: Record<string, unknown>, targetTabId?: string): Promise<unknown> {
+export async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+  targetTabId?: string,
+  enabledToolNames?: string[],
+): Promise<unknown> {
   console.log(`[ai-proxy executeTool] name=${name}, args=${JSON.stringify(args)}`)
 
   try {
     switch (name) {
+      case 'list_categories': {
+        return buildCategoryListResponse()
+      }
+
+      case 'list_tools_by_category': {
+        const category = args.category as string
+        if (!category) return { error: 'category is required' }
+        return buildToolListResponse(category, enabledToolNames)
+      }
+
+      case 'get_tool_detail': {
+        const toolName = (args.tool_name || args.toolName || args.name) as string
+        if (!toolName) return { error: 'tool_name is required' }
+        return buildToolDetailResponse(toolName, enabledToolNames)
+      }
+
+      case 'execute_tool': {
+        const toolName = (args.tool_name || args.toolName || args.name) as string
+        const toolArgs = isRecord(args.args) ? args.args : {}
+
+        if (!toolName) return { error: 'tool_name is required' }
+        if (!isBrowserBusinessToolName(toolName)) return { error: `Unknown tool: ${toolName}` }
+        if (enabledToolNames && !enabledToolNames.includes(toolName)) {
+          return { error: `Tool is disabled: ${toolName}` }
+        }
+
+        const result = await executeTool(toolName, toolArgs, targetTabId, enabledToolNames)
+        return {
+          stage: 'execute',
+          need_next: false,
+          next_action: 'none',
+          data: {
+            tool: toolName,
+            result,
+          },
+          message: '工具执行完成。',
+        }
+      }
+
       case 'list_tabs': {
         const tabs = listTabs()
         const activeTabId = webviewManager.getActiveTabId()
@@ -462,6 +543,10 @@ export async function executeTool(name: string, args: Record<string, unknown>, t
 
       case 'list_groups': {
         return listGroups()
+      }
+
+      case 'list_workspaces': {
+        return listWorkspaces()
       }
 
       case 'list_pages': {

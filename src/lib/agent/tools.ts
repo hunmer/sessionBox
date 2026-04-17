@@ -51,7 +51,7 @@ export interface ToolDiscoveryResponse<TData = Record<string, unknown>> {
   message: string
 }
 
-type EnabledToolFilter = ReadonlySet<string> | readonly string[] | undefined
+type EnabledToolFilter = ReadonlySet<string> | string[] | undefined
 
 export const TOOL_CATEGORY_INFOS: ToolCategoryInfo[] = [
   {
