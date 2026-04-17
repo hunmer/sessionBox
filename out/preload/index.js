@@ -423,4 +423,3 @@ if (process.contextIsolated) {
   globalWindow.electron = electronAPI;
   globalWindow.api = api;
 }
-//# sourceMappingURL=index.js.map

@@ -27,7 +27,7 @@ export interface StreamCallbacks {
   onToolCall: (call: ToolCall) => void
   onToolResult: (event: ToolResultEvent) => void
   onToolCallArgs: (event: ToolCallArgsEvent) => void
-  onThinking: (content: string) => void
+  onThinking: (content: string, blockIndex: number) => void
   onUsage: (usage: { inputTokens: number; outputTokens: number }) => void
   onRetry?: (event: RetryEvent) => void
   onDone: () => void
@@ -76,7 +76,7 @@ export function listenToChatStream(requestId: string, callbacks: StreamCallbacks
   unsubscribers.push(
     window.api.on('chat:thinking', (data: any) => {
       if (data.requestId === requestId) {
-        callbacks.onThinking(data.content)
+        callbacks.onThinking(data.content, data.index)
       }
     }),
   )

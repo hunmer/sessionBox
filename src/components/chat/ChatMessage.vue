@@ -22,6 +22,7 @@ import type { ChatStoreInstance } from '@/stores/chat'
 const themeStore = useThemeStore()
 
 type ContentSegment =
+  | { type: 'thinking'; content: string }
   | { type: 'text'; content: string }
   | { type: 'tool-call'; toolCall: ToolCall }
 
@@ -32,7 +33,7 @@ const props = defineProps<{
   isStreaming?: boolean
   isLastAssistant?: boolean
   streamingContent?: string
-  streamingThinking?: string
+  streamingThinkingBlocks?: Array<{ index: number; content: string }>
   streamingToolCalls?: ToolCall[]
   streamingUsage?: { inputTokens: number; outputTokens: number } | null
 }>()
@@ -48,9 +49,9 @@ const displayContent = computed(() => {
   return props.message.content
 })
 
-const displayThinking = computed(() => {
-  if (props.isStreaming && props.streamingThinking !== undefined) return props.streamingThinking
-  return props.message.thinking
+const displayThinkingBlocks = computed(() => {
+  if (props.isStreaming && props.streamingThinkingBlocks !== undefined) return props.streamingThinkingBlocks
+  return props.message.thinkingBlocks
 })
 
 const displayToolCalls = computed(() => {
@@ -246,34 +247,59 @@ function formatTokenCount(n: number): string {
 const segments = computed<ContentSegment[]>(() => {
   const content = displayContent.value || ''
   const toolCalls = displayToolCalls.value
+  const thinkingBlocks = displayThinkingBlocks.value
+
+  // 构建基础 segments（text + tool-call）
+  const base: ContentSegment[] = []
 
   if (!toolCalls?.length) {
-    return content ? [{ type: 'text', content }] : []
-  }
+    if (content) base.push({ type: 'text', content })
+  } else {
+    const sorted = [...toolCalls].sort((a, b) => {
+      const posA = a.textPosition ?? Infinity
+      const posB = b.textPosition ?? Infinity
+      return posA - posB
+    })
 
-  // 按 textPosition 排序，无 textPosition 的排在末尾
-  const sorted = [...toolCalls].sort((a, b) => {
-    const posA = a.textPosition ?? Infinity
-    const posB = b.textPosition ?? Infinity
-    return posA - posB
-  })
-
-  const result: ContentSegment[] = []
-  let cursor = 0
-
-  for (const tc of sorted) {
-    const pos = tc.textPosition ?? cursor
-    // 插入工具调用前的文本段
-    if (pos > cursor) {
-      result.push({ type: 'text', content: content.slice(cursor, pos) })
+    let cursor = 0
+    for (const tc of sorted) {
+      const pos = tc.textPosition ?? cursor
+      if (pos > cursor) {
+        base.push({ type: 'text', content: content.slice(cursor, pos) })
+      }
+      base.push({ type: 'tool-call', toolCall: tc })
+      cursor = pos
     }
-    result.push({ type: 'tool-call', toolCall: tc })
-    cursor = pos
+    if (cursor < content.length) {
+      base.push({ type: 'text', content: content.slice(cursor) })
+    }
   }
 
-  // 剩余文本
-  if (cursor < content.length) {
-    result.push({ type: 'text', content: content.slice(cursor) })
+  if (!thinkingBlocks?.length) return base
+
+  // Anthropic 流结构：thinking(0) -> content(1) -> thinking(2) -> content(3) ...
+  // thinkingBlocks 按 index 排序，第 i 个 thinking 插入到 base[i] 之前
+  const sorted = [...thinkingBlocks].sort((a, b) => a.index - b.index)
+  const result: ContentSegment[] = []
+  let thinkIdx = 0
+
+  for (let i = 0; i < base.length; i++) {
+    // 插入所有 index 满足 floor(index / 2) === i 的 thinking
+    while (thinkIdx < sorted.length && Math.floor(sorted[thinkIdx].index / 2) <= i) {
+      if (sorted[thinkIdx].content) {
+        result.push({ type: 'thinking', content: sorted[thinkIdx].content })
+      }
+      thinkIdx++
+    }
+    result.push(base[i])
+  }
+
+  // 剩余 thinking blocks（如有）
+  while (thinkIdx < sorted.length) {
+    if (sorted[thinkIdx].content) {
+      result.push({ type: 'thinking', content: sorted[thinkIdx].content })
+    }
+    thinkIdx++
   }
 
   return result
@@ -316,9 +342,6 @@ const segments = computed<ContentSegment[]>(() => {
         />
       </div>
 
-      <!-- 思考内容 -->
-      <ThinkingBlock v-if="displayThinking" :content="displayThinking" />
-
       <!-- 正在思考占位 -->
       <div
         v-if="isStreaming && !displayContent && !displayToolCalls?.length"
@@ -346,10 +369,11 @@ const segments = computed<ContentSegment[]>(() => {
         </div>
       </div>
 
-      <!-- 按顺序穿插渲染文本和工具调用 -->
+      <!-- 按顺序穿插渲染思考、文本和工具调用 -->
       <template v-if="!isEditing" v-for="(seg, i) in segments" :key="i">
+        <ThinkingBlock v-if="seg.type === 'thinking'" :content="seg.content" />
         <div
-          v-if="seg.type === 'text' && seg.content"
+          v-else-if="seg.type === 'text' && seg.content"
           class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden text-left"
           :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
         >

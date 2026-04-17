@@ -10,7 +10,7 @@ const props = defineProps<{
   isStreaming: boolean
   streamingToken: string
   streamingToolCalls: ToolCall[]
-  streamingThinking: string
+  streamingThinkingBlocks: Array<{ index: number; content: string }>
   streamingUsage: { inputTokens: number; outputTokens: number } | null
 }>()
 
@@ -24,7 +24,7 @@ const containerRef = ref<HTMLDivElement>()
 const autoScroll = ref(true)
 
 watch(
-  () => [props.messages.length, props.streamingToken, props.streamingThinking],
+  () => [props.messages.length, props.streamingToken, props.streamingThinkingBlocks],
   () => {
     if (autoScroll.value) {
       nextTick(() => scrollToBottom())
@@ -76,7 +76,7 @@ function isLastAssistantMessage(index: number): boolean {
       :is-streaming="isStreaming && index === messages.length - 1 && msg.role === 'assistant'"
       :is-last-assistant="isLastAssistantMessage(index)"
       :streaming-content="isStreaming && index === messages.length - 1 ? streamingToken : undefined"
-      :streaming-thinking="isStreaming && index === messages.length - 1 ? streamingThinking : undefined"
+      :streaming-thinking-blocks="isStreaming && index === messages.length - 1 ? streamingThinkingBlocks : undefined"
       :streaming-tool-calls="isStreaming && index === messages.length - 1 ? streamingToolCalls : undefined"
       :streaming-usage="isStreaming && index === messages.length - 1 ? streamingUsage : undefined"
       @retry="emit('retry', $event)"

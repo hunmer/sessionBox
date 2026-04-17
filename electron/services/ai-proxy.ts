@@ -312,7 +312,7 @@ function forwardSSEEvent(
       if (delta?.type === 'text_delta') {
         send('on:chat:chunk', { requestId, token: delta.text })
       } else if (delta?.type === 'thinking_delta') {
-        send('on:chat:thinking', { requestId, content: delta.thinking })
+        send('on:chat:thinking', { requestId, content: delta.thinking, index: event.index })
       } else if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
         send('on:chat:tool-call-args-delta', { requestId, index: event.index, delta: delta.partial_json })
       }

@@ -29,7 +29,7 @@ export function createChatStore(scope: string) {
     // 流式输出临时状态
     const streamingToken = ref('')
     const streamingToolCalls = ref<ToolCall[]>([])
-    const streamingThinking = ref('')
+    const streamingThinkingBlocks = ref<Array<{ index: number; content: string }>>([])
     const streamingUsage = ref<{ inputTokens: number; outputTokens: number } | null>(null)
     const retryStatus = ref<{ attempt: number; maxRetries: number; delayMs: number; status: number } | null>(null)
     const abortController = ref<AbortController | null>(null)
@@ -110,7 +110,7 @@ export function createChatStore(scope: string) {
       isStreaming.value = true
       streamingToken.value = ''
       streamingToolCalls.value = []
-      streamingThinking.value = ''
+      streamingThinkingBlocks.value = []
       streamingUsage.value = null
       retryStatus.value = null
 
@@ -170,8 +170,13 @@ export function createChatStore(scope: string) {
                 tc.completedAt = Date.now()
               }
             },
-            onThinking: (thinkContent: string) => {
-              streamingThinking.value += thinkContent
+            onThinking: (thinkContent: string, blockIndex: number) => {
+              const existing = streamingThinkingBlocks.value.find(s => s.index === blockIndex)
+              if (existing) {
+                existing.content += thinkContent
+              } else {
+                streamingThinkingBlocks.value.push({ index: blockIndex, content: thinkContent })
+              }
             },
             onUsage: (usage) => {
               streamingUsage.value = usage
@@ -188,7 +193,9 @@ export function createChatStore(scope: string) {
               try {
                 const updates: Partial<ChatMessage> = {
                   content: streamingToken.value,
-                  thinking: streamingThinking.value || undefined,
+                  thinkingBlocks: streamingThinkingBlocks.value.length > 0
+                    ? JSON.parse(JSON.stringify(streamingThinkingBlocks.value))
+                    : undefined,
                   toolCalls: streamingToolCalls.value.length > 0
                     ? JSON.parse(JSON.stringify(toRaw(streamingToolCalls.value)))
                     : undefined,
@@ -298,7 +305,9 @@ export function createChatStore(scope: string) {
       if (msgId) {
         const updates: Partial<ChatMessage> = {
           content: streamingToken.value,
-          thinking: streamingThinking.value || undefined,
+          thinkingBlocks: streamingThinkingBlocks.value.length > 0
+            ? JSON.parse(JSON.stringify(streamingThinkingBlocks.value))
+            : undefined,
           toolCalls: streamingToolCalls.value.length > 0
             ? JSON.parse(JSON.stringify(toRaw(streamingToolCalls.value)))
             : undefined,
@@ -485,7 +494,7 @@ export function createChatStore(scope: string) {
       isStreaming,
       streamingToken,
       streamingToolCalls,
-      streamingThinking,
+      streamingThinkingBlocks,
       streamingUsage,
       retryStatus,
       currentSession,

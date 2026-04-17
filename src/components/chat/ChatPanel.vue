@@ -110,7 +110,7 @@ function handleEdit(messageId: string, newContent: string) {
       :is-streaming="chat.isStreaming"
       :streaming-token="chat.streamingToken"
       :streaming-tool-calls="chat.streamingToolCalls"
-      :streaming-thinking="chat.streamingThinking"
+      :streaming-thinking-blocks="chat.streamingThinkingBlocks"
       :streaming-usage="chat.streamingUsage"
       @retry="chat.retryMessage($event)"
       @delete="chat.deleteMessageAndAfter($event)"

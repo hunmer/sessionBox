@@ -201,7 +201,7 @@ export interface ChatMessage {
   content: string
   toolCalls?: ToolCall[]
   toolResult?: unknown
-  thinking?: string
+  thinkingBlocks?: Array<{ index: number; content: string }>
   images?: string[]
   modelId?: string
   usage?: TokenUsage
