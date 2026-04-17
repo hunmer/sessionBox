@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { app } from 'electron'
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
 import { randomUUID } from 'crypto'
 import Store from 'electron-store'
 import type { Bookmark, BookmarkFolder, PasswordEntry, Page, Workflow, WorkflowFolder } from './store'
@@ -133,29 +133,74 @@ export function migrateBookmarksAndPasswords(): void {
 }
 
 /**
- * 将 electron-store 中的 workflows、workflowFolders 迁移到独立的 JsonStore 文件。
- * 幂等设计：目标文件已存在则跳过。
+ * 将工作流数据迁移到独立文件：
+ * - 文件夹 → workflow-folders.json
+ * - 工作流 → workflows/{id}.json（每个工作流独立文件）
+ *
+ * 支持从 electron-store 或旧的单文件 workflow-store.json 迁移。
+ * 幂等设计：目标目录已存在文件则跳过。
  */
 export function migrateWorkflows(): void {
-  const workflowPath = join(userDataPath, 'workflow-store.json')
+  const workflowsDir = join(userDataPath, 'workflows')
+  const foldersPath = join(userDataPath, 'workflow-folders.json')
+  const oldSinglePath = join(userDataPath, 'workflow-store.json')
 
-  const store = new Store<LegacyStoreSchema>()
+  // 已迁移过（文件夹文件存在），跳过
+  if (existsSync(foldersPath)) return
 
-  if (!existsSync(workflowPath)) {
-    const workflows = store.get('workflows', [])
-    const workflowFolders = store.get('workflowFolders', [])
+  let workflows: Workflow[] = []
+  let workflowFolders: WorkflowFolder[] = []
+  let source = ''
 
-    writeFileSync(workflowPath, JSON.stringify({ workflows, workflowFolders }, null, 2), 'utf-8')
-
-    if (workflows.length > 0 || workflowFolders.length > 0) {
-      console.log(`[Migration] Migrated ${workflows.length} workflows and ${workflowFolders.length} folders to workflow-store.json`)
-    } else {
-      console.log('[Migration] Created empty workflow-store.json')
+  // 优先从旧的单文件 workflow-store.json 读取
+  if (existsSync(oldSinglePath)) {
+    try {
+      const data = JSON.parse(readFileSync(oldSinglePath, 'utf-8'))
+      workflows = data.workflows ?? []
+      workflowFolders = data.workflowFolders ?? []
+      source = 'workflow-store.json'
+    } catch {
+      // 文件损坏，继续尝试 electron-store
     }
+  }
 
-    // 迁移成功，移除旧数据
+  // 如果没从单文件读到，从 electron-store 读取
+  if (!source) {
+    const store = new Store<LegacyStoreSchema>()
+    if (store.has('workflows') || store.has('workflowFolders')) {
+      workflows = store.get('workflows', [])
+      workflowFolders = store.get('workflowFolders', [])
+      source = 'electron-store'
+    }
+  }
+
+  // 没有数据需要迁移，创建空文件夹索引文件即可
+  if (!source) {
+    writeFileSync(foldersPath, JSON.stringify({ workflowFolders: [] }, null, 2), 'utf-8')
+    mkdirSync(workflowsDir, { recursive: true })
+    console.log('[Migration] Created empty workflow storage')
+    return
+  }
+
+  // 写入文件夹索引
+  writeFileSync(foldersPath, JSON.stringify({ workflowFolders }, null, 2), 'utf-8')
+
+  // 写入每个工作流独立文件
+  mkdirSync(workflowsDir, { recursive: true })
+  for (const w of workflows) {
+    writeFileSync(join(workflowsDir, `${w.id}.json`), JSON.stringify(w, null, 2), 'utf-8')
+  }
+
+  console.log(`[Migration] Migrated ${workflows.length} workflows and ${workflowFolders.length} folders from ${source}`)
+
+  // 清理旧数据
+  if (source === 'electron-store') {
+    const store = new Store<LegacyStoreSchema>()
     store.delete('workflows')
     store.delete('workflowFolders')
     console.log('[Migration] Removed workflows/workflowFolders from electron-store')
+  } else if (source === 'workflow-store.json') {
+    unlinkSync(oldSinglePath)
+    console.log('[Migration] Removed old workflow-store.json')
   }
 }

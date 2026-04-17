@@ -412,6 +412,15 @@ export const BROWSER_TOOL_LIST: ToolMeta[] = [
     riskLevel: 'low',
     suitableFor: ['等待页面加载完成', '等待 AJAX 请求返回', '等待动画结束', '流程中插入固定间隔'],
   },
+  {
+    name: 'inject_js',
+    description: '向指定 WebContents 注入并执行 JavaScript 代码',
+    category: '页面交互',
+    discoveryCategory: 'page',
+    tags: ['action', 'javascript', 'inject', 'execute'],
+    riskLevel: 'high',
+    suitableFor: ['注入自定义脚本', '执行页面内 JS 操作', '动态修改页面行为'],
+  },
 ]
 
 export const DISCOVERY_TOOL_NAMES = [
@@ -460,6 +469,7 @@ const TOOL_EXAMPLE_INPUTS: Record<string, Record<string, unknown>> = {
   search_skill: { name: 'example' },
   exec_skill: { name: 'open-example', params: { url: 'https://example.com' } },
   delay: { milliseconds: 2000, reason: '等待页面加载完成' },
+  inject_js: { webContentId: 5, code: 'return document.title' },
 }
 
 const GENERIC_OUTPUT_SCHEMA = {
@@ -878,6 +888,24 @@ export function createBrowserTools(_targetTabId: string | null): ToolDefinition[
           },
         },
         required: ['milliseconds'],
+      },
+    },
+    {
+      name: 'inject_js',
+      description: '向指定 WebContents 注入并执行 JavaScript 代码，返回代码执行结果。高风险工具，请确认代码安全后再执行。',
+      input_schema: {
+        type: 'object',
+        properties: {
+          webContentId: {
+            type: 'number',
+            description: '目标 WebContents ID（Electron webContents.id）',
+          },
+          code: {
+            type: 'string',
+            description: '要执行的 JavaScript 代码，代码在页面上下文中运行，可使用 document、window 等对象。支持 return 返回结果。',
+          },
+        },
+        required: ['webContentId', 'code'],
       },
     },
   ]

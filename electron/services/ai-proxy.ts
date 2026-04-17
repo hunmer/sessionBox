@@ -1,4 +1,4 @@
-import { BrowserWindow, app } from 'electron'
+import { BrowserWindow, app, webContents } from 'electron'
 import { join } from 'path'
 import { mkdirSync, writeFileSync } from 'fs'
 import { getAIProvider, listTabs, createTab, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
@@ -1066,6 +1066,20 @@ export async function executeTool(
           description: skill.description,
           steps: skill.content,
           executionResults: results.length > 0 ? results : undefined,
+        }
+      }
+
+      case 'inject_js': {
+        const wcId = args.webContentId as number
+        if (!wcId) return { error: 'webContentId is required' }
+        if (!args.code || typeof args.code !== 'string') return { error: 'code is required' }
+        try {
+          const wc = webContents.fromId(wcId)
+          if (!wc || wc.isDestroyed()) return { error: `WebContents not found or destroyed: ${wcId}` }
+          const result = await wc.executeJavaScript(args.code as string)
+          return { success: true, result }
+        } catch (err) {
+          return { error: `JS execution failed: ${err instanceof Error ? err.message : String(err)}` }
         }
       }
 

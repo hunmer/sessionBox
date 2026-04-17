@@ -207,6 +207,13 @@ const toolSchemas: Record<string, { properties: Record<string, any>; required?: 
     },
     required: ['name'],
   },
+  inject_js: {
+    properties: {
+      webContentId: { type: 'number', description: '目标 WebContents ID（Electron webContents.id）' },
+      code: { type: 'string', description: '要注入执行的 JavaScript 代码' },
+    },
+    required: ['webContentId', 'code'],
+  },
 }
 
 function getToolIcon(name: string): string {
@@ -244,6 +251,7 @@ function getToolIcon(name: string): string {
     list_skills: 'List',
     search_skill: 'Search',
     exec_skill: 'Play',
+    inject_js: 'FileCode',
     run_code: 'Terminal',
     toast: 'Bell',
     agent_chat: 'Bot',
