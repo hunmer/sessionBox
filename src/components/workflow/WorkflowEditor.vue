@@ -24,15 +24,65 @@ import NodeSidebar from './NodeSidebar.vue'
 import RightPanel from './RightPanel.vue'
 import ExecutionBar from './ExecutionBar.vue'
 import WorkflowListDialog from './WorkflowListDialog.vue'
+import NodeSelectDialog from './NodeSelectDialog.vue'
 import { Plus, FolderOpen, Import } from 'lucide-vue-next'
 import { useNotification } from '@/composables/useNotification'
 
 const store = useWorkflowStore()
 const notify = useNotification()
 const listDialogOpen = ref(false)
+const nodeSelectOpen = ref(false)
 const isEditingName = ref(false)
 const editingName = ref('')
 const FLOW_ID = 'workflow-editor-flow'
+
+// ====== 连线放手快速添加节点 ======
+let connectSource: { nodeId: string; handleId: string | null } | null = null
+let connectSucceeded = false
+let connectDropPosition: { x: number; y: number } | null = null
+
+function onConnectStart({ nodeId, handleId }: { nodeId: string | null; handleId: string | null }) {
+  connectSource = nodeId ? { nodeId, handleId } : null
+  connectSucceeded = false
+  connectDropPosition = null
+}
+
+function onConnectEnd(event: MouseEvent | TouchEvent) {
+  if (connectSucceeded || !connectSource) {
+    connectSource = null
+    return
+  }
+
+  // 计算放手位置对应的画布坐标
+  const bounds = vueFlowRef.value?.getBoundingClientRect()
+  if (bounds) {
+    const clientX = 'clientX' in event ? event.clientX : 0
+    const clientY = 'clientY' in event ? event.clientY : 0
+    connectDropPosition = project({ x: clientX - bounds.left, y: clientY - bounds.top })
+  }
+
+  nodeSelectOpen.value = true
+}
+
+function onNodeSelectFromDialog(type: string) {
+  if (!connectSource || !store.currentWorkflow) return
+
+  const sourceNode = store.currentWorkflow.nodes.find(n => n.id === connectSource!.nodeId)
+  if (!sourceNode) return
+
+  // 优先使用放手位置，否则在源节点右侧偏移
+  const position = connectDropPosition || {
+    x: sourceNode.position.x + 250,
+    y: sourceNode.position.y,
+  }
+
+  const newNode = store.addNode(type, position)
+  store.addEdge(connectSource.nodeId, newNode.id, connectSource.handleId, null)
+
+  // 重置状态
+  connectSource = null
+  connectDropPosition = null
+}
 
 // ====== ExecutionBar 折叠/展开 & 面板大小 ======
 const EXEC_PANEL_SIZE_KEY = 'workflow-exec-panel-size'
@@ -176,6 +226,7 @@ const edges = computed(() =>
 )
 
 function handleConnect(params: any) {
+  connectSucceeded = true
   store.addEdge(
     params.source,
     params.target,
@@ -426,6 +477,8 @@ function handleKeyDown(e: KeyboardEvent) {
                 :max-zoom="4"
                 :connection-mode="ConnectionMode.Loose"
                 @connect="handleConnect"
+                @connect-start="onConnectStart"
+                @connect-end="onConnectEnd"
                 @dragover="onDragOver"
                 @drop="onDrop"
                 @node-click="onNodeClick"
@@ -469,6 +522,12 @@ function handleKeyDown(e: KeyboardEvent) {
       :open="listDialogOpen"
       @update:open="listDialogOpen = $event"
       @select="onListSelect"
+    />
+
+    <NodeSelectDialog
+      :open="nodeSelectOpen"
+      @update:open="nodeSelectOpen = $event"
+      @select="onNodeSelectFromDialog"
     />
   </div>
 </template>
