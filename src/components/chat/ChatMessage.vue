@@ -17,6 +17,7 @@ import { Markdown } from 'vue-stream-markdown'
 import 'vue-stream-markdown/index.css'
 import { useThemeStore } from '@/stores/theme'
 import { BROWSER_AGENT_SYSTEM_PROMPT } from '@/lib/agent/system-prompt'
+import type { ChatStoreInstance } from '@/stores/chat'
 
 const themeStore = useThemeStore()
 
@@ -25,6 +26,7 @@ type ContentSegment =
   | { type: 'tool-call'; toolCall: ToolCall }
 
 const props = defineProps<{
+  chat: ChatStoreInstance
   message: ChatMessageType
   allMessages?: ChatMessageType[]
   isStreaming?: boolean
@@ -80,7 +82,7 @@ async function copyContent() {
 
 /** 重新运行单个工具调用 */
 function handleRerunTool(toolCall: ToolCall) {
-  chatStore.rerunTool(props.message.id, toolCall.id)
+  props.chat.rerunTool(props.message.id, toolCall.id)
 }
 
 /** 进入编辑模式 */

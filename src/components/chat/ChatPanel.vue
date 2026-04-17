@@ -105,6 +105,7 @@ function handleEdit(messageId: string, newContent: string) {
 
     <!-- 消息列表 -->
     <ChatMessageList
+      :chat="chat"
       :messages="chat.messages"
       :is-streaming="chat.isStreaming"
       :streaming-token="chat.streamingToken"

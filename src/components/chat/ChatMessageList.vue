@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
 import type { ChatMessage as ChatMessageType, ToolCall } from '@/types'
+import type { ChatStoreInstance } from '@/stores/chat'
 import ChatMessage from './ChatMessage.vue'
 
 const props = defineProps<{
+  chat: ChatStoreInstance
   messages: ChatMessageType[]
   isStreaming: boolean
   streamingToken: string
@@ -68,6 +70,7 @@ function isLastAssistantMessage(index: number): boolean {
     <ChatMessage
       v-for="(msg, index) in messages"
       :key="msg.id"
+      :chat="chat"
       :message="msg"
       :all-messages="messages"
       :is-streaming="isStreaming && index === messages.length - 1 && msg.role === 'assistant'"

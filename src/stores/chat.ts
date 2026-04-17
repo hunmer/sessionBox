@@ -396,6 +396,7 @@ export function createChatStore(scope: string) {
       const tc = msg.toolCalls[tcIndex]
       const uiStore = useChatUIStore()
       const targetTabId = uiStore.targetTabId || currentSession.value?.browserViewId || undefined
+      const rerunArgs = JSON.parse(JSON.stringify(toRaw(tc.args ?? {})))
 
       const updatedCalls = [...msg.toolCalls]
       updatedCalls[tcIndex] = { ...tc, status: 'running' as const, result: undefined, error: undefined, startedAt: Date.now(), completedAt: undefined }
@@ -403,7 +404,7 @@ export function createChatStore(scope: string) {
       messages.value[msgIndex] = { ...msg, ...updates }
 
       try {
-        const rawResult = await window.api.agent.execTool(tc.name, tc.args, targetTabId)
+        const rawResult = await window.api.agent.execTool(tc.name, rerunArgs, targetTabId)
         const result = JSON.parse(JSON.stringify(rawResult))
         const now = Date.now()
         const hasError = result && typeof result === 'object' && 'error' in result
@@ -415,7 +416,9 @@ export function createChatStore(scope: string) {
           error: hasError ? (result as { error: string }).error : undefined,
           completedAt: now,
         }
-        const finalUpdates: Partial<ChatMessage> = { toolCalls: finalCalls }
+        const finalUpdates: Partial<ChatMessage> = {
+          toolCalls: JSON.parse(JSON.stringify(toRaw(finalCalls))),
+        }
         await dbUpdateMessage(messageId, finalUpdates)
         messages.value[msgIndex] = { ...messages.value[msgIndex], ...finalUpdates }
       } catch (err) {
@@ -427,7 +430,9 @@ export function createChatStore(scope: string) {
           error: err instanceof Error ? err.message : String(err),
           completedAt: now,
         }
-        const finalUpdates: Partial<ChatMessage> = { toolCalls: finalCalls }
+        const finalUpdates: Partial<ChatMessage> = {
+          toolCalls: JSON.parse(JSON.stringify(toRaw(finalCalls))),
+        }
         await dbUpdateMessage(messageId, finalUpdates)
         messages.value[msgIndex] = { ...messages.value[msgIndex], ...finalUpdates }
       }
