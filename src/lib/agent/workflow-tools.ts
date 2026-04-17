@@ -112,15 +112,15 @@ export const WORKFLOW_TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'create_edge',
     description:
-      '创建一条连线，将两个节点连接起来。sourceId 是起始节点（上游），targetId 是目标节点（下游）。可选指定 sourceHandle/targetHandle 以连接到特定的连接点。',
+      '创建一条连线，将两个节点连接起来。source 是起始节点（上游），target 是目标节点（下游）。可选指定 sourceHandle/targetHandle 以连接到特定的连接点。',
     input_schema: {
       type: 'object',
       properties: {
-        sourceId: {
+        source: {
           type: 'string',
           description: '起始节点（上游节点）的 ID。',
         },
-        targetId: {
+        target: {
           type: 'string',
           description: '目标节点（下游节点）的 ID。',
         },
@@ -133,7 +133,7 @@ export const WORKFLOW_TOOL_DEFINITIONS: ToolDefinition[] = [
           description: '目标节点的连接点标识，用于有多个输入的节点。',
         },
       },
-      required: ['sourceId', 'targetId'],
+      required: ['source', 'target'],
     },
   },
   {

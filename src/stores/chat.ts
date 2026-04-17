@@ -27,6 +27,9 @@ export const useChatStore = defineStore('chat', () => {
   const sessions = ref<ChatSession[]>([])
   const currentSessionId = ref<string | null>(null)
   const messages = ref<ChatMessage[]>([])
+  // 工作流独立会话追踪，与主界面 agent 会话隔离
+  const currentWorkflowSessionId = ref<string | null>(null)
+  const workflowMessages = ref<ChatMessage[]>([])
   const isStreaming = ref(false)
   const isPanelVisible = ref(localStorage.getItem(PANEL_VISIBLE_KEY) === '1')
   const targetTabId = ref<string | null>(localStorage.getItem(TARGET_TAB_KEY))
@@ -82,6 +85,15 @@ export const useChatStore = defineStore('chat', () => {
     sessions.value.find((s) => s.id === currentSessionId.value) ?? null,
   )
 
+  // 根据 source 获取对应的会话 ID 和消息
+  function getActiveSessionId(source: 'agent' | 'workflow') {
+    return source === 'workflow' ? currentWorkflowSessionId.value : currentSessionId.value
+  }
+
+  function getActiveMessages(source: 'agent' | 'workflow') {
+    return source === 'workflow' ? workflowMessages.value : messages.value
+  }
+
   // ===== 会话管理 =====
 
   async function loadSessions() {
@@ -135,8 +147,9 @@ export const useChatStore = defineStore('chat', () => {
    * 核心流式请求：创建助手占位消息，发送请求，处理回调和持久化。
    * 被 sendMessage（新消息）和 retryMessage（重试）共用。
    */
-  async function streamAssistantReply(content: string, images?: string[]) {
-    const sessionId = currentSessionId.value!
+  async function streamAssistantReply(content: string, images?: string[], source: 'agent' | 'workflow' = 'agent') {
+    const sessionId = source === 'workflow' ? currentWorkflowSessionId.value! : currentSessionId.value!
+    const activeMessages = source === 'workflow' ? workflowMessages : messages
     const providerStore = useAIProviderStore()
 
     const assistantMsg = await dbAddMessage({
@@ -146,7 +159,7 @@ export const useChatStore = defineStore('chat', () => {
       createdAt: Date.now(),
       modelId: providerStore.currentModel?.id,
     })
-    messages.value.push(assistantMsg)
+    activeMessages.value.push(assistantMsg)
     streamingMessageId.value = assistantMsg.id
 
     isStreaming.value = true
@@ -160,7 +173,7 @@ export const useChatStore = defineStore('chat', () => {
       const controller = new AbortController()
       abortController.value = controller
 
-      const history = messages.value
+      const history = activeMessages.value
         .filter((m) => m.id !== assistantMsg.id && m.role !== 'system')
         .map((m) => ({
           role: m.role,
