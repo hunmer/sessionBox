@@ -543,6 +543,17 @@ function pasteClipboardNodes() {
   notify.success(`已粘贴 ${clipboardNodes.length} 个节点`)
 }
 
+function deleteSelectedNodes() {
+  const selected = getSelectedNodes.value
+  if (!selected.length) return
+
+  const count = selected.length
+  for (const node of selected) {
+    store.removeNode(node.id)
+  }
+  notify.success(`已删除 ${count} 个节点`)
+}
+
 // ====== 快捷键 ======
 function handleKeyDown(e: KeyboardEvent) {
   if (!store.currentWorkflow) return
@@ -577,6 +588,20 @@ function handleKeyDown(e: KeyboardEvent) {
     if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
     e.preventDefault()
     pasteClipboardNodes()
+    return
+  }
+  // Ctrl+A = 全选节点
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+    if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
+    e.preventDefault()
+    addSelectedNodes(getNodes.value)
+    return
+  }
+  // Delete/Backspace = 删除选中节点
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
+    e.preventDefault()
+    deleteSelectedNodes()
   }
 }
 </script>

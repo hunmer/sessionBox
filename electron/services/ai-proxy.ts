@@ -1,7 +1,7 @@
 import { BrowserWindow, app } from 'electron'
 import { join } from 'path'
 import { mkdirSync, writeFileSync } from 'fs'
-import { getAIProvider, listTabs, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
+import { getAIProvider, listTabs, createTab, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
 import { webviewManager } from './webview-manager'
 import { extractPageSummary, extractPageMarkdown, extractInteractiveNodes, extractInteractiveNodeDetail } from './page-extractor'
 import { writeSkill, readSkill, listSkills, searchSkill, extractCodeBlocks, replaceParams } from './skill-store'
@@ -578,8 +578,52 @@ export async function executeTool(
       }
 
       case 'create_tab': {
-        // 通过 IPC 让主进程创建标签页，这里只返回提示
-        return { message: '请使用 chat:completions 接口创建标签页', hint: 'not yet supported in tool execution' }
+        const url = (args.url as string) || 'https://www.baidu.com'
+        const active = args.active !== false // 默认激活
+        const pageId = (args.pageId as string) || null
+        const containerId = (args.containerId as string) || ''
+        let workspaceId = args.workspaceId as string | undefined
+        const tabs = listTabs()
+
+        // 未指定工作区时，从当前激活标签页反推
+        if (!workspaceId) {
+          const activeTabId = webviewManager.getActiveTabId()
+          if (activeTabId) {
+            const activeTab = tabs.find((t) => t.id === activeTabId)
+            if (activeTab?.pageId) {
+              const page = getPageById(activeTab.pageId)
+              if (page?.groupId) {
+                const group = getGroupById(page.groupId)
+                workspaceId = group?.workspaceId
+              }
+            }
+          }
+        }
+        const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
+        const mainWindow = webviewManager.getMainWindow()
+
+        if (pageId) {
+          const page = getPageById(pageId)
+          if (!page) return { error: `页面 ${pageId} 不存在` }
+          const tabUrl = url || page.url
+          const tab = createTab({ pageId, title: page.name, url: tabUrl, order })
+          webviewManager.registerPendingView(tab.id, pageId, page.containerId || '', tabUrl)
+          mainWindow?.webContents.send('on:tab:created', tab)
+          if (active) webviewManager.switchView(tab.id)
+          return { success: true, tabId: tab.id, title: tab.title, url: tabUrl }
+        }
+
+        const tab = createTab({
+          pageId: '',
+          title: '新标签页',
+          url,
+          order,
+          workspaceId
+        })
+        webviewManager.registerPendingView(tab.id, '', containerId, url)
+        mainWindow?.webContents.send('on:tab:created', tab)
+        if (active) webviewManager.switchView(tab.id)
+        return { success: true, tabId: tab.id, title: tab.title, url }
       }
 
       case 'navigate_tab': {

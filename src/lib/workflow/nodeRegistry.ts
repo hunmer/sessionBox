@@ -122,10 +122,12 @@ const toolSchemas: Record<string, { properties: Record<string, any>; required?: 
   list_tabs: { properties: {} },
   create_tab: {
     properties: {
-      url: { type: 'string', description: '要打开的 URL' },
-      pageId: { type: 'string', description: '已有页面 ID' },
+      url: { type: 'string', description: '要打开的 URL（默认百度）' },
+      pageId: { type: 'string', description: '已有页面 ID，传入后使用页面名称和容器' },
+      containerId: { type: 'string', description: '容器 ID，无 pageId 时指定 Session 隔离' },
+      workspaceId: { type: 'string', description: '工作区 ID，不传则使用当前激活工作区' },
+      active: { type: 'boolean', description: '是否立即激活标签页（默认 true）' },
     },
-    required: ['url'],
   },
   navigate_tab: {
     properties: {
