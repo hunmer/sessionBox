@@ -135,10 +135,41 @@ export class WorkflowEngine {
 
       this.currentIndex = i
       const node = this.executionOrder[i]
+      const nodeState = node.nodeState || 'normal'
+
+      // 禁用状态：中止执行
+      if (nodeState === 'disabled') {
+        this.recordSkippedStep(node, '节点已禁用，工作流中止')
+        this._status = 'error'
+        this.emitLogUpdate()
+        return
+      }
+
+      // 跳过状态：跳过该节点，继续执行下一个
+      if (nodeState === 'skipped') {
+        this.recordSkippedStep(node, '节点已跳过')
+        continue
+      }
+
       await this.executeNode(node)
     }
 
     this._status = this.stopRequested ? 'error' : 'completed'
+    this.emitLogUpdate()
+  }
+
+  /** 记录被跳过/禁用的节点步骤 */
+  private recordSkippedStep(node: WorkflowNode, reason: string): void {
+    const step: ExecutionStep = {
+      nodeId: node.id,
+      nodeLabel: node.label,
+      startedAt: Date.now(),
+      finishedAt: Date.now(),
+      status: 'skipped',
+      error: reason,
+    }
+    this.steps.push(step)
+    this.onNodeStatusChange?.(node.id, 'skipped')
     this.emitLogUpdate()
   }
 

@@ -274,6 +274,12 @@ export const useWorkflowStore = defineStore('workflow', () => {
     if (node) node.label = label
   }
 
+  function updateNodeState(nodeId: string, nodeState: import('@/lib/workflow/types').NodeRunState): void {
+    pushUndo('修改节点状态')
+    const node = currentWorkflow.value?.nodes.find((n) => n.id === nodeId)
+    if (node) node.nodeState = nodeState
+  }
+
   function addEdge(
     source: string,
     target: string,
@@ -502,6 +508,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     updateNodeData,
     updateNodePosition,
     updateNodeLabel,
+    updateNodeState,
     addEdge,
     removeEdge,
     // 执行

@@ -9,6 +9,9 @@ export interface WorkflowFolder {
   createdAt: number
 }
 
+/** 节点运行状态 */
+export type NodeRunState = 'normal' | 'disabled' | 'skipped'
+
 /** 工作流节点 */
 export interface WorkflowNode {
   id: string
@@ -16,6 +19,7 @@ export interface WorkflowNode {
   label: string // 用户可编辑的节点名称
   position: { x: number; y: number }
   data: Record<string, any> // 节点参数
+  nodeState?: NodeRunState // 节点运行状态，默认 'normal'
 }
 
 /** 工作流连线 */
@@ -75,7 +79,7 @@ export interface ExecutionStep {
   nodeLabel: string
   startedAt: number
   finishedAt?: number
-  status: 'running' | 'completed' | 'error'
+  status: 'running' | 'completed' | 'error' | 'skipped'
   input?: any
   output?: any
   error?: string

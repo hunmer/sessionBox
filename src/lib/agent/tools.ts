@@ -15,7 +15,7 @@ export interface ToolDefinition {
   }
 }
 
-export type ToolCategoryName = 'workflow' | 'tab' | 'auto' | 'skill' | 'workspace' | 'page' | 'dom'
+export type ToolCategoryName = 'workflow' | 'tab' | 'auto' | 'skill' | 'workspace' | 'page' | 'dom' | 'utils'
 export type ToolRiskLevel = 'low' | 'medium' | 'high'
 export type DiscoveryStage = 'category_list' | 'tool_list' | 'tool_detail' | 'execute'
 export type DiscoveryNextAction =
@@ -95,6 +95,12 @@ export const TOOL_CATEGORY_INFOS: ToolCategoryInfo[] = [
     scenario: '页面 DOM 级别操作，是最细粒度的交互层。',
     suitable_for: ['查找元素', '点击按钮', '输入文本', '读取元素文本', '判断元素状态'],
     not_suitable_for: ['标签页管理', '项目/工作区管理', '工作流编排'],
+  },
+  {
+    name: 'utils',
+    scenario: '通用辅助工具，提供流程控制与辅助能力。',
+    suitable_for: ['等待页面加载', '延迟执行下一步', '流程中插入固定等待', '等待 AJAX 请求完成'],
+    not_suitable_for: ['页面元素交互', '标签页管理', 'DOM 操作', '工作流编排'],
   },
 ]
 
@@ -334,6 +340,15 @@ export const BROWSER_TOOL_LIST: ToolMeta[] = [
     riskLevel: 'medium',
     suitableFor: ['执行已保存技能', '复用业务任务封装'],
   },
+  {
+    name: 'delay',
+    description: '延迟等待指定时间后继续执行，用于等待页面加载、AJAX 完成或动画结束',
+    category: '辅助工具',
+    discoveryCategory: 'utils',
+    tags: ['wait', 'delay', 'sleep', 'timing'],
+    riskLevel: 'low',
+    suitableFor: ['等待页面加载完成', '等待 AJAX 请求返回', '等待动画结束', '流程中插入固定间隔'],
+  },
 ]
 
 export const DISCOVERY_TOOL_NAMES = [
@@ -374,6 +389,7 @@ const TOOL_EXAMPLE_INPUTS: Record<string, Record<string, unknown>> = {
   list_skills: {},
   search_skill: { name: 'example' },
   exec_skill: { name: 'open-example', params: { url: 'https://example.com' } },
+  delay: { milliseconds: 2000, reason: '等待页面加载完成' },
 }
 
 const GENERIC_OUTPUT_SCHEMA = {
@@ -693,6 +709,25 @@ export function createBrowserTools(_targetTabId: string | null): ToolDefinition[
           },
         },
         required: ['name'],
+      },
+    },
+    {
+      name: 'delay',
+      description: '延迟等待指定毫秒数后继续执行。用于等待页面加载、AJAX 请求返回、动画结束等场景。不依赖标签页。',
+      input_schema: {
+        type: 'object',
+        properties: {
+          milliseconds: {
+            type: 'number',
+            description: '等待时长（毫秒），范围 100-30000，默认 1000。建议根据场景选择：页面导航后等 2000-5000ms，动画结束后等 300-500ms。',
+            default: 1000,
+          },
+          reason: {
+            type: 'string',
+            description: '等待原因说明（可选），用于日志记录，例如 "等待搜索结果加载"。',
+          },
+        },
+        required: ['milliseconds'],
       },
     },
   ]
