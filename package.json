@@ -51,6 +51,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.1.3",
     "@types/adm-zip": "^0.5.8",
     "@types/node": "^22.13.0",
@@ -60,8 +61,11 @@
     "electron-builder": "^26.8.1",
     "electron-updater": "^6.3.9",
     "electron-vite": "^3.0.0",
+    "eslint": "^10.2.0",
+    "eslint-plugin-vue": "^10.8.0",
     "tailwindcss": "^4.1.3",
     "typescript": "~5.7.0",
+    "typescript-eslint": "^8.58.2",
     "vite": "^6.1.0",
     "vite-plugin-static-copy": "^4.0.1",
     "vite-plugin-vue-devtools": "^8.1.1"
