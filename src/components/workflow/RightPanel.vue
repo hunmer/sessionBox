@@ -1,17 +1,35 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Settings2, GitBranch, History } from 'lucide-vue-next'
+import { Settings2, GitBranch, History, Bot } from 'lucide-vue-next'
 import NodeProperties from './NodeProperties.vue'
 import VersionControl from './VersionControl.vue'
 import OperationHistory from './OperationHistory.vue'
+import ChatPanel from '@/components/chat/ChatPanel.vue'
+import { useChatStore } from '@/stores/chat'
+import { useWorkflowStore } from '@/stores/workflow'
+
+const chatStore = useChatStore()
+const workflowStore = useWorkflowStore()
+const activeTab = ref('properties')
+
+// 监听 tab 切换，自动绑定工作流会话
+watch(activeTab, async (tab) => {
+  if (tab === 'ai-assistant') {
+    const workflowId = workflowStore.currentWorkflow?.id
+    if (workflowId) {
+      await chatStore.switchToWorkflowSession(workflowId)
+    }
+  }
+})
 </script>
 
 <template>
   <div class="border-l border-border bg-background flex flex-col h-full">
-    <Tabs default-value="properties" class="flex flex-col h-full">
+    <Tabs v-model="activeTab" default-value="properties" class="flex flex-col h-full">
       <div class="px-2 pt-2">
-        <TooltipProvider delay-duration={300}>
+        <TooltipProvider :delay-duration="300">
           <TabsList class="w-full h-7">
             <Tooltip>
               <TooltipTrigger as-child>
@@ -39,6 +57,15 @@ import OperationHistory from './OperationHistory.vue'
               </TooltipTrigger>
               <TooltipContent side="bottom" class="text-xs">操作历史</TooltipContent>
             </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <TabsTrigger value="ai-assistant" class="text-xs h-5">
+                  <Bot class="w-3.5 h-3.5" />
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" class="text-xs">AI 助手</TooltipContent>
+            </Tooltip>
           </TabsList>
         </TooltipProvider>
       </div>
@@ -53,6 +80,10 @@ import OperationHistory from './OperationHistory.vue'
 
       <TabsContent value="operations" class="flex-1 min-h-0 mt-0">
         <OperationHistory />
+      </TabsContent>
+
+      <TabsContent value="ai-assistant" class="flex-1 min-h-0 mt-0">
+        <ChatPanel />
       </TabsContent>
     </Tabs>
   </div>

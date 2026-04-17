@@ -249,6 +249,8 @@ function getSavedViewport(workflowId: string): { zoom: number; x: number; y: num
   }
 }
 
+let cleanupFileUpdates: (() => void) | null = null
+
 let viewportSaveTimer: ReturnType<typeof setTimeout> | null = null
 onViewportChange(({ zoom, x, y }) => {
   if (!store.currentWorkflow) return
@@ -639,12 +641,14 @@ onMounted(() => {
   window.addEventListener('workflow:zoom-in', onWorkflowZoomIn)
   window.addEventListener('workflow:zoom-out', onWorkflowZoomOut)
   window.addEventListener('workflow:zoom-reset', onWorkflowZoomReset)
+  cleanupFileUpdates = store.listenForFileUpdates()
 })
 
 onUnmounted(() => {
   window.removeEventListener('workflow:zoom-in', onWorkflowZoomIn)
   window.removeEventListener('workflow:zoom-out', onWorkflowZoomOut)
   window.removeEventListener('workflow:zoom-reset', onWorkflowZoomReset)
+  cleanupFileUpdates?.()
 })
 </script>
 
