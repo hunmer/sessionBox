@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, toRaw } from 'vue'
+import { ref, computed, toRaw, type Ref } from 'vue'
 import type { ChatSession, ChatMessage, ToolCall } from '@/types'
 import {
   createSession as dbCreateSession,
@@ -249,9 +249,9 @@ export const useChatStore = defineStore('chat', () => {
                   : undefined,
               }
               await dbUpdateMessage(assistantMsg.id, updates)
-              const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
+              const msgIndex = activeMessages.value.findIndex((m) => m.id === assistantMsg.id)
               if (msgIndex !== -1) {
-                messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
+                activeMessages.value[msgIndex] = { ...activeMessages.value[msgIndex], ...updates }
               }
             } finally {
               retryStatus.value = null
@@ -268,9 +268,9 @@ export const useChatStore = defineStore('chat', () => {
                 content: streamingToken.value || `[错误] ${error.message}`,
               }
               await dbUpdateMessage(assistantMsg.id, updates)
-              const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
+              const msgIndex = activeMessages.value.findIndex((m) => m.id === assistantMsg.id)
               if (msgIndex !== -1) {
-                messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
+                activeMessages.value[msgIndex] = { ...activeMessages.value[msgIndex], ...updates }
               }
             } finally {
               retryStatus.value = null
@@ -297,21 +297,28 @@ export const useChatStore = defineStore('chat', () => {
       streamingMessageId.value = null
       streamCleanup = null
       currentRequestId = null
-      const msgIndex = messages.value.findIndex((m) => m.id === assistantMsg.id)
+      const msgIndex = activeMessages.value.findIndex((m) => m.id === assistantMsg.id)
       if (msgIndex !== -1) {
         const errorContent = error instanceof Error ? error.message : String(error)
-        messages.value[msgIndex] = { ...messages.value[msgIndex], content: `[错误] ${errorContent}` }
+        activeMessages.value[msgIndex] = { ...activeMessages.value[msgIndex], content: `[错误] ${errorContent}` }
         await dbUpdateMessage(assistantMsg.id, { content: `[错误] ${errorContent}` })
       }
     }
   }
 
-  async function sendMessage(content: string, images?: string[]) {
+  async function sendMessage(content: string, images?: string[], source: 'agent' | 'workflow' = 'agent') {
     if (isStreaming.value) return
-    if (!currentSessionId.value) {
+    const activeSessionId = source === 'workflow' ? currentWorkflowSessionId : currentSessionId
+    const activeMessages = source === 'workflow' ? workflowMessages : messages
+
+    if (!activeSessionId.value) {
+      if (source === 'workflow') {
+        // workflow 模式下由 switchToWorkflowSession 保证会话存在
+        return
+      }
       await createSession()
     }
-    const sessionId = currentSessionId.value!
+    const sessionId = activeSessionId.value!
 
     // 保存用户消息
     const userMsg = await dbAddMessage({
@@ -321,7 +328,7 @@ export const useChatStore = defineStore('chat', () => {
       images,
       createdAt: Date.now(),
     })
-    messages.value.push(userMsg)
+    activeMessages.value.push(userMsg)
 
     // 更新会话标题（首条消息时）
     const session = sessions.value.find((s) => s.id === sessionId)
@@ -331,7 +338,7 @@ export const useChatStore = defineStore('chat', () => {
       session.title = title
     }
 
-    await streamAssistantReply(content, images)
+    await streamAssistantReply(content, images, source)
   }
 
   async function stopGeneration() {
@@ -351,6 +358,7 @@ export const useChatStore = defineStore('chat', () => {
     // 3. 保存当前 AI 消息已有的流式内容
     const msgId = streamingMessageId.value
     if (msgId) {
+      const { list } = resolveMessageSource(msgId)
       const updates: Partial<ChatMessage> = {
         content: streamingToken.value,
         thinking: streamingThinking.value || undefined,
@@ -359,22 +367,23 @@ export const useChatStore = defineStore('chat', () => {
           : undefined,
       }
       await dbUpdateMessage(msgId, updates)
-      const msgIndex = messages.value.findIndex((m) => m.id === msgId)
+      const msgIndex = list.value.findIndex((m) => m.id === msgId)
       if (msgIndex !== -1) {
-        messages.value[msgIndex] = { ...messages.value[msgIndex], ...updates }
+        list.value[msgIndex] = { ...list.value[msgIndex], ...updates }
       }
     }
 
     // 4. 追加系统消息：用户已中断操作
-    const sessionId = currentSessionId.value
+    const sessionId = currentWorkflowSessionId.value || currentSessionId.value
     if (sessionId) {
+      const { list } = resolveMessageSource(msgId || '')
       const systemMsg = await dbAddMessage({
         sessionId,
         role: 'system',
         content: '用户已中断操作',
         createdAt: Date.now(),
       })
-      messages.value.push(systemMsg)
+      list.value.push(systemMsg)
     }
 
     // 5. 重置状态
@@ -385,69 +394,82 @@ export const useChatStore = defineStore('chat', () => {
 
   // ===== 消息操作 =====
 
+  /** 根据消息的 sessionId 判断它属于 agent 还是 workflow */
+  function resolveMessageSource(messageId: string): { source: 'agent' | 'workflow'; list: Ref<ChatMessage[]> } {
+    // 先查 workflow 消息
+    const wIdx = workflowMessages.value.findIndex((m) => m.id === messageId)
+    if (wIdx !== -1) return { source: 'workflow', list: workflowMessages }
+    // 默认 agent
+    return { source: 'agent', list: messages }
+  }
+
   /** 删除单条消息 */
   async function deleteMessageById(messageId: string) {
     await dbDeleteMessage(messageId)
-    messages.value = messages.value.filter((m) => m.id !== messageId)
+    const { list } = resolveMessageSource(messageId)
+    list.value = list.value.filter((m) => m.id !== messageId)
   }
 
   /** 删除指定消息及其之后的所有消息 */
   async function deleteMessageAndAfter(messageId: string) {
-    const index = messages.value.findIndex((m) => m.id === messageId)
+    const { list } = resolveMessageSource(messageId)
+    const index = list.value.findIndex((m) => m.id === messageId)
     if (index === -1) return
-    const idsToDelete = messages.value.slice(index).map((m) => m.id)
+    const idsToDelete = list.value.slice(index).map((m) => m.id)
     await dbDeleteMessages(idsToDelete)
-    messages.value = messages.value.slice(0, index)
+    list.value = list.value.slice(0, index)
   }
 
   /** 重试：删除最后一条 AI 回复，重新发送 */
   async function retryMessage(messageId: string) {
     if (isStreaming.value) return
-    const index = messages.value.findIndex((m) => m.id === messageId)
+    const { source, list } = resolveMessageSource(messageId)
+    const index = list.value.findIndex((m) => m.id === messageId)
     if (index === -1) return
 
     // 找到这条 AI 消息之前最近的一条用户消息
     let userMsgIndex = -1
     for (let i = index - 1; i >= 0; i--) {
-      if (messages.value[i].role === 'user') {
+      if (list.value[i].role === 'user') {
         userMsgIndex = i
         break
       }
     }
     if (userMsgIndex === -1) return
 
-    const userMsg = messages.value[userMsgIndex]
+    const userMsg = list.value[userMsgIndex]
     const userContent = userMsg.content
     const userImages = userMsg.images
 
     // 删除这条 AI 回复（及之后的所有消息），保留用户消息
-    const idsToDelete = messages.value.slice(index).map((m) => m.id)
+    const idsToDelete = list.value.slice(index).map((m) => m.id)
     await dbDeleteMessages(idsToDelete)
-    messages.value = messages.value.slice(0, index)
+    list.value = list.value.slice(0, index)
 
     // 直接流式生成新回复，不再重复创建用户消息
-    await streamAssistantReply(userContent, userImages)
+    await streamAssistantReply(userContent, userImages, source)
   }
 
   /** 编辑用户消息：更新内容后重新生成 AI 回复 */
   async function editMessage(messageId: string, newContent: string) {
     if (isStreaming.value) return
-    const index = messages.value.findIndex((m) => m.id === messageId)
+    const { source, list } = resolveMessageSource(messageId)
+    const index = list.value.findIndex((m) => m.id === messageId)
     if (index === -1) return
 
     // 更新数据库中的消息
     await dbUpdateMessage(messageId, { content: newContent })
-    messages.value[index] = { ...messages.value[index], content: newContent }
+    list.value[index] = { ...list.value[index], content: newContent }
 
     // 删除这条消息之后的所有消息
-    if (index < messages.value.length - 1) {
-      const idsToDelete = messages.value.slice(index + 1).map((m) => m.id)
+    if (index < list.value.length - 1) {
+      const idsToDelete = list.value.slice(index + 1).map((m) => m.id)
       await dbDeleteMessages(idsToDelete)
-      messages.value = messages.value.slice(0, index + 1)
+      list.value = list.value.slice(0, index + 1)
     }
 
     // 重新生成 AI 回复（用户消息已就地更新，无需重复创建）
-    await streamAssistantReply(newContent, messages.value[index].images)
+    await streamAssistantReply(newContent, list.value[index].images, source)
   }
 
   // ===== 面板控制 =====
@@ -486,10 +508,12 @@ export const useChatStore = defineStore('chat', () => {
   async function switchToWorkflowSession(workflowId: string | undefined) {
     if (!workflowId) return
 
-    // 查找已有会话
+    // 已在当前工作流会话中，无需重复操作
     const existing = sessions.value.find((s) => s.workflowId === workflowId)
     if (existing) {
-      await switchSession(existing.id)
+      if (currentWorkflowSessionId.value === existing.id) return
+      currentWorkflowSessionId.value = existing.id
+      workflowMessages.value = await dbListMessages(existing.id)
       return
     }
 
@@ -505,14 +529,16 @@ export const useChatStore = defineStore('chat', () => {
       workflowId,
     )
     sessions.value.unshift(session)
-    currentSessionId.value = session.id
-    messages.value = []
+    currentWorkflowSessionId.value = session.id
+    workflowMessages.value = []
   }
 
   return {
     sessions,
     currentSessionId,
     messages,
+    currentWorkflowSessionId,
+    workflowMessages,
     isStreaming,
     isPanelVisible,
     targetTabId,
@@ -524,6 +550,8 @@ export const useChatStore = defineStore('chat', () => {
     currentSession,
     enabledTools,
     enabledToolNames,
+    getActiveSessionId,
+    getActiveMessages,
     loadSessions,
     createSession,
     deleteSessionById,

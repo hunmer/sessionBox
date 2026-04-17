@@ -83,7 +83,7 @@ watch(activeTab, async (tab) => {
       </TabsContent>
 
       <TabsContent value="ai-assistant" class="flex-1 min-h-0 mt-0">
-        <ChatPanel />
+        <ChatPanel source="workflow" />
       </TabsContent>
     </Tabs>
   </div>
