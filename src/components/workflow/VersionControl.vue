@@ -3,7 +3,7 @@ import { useWorkflowStore } from '@/stores/workflow'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { History, RotateCcw, RotateCw, Trash2, ArrowDownToLine } from 'lucide-vue-next'
+import { History, Trash2, ArrowDownToLine } from 'lucide-vue-next'
 
 const store = useWorkflowStore()
 
@@ -20,43 +20,10 @@ async function handleRestoreVersion(versionId: string) {
 async function handleDeleteVersion(versionId: string) {
   await store.deleteVersion(versionId)
 }
-
-function handleUndo() {
-  store.undo()
-}
-
-function handleRedo() {
-  store.redo()
-}
 </script>
 
 <template>
   <div class="flex flex-col h-full">
-    <!-- Undo/Redo 工具栏 -->
-    <div class="flex items-center gap-1 px-3 py-1.5 border-b border-border">
-      <Button
-        variant="ghost"
-        size="sm"
-        class="h-6 w-6 p-0"
-        :disabled="!store.canUndo"
-        @click="handleUndo"
-      >
-        <RotateCcw class="w-3.5 h-3.5" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        class="h-6 w-6 p-0"
-        :disabled="!store.canRedo"
-        @click="handleRedo"
-      >
-        <RotateCw class="w-3.5 h-3.5" />
-      </Button>
-      <span class="text-[10px] text-muted-foreground ml-1">
-        {{ store.canUndo ? `${store.undoStack.length} 步可撤销` : '无可撤销' }}
-      </span>
-    </div>
-
     <Tabs default-value="history" class="flex flex-col flex-1 min-h-0">
       <div class="px-3 pt-2">
         <TabsList class="w-full h-7">

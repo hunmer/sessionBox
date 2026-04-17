@@ -26,7 +26,9 @@ import RightPanel from './RightPanel.vue'
 import ExecutionBar from './ExecutionBar.vue'
 import WorkflowListDialog from './WorkflowListDialog.vue'
 import NodeSelectDialog from './NodeSelectDialog.vue'
-import { Plus, FolderOpen, Import } from 'lucide-vue-next'
+import { Plus, FolderOpen, Import, RotateCcw, RotateCw } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useNotification } from '@/composables/useNotification'
 
 const store = useWorkflowStore()
@@ -201,6 +203,9 @@ const {
   getSelectedNodes,
   getSelectedEdges,
   findNode,
+  addSelectedNodes,
+  nodesSelectionActive,
+  getNodes,
 } = useVueFlow(FLOW_ID)
 
 onNodesChange((changes) => {
@@ -476,22 +481,42 @@ function findSafeOffset(): { x: number; y: number } {
   return { x: OFFSET_STEP * 10, y: OFFSET_STEP * 10 }
 }
 
+const SINGLETON_TYPES = new Set(['start', 'end'])
+
 function pasteClipboardNodes() {
   if (!clipboardNodes.length || !store.currentWorkflow) return
 
   const offset = findSafeOffset()
   const idMap = new Map<string, string>()
 
-  // 创建新节点，维护 ID 映射
   for (const clip of clipboardNodes) {
-    const newNode = store.addNode(clip.nodeType, {
-      x: clip.position.x + offset.x,
-      y: clip.position.y + offset.y,
-    })
-    // 复制 data 和 label
-    newNode.data = { ...clip.data }
-    newNode.label = clip.label
-    idMap.set(clip.id, newNode.id)
+    if (SINGLETON_TYPES.has(clip.nodeType)) {
+      // 单例节点：复用画布上已有的，仅同步数据
+      const existing = store.currentWorkflow.nodes.find((n) => n.type === clip.nodeType)
+      if (existing) {
+        existing.data = { ...clip.data }
+        existing.label = clip.label
+        idMap.set(clip.id, existing.id)
+      } else {
+        // 画布上没有该单例节点，正常创建
+        const newNode = store.addNode(clip.nodeType, {
+          x: clip.position.x + offset.x,
+          y: clip.position.y + offset.y,
+        })
+        newNode.data = { ...clip.data }
+        newNode.label = clip.label
+        idMap.set(clip.id, newNode.id)
+      }
+    } else {
+      // 普通节点：新建
+      const newNode = store.addNode(clip.nodeType, {
+        x: clip.position.x + offset.x,
+        y: clip.position.y + offset.y,
+      })
+      newNode.data = { ...clip.data }
+      newNode.label = clip.label
+      idMap.set(clip.id, newNode.id)
+    }
   }
 
   // 重建选中节点之间的边
@@ -501,6 +526,18 @@ function pasteClipboardNodes() {
     if (newSource && newTarget) {
       store.addEdge(newSource, newTarget, edge.sourceHandle, edge.targetHandle)
     }
+  }
+
+  // 自动选中新粘贴的节点
+  // 先清空所有选中，避免原节点仍处于选中状态
+  for (const node of getNodes.value) {
+    node.selected = false
+  }
+  const newIds = new Set(idMap.values())
+  const newVueFlowNodes = getNodes.value.filter((n) => newIds.has(n.id))
+  addSelectedNodes(newVueFlowNodes)
+  if (clipboardNodes.length > 1) {
+    nodesSelectionActive.value = true
   }
 
   notify.success(`已粘贴 ${clipboardNodes.length} 个节点`)
@@ -641,7 +678,7 @@ function handleKeyDown(e: KeyboardEvent) {
 
             <ResizableHandle with-handle />
 
-            <ResizablePanel :default-size="panelSizes[1]" :min-size="30">
+            <ResizablePanel :default-size="panelSizes[1]" :min-size="30" class="relative">
               <VueFlow
                 :id="FLOW_ID"
                 :nodes="nodes"
@@ -668,6 +705,47 @@ function handleKeyDown(e: KeyboardEvent) {
                 </template>
                 <Controls />
               </VueFlow>
+
+              <!-- 悬浮工具栏 -->
+              <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-lg border border-border bg-background/90 backdrop-blur-sm px-2 py-1 shadow-sm">
+                <TooltipProvider :delay-duration="400">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="h-7 w-7 p-0"
+                        :disabled="!store.canUndo"
+                        @click="store.undo()"
+                      >
+                        <RotateCcw class="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" class="text-xs">
+                      撤销 (Ctrl+Z)
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="h-7 w-7 p-0"
+                        :disabled="!store.canRedo"
+                        @click="store.redo()"
+                      >
+                        <RotateCw class="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" class="text-xs">
+                      重做 (Ctrl+Shift+Z)
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <span class="text-[10px] text-muted-foreground ml-0.5 select-none">
+                  {{ store.canUndo ? `${store.undoStack.length} 步可撤销` : '' }}
+                </span>
+              </div>
             </ResizablePanel>
 
             <ResizableHandle with-handle />
