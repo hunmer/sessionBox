@@ -390,6 +390,14 @@ const api = {
     delete: (workflowId, logId) => electron.ipcRenderer.invoke("executionLog:delete", workflowId, logId),
     clear: (workflowId) => electron.ipcRenderer.invoke("executionLog:clear", workflowId)
   },
+  workflowVersion: {
+    list: (workflowId) => electron.ipcRenderer.invoke("workflowVersion:list", workflowId),
+    add: (workflowId, name, nodes, edges) => electron.ipcRenderer.invoke("workflowVersion:add", workflowId, name, nodes, edges),
+    get: (workflowId, versionId) => electron.ipcRenderer.invoke("workflowVersion:get", workflowId, versionId),
+    delete: (workflowId, versionId) => electron.ipcRenderer.invoke("workflowVersion:delete", workflowId, versionId),
+    clear: (workflowId) => electron.ipcRenderer.invoke("workflowVersion:clear", workflowId),
+    nextName: (workflowId) => electron.ipcRenderer.invoke("workflowVersion:nextName", workflowId)
+  },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
     const channel = `on:${event}`;

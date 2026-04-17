@@ -34,6 +34,57 @@ export const useWorkflowStore = defineStore('workflow', () => {
   } | null>(null)
   const debugNodeId = ref<string | null>(null)
 
+  // ====== Undo/Redo ======
+  const MAX_HISTORY = 1000
+  const undoStack = ref<string[]>([])
+  const redoStack = ref<string[]>([])
+  const operationLog = ref<{ description: string; timestamp: number }[]>([])
+
+  function captureSnapshot(): string {
+    if (!currentWorkflow.value) return ''
+    return JSON.stringify({ nodes: currentWorkflow.value.nodes, edges: currentWorkflow.value.edges })
+  }
+
+  function applySnapshot(snapshot: string): void {
+    if (!currentWorkflow.value || !snapshot) return
+    const parsed = JSON.parse(snapshot)
+    currentWorkflow.value.nodes = parsed.nodes
+    currentWorkflow.value.edges = parsed.edges
+  }
+
+  function pushUndo(description: string): void {
+    const snapshot = captureSnapshot()
+    if (!snapshot) return
+    undoStack.value.push(snapshot)
+    if (undoStack.value.length > MAX_HISTORY) undoStack.value.shift()
+    redoStack.value = []
+    operationLog.value.unshift({ description, timestamp: Date.now() })
+    if (operationLog.value.length > MAX_HISTORY) operationLog.value.length = MAX_HISTORY
+  }
+
+  function undo(): void {
+    if (undoStack.value.length === 0) return
+    const current = captureSnapshot()
+    const prev = undoStack.value.pop()!
+    redoStack.value.push(current)
+    applySnapshot(prev)
+    operationLog.value.unshift({ description: '撤销操作', timestamp: Date.now() })
+    if (operationLog.value.length > MAX_HISTORY) operationLog.value.length = MAX_HISTORY
+  }
+
+  function redo(): void {
+    if (redoStack.value.length === 0) return
+    const current = captureSnapshot()
+    const next = redoStack.value.pop()!
+    undoStack.value.push(current)
+    applySnapshot(next)
+    operationLog.value.unshift({ description: '重做操作', timestamp: Date.now() })
+    if (operationLog.value.length > MAX_HISTORY) operationLog.value.length = MAX_HISTORY
+  }
+
+  const canUndo = computed(() => undoStack.value.length > 0)
+  const canRedo = computed(() => redoStack.value.length > 0)
+
   // ====== 计算属性 ======
   const rootFolders = computed(() =>
     workflowFolders.value
@@ -166,6 +217,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   function addNode(type: string, position: { x: number; y: number }): WorkflowNode {
+    pushUndo(`添加节点: ${type}`)
     const node: WorkflowNode = {
       id: crypto.randomUUID(),
       type,
@@ -179,6 +231,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
   function removeNode(nodeId: string): void {
     if (!currentWorkflow.value) return
+    pushUndo('删除节点')
     currentWorkflow.value.nodes = currentWorkflow.value.nodes.filter((n) => n.id !== nodeId)
     currentWorkflow.value.edges = currentWorkflow.value.edges.filter(
       (e) => e.source !== nodeId && e.target !== nodeId,
@@ -188,6 +241,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
   function cloneNode(nodeId: string): WorkflowNode | null {
     if (!currentWorkflow.value) return null
+    pushUndo('克隆节点')
     const source = currentWorkflow.value.nodes.find((n) => n.id === nodeId)
     if (!source) return null
     const cloned: WorkflowNode = {
@@ -202,6 +256,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   function updateNodeData(nodeId: string, data: Record<string, any>): void {
+    pushUndo('修改节点属性')
     const node = currentWorkflow.value?.nodes.find((n) => n.id === nodeId)
     if (node) node.data = { ...node.data, ...data }
   }
@@ -212,6 +267,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   function updateNodeLabel(nodeId: string, label: string): void {
+    pushUndo('修改节点标签')
     const node = currentWorkflow.value?.nodes.find((n) => n.id === nodeId)
     if (node) node.label = label
   }
@@ -236,6 +292,8 @@ export const useWorkflowStore = defineStore('workflow', () => {
       return
     }
 
+    pushUndo('添加连线')
+
     currentWorkflow.value.edges.push({
       id: `e-${source}-${sourceHandle ?? 'default'}-${target}-${targetHandle ?? 'default'}`,
       source,
@@ -247,6 +305,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
   function removeEdge(edgeId: string): void {
     if (!currentWorkflow.value) return
+    pushUndo('删除连线')
     currentWorkflow.value.edges = currentWorkflow.value.edges.filter((e) => e.id !== edgeId)
   }
 
@@ -333,6 +392,48 @@ export const useWorkflowStore = defineStore('workflow', () => {
     debugNodeStatus.value = result.status
   }
 
+  // ====== 版本管理 ======
+  const versions = ref<any[]>([])
+
+  async function loadVersions(): Promise<void> {
+    const workflowId = currentWorkflow.value?.id
+    if (!workflowId) { versions.value = []; return }
+    versions.value = await api().workflowVersion.list(workflowId)
+  }
+
+  async function saveVersion(name?: string): Promise<void> {
+    const wf = currentWorkflow.value
+    if (!wf) return
+    const versionName = name || await api().workflowVersion.nextName(wf.id)
+    const version = await api().workflowVersion.add(wf.id, versionName, wf.nodes, wf.edges)
+    versions.value.unshift(version)
+  }
+
+  async function deleteVersion(versionId: string): Promise<void> {
+    const workflowId = currentWorkflow.value?.id
+    if (!workflowId) return
+    await api().workflowVersion.delete(workflowId, versionId)
+    versions.value = versions.value.filter((v) => v.id !== versionId)
+  }
+
+  async function restoreVersion(versionId: string): Promise<void> {
+    const workflowId = currentWorkflow.value?.id
+    if (!workflowId) return
+    const version = await api().workflowVersion.get(workflowId, versionId)
+    if (!version) return
+    pushUndo('恢复版本')
+    currentWorkflow.value!.nodes = JSON.parse(JSON.stringify(version.snapshot.nodes))
+    currentWorkflow.value!.edges = JSON.parse(JSON.stringify(version.snapshot.edges))
+  }
+
+  // 切换工作流时加载版本并清空 undo/redo
+  watch(() => currentWorkflow.value?.id, () => {
+    loadVersions()
+    undoStack.value = []
+    redoStack.value = []
+    operationLog.value = []
+  })
+
   // ====== 草稿持久化 ======
   function saveDraft(): void {
     if (!currentWorkflow.value) return
@@ -409,6 +510,20 @@ export const useWorkflowStore = defineStore('workflow', () => {
     debugNodeResult,
     debugNodeId,
     debugSingleNode,
+    // Undo/Redo
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    undoStack,
+    redoStack,
+    operationLog,
+    // 版本管理
+    versions,
+    loadVersions,
+    saveVersion,
+    deleteVersion,
+    restoreVersion,
     // 草稿
     saveDraft,
     restoreDraft,

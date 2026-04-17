@@ -667,6 +667,21 @@ const api = {
       ipcRenderer.invoke('executionLog:clear', workflowId),
   },
 
+  workflowVersion: {
+    list: (workflowId: string): Promise<any[]> =>
+      ipcRenderer.invoke('workflowVersion:list', workflowId),
+    add: (workflowId: string, name: string, nodes: any[], edges: any[]): Promise<any> =>
+      ipcRenderer.invoke('workflowVersion:add', workflowId, name, nodes, edges),
+    get: (workflowId: string, versionId: string): Promise<any | undefined> =>
+      ipcRenderer.invoke('workflowVersion:get', workflowId, versionId),
+    delete: (workflowId: string, versionId: string): Promise<void> =>
+      ipcRenderer.invoke('workflowVersion:delete', workflowId, versionId),
+    clear: (workflowId: string): Promise<void> =>
+      ipcRenderer.invoke('workflowVersion:clear', workflowId),
+    nextName: (workflowId: string): Promise<string> =>
+      ipcRenderer.invoke('workflowVersion:nextName', workflowId),
+  },
+
   // 主进程 → 渲染进程事件监听
   on: (event: string, callback: (...args: unknown[]) => void): (() => void) => {
     const channel = `on:${event}`

@@ -5,6 +5,7 @@ import { migrateBookmarksAndPasswords } from './services/migration'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
 import { registerExecutionLogIpcHandlers } from './ipc/execution-log'
+import { registerWorkflowVersionIpcHandlers } from './ipc/workflow-version'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
 import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
@@ -300,6 +301,7 @@ if (!gotTheLock) {
     registerIpcHandlers()
     registerDownloadIpcHandlers()
     registerExecutionLogIpcHandlers()
+    registerWorkflowVersionIpcHandlers()
 
     // 初始化插件系统
     pluginManager.loadAll()

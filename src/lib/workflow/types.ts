@@ -90,3 +90,15 @@ export interface ExecutionLog {
   status: 'running' | 'completed' | 'paused' | 'error'
   steps: ExecutionStep[]
 }
+
+/** 工作流版本快照 */
+export interface WorkflowVersion {
+  id: string
+  workflowId: string
+  name: string
+  snapshot: {
+    nodes: WorkflowNode[]
+    edges: WorkflowEdge[]
+  }
+  createdAt: number
+}

@@ -21,7 +21,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { useWorkflowStore } from '@/stores/workflow'
 import CustomNodeWrapper from './CustomNodeWrapper.vue'
 import NodeSidebar from './NodeSidebar.vue'
-import NodeProperties from './NodeProperties.vue'
+import RightPanel from './RightPanel.vue'
 import ExecutionBar from './ExecutionBar.vue'
 import WorkflowListDialog from './WorkflowListDialog.vue'
 import { Plus, FolderOpen } from 'lucide-vue-next'
@@ -257,10 +257,26 @@ async function onListSelect(workflow: any) {
     store.selectedNodeId = null
   }
 }
+
+// ====== Undo/Redo 快捷键 ======
+function handleKeyDown(e: KeyboardEvent) {
+  if (!store.currentWorkflow) return
+  // Ctrl+Shift+Z = Redo
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+    e.preventDefault()
+    store.redo()
+    return
+  }
+  // Ctrl+Z = Undo
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+    e.preventDefault()
+    store.undo()
+  }
+}
 </script>
 
 <template>
-  <div class="flex flex-col h-full min-h-0 bg-background overflow-hidden">
+  <div class="flex flex-col h-full min-h-0 bg-background overflow-hidden" tabindex="0" @keydown="handleKeyDown">
     <!-- 顶部菜单栏：始终显示 -->
     <div class="flex items-center border-b border-border px-2 py-1">
       <Menubar class="border-0 bg-transparent h-7">
@@ -365,7 +381,7 @@ async function onListSelect(workflow: any) {
             <ResizableHandle with-handle />
 
             <ResizablePanel :default-size="panelSizes[2]" :min-size="15" :max-size="50">
-              <NodeProperties />
+              <RightPanel />
             </ResizablePanel>
           </ResizablePanelGroup>
         </ResizablePanel>

@@ -1,4 +1,4 @@
-import { createBrowserTools } from './tools'
+import { createToolDiscoveryTools } from './tools'
 import { listenToChatStream, type StreamCallbacks } from './stream'
 import { useAIProviderStore } from '@/stores/ai-provider'
 
@@ -43,11 +43,8 @@ export async function runAgentStream(
     { role: 'user', content: userContent },
   ]
 
-  // 构造工具定义（Anthropic 格式，纯 JSON Schema，可安全通过 IPC 序列化）
-  const allTools = createBrowserTools(targetTabId)
-  const tools = enabledToolNames
-    ? allTools.filter((t) => enabledToolNames.has(t.name))
-    : allTools
+  // 只向模型暴露工具发现工具，业务工具通过 execute_tool 间接执行。
+  const tools = createToolDiscoveryTools()
 
   const requestId = crypto.randomUUID()
 
@@ -65,6 +62,7 @@ export async function runAgentStream(
       stream: true,
       maxTokens: model.maxTokens || 4096,
       targetTabId: targetTabId ?? undefined,
+      enabledToolNames: enabledToolNames ? Array.from(enabledToolNames) : undefined,
       ...(model.supportsThinking ? { thinking: { type: 'enabled' as const, budgetTokens: 2000 } } : {}),
     })
   } catch (error) {

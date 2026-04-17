@@ -23,6 +23,8 @@ import {
 
 const store = useWorkflowStore()
 
+const props = defineProps<{ embedded?: boolean }>()
+
 const definition = computed(() => {
   if (!store.selectedNode) return null
   return getNodeDefinition(store.selectedNode.type)
@@ -137,7 +139,7 @@ function confirmImport() {
 </script>
 
 <template>
-  <div class="border-l border-border bg-background flex flex-col h-full">
+  <div :class="[!props.embedded && 'border-l', 'border-border bg-background flex flex-col h-full']">
     <div v-if="!store.selectedNode || !definition" class="flex-1 flex items-center justify-center">
       <p class="text-xs text-muted-foreground">点击节点查看属性</p>
     </div>
