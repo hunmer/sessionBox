@@ -166,6 +166,8 @@ export const useWorkflowStore = defineStore('workflow', () => {
       currentWorkflow.value = created
     }
     clearDraft()
+    // 保存时自动创建版本快照
+    await saveVersion()
   }
 
   async function deleteWorkflow(id: string): Promise<void> {

@@ -296,9 +296,15 @@ async function onListSelect(workflow: any) {
   }
 }
 
-// ====== Undo/Redo 快捷键 ======
+// ====== 快捷键 ======
 function handleKeyDown(e: KeyboardEvent) {
   if (!store.currentWorkflow) return
+  // Ctrl+S = 保存（含版本快照）
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    saveWorkflow()
+    return
+  }
   // Ctrl+Shift+Z = Redo
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
     e.preventDefault()

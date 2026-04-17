@@ -3,7 +3,7 @@ import { useWorkflowStore } from '@/stores/workflow'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { History, RotateCcw, RotateCw, Save, Trash2, ArrowDownToLine } from 'lucide-vue-next'
+import { History, RotateCcw, RotateCw, Trash2, ArrowDownToLine } from 'lucide-vue-next'
 
 const store = useWorkflowStore()
 
@@ -11,10 +11,6 @@ function formatTime(ts: number): string {
   const d = new Date(ts)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
-
-async function handleSaveVersion() {
-  await store.saveVersion()
 }
 
 async function handleRestoreVersion(versionId: string) {
@@ -76,20 +72,6 @@ function handleRedo() {
       <!-- 版本历史 -->
       <TabsContent value="history" class="flex-1 min-h-0 mt-0">
         <div class="flex flex-col h-full">
-          <!-- 保存按钮 -->
-          <div class="px-3 py-2 border-b border-border">
-            <Button
-              size="sm"
-              variant="outline"
-              class="w-full h-7 text-xs gap-1.5"
-              :disabled="!store.currentWorkflow"
-              @click="handleSaveVersion"
-            >
-              <Save class="w-3 h-3" />
-              保存版本快照
-            </Button>
-          </div>
-
           <!-- 版本列表 -->
           <ScrollArea class="flex-1">
             <div class="p-2 space-y-1">
