@@ -11,6 +11,7 @@ import {
   buildToolListResponse,
   isBrowserBusinessToolName,
 } from '../../src/lib/agent/tools'
+import { executeWorkflowTool } from './workflow-tool-executor'
 
 interface ProxyRequest {
   _requestId: string
@@ -219,7 +220,6 @@ export async function proxyChatCompletions(
         console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
         let result: any
         if (_mode === 'workflow' && _workflowId) {
-          const { executeWorkflowTool } = await import('./workflow-tool-executor')
           result = await executeWorkflowTool(tc.name, tc.args, _workflowId, mainWindow)
         } else {
           result = await executeTool(tc.name, tc.args, targetTabId, enabledToolNames)
