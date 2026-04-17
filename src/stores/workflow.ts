@@ -582,7 +582,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
   function listenForWorkflowToolRequests() {
     const cleanup = (window as any).api.on('workflow-tool:execute', async (request: WorkflowToolExecuteRequest) => {
-      const result = executeRendererWorkflowTool(request.name, request.args || {})
+      const result = await executeRendererWorkflowTool(request.name, request.args || {})
 
       try {
         await (window as any).api.workflowTool.respond(request.requestId, result)

@@ -15,6 +15,9 @@ export const WORKFLOW_TOOL_OWNERS: Record<string, WorkflowToolOwner> = {
   delete_edge: 'main',
   batch_update: 'main',
   auto_layout: 'main',
+  execute_workflow_sync: 'renderer',
+  execute_workflow_async: 'renderer',
+  get_workflow_result: 'renderer',
 }
 
 interface PendingRendererToolRequest {
@@ -25,6 +28,7 @@ interface PendingRendererToolRequest {
 }
 
 const RENDERER_TOOL_TIMEOUT_MS = 10_000
+const WORKFLOW_EXECUTION_TIMEOUT_MS = 300_000 // 工作流执行最长等待 5 分钟
 const pendingRendererToolRequests = new Map<string, PendingRendererToolRequest>()
 
 function cleanupPendingRendererToolRequest(requestId: string): void {
@@ -52,6 +56,10 @@ export function rejectPendingRendererToolsForRequest(chatRequestId: string, erro
   }
 }
 
+const WORKFLOW_EXECUTION_TOOLS = new Set([
+  'execute_workflow_sync',
+])
+
 async function executeRendererWorkflowTool(
   mainWindow: BrowserWindow,
   chatRequestId: string,
@@ -65,12 +73,15 @@ async function executeRendererWorkflowTool(
   }
 
   const requestId = randomUUID()
+  const timeout = WORKFLOW_EXECUTION_TOOLS.has(name)
+    ? WORKFLOW_EXECUTION_TIMEOUT_MS
+    : RENDERER_TOOL_TIMEOUT_MS
 
   return await new Promise((resolve) => {
     const timer = setTimeout(() => {
       cleanupPendingRendererToolRequest(requestId)
       resolve({ success: false, message: `渲染进程工具执行超时: ${name}` })
-    }, RENDERER_TOOL_TIMEOUT_MS)
+    }, timeout)
 
     pendingRendererToolRequests.set(requestId, {
       chatRequestId,
