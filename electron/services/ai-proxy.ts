@@ -24,6 +24,8 @@ interface ProxyRequest {
   thinking?: { type: 'enabled'; budgetTokens: number }
   targetTabId?: string
   enabledToolNames?: string[]
+  _mode?: string
+  _workflowId?: string
 }
 
 /** 可重试的 HTTP 状态码（服务过载、限流、临时故障） */
@@ -84,7 +86,7 @@ export async function proxyChatCompletions(
   mainWindow: BrowserWindow,
   params: ProxyRequest,
 ): Promise<void> {
-  const { _requestId, providerId, modelId, system, messages, tools, stream, maxTokens, thinking, targetTabId, enabledToolNames } = params
+  const { _requestId, providerId, modelId, system, messages, tools, stream, maxTokens, thinking, targetTabId, enabledToolNames, _mode, _workflowId } = params
 
   // 创建 AbortController 并注册到全局映射
   const abortController = new AbortController()
@@ -215,7 +217,13 @@ export async function proxyChatCompletions(
       const toolResults: Array<Record<string, unknown>> = []
       for (const tc of parsed.toolCalls) {
         console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
-        const result = await executeTool(tc.name, tc.args, targetTabId, enabledToolNames)
+        let result: any
+        if (_mode === 'workflow' && _workflowId) {
+          const { executeWorkflowTool } = await import('./workflow-tool-executor')
+          result = await executeWorkflowTool(tc.name, tc.args, _workflowId, mainWindow)
+        } else {
+          result = await executeTool(tc.name, tc.args, targetTabId, enabledToolNames)
+        }
 
         // 构建工具结果内容：图片需要结构化数组格式
         let toolResultContent: string | Array<Record<string, unknown>>
