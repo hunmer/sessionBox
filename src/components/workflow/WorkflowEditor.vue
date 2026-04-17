@@ -20,6 +20,7 @@ import {
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { useWorkflowStore } from '@/stores/workflow'
 import CustomNodeWrapper from './CustomNodeWrapper.vue'
+import CustomEdge from './CustomEdge.vue'
 import NodeSidebar from './NodeSidebar.vue'
 import RightPanel from './RightPanel.vue'
 import ExecutionBar from './ExecutionBar.vue'
@@ -84,6 +85,62 @@ function onNodeSelectFromDialog(type: string) {
   connectDropPosition = null
 }
 
+// ====== 边加号按钮：在两节点之间插入新节点 ======
+let insertEdgeId: string | null = null
+let insertSourceId: string | null = null
+let insertTargetId: string | null = null
+
+function onEdgeInsertNode(edgeId: string, sourceId: string, targetId: string) {
+  insertEdgeId = edgeId
+  insertSourceId = sourceId
+  insertTargetId = targetId
+  nodeSelectOpen.value = true
+}
+
+function onNodeSelectFromEdge(type: string) {
+  if (!insertSourceId || !insertTargetId || !store.currentWorkflow) return
+
+  const sourceNode = store.currentWorkflow.nodes.find(n => n.id === insertSourceId)
+  if (!sourceNode) return
+
+  const targetNode = store.currentWorkflow.nodes.find(n => n.id === insertTargetId)
+  if (!targetNode) return
+
+  // 新节点位置：源节点与目标节点中点
+  const position = {
+    x: (sourceNode.position.x + targetNode.position.x) / 2,
+    y: (sourceNode.position.y + targetNode.position.y) / 2,
+  }
+
+  const newNode = store.addNode(type, position)
+
+  // 删除原来的边
+  if (insertEdgeId) {
+    store.removeEdge(insertEdgeId)
+  }
+
+  // 创建两条新边：source -> newNode -> target
+  store.addEdge(insertSourceId, newNode.id, null, null)
+  store.addEdge(newNode.id, insertTargetId, null, null)
+
+  // 重置状态
+  insertEdgeId = null
+  insertSourceId = null
+  insertTargetId = null
+}
+
+function onNodeSelectDialogClose(open: boolean) {
+  nodeSelectOpen.value = open
+  if (!open) {
+    // 对话框关闭时清理两种来源的状态
+    insertEdgeId = null
+    insertSourceId = null
+    insertTargetId = null
+    connectSource = null
+    connectDropPosition = null
+  }
+}
+
 // ====== ExecutionBar 折叠/展开 & 面板大小 ======
 const EXEC_PANEL_SIZE_KEY = 'workflow-exec-panel-size'
 const executionBarExpanded = ref(false)
@@ -141,6 +198,9 @@ const {
   setViewport,
   fitView,
   updateNodeInternals,
+  getSelectedNodes,
+  getSelectedEdges,
+  findNode,
 } = useVueFlow(FLOW_ID)
 
 onNodesChange((changes) => {
@@ -163,6 +223,10 @@ onEdgesChange((changes) => {
 
 const nodeTypes = {
   custom: markRaw(CustomNodeWrapper),
+}
+
+const edgeTypes = {
+  custom: markRaw(CustomEdge),
 }
 
 // ====== Viewport 持久化 ======
@@ -212,16 +276,13 @@ const nodes = computed(() =>
 const edges = computed(() =>
   (store.currentWorkflow?.edges || []).map((e) => ({
     id: e.id,
+    type: 'custom',
     source: e.source,
     target: e.target,
     sourceHandle: e.sourceHandle,
     targetHandle: e.targetHandle,
     animated: true,
     markerEnd: MarkerType.ArrowClosed,
-    style: {
-      stroke: 'var(--primary)',
-      strokeWidth: 2.5,
-    },
   })),
 )
 
@@ -347,6 +408,86 @@ async function onListSelect(workflow: any) {
   }
 }
 
+// ====== 复制 / 粘贴 ======
+interface ClipboardNode {
+  id: string
+  type: string
+  position: { x: number; y: number }
+  data: Record<string, any>
+  label: string
+  nodeType: string
+}
+
+interface ClipboardEdge {
+  source: string
+  target: string
+  sourceHandle: string | null
+  targetHandle: string | null
+}
+
+let clipboardNodes: ClipboardNode[] = []
+let clipboardEdges: ClipboardEdge[] = []
+let pasteCount = 0
+
+function copySelectedNodes() {
+  const selected = getSelectedNodes.value
+  if (!selected.length) return
+
+  const selectedIds = new Set(selected.map((n) => n.id))
+  clipboardNodes = selected.map((n) => ({
+    id: n.id,
+    type: n.type ?? 'custom',
+    position: { ...n.position },
+    data: { ...(n.data as Record<string, any>) },
+    label: (n.data as any)?.label ?? '',
+    nodeType: (n.data as any)?.nodeType ?? '',
+  }))
+
+  // 收集选中节点之间的边
+  clipboardEdges = (store.currentWorkflow?.edges ?? [])
+    .filter((e) => selectedIds.has(e.source) && selectedIds.has(e.target))
+    .map((e) => ({
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.sourceHandle ?? null,
+      targetHandle: e.targetHandle ?? null,
+    }))
+
+  pasteCount = 0
+  notify.success(`已复制 ${selected.length} 个节点`)
+}
+
+function pasteClipboardNodes() {
+  if (!clipboardNodes.length || !store.currentWorkflow) return
+
+  pasteCount++
+  const offset = 20 * pasteCount
+  const idMap = new Map<string, string>()
+
+  // 创建新节点，维护 ID 映射
+  for (const clip of clipboardNodes) {
+    const newNode = store.addNode(clip.nodeType, {
+      x: clip.position.x + offset,
+      y: clip.position.y + offset,
+    })
+    // 复制 data 和 label
+    newNode.data = { ...clip.data }
+    newNode.label = clip.label
+    idMap.set(clip.id, newNode.id)
+  }
+
+  // 重建选中节点之间的边
+  for (const edge of clipboardEdges) {
+    const newSource = idMap.get(edge.source)
+    const newTarget = idMap.get(edge.target)
+    if (newSource && newTarget) {
+      store.addEdge(newSource, newTarget, edge.sourceHandle, edge.targetHandle)
+    }
+  }
+
+  notify.success(`已粘贴 ${clipboardNodes.length} 个节点`)
+}
+
 // ====== 快捷键 ======
 function handleKeyDown(e: KeyboardEvent) {
   if (!store.currentWorkflow) return
@@ -366,6 +507,21 @@ function handleKeyDown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
     e.preventDefault()
     store.undo()
+    return
+  }
+  // Ctrl+C = 复制选中节点
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+    // 不拦截输入框内的复制
+    if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
+    e.preventDefault()
+    copySelectedNodes()
+    return
+  }
+  // Ctrl+V = 粘贴
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+    if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
+    e.preventDefault()
+    pasteClipboardNodes()
   }
 }
 </script>
@@ -473,6 +629,7 @@ function handleKeyDown(e: KeyboardEvent) {
                 :nodes="nodes"
                 :edges="edges"
                 :node-types="nodeTypes"
+                :edge-types="edgeTypes"
                 :min-zoom="0.2"
                 :max-zoom="4"
                 :connection-mode="ConnectionMode.Loose"
@@ -488,6 +645,9 @@ function handleKeyDown(e: KeyboardEvent) {
               >
                 <Background />
                 <MiniMap />
+                <template #edge-custom="edgeProps">
+                  <CustomEdge v-bind="edgeProps" @insert-node="onEdgeInsertNode" />
+                </template>
                 <Controls />
               </VueFlow>
             </ResizablePanel>
@@ -526,8 +686,8 @@ function handleKeyDown(e: KeyboardEvent) {
 
     <NodeSelectDialog
       :open="nodeSelectOpen"
-      @update:open="nodeSelectOpen = $event"
-      @select="onNodeSelectFromDialog"
+      @update:open="onNodeSelectDialogClose"
+      @select="insertEdgeId ? onNodeSelectFromEdge($event) : onNodeSelectFromDialog($event)"
     />
   </div>
 </template>

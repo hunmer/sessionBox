@@ -63,6 +63,12 @@ export interface NodeProperty {
   description?: string
 }
 
+/** 节点连接点配置 */
+export interface NodeHandleConfig {
+  source?: boolean // 是否显示输出连接点，默认 true
+  target?: boolean // 是否显示输入连接点，默认 true
+}
+
 /** 节点注册表项 */
 export interface NodeTypeDefinition {
   type: string
@@ -71,6 +77,7 @@ export interface NodeTypeDefinition {
   icon: string
   description: string
   properties: NodeProperty[]
+  handles?: NodeHandleConfig
 }
 
 /** 执行步骤记录 */
