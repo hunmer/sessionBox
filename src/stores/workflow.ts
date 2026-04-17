@@ -512,6 +512,72 @@ export const useWorkflowStore = defineStore('workflow', () => {
     localStorage.removeItem(DRAFT_KEY)
   }
 
+  // ====== AI 助手增量更新 ======
+
+  interface WorkflowChanges {
+    upsertNodes: any[]
+    deleteNodeIds: string[]
+    upsertEdges: any[]
+    deleteEdgeIds: string[]
+  }
+
+  function summarizeChanges(changes: WorkflowChanges): string {
+    const parts: string[] = []
+    if (changes.upsertNodes.length) parts.push(`+${changes.upsertNodes.length}节点`)
+    if (changes.deleteNodeIds.length) parts.push(`-${changes.deleteNodeIds.length}节点`)
+    if (changes.upsertEdges.length) parts.push(`+${changes.upsertEdges.length}连线`)
+    if (changes.deleteEdgeIds.length) parts.push(`-${changes.deleteEdgeIds.length}连线`)
+    return parts.join(' ') || '无变更'
+  }
+
+  function mergeWorkflowChanges(changes: WorkflowChanges) {
+    if (!currentWorkflow.value) return
+
+    // 记录到 undo 栈
+    pushUndo('AI 修改: ' + summarizeChanges(changes))
+
+    // 增量更新节点
+    for (const node of changes.upsertNodes) {
+      const idx = currentWorkflow.value.nodes.findIndex(n => n.id === node.id)
+      if (idx >= 0) {
+        currentWorkflow.value.nodes[idx] = node
+      } else {
+        currentWorkflow.value.nodes.push(node)
+      }
+    }
+
+    // 删除节点
+    if (changes.deleteNodeIds.length > 0) {
+      currentWorkflow.value.nodes = currentWorkflow.value.nodes
+        .filter(n => !changes.deleteNodeIds.includes(n.id))
+    }
+
+    // 增量更新边
+    for (const edge of changes.upsertEdges) {
+      const idx = currentWorkflow.value.edges.findIndex(e => e.id === edge.id)
+      if (idx >= 0) {
+        currentWorkflow.value.edges[idx] = edge
+      } else {
+        currentWorkflow.value.edges.push(edge)
+      }
+    }
+
+    // 删除边
+    if (changes.deleteEdgeIds.length > 0) {
+      currentWorkflow.value.edges = currentWorkflow.value.edges
+        .filter(e => !changes.deleteEdgeIds.includes(e.id))
+    }
+  }
+
+  function listenForFileUpdates() {
+    const cleanup = (window as any).api.on('workflow:updated', (data: any) => {
+      if (data.workflowId === currentWorkflow.value?.id && data.changes) {
+        mergeWorkflowChanges(data.changes)
+      }
+    })
+    return cleanup
+  }
+
   return {
     // 数据
     workflows,
@@ -579,5 +645,8 @@ export const useWorkflowStore = defineStore('workflow', () => {
     saveDraft,
     restoreDraft,
     clearDraft,
+    // AI 助手增量更新
+    mergeWorkflowChanges,
+    listenForFileUpdates,
   }
 })
