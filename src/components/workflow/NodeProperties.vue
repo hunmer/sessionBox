@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { resolveLucideIcon } from '@/lib/lucide-resolver'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight, Import, FileDown, Info } from 'lucide-vue-next'
+import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight, Import, FileDown, Info, Braces } from 'lucide-vue-next'
 import OutputFieldEditor from './OutputFieldEditor.vue'
 import VariablePicker from './VariablePicker.vue'
 import {
@@ -39,6 +39,20 @@ const IconComponent = computed(() => {
 const isDebugging = computed(() => store.debugNodeStatus === 'running')
 const outputExpanded = ref(true)
 const outputsExpanded = ref(true)
+
+/** 追踪哪些字段处于"文本/变量模式" */
+const textModeKeys = ref<Set<string>>(new Set())
+
+/** 判断字段是否为纯文本类型（无需切换） */
+function isTextType(type: string): boolean {
+  return type === 'text' || type === 'textarea' || type === 'code'
+}
+
+function toggleTextMode(key: string) {
+  const next = new Set(textModeKeys.value)
+  next.has(key) ? next.delete(key) : next.add(key)
+  textModeKeys.value = next
+}
 
 // 导入对话框
 const importDialogOpen = ref(false)
@@ -141,16 +155,30 @@ function confirmImport() {
 
 <template>
   <div :class="[!props.embedded && 'border-l', 'border-border bg-background flex flex-col h-full']">
-    <div v-if="!store.selectedNode || !definition" class="flex-1 flex items-center justify-center">
-      <p class="text-xs text-muted-foreground">点击节点查看属性</p>
+    <div
+      v-if="!store.selectedNode || !definition"
+      class="flex-1 flex items-center justify-center"
+    >
+      <p class="text-xs text-muted-foreground">
+        点击节点查看属性
+      </p>
     </div>
 
     <template v-else>
       <div class="flex items-center gap-2 p-3 border-b border-border">
-        <component :is="IconComponent" v-if="IconComponent" class="w-4 h-4 text-muted-foreground" />
+        <component
+          :is="IconComponent"
+          v-if="IconComponent"
+          class="w-4 h-4 text-muted-foreground"
+        />
         <div class="min-w-0 flex-1">
-          <div class="text-sm font-medium truncate">{{ definition.label }}</div>
-          <div v-if="definition?.description" class="text-[10px] text-muted-foreground truncate">
+          <div class="text-sm font-medium truncate">
+            {{ definition.label }}
+          </div>
+          <div
+            v-if="definition?.description"
+            class="text-[10px] text-muted-foreground truncate"
+          >
             {{ definition.description }}
           </div>
         </div>
@@ -165,8 +193,14 @@ function confirmImport() {
           :disabled="isDebugging"
           @click="handleDebug"
         >
-          <Loader2 v-if="isDebugging" class="w-3 h-3 animate-spin" />
-          <Bug v-else class="w-3 h-3" />
+          <Loader2
+            v-if="isDebugging"
+            class="w-3 h-3 animate-spin"
+          />
+          <Bug
+            v-else
+            class="w-3 h-3"
+          />
           {{ isDebugging ? '执行中...' : '调试此节点' }}
         </Button>
       </div>
@@ -189,7 +223,10 @@ function confirmImport() {
             v-if="store.debugNodeResult.status === 'completed'"
             class="w-3 h-3 text-green-500 shrink-0"
           />
-          <XCircle v-else class="w-3 h-3 text-red-500 shrink-0" />
+          <XCircle
+            v-else
+            class="w-3 h-3 text-red-500 shrink-0"
+          />
           <span class="text-xs font-medium">
             {{ store.debugNodeResult.status === 'completed' ? '执行成功' : '执行失败' }}
           </span>
@@ -198,13 +235,24 @@ function confirmImport() {
           </span>
         </button>
 
-        <div v-if="outputExpanded" class="mt-2 space-y-1.5">
+        <div
+          v-if="outputExpanded"
+          class="mt-2 space-y-1.5"
+        >
           <!-- 错误信息 -->
-          <div v-if="store.debugNodeResult.error" class="rounded bg-red-500/10 p-2">
-            <p class="text-[11px] text-red-500 font-mono break-all">{{ store.debugNodeResult.error }}</p>
+          <div
+            v-if="store.debugNodeResult.error"
+            class="rounded bg-red-500/10 p-2"
+          >
+            <p class="text-[11px] text-red-500 font-mono break-all">
+              {{ store.debugNodeResult.error }}
+            </p>
           </div>
           <!-- 输出结果 -->
-          <div v-if="store.debugNodeResult.output !== undefined" class="rounded bg-muted p-2">
+          <div
+            v-if="store.debugNodeResult.output !== undefined"
+            class="rounded bg-muted p-2"
+          >
             <pre class="text-[11px] font-mono text-foreground whitespace-pre-wrap break-all max-h-40 overflow-auto">{{ formatOutput(store.debugNodeResult.output) }}</pre>
           </div>
         </div>
@@ -213,7 +261,10 @@ function confirmImport() {
       <ScrollArea class="flex-1">
         <div class="p-3 space-y-3">
           <!-- 通用基础属性：延迟执行 -->
-          <div v-if="store.selectedNode.type !== 'start' && store.selectedNode.type !== 'end'" class="space-y-1">
+          <div
+            v-if="store.selectedNode.type !== 'start' && store.selectedNode.type !== 'end'"
+            class="space-y-1"
+          >
             <label class="text-xs font-medium flex items-center gap-1">
               延迟执行
               <TooltipProvider :delay-duration="300">
@@ -221,7 +272,10 @@ function confirmImport() {
                   <TooltipTrigger as-child>
                     <Info class="w-3 h-3 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
-                  <TooltipContent side="right" class="max-w-[240px]">
+                  <TooltipContent
+                    side="right"
+                    class="max-w-[240px]"
+                  >
                     <p>执行当前节点前等待的毫秒数，0 表示不延迟</p>
                   </TooltipContent>
                 </Tooltip>
@@ -238,25 +292,53 @@ function confirmImport() {
             />
           </div>
 
-          <div v-for="prop in definition.properties" :key="prop.key" class="space-y-1">
+          <div
+            v-for="prop in definition.properties"
+            :key="prop.key"
+            class="space-y-1"
+          >
             <label class="text-xs font-medium flex items-center gap-1">
-              {{ prop.label }}
-              <span v-if="prop.required" class="text-red-500">*</span>
-              <TooltipProvider v-if="prop.tooltip" :delay-duration="300">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <Info class="w-3 h-3 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="right" class="max-w-[240px]">
-                    <p>{{ prop.tooltip }}</p>
-                    <p class="text-[10px] opacity-60 mt-0.5">类型: {{ prop.type }}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <span class="flex-1 flex items-center gap-1">
+                {{ prop.label }}
+                <span
+                  v-if="prop.required"
+                  class="text-red-500"
+                >*</span>
+                <TooltipProvider
+                  v-if="prop.tooltip"
+                  :delay-duration="300"
+                >
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Info class="w-3 h-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="right"
+                      class="max-w-[240px]"
+                    >
+                      <p>{{ prop.tooltip }}</p>
+                      <p class="text-[10px] opacity-60 mt-0.5">类型: {{ prop.type }}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </span>
+              <button
+                v-if="!isTextType(prop.type)"
+                type="button"
+                class="p-0.5 rounded hover:bg-accent transition-colors"
+                :class="textModeKeys.has(prop.key) ? 'text-primary' : 'text-muted-foreground'"
+                title="切换变量模式"
+                @click="toggleTextMode(prop.key)"
+              >
+                <Braces class="w-3.5 h-3.5" />
+              </button>
             </label>
 
-            <!-- text + 变量按钮 -->
-            <div v-if="prop.type === 'text'" class="flex gap-1">
+            <!-- 文本/变量模式：所有类型统一 Input + VariablePicker -->
+            <div
+              v-if="textModeKeys.has(prop.key) || isTextType(prop.type)"
+              class="flex gap-1"
+            >
               <Input
                 :model-value="getFieldValue(prop.key)"
                 :readonly="prop.readonly"
@@ -271,73 +353,55 @@ function confirmImport() {
               />
             </div>
 
-            <!-- textarea + 变量按钮 -->
-            <div v-else-if="prop.type === 'textarea'" class="flex gap-1">
-              <Textarea
+            <!-- 原生类型模式 -->
+            <template v-else>
+              <Input
+                v-if="prop.type === 'number'"
+                type="number"
                 :model-value="getFieldValue(prop.key)"
                 :readonly="prop.readonly"
-                :placeholder="prop.label"
-                class="text-xs min-h-[60px] flex-1"
-                @update:model-value="setFieldValue(prop.key, $event)"
+                class="h-7 text-xs"
+                @update:model-value="setFieldValue(prop.key, Number($event))"
               />
-              <VariablePicker
-                v-if="store.selectedNodeId"
-                :exclude-node-id="store.selectedNodeId"
-                @select="insertVariable(prop.key, $event)"
-              />
-            </div>
 
-            <!-- code + 变量按钮 -->
-            <div v-else-if="prop.type === 'code'" class="flex gap-1">
-              <Textarea
+              <Select
+                v-else-if="prop.type === 'select'"
                 :model-value="getFieldValue(prop.key)"
-                :readonly="prop.readonly"
-                placeholder="// JavaScript code"
-                class="text-xs font-mono min-h-[120px] flex-1"
                 @update:model-value="setFieldValue(prop.key, $event)"
-              />
-              <VariablePicker
-                v-if="store.selectedNodeId"
-                :exclude-node-id="store.selectedNodeId"
-                @select="insertVariable(prop.key, $event)"
-              />
-            </div>
+              >
+                <SelectTrigger class="h-7 text-xs">
+                  <SelectValue :placeholder="prop.label" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="opt in (prop.options || [])"
+                    :key="opt.value"
+                    :value="opt.value"
+                    class="text-xs"
+                  >
+                    {{ opt.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Input
-              v-else-if="prop.type === 'number'"
-              type="number"
-              :model-value="getFieldValue(prop.key)"
-              :readonly="prop.readonly"
-              class="h-7 text-xs"
-              @update:model-value="setFieldValue(prop.key, Number($event))"
-            />
-
-            <Select
-              v-else-if="prop.type === 'select'"
-              :model-value="getFieldValue(prop.key)"
-              @update:model-value="setFieldValue(prop.key, $event)"
-            >
-              <SelectTrigger class="h-7 text-xs">
-                <SelectValue :placeholder="prop.label" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="opt in (prop.options || [])" :key="opt.value" :value="opt.value" class="text-xs">
-                  {{ opt.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div v-else-if="prop.type === 'checkbox'" class="flex items-center gap-2">
-              <Switch
-                :model-value="getFieldValue(prop.key)"
-                :disabled="prop.readonly"
-                @update:model-value="setFieldValue(prop.key, $event)"
-              />
-              <span class="text-xs text-muted-foreground">{{ prop.readonly ? '(只读)' : '' }}</span>
-            </div>
+              <div
+                v-else-if="prop.type === 'checkbox'"
+                class="flex items-center gap-2"
+              >
+                <Switch
+                  :model-value="getFieldValue(prop.key)"
+                  :disabled="prop.readonly"
+                  @update:model-value="setFieldValue(prop.key, $event)"
+                />
+                <span class="text-xs text-muted-foreground">{{ prop.readonly ? '(只读)' : '' }}</span>
+              </div>
+            </template>
           </div>
 
-          <div v-if="definition.properties.length === 0" class="text-xs text-muted-foreground text-center py-4">
+          <div
+            v-if="definition.properties.length === 0"
+            class="text-xs text-muted-foreground text-center py-4"
+          >
             该节点无配置参数
           </div>
 
@@ -385,26 +449,48 @@ function confirmImport() {
     </template>
 
     <!-- 导入 JSON 对话框 -->
-    <Dialog :open="importDialogOpen" @update:open="importDialogOpen = $event">
+    <Dialog
+      :open="importDialogOpen"
+      @update:open="importDialogOpen = $event"
+    >
       <DialogContent class="max-w-md">
         <DialogHeader>
-          <DialogTitle class="text-sm">导入输出字段</DialogTitle>
+          <DialogTitle class="text-sm">
+            导入输出字段
+          </DialogTitle>
         </DialogHeader>
         <div class="space-y-2">
-          <p class="text-[11px] text-muted-foreground">粘贴 JSON 对象，将自动解析为输出字段结构</p>
+          <p class="text-[11px] text-muted-foreground">
+            粘贴 JSON 对象，将自动解析为输出字段结构
+          </p>
           <Textarea
             v-model="importJson"
-            placeholder='{"key1": "value1", "key2": 123}'
+            placeholder="{&quot;key1&quot;: &quot;value1&quot;, &quot;key2&quot;: 123}"
             class="text-xs font-mono min-h-[160px]"
             @keydown.ctrl.enter="confirmImport"
           />
-          <p v-if="importError" class="text-[11px] text-red-500">{{ importError }}</p>
+          <p
+            v-if="importError"
+            class="text-[11px] text-red-500"
+          >
+            {{ importError }}
+          </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" size="sm" class="h-7 text-xs" @click="importDialogOpen = false">
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-7 text-xs"
+            @click="importDialogOpen = false"
+          >
             取消
           </Button>
-          <Button size="sm" class="h-7 text-xs" :disabled="!importJson.trim()" @click="confirmImport">
+          <Button
+            size="sm"
+            class="h-7 text-xs"
+            :disabled="!importJson.trim()"
+            @click="confirmImport"
+          >
             确认导入
           </Button>
         </DialogFooter>

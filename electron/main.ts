@@ -1,7 +1,7 @@
 import { app, BrowserWindow, nativeImage, protocol, net } from 'electron'
 import { join } from 'path'
 import { setupUserAgent } from './utils/user-agent'
-import { migrateBookmarksAndPasswords } from './services/migration'
+import { migrateBookmarksAndPasswords, migrateWorkflows } from './services/migration'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
 import { registerExecutionLogIpcHandlers } from './ipc/execution-log'
@@ -290,8 +290,9 @@ if (!gotTheLock) {
 
     ensureWindowsBrowserRegistration()
 
-    // 迁移 bookmark/password 数据到独立 JsonStore
+    // 迁移 bookmark/password/workflow 数据到独立 JsonStore
     migrateBookmarksAndPasswords()
+    migrateWorkflows()
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)

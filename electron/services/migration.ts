@@ -3,7 +3,7 @@ import { app } from 'electron'
 import { existsSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'crypto'
 import Store from 'electron-store'
-import type { Bookmark, BookmarkFolder, PasswordEntry, Page } from './store'
+import type { Bookmark, BookmarkFolder, PasswordEntry, Page, Workflow, WorkflowFolder } from './store'
 
 const BOOKMARK_BAR_FOLDER_ID = '__bookmark_bar__'
 
@@ -15,6 +15,8 @@ interface LegacyStoreSchema {
   passwords: PasswordEntry[]
   favoriteSites: any[]
   pages: Page[]
+  workflows: Workflow[]
+  workflowFolders: WorkflowFolder[]
   [key: string]: unknown
 }
 
@@ -127,5 +129,33 @@ export function migrateBookmarksAndPasswords(): void {
     // 迁移成功，移除旧数据
     store.delete('passwords')
     console.log('[Migration] Removed passwords from electron-store')
+  }
+}
+
+/**
+ * 将 electron-store 中的 workflows、workflowFolders 迁移到独立的 JsonStore 文件。
+ * 幂等设计：目标文件已存在则跳过。
+ */
+export function migrateWorkflows(): void {
+  const workflowPath = join(userDataPath, 'workflow-store.json')
+
+  const store = new Store<LegacyStoreSchema>()
+
+  if (!existsSync(workflowPath)) {
+    const workflows = store.get('workflows', [])
+    const workflowFolders = store.get('workflowFolders', [])
+
+    writeFileSync(workflowPath, JSON.stringify({ workflows, workflowFolders }, null, 2), 'utf-8')
+
+    if (workflows.length > 0 || workflowFolders.length > 0) {
+      console.log(`[Migration] Migrated ${workflows.length} workflows and ${workflowFolders.length} folders to workflow-store.json`)
+    } else {
+      console.log('[Migration] Created empty workflow-store.json')
+    }
+
+    // 迁移成功，移除旧数据
+    store.delete('workflows')
+    store.delete('workflowFolders')
+    console.log('[Migration] Removed workflows/workflowFolders from electron-store')
   }
 }

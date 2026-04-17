@@ -270,26 +270,48 @@ export class WorkflowEngine {
   private resolveContextVariables(data: Record<string, any>): Record<string, any> {
     const resolved: Record<string, any> = {}
     for (const [key, value] of Object.entries(data)) {
-      if (typeof value === 'string') {
-        // 先解析 __data__ 格式: {{ __data__["nodeId"].field.path }}
-        let str = value.replace(
-          /\{\{\s*__data__\["([^"]+)"\]\.([^}]+?)\s*\}\}/g,
-          (_, nodeId, fieldPath) => {
-            const data = this.context.__data__?.[nodeId]
-            if (data == null) return ''
-            return String(this.getNestedValue(data, fieldPath) ?? '')
-          },
-        )
-        // 再解析 context 格式: {{ context.nodeId.field }}
-        str = str.replace(/\{\{context\.([^}]+)\}\}/g, (_, path) => {
-          return String(this.getContextValue(path) ?? '')
-        })
-        resolved[key] = str
-      } else {
-        resolved[key] = value
-      }
+      resolved[key] = typeof value === 'string' ? this.resolveStringValue(value) : value
     }
     return resolved
+  }
+
+  /**
+   * 解析字符串中的变量引用。
+   * - 纯变量引用（整个值只有一个 {{ }}）→ 保留原始类型（number/boolean/object 等）
+   * - 混合文本（变量和文字混排）→ 字符串插值
+   */
+  private resolveStringValue(value: string): any {
+    // 纯 __data__ 变量 → 保留原始类型
+    const dataMatch = value.match(/^\s*\{\{\s*__data__\["([^"]+)"\]\.([^}]+?)\s*\}\}\s*$/)
+    if (dataMatch) {
+      const data = this.context.__data__?.[dataMatch[1]]
+      if (data != null) {
+        const result = this.getNestedValue(data, dataMatch[2])
+        if (result !== undefined) return result
+      }
+      return ''
+    }
+
+    // 纯 context 变量 → 保留原始类型
+    const ctxMatch = value.match(/^\s*\{\{\s*context\.([^}]+?)\s*\}\}\s*$/)
+    if (ctxMatch) {
+      const result = this.getContextValue(ctxMatch[1])
+      return result ?? ''
+    }
+
+    // 混合文本 → 字符串插值
+    let str = value.replace(
+      /\{\{\s*__data__\["([^"]+)"\]\.([^}]+?)\s*\}\}/g,
+      (_, nodeId, fieldPath) => {
+        const data = this.context.__data__?.[nodeId]
+        if (data == null) return ''
+        return String(this.getNestedValue(data, fieldPath) ?? '')
+      },
+    )
+    str = str.replace(/\{\{\s*context\.([^}]+?)\s*\}\}/g, (_, path) => {
+      return String(this.getContextValue(path) ?? '')
+    })
+    return str
   }
 
   /** 按点号路径获取嵌套值 */

@@ -9,7 +9,7 @@ import {
   createWorkflowFolder,
   updateWorkflowFolder,
   deleteWorkflowFolder,
-} from '../services/store'
+} from '../services/workflow-store'
 
 export function registerWorkflowIpcHandlers(): void {
   // 工作流
