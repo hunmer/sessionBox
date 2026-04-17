@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-04-13T10:44:52+08:00",
+  "timestamp": "2026-04-17T18:08:25+08:00",
   "project": "sessionBox",
-  "version": "0.0.6",
-  "description": "多账号浏览器工具，支持 partition 隔离、代理管理、拖拽排序、分屏、下载管理、Chrome 扩展",
+  "version": "0.0.8",
+  "description": "多账号浏览器工具，支持 partition 隔离、代理管理、拖拽排序、分屏、下载管理、Chrome 扩展、AI 聊天/Agent、MCP Server、工作流编辑器、插件系统",
   "language_distribution": {
-    "TypeScript": "60%",
-    "Vue SFC": "30%",
+    "TypeScript": "55%",
+    "Vue SFC": "35%",
     "CSS": "5%",
     "JavaScript": "5%"
   },
@@ -24,13 +24,35 @@
         "electron/ipc/extensions.ts",
         "electron/ipc/updater.ts",
         "electron/ipc/shortcut.ts",
-        "electron/ipc/bookmark-check.ts"
+        "electron/ipc/bookmark-check.ts",
+        "electron/ipc/sniffer.ts",
+        "electron/ipc/chat.ts",
+        "electron/ipc/ai-provider.ts",
+        "electron/ipc/workflow.ts",
+        "electron/ipc/workflow-version.ts",
+        "electron/ipc/execution-log.ts",
+        "electron/ipc/mcp.ts",
+        "electron/ipc/plugin.ts"
       ],
       "data_models": [
-        "electron/services/store.ts"
+        "electron/services/store.ts",
+        "electron/services/bookmark-store.ts",
+        "electron/services/password-store.ts",
+        "electron/services/workflow-store.ts",
+        "electron/services/workflow-version.ts",
+        "electron/services/execution-log.ts",
+        "electron/services/skill-store.ts",
+        "electron/services/plugin-types.ts",
+        "electron/services/mcp/types.ts"
       ],
       "services": [
         "electron/services/store.ts",
+        "electron/services/bookmark-store.ts",
+        "electron/services/password-store.ts",
+        "electron/services/workflow-store.ts",
+        "electron/services/workflow-version.ts",
+        "electron/services/execution-log.ts",
+        "electron/services/skill-store.ts",
         "electron/services/webview-manager.ts",
         "electron/services/proxy.ts",
         "electron/services/extensions.ts",
@@ -38,19 +60,35 @@
         "electron/services/tray.ts",
         "electron/services/tray-window.ts",
         "electron/services/shortcut-manager.ts",
-        "electron/services/bookmark-checker.ts"
+        "electron/services/bookmark-checker.ts",
+        "electron/services/ai-proxy.ts",
+        "electron/services/mcp/server.ts",
+        "electron/services/mcp/tools/index.ts",
+        "electron/services/mcp/tools/query.ts",
+        "electron/services/mcp/tools/tab.ts",
+        "electron/services/mcp/tools/cdp.ts",
+        "electron/services/mcp/tools/window.ts",
+        "electron/services/plugin-manager.ts",
+        "electron/services/plugin-context.ts",
+        "electron/services/plugin-storage.ts",
+        "electron/services/plugin-event-bus.ts",
+        "electron/services/favicon-cache.ts",
+        "electron/services/page-extractor.ts",
+        "electron/services/default-browser.ts",
+        "electron/services/migration.ts"
       ],
       "composables": [
         "electron/composables/useAutoUpdater.ts"
       ],
       "utils": [
-        "electron/utils/user-agent.ts"
+        "electron/utils/user-agent.ts",
+        "electron/utils/json-store.ts"
       ],
       "tests": [],
       "config_files": [],
       "claude_md": "electron/CLAUDE.md",
-      "file_count": 21,
-      "scanned_files": 21,
+      "file_count": 55,
+      "scanned_files": 55,
       "coverage": "100%"
     },
     {
@@ -77,11 +115,16 @@
       "interfaces": [
         "src/types/index.ts",
         "src/types/split.ts",
+        "src/types/plugin.ts",
+        "src/types/command.ts",
         "src/env.d.ts"
       ],
       "data_models": [
         "src/types/index.ts",
-        "src/types/split.ts"
+        "src/types/split.ts",
+        "src/types/plugin.ts",
+        "src/types/command.ts",
+        "src/lib/workflow/types.ts"
       ],
       "services": [
         "src/stores/workspace.ts",
@@ -97,24 +140,41 @@
         "src/stores/extension.ts",
         "src/stores/history.ts",
         "src/stores/homepage.ts",
-        "src/stores/userProfile.ts"
+        "src/stores/userProfile.ts",
+        "src/stores/ai-provider.ts",
+        "src/stores/chat.ts",
+        "src/stores/mcp.ts",
+        "src/stores/plugin.ts",
+        "src/stores/sniffer.ts",
+        "src/stores/password.ts",
+        "src/stores/workflow.ts"
       ],
       "utils": [
         "src/lib/utils.ts",
         "src/lib/webview-overlay.ts",
         "src/lib/split-layout.ts",
         "src/lib/db.ts",
+        "src/lib/chat-db.ts",
         "src/lib/lucide-resolver.ts",
+        "src/lib/external-drop.ts",
+        "src/lib/agent/agent.ts",
+        "src/lib/agent/stream.ts",
+        "src/lib/agent/tools.ts",
+        "src/lib/agent/system-prompt.ts",
+        "src/lib/workflow/engine.ts",
+        "src/lib/workflow/nodeRegistry.ts",
+        "src/lib/workflow/types.ts",
         "src/composables/useDragSort.ts",
         "src/composables/useIpc.ts",
         "src/composables/useBookmarkDragDrop.ts",
-        "src/composables/useNotification.ts"
+        "src/composables/useNotification.ts",
+        "src/composables/useCommandPalette.ts"
       ],
       "tests": [],
       "config_files": [],
       "claude_md": "src/CLAUDE.md",
-      "file_count": 150,
-      "scanned_files": 150,
+      "file_count": 280,
+      "scanned_files": 280,
       "coverage": "100%"
     },
     {
@@ -124,10 +184,12 @@
       "entry": "scripts/build-production.js",
       "interfaces": [],
       "tests": [],
-      "config_files": [],
+      "config_files": [
+        "scripts/package.json"
+      ],
       "claude_md": null,
-      "file_count": 1,
-      "scanned_files": 1,
+      "file_count": 5,
+      "scanned_files": 5,
       "coverage": "100%"
     }
   ],
@@ -145,9 +207,16 @@
     "resources/icon.png",
     "resources/icon.icns",
     "resources/trayIcon.png",
-    "resources/trayIconTemplate@2x.png"
+    "resources/trayIconTemplate@2x.png",
+    "resources/unknow.ico",
+    "resources/plugins/test-plugin/info.json",
+    "resources/plugins/test-plugin/main.js",
+    "resources/plugins/test-plugin/view.js",
+    "resources/plugins/test-plugin/icon.png"
   ],
   "docs_files": [
+    "docs/page-container-model.md",
+    "docs/switch-binding.md",
     "docs/superpowers/specs/2026-04-08-session-box-design.md",
     "docs/superpowers/specs/2026-04-11-bookmark-health-check-design.md",
     "docs/superpowers/specs/2026-04-11-bookmark-import-export-design.md",
@@ -155,15 +224,31 @@
     "docs/superpowers/specs/2026-04-12-right-panel-mini-popovers-design.md",
     "docs/superpowers/specs/2026-04-12-split-view-design.md",
     "docs/superpowers/specs/2026-04-12-tray-menu-design.md",
+    "docs/superpowers/specs/2026-04-13-network-sniffer-design.md",
+    "docs/superpowers/specs/2026-04-13-plugin-system-design.md",
+    "docs/superpowers/specs/2026-04-13-page-dialog-improvements-design.md",
+    "docs/superpowers/specs/2026-04-14-command-palette-design.md",
+    "docs/superpowers/specs/2026-04-15-mcp-server-design.md",
+    "docs/superpowers/specs/2026-04-16-agent-page-tools-design.md",
+    "docs/superpowers/specs/2026-04-16-langchain-chat-design.md",
+    "docs/superpowers/specs/2026-04-16-workflow-editor-design.md",
+    "docs/superpowers/specs/cached-bubbling-bunny.md",
     "docs/superpowers/plans/2026-04-11-bookmark-health-check.md",
     "docs/superpowers/plans/2026-04-11-page-container-model.md",
     "docs/superpowers/plans/2026-04-12-split-view.md",
     "docs/superpowers/plans/2026-04-12-tray-menu.md",
-    "docs/page-container-model.md"
+    "docs/superpowers/plans/2026-04-13-network-sniffer.md",
+    "docs/superpowers/plans/2026-04-13-plugin-system.md",
+    "docs/superpowers/plans/2026-04-14-command-palette.md",
+    "docs/superpowers/plans/2026-04-15-mcp-server.md",
+    "docs/superpowers/plans/2026-04-16-agent-page-tools.md",
+    "docs/superpowers/plans/2026-04-16-langchain-chat.md",
+    "docs/superpowers/plans/2026-04-16-workflow-editor.md",
+    "docs/superpowers/plans/2026-04-17-workflow-version-control.md"
   ],
   "coverage": {
-    "total_source_files_estimated": 175,
-    "scanned_files": 175,
+    "total_source_files_estimated": 343,
+    "scanned_files": 343,
     "coverage_percent": 100,
     "modules_with_claude_md": 3,
     "modules_total": 4,
@@ -171,19 +256,21 @@
   },
   "gaps": {
     "missing_tests": true,
-    "missing_lint_config": true,
+    "missing_lint_config": false,
     "missing_data_model_docs": false,
     "missing_interface_docs": false,
     "notes": [
       "项目无任何测试文件（无单元测试、集成测试、E2E 测试）",
-      "项目无 lint/format 配置（无 ESLint、Prettier 等）",
-      "数据模型类型在三处重复定义（src/types/index.ts、electron/services/store.ts、preload/index.ts），建议统一维护",
-      "proxy.ts (services/proxy.ts) 包含大量底层网络代码（SOCKS5/HTTP 隧道测试），可考虑独立为子模块"
+      "ESLint 配置存在于 package.json（@eslint/js + typescript-eslint + eslint-plugin-vue）",
+      "数据模型类型在三处重复定义（src/types/index.ts、electron/services/store.ts、preload/index.ts），修改时必须同步",
+      "ai-proxy.ts 约 1500 行，包含 30+ 工具的执行逻辑，建议拆分为独立工具模块",
+      "IPC 广播代理包装在 ipc/index.ts 中 monkey-patch 了 ipcMain.handle，需注意副作用"
     ]
   },
   "ignored": {
     "patterns": [
       "node_modules/",
+      "node_modules.dev/",
       "out/",
       "dist-app/",
       ".git/"
@@ -201,7 +288,13 @@
       "timestamp": "2026-04-13T10:44:52+08:00",
       "phase": "A+B+C",
       "trigger": "incremental_update",
-      "notes": "增量更新扫描：项目从 118 文件增长到 175 文件，新增工作区/页面/容器模型、分屏、下载、扩展、托盘、更新、快捷键、书签健康检查、主题预设、历史记录(Dexie)等功能。所有源码文件已完整扫描。"
+      "notes": "增量更新扫描：项目从 118 文件增长到 175 文件，新增工作区/页面/容器模型、分屏、下载、扩展、托盘、更新、快捷键、书签健康检查、主题预设、历史记录(Dexie)等功能。"
+    },
+    {
+      "timestamp": "2026-04-17T18:08:25+08:00",
+      "phase": "A+B+C",
+      "trigger": "incremental_update",
+      "notes": "大幅增量更新：项目从 175 文件增长到 343 文件。新增 AI 聊天/Agent 系统（ai-proxy 1500行、工具发现四层披露）、MCP Server（SSE传输、4类工具）、插件系统（PluginManager/EventBus/Storage/Context）、工作流编辑器（VueFlow + Engine + NodeRegistry + 版本控制 + 执行日志）、网络嗅探器、密码管理、技能系统、Favicon 缓存、页面内容提取（Readability/Turndown）、命令面板、数据迁移到 JsonStore、21 个 Pinia Store。所有源码文件已完整扫描。"
     }
   ]
 }
