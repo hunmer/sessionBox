@@ -7,6 +7,13 @@ import type { WorkflowToolExecuteRequest } from '../../preload'
 
 const DRAFT_KEY = 'workflow-draft'
 
+export interface WorkflowChanges {
+  upsertNodes: any[]
+  deleteNodeIds: string[]
+  upsertEdges: any[]
+  deleteEdgeIds: string[]
+}
+
 export const useWorkflowStore = defineStore('workflow', () => {
   const api = () => (window as any).api
 
@@ -515,13 +522,6 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   // ====== AI 助手增量更新 ======
-
-  export interface WorkflowChanges {
-    upsertNodes: any[]
-    deleteNodeIds: string[]
-    upsertEdges: any[]
-    deleteEdgeIds: string[]
-  }
 
   function summarizeChanges(changes: WorkflowChanges): string {
     const parts: string[] = []
