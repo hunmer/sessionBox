@@ -103,6 +103,40 @@ export const useWorkflowStore = defineStore('workflow', () => {
     return executionLogs.value.find((l) => l.id === id) || executionLog.value
   })
 
+  /** 执行前验证：检查开始/结束节点存在且连通 */
+  const executionValidationError = computed<string | null>(() => {
+    if (!currentWorkflow.value) return '未加载工作流'
+
+    const nodes = currentWorkflow.value.nodes
+    const startNodes = nodes.filter((n) => n.type === 'start')
+    const endNodes = nodes.filter((n) => n.type === 'end')
+
+    if (startNodes.length === 0) return '缺少「开始」节点'
+    if (endNodes.length === 0) return '缺少「结束」节点'
+    if (startNodes.length > 1) return '只能有一个「开始」节点'
+    if (endNodes.length > 1) return '只能有一个「结束」节点'
+
+    // BFS 检查从开始节点是否能到达结束节点
+    const edges = currentWorkflow.value.edges
+    const visited = new Set<string>()
+    const queue = [startNodes[0].id]
+    visited.add(startNodes[0].id)
+
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      for (const edge of edges) {
+        if (edge.source === current && !visited.has(edge.target)) {
+          visited.add(edge.target)
+          queue.push(edge.target)
+        }
+      }
+    }
+
+    if (!visited.has(endNodes[0].id)) return '「开始」与「结束」节点未连通'
+
+    return null
+  })
+
   // ====== 执行历史管理 ======
   async function loadExecutionLogs(): Promise<void> {
     const workflowId = currentWorkflow.value?.id
@@ -202,11 +236,16 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
   // ====== 编辑操作 ======
   function newWorkflow(folderId: string | null = null) {
+    const startNodeId = crypto.randomUUID()
+    const endNodeId = crypto.randomUUID()
     currentWorkflow.value = {
       id: crypto.randomUUID(),
       name: '未命名工作流',
       folderId,
-      nodes: [],
+      nodes: [
+        { id: startNodeId, type: 'start', label: '开始', position: { x: 100, y: 250 }, data: {} },
+        { id: endNodeId, type: 'end', label: '结束', position: { x: 600, y: 250 }, data: {} },
+      ],
       edges: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -482,6 +521,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     // 计算属性
     rootFolders,
     selectedNode,
+    executionValidationError,
     // 执行状态
     executionStatus,
     executionLog,

@@ -27,6 +27,13 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const definition = computed(() => getNodeDefinition(props.data?.nodeType || props.type))
 const IconComponent = computed(() => resolveLucideIcon(definition.value?.icon || 'Circle'))
 
+/** 是否显示输入/输出连接点 */
+const showTargetHandle = computed(() => definition.value?.handles?.target !== false)
+const showSourceHandle = computed(() => definition.value?.handles?.source !== false)
+
+/** 是否为流程边界节点（开始/结束） */
+const isBoundaryNode = computed(() => definition.value?.type === 'start' || definition.value?.type === 'end')
+
 /** 获取当前节点的运行状态 */
 const currentNodeState = computed<NodeRunState>(() => {
   const node = store.currentWorkflow?.nodes.find((n) => n.id === props.id)
@@ -57,14 +64,18 @@ const statusColor = computed(() => {
 
 /** 节点运行状态对应的背景样式 */
 const stateBackground = computed(() => {
-  switch (currentNodeState.value) {
-    case 'disabled':
-      return 'bg-red-500/10'
-    case 'skipped':
-      return 'bg-yellow-500/10'
-    default:
-      return 'bg-background'
+  if (currentNodeState.value !== 'normal') {
+    switch (currentNodeState.value) {
+      case 'disabled':
+        return 'bg-red-500/10'
+      case 'skipped':
+        return 'bg-yellow-500/10'
+    }
   }
+  // 开始/结束节点的特殊背景色
+  if (definition.value?.type === 'start') return 'bg-emerald-500/10'
+  if (definition.value?.type === 'end') return 'bg-slate-500/10'
+  return 'bg-background'
 })
 
 /** 状态徽标文字 */
@@ -127,6 +138,7 @@ onMounted(() => {
       >
         <!-- 输入连接点 -->
         <Handle
+          v-if="showTargetHandle"
           id="target"
           type="target"
           :position="Position.Left"
@@ -134,8 +146,9 @@ onMounted(() => {
           class="!z-10 !w-3 !h-3 !bg-blue-500 !border-2 !border-blue-300"
         />
 
-        <!-- 悬浮删除按钮 -->
+        <!-- 悬浮删除按钮（开始/结束节点隐藏） -->
         <button
+          v-if="!isBoundaryNode"
           class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover/node:opacity-100 transition-opacity hover:bg-destructive/80 z-10"
           @click.stop="handleDelete"
         >
@@ -180,6 +193,7 @@ onMounted(() => {
 
         <!-- 输出连接点 -->
         <Handle
+          v-if="showSourceHandle"
           id="source"
           type="source"
           :position="Position.Right"
@@ -202,13 +216,15 @@ onMounted(() => {
         <SkipForward class="w-4 h-4 mr-2 text-yellow-500" />
         跳过（跳过执行）
       </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem @click="handleClone">
-        复制节点
-      </ContextMenuItem>
-      <ContextMenuItem class="text-destructive" @click="handleDelete">
-        删除节点
-      </ContextMenuItem>
+      <template v-if="!isBoundaryNode">
+        <ContextMenuSeparator />
+        <ContextMenuItem @click="handleClone">
+          复制节点
+        </ContextMenuItem>
+        <ContextMenuItem class="text-destructive" @click="handleDelete">
+          删除节点
+        </ContextMenuItem>
+      </template>
     </ContextMenuContent>
   </ContextMenu>
 </template>

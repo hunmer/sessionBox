@@ -212,6 +212,10 @@ export class WorkflowEngine {
     const resolvedData = this.resolveContextVariables(node.data)
 
     switch (node.type) {
+      case 'start':
+        return null
+      case 'end':
+        return null
       case 'run_code':
         return this.executeCode(resolvedData.code || '')
       case 'toast':

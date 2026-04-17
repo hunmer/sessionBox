@@ -427,7 +427,6 @@ interface ClipboardEdge {
 
 let clipboardNodes: ClipboardNode[] = []
 let clipboardEdges: ClipboardEdge[] = []
-let pasteCount = 0
 
 function copySelectedNodes() {
   const selected = getSelectedNodes.value
@@ -453,22 +452,41 @@ function copySelectedNodes() {
       targetHandle: e.targetHandle ?? null,
     }))
 
-  pasteCount = 0
   notify.success(`已复制 ${selected.length} 个节点`)
+}
+
+const NODE_COLLISION_W = 180
+const NODE_COLLISION_H = 80
+const OFFSET_STEP = 60
+
+function findSafeOffset(): { x: number; y: number } {
+  const existing = store.currentWorkflow?.nodes ?? []
+  for (let step = 1; step <= 30; step++) {
+    const dx = OFFSET_STEP * step
+    const dy = OFFSET_STEP * step
+    const hasOverlap = clipboardNodes.some((cn) =>
+      existing.some(
+        (en) =>
+          Math.abs(en.position.x - (cn.position.x + dx)) < NODE_COLLISION_W &&
+          Math.abs(en.position.y - (cn.position.y + dy)) < NODE_COLLISION_H,
+      ),
+    )
+    if (!hasOverlap) return { x: dx, y: dy }
+  }
+  return { x: OFFSET_STEP * 10, y: OFFSET_STEP * 10 }
 }
 
 function pasteClipboardNodes() {
   if (!clipboardNodes.length || !store.currentWorkflow) return
 
-  pasteCount++
-  const offset = 20 * pasteCount
+  const offset = findSafeOffset()
   const idMap = new Map<string, string>()
 
   // 创建新节点，维护 ID 映射
   for (const clip of clipboardNodes) {
     const newNode = store.addNode(clip.nodeType, {
-      x: clip.position.x + offset,
-      y: clip.position.y + offset,
+      x: clip.position.x + offset.x,
+      y: clip.position.y + offset.y,
     })
     // 复制 data 和 label
     newNode.data = { ...clip.data }

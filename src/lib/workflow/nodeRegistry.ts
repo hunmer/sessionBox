@@ -203,6 +203,8 @@ function getToolIcon(name: string): string {
     run_code: 'Terminal',
     toast: 'Bell',
     agent_chat: 'Bot',
+    start: 'LogIn',
+    end: 'LogOut',
   }
   return iconMap[name] || 'Circle'
 }
@@ -224,6 +226,24 @@ function buildToolNodeDefinitions(): NodeTypeDefinition[] {
 
 /** 新增节点定义 */
 const customNodeDefinitions: NodeTypeDefinition[] = [
+  {
+    type: 'start',
+    label: '开始',
+    category: '流程控制',
+    icon: 'LogIn',
+    description: '工作流入口节点，仅支持输出连接',
+    properties: [],
+    handles: { source: true, target: false },
+  },
+  {
+    type: 'end',
+    label: '结束',
+    category: '流程控制',
+    icon: 'LogOut',
+    description: '工作流出口节点，仅支持输入连接',
+    properties: [],
+    handles: { source: false, target: true },
+  },
   {
     type: 'run_code',
     label: '运行 JS 代码',

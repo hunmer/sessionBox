@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Play, Pause, Square, ChevronDown, ChevronUp, ChevronRight, CheckCircle, XCircle, Loader2, Circle, Trash2 } from 'lucide-vue-next'
+import { Play, Pause, Square, ChevronDown, ChevronUp, ChevronRight, CheckCircle, XCircle, Loader2, Circle, Trash2, AlertTriangle } from 'lucide-vue-next'
 import type { ExecutionLog, ExecutionStep } from '@/lib/workflow/types'
 
 const store = useWorkflowStore()
@@ -13,7 +13,10 @@ const expanded = defineModel<boolean>('expanded', { default: false })
 
 const isRunning = computed(() => store.executionStatus === 'running')
 const isPaused = computed(() => store.executionStatus === 'paused')
-const canStart = computed(() => store.executionStatus === 'idle' || store.executionStatus === 'completed' || store.executionStatus === 'error')
+const canStart = computed(() => {
+  if (isRunning.value || isPaused.value) return false
+  return !store.executionValidationError
+})
 const canPause = computed(() => isRunning.value)
 const canResume = computed(() => isPaused.value)
 const canStop = computed(() => isRunning.value || isPaused.value)
@@ -87,6 +90,15 @@ const displayLog = computed(() => store.selectedExecutionLog)
       >
         <Play class="w-3 h-3" /> 执行
       </Button>
+
+      <!-- 验证错误提示 -->
+      <div
+        v-if="store.executionValidationError && !isRunning && !isPaused"
+        class="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400"
+      >
+        <AlertTriangle class="w-3 h-3 shrink-0" />
+        <span>{{ store.executionValidationError }}</span>
+      </div>
 
       <Button
         variant="ghost"
