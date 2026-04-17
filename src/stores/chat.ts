@@ -34,6 +34,7 @@ export function createChatStore(scope: string) {
     const retryStatus = ref<{ attempt: number; maxRetries: number; delayMs: number; status: number } | null>(null)
     const abortController = ref<AbortController | null>(null)
     const streamingMessageId = ref<string | null>(null)
+    let streamingRenderOrder = 0
     let streamCleanup: (() => void) | null = null
     let currentRequestId: string | null = null
 
@@ -113,6 +114,7 @@ export function createChatStore(scope: string) {
       streamingThinkingBlocks.value = []
       streamingUsage.value = null
       retryStatus.value = null
+      streamingRenderOrder = 0
 
       try {
         const controller = new AbortController()
@@ -151,6 +153,7 @@ export function createChatStore(scope: string) {
             },
             onToolCall: (call: ToolCall) => {
               call.textPosition = streamingToken.value.length
+              call.renderOrder = streamingRenderOrder++
               streamingToolCalls.value.push(call)
             },
             onToolCallArgs: (event: { toolUseId: string; args: Record<string, unknown> }) => {
@@ -179,6 +182,7 @@ export function createChatStore(scope: string) {
                   index: blockIndex,
                   content: thinkContent,
                   textPosition: streamingToken.value.length,
+                  renderOrder: streamingRenderOrder++,
                 })
               }
             },

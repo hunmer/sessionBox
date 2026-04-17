@@ -248,67 +248,46 @@ const segments = computed<ContentSegment[]>(() => {
   const content = displayContent.value || ''
   const toolCalls = displayToolCalls.value
   const thinkingBlocks = displayThinkingBlocks.value
+  const result: ContentSegment[] = []
 
-  // 构建基础 segments（text + tool-call）
-  const base: ContentSegment[] = []
+  const events = [
+    ...(toolCalls ?? []).map((toolCall) => ({
+      type: 'tool-call' as const,
+      pos: toolCall.textPosition ?? Infinity,
+      order: toolCall.renderOrder ?? Infinity,
+      toolCall,
+    })),
+    ...(thinkingBlocks ?? []).map((block) => ({
+      type: 'thinking' as const,
+      pos: block.textPosition ?? Infinity,
+      order: block.renderOrder ?? Infinity,
+      index: block.index,
+      content: block.content,
+    })),
+  ].sort((a, b) => {
+    if (a.pos !== b.pos) return a.pos - b.pos
+    if (a.order !== b.order) return a.order - b.order
+    if (a.type !== b.type) return a.type === 'tool-call' ? -1 : 1
+    return (a.type === 'thinking' ? a.index : 0) - (b.type === 'thinking' ? b.index : 0)
+  })
 
-  if (!toolCalls?.length) {
-    if (content) base.push({ type: 'text', content })
-  } else {
-    const sorted = [...toolCalls].sort((a, b) => {
-      const posA = a.textPosition ?? Infinity
-      const posB = b.textPosition ?? Infinity
-      return posA - posB
-    })
-
-    let cursor = 0
-    for (const tc of sorted) {
-      const pos = tc.textPosition ?? cursor
-      if (pos > cursor) {
-        base.push({ type: 'text', content: content.slice(cursor, pos) })
-      }
-      base.push({ type: 'tool-call', toolCall: tc })
+  let cursor = 0
+  for (const event of events) {
+    const pos = Math.min(event.pos, content.length)
+    if (pos > cursor) {
+      result.push({ type: 'text', content: content.slice(cursor, pos) })
       cursor = pos
     }
-    if (cursor < content.length) {
-      base.push({ type: 'text', content: content.slice(cursor) })
+
+    if (event.type === 'thinking') {
+      if (event.content) result.push({ type: 'thinking', content: event.content })
+    } else {
+      result.push({ type: 'tool-call', toolCall: event.toolCall })
     }
   }
 
-  if (!thinkingBlocks?.length) return base
-
-  const sorted = [...thinkingBlocks].sort((a, b) => {
-    const posA = a.textPosition ?? Infinity
-    const posB = b.textPosition ?? Infinity
-    if (posA !== posB) return posA - posB
-    return a.index - b.index
-  })
-  const result: ContentSegment[] = []
-  let thinkIdx = 0
-  let baseTextOffset = 0
-
-  for (let i = 0; i < base.length; i++) {
-    while (
-      thinkIdx < sorted.length &&
-      (sorted[thinkIdx].textPosition ?? Infinity) <= baseTextOffset
-    ) {
-      if (sorted[thinkIdx].content) {
-        result.push({ type: 'thinking', content: sorted[thinkIdx].content })
-      }
-      thinkIdx++
-    }
-    result.push(base[i])
-    if (base[i].type === 'text') {
-      baseTextOffset += base[i].content.length
-    }
-  }
-
-  // 剩余 thinking blocks（如有）
-  while (thinkIdx < sorted.length) {
-    if (sorted[thinkIdx].content) {
-      result.push({ type: 'thinking', content: sorted[thinkIdx].content })
-    }
-    thinkIdx++
+  if (cursor < content.length) {
+    result.push({ type: 'text', content: content.slice(cursor) })
   }
 
   return result

@@ -187,6 +187,8 @@ export interface ToolCall {
   completedAt?: number
   /** 工具调用在文本中的位置（字符偏移量），用于按顺序穿插渲染 */
   textPosition?: number
+  /** 流式事件到达顺序，用于同一 textPosition 下稳定排序 */
+  renderOrder?: number
 }
 
 export interface TokenUsage {
@@ -199,6 +201,8 @@ export interface ChatThinkingBlock {
   content: string
   /** thinking 开始时对应的文本偏移，用于稳定穿插到 tool/text 之间 */
   textPosition?: number
+  /** 流式事件到达顺序，用于同一 textPosition 下稳定排序 */
+  renderOrder?: number
 }
 
 export interface ChatMessage {
