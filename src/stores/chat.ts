@@ -135,6 +135,9 @@ export const useChatStore = defineStore('chat', () => {
     if (currentSessionId.value === id) {
       messages.value = []
     }
+    if (currentWorkflowSessionId.value === id) {
+      workflowMessages.value = []
+    }
     const session = sessions.value.find((s) => s.id === id)
     if (session) {
       session.messageCount = 0
@@ -491,7 +494,8 @@ export const useChatStore = defineStore('chat', () => {
     list.value[msgIndex] = { ...msg, ...updates }
 
     try {
-      const result = await window.api.agent.execTool(tc.name, tc.args)
+      const rawResult = await window.api.agent.execTool(tc.name, tc.args)
+      const result = JSON.parse(JSON.stringify(rawResult))
       const now = Date.now()
       const hasError = result && typeof result === 'object' && 'error' in result
       const finalCalls = [...updatedCalls]

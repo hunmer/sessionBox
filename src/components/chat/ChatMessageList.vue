@@ -69,6 +69,7 @@ function isLastAssistantMessage(index: number): boolean {
       v-for="(msg, index) in messages"
       :key="msg.id"
       :message="msg"
+      :all-messages="messages"
       :is-streaming="isStreaming && index === messages.length - 1 && msg.role === 'assistant'"
       :is-last-assistant="isLastAssistantMessage(index)"
       :streaming-content="isStreaming && index === messages.length - 1 ? streamingToken : undefined"

@@ -16,10 +16,9 @@ import { Copy, RefreshCw, Trash2, Pencil, Check } from 'lucide-vue-next'
 import { Markdown } from 'vue-stream-markdown'
 import 'vue-stream-markdown/index.css'
 import { useThemeStore } from '@/stores/theme'
-import { useChatStore } from '@/stores/chat'
+import { BROWSER_AGENT_SYSTEM_PROMPT } from '@/lib/agent/system-prompt'
 
 const themeStore = useThemeStore()
-const chatStore = useChatStore()
 
 type ContentSegment =
   | { type: 'text'; content: string }
@@ -27,6 +26,7 @@ type ContentSegment =
 
 const props = defineProps<{
   message: ChatMessageType
+  allMessages?: ChatMessageType[]
   isStreaming?: boolean
   isLastAssistant?: boolean
   streamingContent?: string
@@ -179,16 +179,43 @@ const displayUsage = computed(() => {
   return props.message.usage ?? null
 })
 
-/** 原始输入文本：对于 assistant 消息，取前一条 user 消息内容 */
+/** 格式化单条消息为可读文本（含 tool_calls 和 tool_result） */
+function formatRawMessage(m: ChatMessageType): string {
+  const parts: string[] = []
+  if (m.content) parts.push(m.content)
+  if (m.toolCalls?.length) {
+    for (const tc of m.toolCalls) {
+      parts.push(`[tool_use:${tc.name}] ${JSON.stringify(tc.args, null, 2)}`)
+      if (tc.result !== undefined) parts.push(`[tool_result] ${JSON.stringify(tc.result, null, 2)}`)
+      if (tc.error) parts.push(`[tool_error] ${tc.error}`)
+    }
+  }
+  if (m.toolResult !== undefined) parts.push(`[tool_result] ${JSON.stringify(m.toolResult, null, 2)}`)
+  return parts.join('\n') || '(空)'
+}
+
+/** 原始输入文本：对于 assistant 消息，拼接当前消息之前所有非 system 消息 */
 const inputRawText = computed(() => {
   if (isUser.value) return props.message.content || ''
-  const allMessages = chatStore.messages
-  const idx = allMessages.findIndex(m => m.id === props.message.id)
-  if (idx > 0) {
-    const prev = allMessages[idx - 1]
-    if (prev.role === 'user') return prev.content || ''
-  }
-  return ''
+  const msgs = props.allMessages ?? []
+  const idx = msgs.findIndex(m => m.id === props.message.id)
+  if (idx <= 0) return ''
+  return msgs
+    .slice(0, idx)
+    .filter(m => m.role !== 'system')
+    .map(m => `[${m.role}] ${formatRawMessage(m)}`)
+    .join('\n\n')
+})
+
+/** System Prompt：内置的 Agent 系统提示词 */
+const inputPromptText = computed(() => {
+  const msgs = props.allMessages ?? []
+  const idx = msgs.findIndex(m => m.id === props.message.id)
+  if (idx <= 0) return ''
+  // 优先取消息列表中的 system 消息，否则使用内置 prompt
+  const systemMsgs = msgs.slice(0, idx).filter(m => m.role === 'system')
+  if (systemMsgs.length) return systemMsgs.map(m => m.content || '').join('\n\n')
+  return BROWSER_AGENT_SYSTEM_PROMPT
 })
 
 /** 原始输出文本：当前消息的内容 */
@@ -425,29 +452,53 @@ const segments = computed<ContentSegment[]>(() => {
 
   <!-- 原始文本查看对话框 -->
   <Dialog v-model:open="showRawDialog">
-    <DialogScrollContent class="max-w-4xl">
+    <DialogScrollContent class="max-w-5xl">
       <DialogHeader>
         <DialogTitle>原始文本</DialogTitle>
         <DialogDescription>查看消息的原始输入和输出文本内容</DialogDescription>
       </DialogHeader>
       <div class="grid grid-cols-2 gap-4 mt-2">
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-muted-foreground">输入</span>
-            <span v-if="displayUsage" class="text-xs text-muted-foreground/60">
-              {{ formatTokenCount(displayUsage.inputTokens) }} tokens
-            </span>
+        <!-- 左栏：输入侧 -->
+        <div class="space-y-3 max-h-[70vh] overflow-y-auto">
+          <!-- Prompt 卡片 -->
+          <div v-if="inputPromptText" class="rounded-lg border bg-card p-3 space-y-1.5">
+            <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+              System Prompt
+            </div>
+            <pre class="bg-muted/50 rounded-md p-2.5 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono max-h-40 overflow-y-auto">{{ inputPromptText }}</pre>
           </div>
-          <pre class="bg-muted/50 rounded-lg p-3 text-xs leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-y-auto font-mono border">{{ inputRawText }}</pre>
+          <!-- 输入卡片 -->
+          <div class="rounded-lg border bg-card p-3 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                输入
+              </div>
+              <span v-if="displayUsage" class="text-[11px] text-muted-foreground/50">
+                ↑ {{ formatTokenCount(displayUsage.inputTokens) }}
+              </span>
+            </div>
+            <pre class="bg-muted/50 rounded-md p-2.5 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono max-h-60 overflow-y-auto">{{ inputRawText }}</pre>
+          </div>
+          <!-- 思考卡片 -->
+          <div v-if="displayThinking" class="rounded-lg border bg-card p-3 space-y-1.5">
+            <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              思考过程
+            </div>
+            <pre class="bg-muted/50 rounded-md p-2.5 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono max-h-40 overflow-y-auto">{{ displayThinking }}</pre>
+          </div>
         </div>
+        <!-- 右栏：输出 -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-muted-foreground">输出</span>
             <span v-if="displayUsage" class="text-xs text-muted-foreground/60">
-              {{ formatTokenCount(displayUsage.outputTokens) }} tokens
+              ↓ {{ formatTokenCount(displayUsage.outputTokens) }} tokens
             </span>
           </div>
-          <pre class="bg-muted/50 rounded-lg p-3 text-xs leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-y-auto font-mono border">{{ outputRawText }}</pre>
+          <pre class="bg-muted/50 rounded-lg p-3 text-xs leading-relaxed whitespace-pre-wrap break-words max-h-[70vh] overflow-y-auto font-mono border">{{ outputRawText }}</pre>
         </div>
       </div>
     </DialogScrollContent>
