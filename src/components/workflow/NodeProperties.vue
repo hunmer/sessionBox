@@ -212,6 +212,32 @@ function confirmImport() {
 
       <ScrollArea class="flex-1">
         <div class="p-3 space-y-3">
+          <!-- 通用基础属性：延迟执行 -->
+          <div v-if="store.selectedNode.type !== 'start' && store.selectedNode.type !== 'end'" class="space-y-1">
+            <label class="text-xs font-medium flex items-center gap-1">
+              延迟执行
+              <TooltipProvider :delay-duration="300">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Info class="w-3 h-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" class="max-w-[240px]">
+                    <p>执行当前节点前等待的毫秒数，0 表示不延迟</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </label>
+            <Input
+              type="number"
+              :model-value="getFieldValue('_delay') || 0"
+              :min="0"
+              :step="100"
+              class="h-7 text-xs"
+              placeholder="0"
+              @update:model-value="setFieldValue('_delay', Number($event) || 0)"
+            />
+          </div>
+
           <div v-for="prop in definition.properties" :key="prop.key" class="space-y-1">
             <label class="text-xs font-medium flex items-center gap-1">
               {{ prop.label }}

@@ -584,9 +584,7 @@ export async function executeTool(
       case 'create_tab': {
         const url = (args.url as string) || 'https://www.baidu.com'
         const active = args.active !== false // 默认激活
-        const newWindow = args.newWindow as boolean | undefined
         const pageId = (args.pageId as string) || null
-        const containerId = (args.containerId as string) || ''
         let workspaceId = args.workspaceId as string | undefined
         const tabs = listTabs()
 
@@ -602,37 +600,6 @@ export async function executeTool(
                 workspaceId = group?.workspaceId
               }
             }
-          }
-        }
-
-        // 新窗口模式：创建独立 BrowserWindow
-        if (newWindow) {
-          const resolvedContainerId = pageId
-            ? (getPageById(pageId)?.containerId || '')
-            : containerId
-          const partition = resolvedContainerId
-            ? `persist:container-${resolvedContainerId}`
-            : undefined
-          const win = new BrowserWindow({
-            width: 1280,
-            height: 800,
-            show: false,
-            autoHideMenuBar: true,
-            title: pageId ? (getPageById(pageId)?.name ?? '新窗口') : '新窗口',
-            webPreferences: {
-              partition,
-              sandbox: false
-            }
-          })
-          win.loadURL(url)
-          win.once('ready-to-show', () => win.show())
-          return {
-            success: true,
-            mode: 'window',
-            windowId: win.id,
-            title: pageId ? (getPageById(pageId)?.name ?? '新窗口') : '新窗口',
-            url,
-            containerId: resolvedContainerId || undefined,
           }
         }
 
@@ -687,6 +654,135 @@ export async function executeTool(
         if (!tabId || !url) return { error: 'tabId and url are required' }
         webviewManager.navigate(tabId, url)
         return { success: true, tabId, url }
+      }
+
+      // ===== 窗口操作工具 =====
+
+      case 'create_window': {
+        const url = (args.url as string) || 'about:blank'
+        const pageId = (args.pageId as string) || null
+        const containerId = (args.containerId as string) || ''
+        const title = (args.title as string) || (pageId ? (getPageById(pageId)?.name ?? '新窗口') : '新窗口')
+        const width = (args.width as number) || 1280
+        const height = (args.height as number) || 800
+
+        const resolvedContainerId = pageId
+          ? (getPageById(pageId)?.containerId || '')
+          : containerId
+        const partition = resolvedContainerId
+          ? `persist:container-${resolvedContainerId}`
+          : undefined
+
+        const win = new BrowserWindow({
+          width,
+          height,
+          show: false,
+          autoHideMenuBar: true,
+          title,
+          webPreferences: {
+            partition,
+            sandbox: false,
+          },
+        })
+        win.loadURL(url)
+        win.once('ready-to-show', () => win.show())
+        return {
+          success: true,
+          windowId: win.id,
+          title,
+          url,
+          containerId: resolvedContainerId || undefined,
+        }
+      }
+
+      case 'navigate_window': {
+        const windowId = args.windowId as number | undefined
+        const url = args.url as string
+        if (windowId == null || !url) return { error: 'windowId and url are required' }
+        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
+        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
+        void win.webContents.loadURL(url)
+        return { success: true, windowId, url }
+      }
+
+      case 'close_window': {
+        const windowId = args.windowId as number | undefined
+        if (windowId == null) return { error: 'windowId is required' }
+        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
+        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
+        win.close()
+        return { success: true, windowId }
+      }
+
+      case 'list_windows': {
+        return BrowserWindow.getAllWindows().map(w => ({
+          windowId: w.id,
+          title: w.getTitle(),
+          url: w.webContents.getURL(),
+          width: w.getBounds().width,
+          height: w.getBounds().height,
+          isMaximized: w.isMaximized(),
+          isMain: w === webviewManager.getMainWindow(),
+        }))
+      }
+
+      case 'focus_window': {
+        const windowId = args.windowId as number | undefined
+        if (windowId == null) return { error: 'windowId is required' }
+        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
+        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
+        if (win.isMinimized()) win.restore()
+        win.focus()
+        return { success: true, windowId }
+      }
+
+      case 'screenshot_window': {
+        const windowId = args.windowId as number | undefined
+        if (windowId == null) return { error: 'windowId is required' }
+        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
+        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
+        try {
+          const image = await win.webContents.capturePage()
+          if (image.isEmpty()) return { error: 'Window content is empty' }
+          const jpeg = image.toJPEG(80)
+          const size = image.getSize()
+
+          const filename = `screenshot-window-${windowId}-${Date.now()}.jpg`
+          const screenshotDir = join(app.getPath('userData'), 'ai-screenshots')
+          mkdirSync(screenshotDir, { recursive: true })
+          writeFileSync(join(screenshotDir, filename), jpeg)
+
+          const base64 = jpeg.toString('base64')
+          return {
+            _isImageContent: true,
+            url: `screenshot://${filename}`,
+            mediaType: 'image/jpeg',
+            data: base64,
+            width: size.width,
+            height: size.height,
+          }
+        } catch (err) {
+          return { error: `Screenshot failed: ${err instanceof Error ? err.message : String(err)}` }
+        }
+      }
+
+      case 'get_window_detail': {
+        const windowId = args.windowId as number | undefined
+        if (windowId == null) return { error: 'windowId is required' }
+        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
+        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
+        const bounds = win.getBounds()
+        return {
+          windowId: win.id,
+          title: win.getTitle(),
+          url: win.webContents.getURL(),
+          bounds,
+          isMaximized: win.isMaximized(),
+          isMinimized: win.isMinimized(),
+          isFullScreen: win.isFullScreen(),
+          isFocused: win.isFocused(),
+          isMain: win === webviewManager.getMainWindow(),
+        }
       }
 
       case 'switch_tab': {

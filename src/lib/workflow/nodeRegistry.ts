@@ -127,7 +127,6 @@ const toolSchemas: Record<string, { properties: Record<string, any>; required?: 
       containerId: { type: 'string', description: '容器 ID，无 pageId 时指定 Session 隔离' },
       workspaceId: { type: 'string', description: '工作区 ID，不传则使用当前激活工作区' },
       active: { type: 'boolean', description: '是否立即激活标签页（默认 true）' },
-      newWindow: { type: 'boolean', description: '是否在新 BrowserWindow 中打开（独立窗口）' },
     },
   },
   navigate_tab: {

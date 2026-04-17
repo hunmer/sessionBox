@@ -175,6 +175,14 @@ export class WorkflowEngine {
   }
 
   private async executeNode(node: WorkflowNode): Promise<void> {
+    // 执行前延迟
+    const delay = typeof node.data?._delay === 'number' ? node.data._delay : 0
+    if (delay > 0) {
+      await this.sleep(delay)
+      // 延迟期间可能收到 stop/pause 请求
+      if (this.stopRequested || this.pauseRequested) return
+    }
+
     const step: ExecutionStep = {
       nodeId: node.id,
       nodeLabel: node.label,
@@ -339,5 +347,9 @@ export class WorkflowEngine {
 
   private emitLogUpdate(): void {
     this.onLogUpdate?.(this.currentLog)
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 }
