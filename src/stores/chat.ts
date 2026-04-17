@@ -15,6 +15,7 @@ import {
 } from '@/lib/chat-db'
 import { useAIProviderStore } from './ai-provider'
 import { useTabStore } from './tab'
+import { useWorkflowStore } from './workflow'
 import { runAgentStream } from '@/lib/agent/agent'
 import { BROWSER_TOOL_LIST } from '@/lib/agent/tools'
 
@@ -166,6 +167,21 @@ export const useChatStore = defineStore('chat', () => {
           content: m.content,
         }))
 
+      // 判断是否为工作流模式
+      const workflowStore = useWorkflowStore()
+      const currentSession_data = sessions.value.find((s) => s.id === currentSessionId.value)
+      const isWorkflowMode = !!currentSession_data?.workflowId
+      const workflowOptions = isWorkflowMode && workflowStore.currentWorkflow ? {
+        mode: 'workflow' as const,
+        workflowId: workflowStore.currentWorkflow.id,
+        workflowSummary: {
+          name: workflowStore.currentWorkflow.name,
+          description: workflowStore.currentWorkflow.description,
+          nodes: workflowStore.currentWorkflow.nodes.map(n => ({ id: n.id, type: n.type, label: n.label })),
+          edges: workflowStore.currentWorkflow.edges.map(e => ({ id: e.id, source: e.source, target: e.target })),
+        },
+      } : undefined
+
       const result = await runAgentStream(
         history,
         content,
@@ -255,6 +271,7 @@ export const useChatStore = defineStore('chat', () => {
         },
         targetTabId.value,
         enabledToolNames.value,
+        workflowOptions,
       )
 
       if (result) {
@@ -450,6 +467,35 @@ export const useChatStore = defineStore('chat', () => {
     // 由 BrowserViewPicker 的 __current__ 选项控制
   }
 
+  // ===== 工作流会话管理 =====
+
+  /** 切换到指定工作流的 AI 聊天会话（不存在则创建） */
+  async function switchToWorkflowSession(workflowId: string | undefined) {
+    if (!workflowId) return
+
+    // 查找已有会话
+    const existing = sessions.value.find((s) => s.workflowId === workflowId)
+    if (existing) {
+      await switchSession(existing.id)
+      return
+    }
+
+    // 创建新会话
+    const providerStore = useAIProviderStore()
+    if (!providerStore.currentProvider || !providerStore.currentModel) {
+      throw new Error('请先选择 AI 模型')
+    }
+    const session = await dbCreateSession(
+      providerStore.currentModel.id,
+      providerStore.currentProvider.id,
+      null,
+      workflowId,
+    )
+    sessions.value.unshift(session)
+    currentSessionId.value = session.id
+    messages.value = []
+  }
+
   return {
     sessions,
     currentSessionId,
@@ -480,6 +526,7 @@ export const useChatStore = defineStore('chat', () => {
     setTargetTab,
     toggleTool,
     isToolEnabled,
+    switchToWorkflowSession,
     init,
   }
 })
