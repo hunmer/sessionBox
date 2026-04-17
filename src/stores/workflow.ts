@@ -405,7 +405,9 @@ export const useWorkflowStore = defineStore('workflow', () => {
     const wf = currentWorkflow.value
     if (!wf) return
     const versionName = name || await api().workflowVersion.nextName(wf.id)
-    const version = await api().workflowVersion.add(wf.id, versionName, wf.nodes, wf.edges)
+    const plainNodes = JSON.parse(JSON.stringify(wf.nodes))
+    const plainEdges = JSON.parse(JSON.stringify(wf.edges))
+    const version = await api().workflowVersion.add(wf.id, versionName, plainNodes, plainEdges)
     versions.value.unshift(version)
   }
 

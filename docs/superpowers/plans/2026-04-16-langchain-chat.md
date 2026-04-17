@@ -1545,7 +1545,7 @@ export function createBrowserTools(targetTabId: string | null): DynamicStructure
     }),
 
     new DynamicStructuredTool({
-      name: 'type_text',
+      name: 'input_text',
       description: '在输入框中输入文字。可以通过选择器定位输入框，或直接输入到当前焦点元素。',
       schema: z.object({
         text: z.string().describe('要输入的文字'),

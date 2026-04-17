@@ -179,7 +179,7 @@ RightPanel.vue
 │ [▶ 执行]  [⏸ 暂停]  [⏹ 停止]  │ 进度: 3/12 │ 耗时: 2.3s │
 ├─────────────────────────────────────────────────┤
 │ ✓ click_element    完成  0.1s                     │
-│ ● type_text        执行中...                      │
+│ ● input_text        执行中...                      │
 │ ○ get_page_content 等待中                         │
 └─────────────────────────────────────────────────┘
 ```
@@ -206,7 +206,7 @@ RightPanel.vue
 
 | 类别 | 节点 | 来源 |
 |------|------|------|
-| 页面交互 | click_element, type_text, scroll_page, select_option, hover_element | tools.ts |
+| 页面交互 | click_element, input_text, scroll_page, select_option, hover_element | tools.ts |
 | 页面信息 | get_page_content, get_dom, get_page_screenshot, get_page_summary, get_page_markdown, get_interactive_nodes, get_interactive_node_detail | tools.ts |
 | 标签管理 | list_tabs, create_tab, navigate_tab, switch_tab, close_tab, list_groups, list_pages, get_active_tab | tools.ts |
 | 技能管理 | write_skill, read_skill, list_skills, search_skill, exec_skill | tools.ts |

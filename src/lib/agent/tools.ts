@@ -110,7 +110,7 @@ export const BROWSER_TOOL_LIST: ToolMeta[] = [
     suitableFor: ['点击按钮', '点击链接', '触发页面元素交互'],
   },
   {
-    name: 'type_text',
+    name: 'input_text',
     description: '在输入框中输入文字',
     category: '页面交互',
     discoveryCategory: 'dom',
@@ -345,7 +345,7 @@ export const DISCOVERY_TOOL_NAMES = [
 
 const TOOL_EXAMPLE_INPUTS: Record<string, Record<string, unknown>> = {
   click_element: { selector: '#submitBtn' },
-  type_text: { selector: '#searchInput', text: 'SessionBox' },
+  input_text: { selector: '#searchInput', text: 'SessionBox' },
   scroll_page: { direction: 'down', amount: 500 },
   select_option: { selector: '#country', value: 'CN' },
   hover_element: { selector: '.menu-item' },
@@ -406,7 +406,7 @@ export function createBrowserTools(_targetTabId: string | null): ToolDefinition[
       },
     },
     {
-      name: 'type_text',
+      name: 'input_text',
       description: '在输入框中输入文字。',
       input_schema: {
         type: 'object',

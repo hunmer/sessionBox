@@ -516,7 +516,7 @@ function buildToolNodeDefinitions(): NodeTypeDefinition[] {
       },
       required: ['selector'],
     },
-    type_text: {
+    input_text: {
       properties: {
         text: { type: 'string', description: '要输入的文字' },
         selector: { type: 'string', description: 'CSS 选择器定位输入框' },
@@ -653,7 +653,7 @@ function buildToolNodeDefinitions(): NodeTypeDefinition[] {
 function getToolIcon(name: string): string {
   const iconMap: Record<string, string> = {
     click_element: 'MousePointerClick',
-    type_text: 'Type',
+    input_text: 'Type',
     scroll_page: 'ArrowUpDown',
     select_option: 'List',
     hover_element: 'Pointer',

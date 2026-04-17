@@ -208,7 +208,7 @@ export function createBrowserAgent(model: ChatAnthropic, tools: DynamicStructure
 - `get_tab_detail`
 
 **新增浏览器交互工具**（走主进程 CDP 执行）：
-- `click_element`, `type_text`, `scroll_page`, `select_option`, `hover_element`
+- `click_element`, `input_text`, `scroll_page`, `select_option`, `hover_element`
 - `get_page_content`, `get_dom`, `get_page_screenshot`
 
 注册模式：

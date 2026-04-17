@@ -614,7 +614,7 @@ export async function executeTool(
         return { success: true }
       }
 
-      case 'type_text': {
+      case 'input_text': {
         const wc = getWebContentsFromManager(args.tabId as string | undefined)
         if (!wc) return { error: 'Tab not found' }
         if (!args.text || typeof args.text !== 'string') return { error: 'text is required' }
@@ -985,7 +985,7 @@ function buildSkillExecutionScript(
       return el.tagName.toLowerCase() + ':nth-child(' + index + ')'
     }
 
-    const type_text = async (arg1, arg2) => {
+    const input_text = async (arg1, arg2) => {
       const options = typeof arg1 === 'object' && arg1 !== null
         ? arg1
         : { selector: arg1, text: arg2 }
@@ -993,12 +993,12 @@ function buildSkillExecutionScript(
       const text = options.text
 
       if (typeof text !== 'string') {
-        throw new Error('type_text: text must be a string')
+        throw new Error('input_text: text must be a string')
       }
 
-      const el = ensureElement(selector, 'type_text')
+      const el = ensureElement(selector, 'input_text')
       if (!(el instanceof HTMLElement)) {
-        throw new Error(\`type_text: unsupported element for selector \${selector}\`)
+        throw new Error(\`input_text: unsupported element for selector \${selector}\`)
       }
 
       el.focus()
@@ -1015,7 +1015,7 @@ function buildSkillExecutionScript(
         return { success: true }
       }
 
-      throw new Error(\`type_text: selector \${selector} is not an input, textarea, or contenteditable element\`)
+      throw new Error(\`input_text: selector \${selector} is not an input, textarea, or contenteditable element\`)
     }
 
     const click_element = async (arg) => {
