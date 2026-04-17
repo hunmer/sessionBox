@@ -4,8 +4,8 @@ import { resolvePendingRendererTool } from '../services/workflow-tool-dispatcher
 
 export function registerChatIpcHandlers(): void {
   // Workflow engine 工具执行通道
-  ipcMain.handle('agent:execTool', async (_event, toolType: string, params: Record<string, any>) => {
-    const result = await executeTool(toolType, params || {})
+  ipcMain.handle('agent:execTool', async (_event, toolType: string, params: Record<string, any>, targetTabId?: string) => {
+    const result = await executeTool(toolType, params || {}, targetTabId)
     // electron-store 返回值可能包含不可序列化的内部属性（Proxy/getter），
     // IPC handle 使用结构化克隆传输，需先转为纯 JSON 兼容对象
     return typeof result === 'string' ? result : JSON.parse(JSON.stringify(result))

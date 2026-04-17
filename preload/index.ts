@@ -631,8 +631,8 @@ const api = {
 
   // Workflow agent 工具执行
   agent: {
-    execTool: (toolType: string, params?: Record<string, any>): Promise<any> =>
-      ipcRenderer.invoke('agent:execTool', toolType, params),
+    execTool: (toolType: string, params?: Record<string, any>, targetTabId?: string): Promise<any> =>
+      ipcRenderer.invoke('agent:execTool', toolType, params, targetTabId),
   },
 
   // Skill 管理

@@ -40,9 +40,7 @@ import {
   ImagePlus, Send, Square, Trash2, Wrench, ScrollText,
   Copy, Check, Pencil, Loader2,
 } from 'lucide-vue-next'
-import { useChatUIStore } from '@/stores/chat-ui'
-import { BROWSER_TOOL_LIST } from '@/lib/agent/tools'
-import type { ToolMeta } from '@/lib/agent/tools'
+import type { ToolDisplayItem } from '@/types'
 
 interface SkillItem {
   name: string
@@ -61,23 +59,26 @@ interface SkillFull {
 const props = defineProps<{
   isStreaming: boolean
   disabled?: boolean
+  tools?: ToolDisplayItem[]
+  enabledTools?: Record<string, boolean>
 }>()
 
 const emit = defineEmits<{
   send: [content: string, images: string[]]
   stop: []
   clear: []
+  toggleTool: [toolName: string]
 }>()
-
-const chatUIStore = useChatUIStore()
 
 const inputText = ref('')
 const images = ref<string[]>([])
 
+const toolList = computed(() => props.tools ?? [])
+
 /** 按分类分组工具列表 */
 const groupedTools = computed(() => {
-  const groups = new Map<string, ToolMeta[]>()
-  for (const tool of BROWSER_TOOL_LIST) {
+  const groups = new Map<string, ToolDisplayItem[]>()
+  for (const tool of toolList.value) {
     const list = groups.get(tool.category) ?? []
     list.push(tool)
     groups.set(tool.category, list)
@@ -87,7 +88,7 @@ const groupedTools = computed(() => {
 
 /** 已启用工具数量 */
 const enabledCount = computed(() => {
-  return BROWSER_TOOL_LIST.filter((t) => chatUIStore.enabledTools[t.name] !== false).length
+  return toolList.value.filter((t) => props.enabledTools?.[t.name] !== false).length
 })
 
 function handleKeydown(e: KeyboardEvent) {
@@ -269,12 +270,12 @@ async function confirmDelete() {
         </InputGroupButton>
 
         <!-- 工具选择 -->
-        <DropdownMenu>
+        <DropdownMenu v-if="toolList.length">
           <DropdownMenuTrigger as-child>
             <InputGroupButton variant="ghost" size="xs" :disabled="isStreaming" class="relative gap-1">
               <Wrench class="size-3.5" />
               <span
-                v-if="enabledCount < BROWSER_TOOL_LIST.length"
+                v-if="enabledCount < toolList.length"
                 class="text-amber-500 text-[10px]"
               >
                 {{ enabledCount }}
@@ -285,7 +286,7 @@ async function confirmDelete() {
             <DropdownMenuLabel class="flex items-center justify-between">
               <span>工具列表</span>
               <span class="text-xs font-normal text-muted-foreground">
-                {{ enabledCount }}/{{ BROWSER_TOOL_LIST.length }}
+                {{ enabledCount }}/{{ toolList.length }}
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -304,8 +305,8 @@ async function confirmDelete() {
                   <span class="text-[11px] text-muted-foreground leading-tight">{{ tool.description }}</span>
                 </div>
                 <Switch
-                  :model-value="chatUIStore.enabledTools[tool.name] !== false"
-                  @update:model-value="chatUIStore.toggleTool(tool.name)"
+                  :model-value="enabledTools?.[tool.name] !== false"
+                  @update:model-value="emit('toggleTool', tool.name)"
                   class="shrink-0"
                 />
               </DropdownMenuItem>

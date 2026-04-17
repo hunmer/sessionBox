@@ -243,6 +243,13 @@ export interface ChatCompletionParams {
   enabledToolNames?: string[]
 }
 
+/** ChatInput 工具下拉展示项 */
+export interface ToolDisplayItem {
+  name: string
+  description: string
+  category: string
+}
+
 // 浏览器交互工具参数
 export interface BrowserClickArgs {
   selector?: string

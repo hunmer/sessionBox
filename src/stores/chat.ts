@@ -385,6 +385,7 @@ export function createChatStore(scope: string) {
     }
 
     async function rerunTool(messageId: string, toolCallId: string) {
+      if (isStreaming.value) return
       const msgIndex = messages.value.findIndex((m) => m.id === messageId)
       if (msgIndex === -1) return
       const msg = messages.value[msgIndex]
@@ -393,6 +394,8 @@ export function createChatStore(scope: string) {
       if (tcIndex === -1) return
 
       const tc = msg.toolCalls[tcIndex]
+      const uiStore = useChatUIStore()
+      const targetTabId = uiStore.targetTabId || currentSession.value?.browserViewId || undefined
 
       const updatedCalls = [...msg.toolCalls]
       updatedCalls[tcIndex] = { ...tc, status: 'running' as const, result: undefined, error: undefined, startedAt: Date.now(), completedAt: undefined }
@@ -400,7 +403,7 @@ export function createChatStore(scope: string) {
       messages.value[msgIndex] = { ...msg, ...updates }
 
       try {
-        const rawResult = await window.api.agent.execTool(tc.name, tc.args)
+        const rawResult = await window.api.agent.execTool(tc.name, tc.args, targetTabId)
         const result = JSON.parse(JSON.stringify(rawResult))
         const now = Date.now()
         const hasError = result && typeof result === 'object' && 'error' in result

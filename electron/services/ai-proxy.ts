@@ -645,6 +645,7 @@ export async function executeTool(
           }
         }
 
+        const containerId = (args.containerId as string) || ''
         const tab = createTab({
           pageId: '',
           title: '新标签页',

@@ -364,7 +364,7 @@ const api = {
   },
   // Workflow agent 工具执行
   agent: {
-    execTool: (toolType, params) => electron.ipcRenderer.invoke("agent:execTool", toolType, params)
+    execTool: (toolType, params, targetTabId) => electron.ipcRenderer.invoke("agent:execTool", toolType, params, targetTabId)
   },
   // Skill 管理
   skill: {
