@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue'
-import type { ChatMessage as ChatMessageType, ToolCall } from '@/types'
+import type { ChatMessage as ChatMessageType, ToolCall, ChatThinkingBlock } from '@/types'
 import ThinkingBlock from './ThinkingBlock.vue'
 import ToolCallCard from './ToolCallCard.vue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -33,7 +33,7 @@ const props = defineProps<{
   isStreaming?: boolean
   isLastAssistant?: boolean
   streamingContent?: string
-  streamingThinkingBlocks?: Array<{ index: number; content: string }>
+  streamingThinkingBlocks?: ChatThinkingBlock[]
   streamingToolCalls?: ToolCall[]
   streamingUsage?: { inputTokens: number; outputTokens: number } | null
 }>()
@@ -277,21 +277,30 @@ const segments = computed<ContentSegment[]>(() => {
 
   if (!thinkingBlocks?.length) return base
 
-  // Anthropic 流结构：thinking(0) -> content(1) -> thinking(2) -> content(3) ...
-  // thinkingBlocks 按 index 排序，第 i 个 thinking 插入到 base[i] 之前
-  const sorted = [...thinkingBlocks].sort((a, b) => a.index - b.index)
+  const sorted = [...thinkingBlocks].sort((a, b) => {
+    const posA = a.textPosition ?? Infinity
+    const posB = b.textPosition ?? Infinity
+    if (posA !== posB) return posA - posB
+    return a.index - b.index
+  })
   const result: ContentSegment[] = []
   let thinkIdx = 0
+  let baseTextOffset = 0
 
   for (let i = 0; i < base.length; i++) {
-    // 插入所有 index 满足 floor(index / 2) === i 的 thinking
-    while (thinkIdx < sorted.length && Math.floor(sorted[thinkIdx].index / 2) <= i) {
+    while (
+      thinkIdx < sorted.length &&
+      (sorted[thinkIdx].textPosition ?? Infinity) <= baseTextOffset
+    ) {
       if (sorted[thinkIdx].content) {
         result.push({ type: 'thinking', content: sorted[thinkIdx].content })
       }
       thinkIdx++
     }
     result.push(base[i])
+    if (base[i].type === 'text') {
+      baseTextOffset += base[i].content.length
+    }
   }
 
   // 剩余 thinking blocks（如有）

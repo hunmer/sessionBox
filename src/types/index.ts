@@ -194,6 +194,13 @@ export interface TokenUsage {
   outputTokens: number
 }
 
+export interface ChatThinkingBlock {
+  index: number
+  content: string
+  /** thinking 开始时对应的文本偏移，用于稳定穿插到 tool/text 之间 */
+  textPosition?: number
+}
+
 export interface ChatMessage {
   id: string
   sessionId: string
@@ -201,7 +208,7 @@ export interface ChatMessage {
   content: string
   toolCalls?: ToolCall[]
   toolResult?: unknown
-  thinkingBlocks?: Array<{ index: number; content: string }>
+  thinkingBlocks?: ChatThinkingBlock[]
   images?: string[]
   modelId?: string
   usage?: TokenUsage

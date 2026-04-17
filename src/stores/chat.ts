@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, toRaw } from 'vue'
-import type { ChatSession, ChatMessage, ToolCall } from '@/types'
+import type { ChatSession, ChatMessage, ToolCall, ChatThinkingBlock } from '@/types'
 import {
   createSession as dbCreateSession,
   listSessionsByScope as dbListSessionsByScope,
@@ -29,7 +29,7 @@ export function createChatStore(scope: string) {
     // 流式输出临时状态
     const streamingToken = ref('')
     const streamingToolCalls = ref<ToolCall[]>([])
-    const streamingThinkingBlocks = ref<Array<{ index: number; content: string }>>([])
+    const streamingThinkingBlocks = ref<ChatThinkingBlock[]>([])
     const streamingUsage = ref<{ inputTokens: number; outputTokens: number } | null>(null)
     const retryStatus = ref<{ attempt: number; maxRetries: number; delayMs: number; status: number } | null>(null)
     const abortController = ref<AbortController | null>(null)
@@ -175,7 +175,11 @@ export function createChatStore(scope: string) {
               if (existing) {
                 existing.content += thinkContent
               } else {
-                streamingThinkingBlocks.value.push({ index: blockIndex, content: thinkContent })
+                streamingThinkingBlocks.value.push({
+                  index: blockIndex,
+                  content: thinkContent,
+                  textPosition: streamingToken.value.length,
+                })
               }
             },
             onUsage: (usage) => {

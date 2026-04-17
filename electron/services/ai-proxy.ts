@@ -116,6 +116,7 @@ export async function proxyChatCompletions(
     // 多轮对话循环：LLM 可能多次请求 tool_use
     let currentMessages = [...messages]
     let cumulativeUsage = { inputTokens: 0, outputTokens: 0 }
+    let contentBlockOffset = 0
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       console.log(`[ai-proxy] round ${round + 1}, messages count: ${currentMessages.length}`)
@@ -187,9 +188,12 @@ export async function proxyChatCompletions(
       }
 
       // 解析 SSE 流，累积完整的 assistant message
-      const parsed = await parseSSEStream(response.body, send, _requestId, cumulativeUsage)
+      const parsed = await parseSSEStream(response.body, send, _requestId, cumulativeUsage, contentBlockOffset)
 
       console.log(`[ai-proxy] round ${round + 1} done, stop_reason: ${parsed.stopReason}, tool_calls: ${parsed.toolCalls.length}`)
+
+      // 累加本轮 content block 数量，作为下轮 index 偏移
+      contentBlockOffset += parsed.blockCount
 
       // 没有 tool_use，正常结束
       if (parsed.stopReason !== 'tool_use' || parsed.toolCalls.length === 0) {
@@ -303,6 +307,7 @@ function forwardSSEEvent(
   send: (channel: string, data: unknown) => void,
   requestId: string,
   event: Record<string, unknown>,
+  indexOffset = 0,
 ): void {
   const type = event.type as string
 
@@ -312,7 +317,7 @@ function forwardSSEEvent(
       if (delta?.type === 'text_delta') {
         send('on:chat:chunk', { requestId, token: delta.text })
       } else if (delta?.type === 'thinking_delta') {
-        send('on:chat:thinking', { requestId, content: delta.thinking, index: event.index })
+        send('on:chat:thinking', { requestId, content: delta.thinking, index: (event.index as number) + indexOffset })
       } else if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
         send('on:chat:tool-call-args-delta', { requestId, index: event.index, delta: delta.partial_json })
       }
@@ -376,13 +381,15 @@ async function parseSSEStream(
   send: (channel: string, data: unknown) => void,
   requestId: string,
   cumulativeUsage: { inputTokens: number; outputTokens: number },
-): Promise<ParsedStream> {
+  indexOffset = 0,
+): Promise<ParsedStream & { blockCount: number }> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
 
   let textContent = ''
   let stopReason: string | null = null
+  let maxIndex = -1
 
   // tool_use 累积状态
   // content_block 的 index 并不总是从 0 开始（前面可能有 text block），
@@ -409,7 +416,12 @@ async function parseSSEStream(
       const type = event.type as string
 
       // 转发事件给渲染进程
-      forwardSSEEvent(send, requestId, event)
+      forwardSSEEvent(send, requestId, event, indexOffset)
+
+      // 追踪最大 block index
+      if (typeof event.index === 'number') {
+        maxIndex = Math.max(maxIndex, event.index)
+      }
 
       // 累积文本 & tool_use 参数 JSON（都在 content_block_delta 事件中）
       if (type === 'content_block_delta') {
@@ -484,7 +496,7 @@ async function parseSSEStream(
     }
   }
 
-  return { textContent, toolCalls, stopReason }
+  return { textContent, toolCalls, stopReason, blockCount: maxIndex + 1 }
 }
 
 // ===== 工具执行（主进程内直接调用 store / webviewManager） =====
