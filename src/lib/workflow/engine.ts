@@ -1,4 +1,5 @@
 // src/lib/workflow/engine.ts
+import { toRaw } from 'vue'
 import type { WorkflowNode, WorkflowEdge, ExecutionLog, ExecutionStep } from './types'
 import { getNodeDefinition } from './nodeRegistry'
 
@@ -253,7 +254,9 @@ export class WorkflowEngine {
     if (!api?.agent?.execTool) {
       throw new Error(`agent.execTool IPC 通道不可用，无法执行工具: ${toolType}`)
     }
-    return api.agent.execTool(toolType, params)
+    // Vue reactive Proxy 无法通过 IPC 结构化克隆，需先转为纯对象
+    const rawParams = JSON.parse(JSON.stringify(params, (_, v) => toRaw(v)))
+    return api.agent.execTool(toolType, rawParams)
   }
 
   private resolveContextVariables(data: Record<string, any>): Record<string, any> {
