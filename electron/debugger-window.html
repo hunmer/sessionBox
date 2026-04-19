@@ -27,11 +27,10 @@
     .controls button { padding: 5px 14px; border-radius: 4px; border: none; font-size: 12px; cursor: pointer; font-weight: 500; transition: opacity 0.15s; }
     .controls button:hover { opacity: 0.85; }
     .controls button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-inject { background: #6366f1; color: white; }
     .btn-start { background: #22c55e; color: white; }
     .btn-stop { background: #ef4444; color: white; }
     .btn-export { background: #3b82f6; color: white; }
-    .btn-refresh { background: #64748b; color: white; }
+    .btn-inject { background: #6366f1; color: white; }
     .status { font-size: 11px; color: #94a3b8; margin-left: 4px; }
     .status.recording { color: #ef4444; }
     .url-bar { display: none; width: 100%; }
@@ -56,11 +55,14 @@
     .webview-container.visible { display: flex; }
     .webview-container webview { width: 100%; height: 100%; flex: 1; }
 
-    /* 录制/回放区域 */
-    .recorder-area, .replayer-area { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; min-height: 0; }
-    .area-empty { color: #64748b; font-size: 14px; }
-    #replayer { width: 100%; height: 100%; flex: 1; min-height: 0; }
-    #replayer > div, #replayer iframe { width: 100% !important; height: 100% !important; }
+    /* 回放区域 */
+    .replayer-area { flex: 1; display: flex; overflow: hidden; position: relative; min-height: 0; }
+    .area-empty { color: #64748b; font-size: 14px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    #replayer { width: 100%; height: 100%; min-height: 0; overflow: hidden; }
+    #replayer .rr-player { width: 100% !important; height: 100% !important; display: flex !important; flex-direction: column !important; }
+    #replayer .rr-player__frame { width: 100% !important; flex: 1 !important; min-height: 0 !important; height: auto !important; overflow: hidden; }
+    #replayer .rr-player__frame > div { width: 100% !important; height: 100% !important; }
+    #replayer .rr-player__controller { flex-shrink: 0; position: relative; }
 
     /* 拖拽分隔条 */
     .resizer { width: 4px; background: #2a2a4a; cursor: col-resize; transition: background 0.15s; flex-shrink: 0; }
@@ -83,6 +85,8 @@
     .event-type.FullSnapshot { background: #22c55e20; color: #4ade80; }
     .event-type.Meta { background: #a855f720; color: #c084fc; }
     .event-type.Custom { background: #f59e0b20; color: #fbbf24; }
+    .event-type.Interaction { background: #f472b620; color: #f472b6; }
+    .event-type.Log { background: #94a3b820; color: #94a3b8; }
     .event-seq { color: #64748b; min-width: 28px; text-align: right; }
     .event-ts { color: #475569; margin-left: auto; font-size: 10px; }
 
@@ -105,15 +109,13 @@
     <select id="targetSelect">
       <option value="">-- 选择目标页面 --</option>
     </select>
-    <button class="btn-refresh" id="refreshBtn" title="刷新列表">刷新</button>
-    <button class="btn-inject" id="injectBtn" disabled>注入</button>
-    <button class="btn-start" id="startBtn" disabled>开始录制</button>
+    <button class="btn-start" id="startBtn" disabled>注入并录制</button>
     <button class="btn-stop" id="stopBtn" disabled>停止录制</button>
     <button class="btn-export" id="exportBtn" disabled>导出</button>
     <span class="status" id="status"></span>
 
     <div class="url-bar" id="urlBar">
-      <input type="text" id="urlInput" placeholder="输入 URL..." value="https://example.com">
+      <input type="text" id="urlInput" placeholder="输入 URL..." value="https://baidu.com">
       <button class="btn-inject" id="loadUrlBtn">加载</button>
     </div>
   </div>
@@ -129,9 +131,6 @@
       <div class="tab-content active" id="tab-record">
         <div class="webview-container" id="webviewContainer">
           <webview id="embeddedWebview" src="about:blank"></webview>
-        </div>
-        <div class="recorder-area">
-          <span class="area-empty" id="recordEmpty">注入 rrweb 后点击"开始录制"</span>
         </div>
       </div>
 
@@ -170,8 +169,6 @@
     let playerInstance = null
 
     const targetSelect = document.getElementById('targetSelect')
-    const refreshBtn = document.getElementById('refreshBtn')
-    const injectBtn = document.getElementById('injectBtn')
     const startBtn = document.getElementById('startBtn')
     const stopBtn = document.getElementById('stopBtn')
     const exportBtn = document.getElementById('exportBtn')
@@ -182,11 +179,9 @@
     const webviewContainer = document.getElementById('webviewContainer')
     const embeddedWebview = document.getElementById('embeddedWebview')
     const replayerEl = document.getElementById('replayer')
-    const recordEmpty = document.getElementById('recordEmpty')
     const replayEmpty = document.getElementById('replayEmpty')
     const eventList = document.getElementById('eventList')
     const eventCount = document.getElementById('eventCount')
-    const eventEmpty = document.getElementById('eventEmpty')
 
     window.minimize = () => api.minimize()
     window.maximize = () => api.maximize()
@@ -242,31 +237,51 @@
 
     // ===== 事件列表 =====
     const typeLabels = {
-      2: 'IncrementalSnapshot',
-      4: 'Meta',
-      1: 'DomContentLoaded',
-      5: 'Load',
-      3: 'FullSnapshot',
-      6: 'Custom'
+      0: 'domcontentloaded',
+      1: 'domcontentloaded',
+      2: 'incrementalsnapshot',
+      3: 'fullsnapshot',
+      4: 'meta',
+      5: 'load',
+      6: 'custom'
     }
 
     function getEventTypeLabel(event) {
       const t = event.type
       if (t === 2 && event.data) {
         const source = event.data.source
-        const sourceMap = { 0:'Mutation', 1:'MouseMove', 2:'MouseInteraction', 3:'Scroll', 4:'ViewportResize', 5:'Input', 6:'TouchMove', 7:'MediaInteraction', 8:'StyleSheetRule', 9:'CanvasMutation', 10:'Font', 11:'Log', 12:'Drag', 13:'StyleDeclaration', 14:'Selection', 15:'AdoptedStyleSheet', 16:'Custom' }
-        return sourceMap[source] || 'Incremental'
+        const sourceMap = { 0:'mutation', 1:'mousemove', 2:'mouseinteraction', 3:'scroll', 4:'viewportresize', 5:'input', 6:'touchmove', 7:'mediainteraction', 8:'stylesheetrule', 9:'canvasmutation', 10:'font', 11:'log', 12:'drag', 13:'styledeclaration', 14:'selection', 15:'adoptedstylesheet', 16:'custom' }
+        const label = sourceMap[source] || 'Incremental'
+        if (source === 2 && event.data.type !== undefined) {
+          const interactionMap = { 0:'mouseup', 1:'mousedown', 2:'click', 3:'contextmenu', 4:'dblclick', 5:'focus', 6:'blur', 7:'touchstart', 8:'touchmove', 9:'touchend' }
+          return interactionMap[event.data.type] || label
+        }
+        if (source === 5 && event.data.tagName) {
+          return 'input(' + event.data.tagName.toLowerCase() + ')'
+        }
+        if (source === 3) return 'scroll'
+        if (source === 11 && event.data.level) {
+          const levelMap = { 0:'log', 1:'warn', 2:'error' }
+          return (levelMap[event.data.level] || 'log') + (event.data.payload ? ': ' + String(event.data.payload[0] || '').slice(0, 30) : '')
+        }
+        return label
       }
+      if (t === 4) return 'meta'
+      if (t === 1) return 'domcontentloaded'
+      if (t === 5) return 'load'
       return typeLabels[t] || 'Type' + t
     }
 
     function addEventToList(event, index) {
-      if (eventEmpty.style.display !== 'none') {
-        eventEmpty.style.display = 'none'
-      }
+      const empty = document.getElementById('eventEmpty')
+      if (empty) empty.remove()
+
       const item = document.createElement('div')
       item.className = 'event-item'
       item.dataset.index = index
+      if (event.id !== undefined && event.id !== null) {
+        item.dataset.eventId = String(event.id)
+      }
 
       const seq = document.createElement('span')
       seq.className = 'event-seq'
@@ -299,6 +314,12 @@
       if (event.type === 3) return 'FullSnapshot'
       if (event.type === 4) return 'Meta'
       if (event.type === 6) return 'Custom'
+      if (event.type === 2 && event.data) {
+        const source = event.data.source
+        // 交互类事件高亮
+        if (source === 2 || source === 3 || source === 5 || source === 6) return 'Interaction'
+        if (source === 11) return 'Log'
+      }
       return 'IncrementalSnapshot'
     }
 
@@ -317,6 +338,7 @@
     }
 
     function setActiveEvent(index) {
+      if (index < 0) return
       const items = eventList.querySelectorAll('.event-item')
       items.forEach(item => item.classList.toggle('active', parseInt(item.dataset.index) === index))
       const activeItem = eventList.querySelector('.event-item.active')
@@ -333,10 +355,9 @@
 
     function updateButtons() {
       const hasTarget = currentWcId !== null
-      injectBtn.disabled = !hasTarget
       startBtn.disabled = !hasTarget || isRecording
       stopBtn.disabled = !isRecording
-      exportBtn.disabled = isRecording || !hasTarget
+      exportBtn.disabled = isRecording || allEvents.length === 0
     }
 
     async function refreshTabs() {
@@ -380,33 +401,27 @@
       updateButtons()
     })
 
-    refreshBtn.addEventListener('click', refreshTabs)
-
-    injectBtn.addEventListener('click', async () => {
-      if (!currentWcId) return
-      setStatus('注入中...')
-      injectBtn.disabled = true
-      const result = await api.inject(currentWcId)
-      if (result.success) {
-        setStatus('注入成功')
-        recordEmpty.textContent = '点击"开始录制"开始'
-      } else {
-        setStatus('注入失败: ' + (result.error || '未知错误'))
-      }
-      updateButtons()
-    })
-
     startBtn.addEventListener('click', async () => {
       if (!currentWcId) return
-      const result = await api.startRecord(currentWcId)
-      if (result.success) {
+      startBtn.disabled = true
+      setStatus('注入中...')
+
+      const injectResult = await api.inject(currentWcId)
+      if (!injectResult.success) {
+        setStatus('注入失败: ' + (injectResult.error || '未知错误'))
+        updateButtons()
+        return
+      }
+
+      setStatus('开始录制...')
+      clearEventList()
+      const recordResult = await api.startRecord(currentWcId)
+      if (recordResult.success) {
         isRecording = true
-        clearEventList()
         setStatus('录制中...', true)
-        recordEmpty.textContent = '录制中...'
         switchTab('record')
       } else {
-        setStatus('启动失败: ' + (result.error || '未知错误'))
+        setStatus('录制失败: ' + (recordResult.error || '未知错误'))
       }
       updateButtons()
     })
@@ -416,12 +431,18 @@
       const result = await api.stopRecord(currentWcId)
       if (result.success) {
         isRecording = false
-        setStatus('已停止 (' + allEvents.length + ' 事件)')
 
-        // 获取完整事件列表用于回放
+        // 获取完整事件列表
         const events = await api.getEvents(currentWcId)
+        allEvents = events
+
+        // 重建事件列表
+        eventList.innerHTML = ''
+        events.forEach((ev, i) => addEventToList(ev, i))
+
+        setStatus('已停止 (' + events.length + ' 事件)')
+
         if (events.length > 0) {
-          allEvents = events
           playEvents(events)
           switchTab('replay')
         } else {
@@ -456,40 +477,81 @@
     // ===== 回放 =====
     function playEvents(events) {
       replayEmpty.style.display = 'none'
-      replayerEl.style.display = 'flex'
+      replayerEl.style.display = 'block'
       replayerEl.innerHTML = ''
+      activeEventIndex = -1
 
-      // 用 requestAnimationFrame 确保容器已获得布局尺寸
+      // 两帧确保容器已获得布局尺寸
       requestAnimationFrame(() => {
-        const rect = replayerEl.getBoundingClientRect()
-        try {
-          playerInstance = new rrwebPlayer({
-            target: replayerEl,
-            props: {
-              events,
-              width: Math.max(rect.width, 400),
-              height: Math.max(rect.height, 300),
-              autoPlay: true,
-              showController: true
-            }
-          })
+        requestAnimationFrame(() => {
+          const rect = replayerEl.getBoundingClientRect()
+          const w = Math.max(rect.width, 300)
+          const h = Math.max(rect.height, 200)
+          try {
+            playerInstance = new rrwebPlayer({
+              target: replayerEl,
+              props: {
+                events,
+                width: w,
+                height: h,
+                autoPlay: true,
+                showController: true
+              }
+            })
 
-        // 监听回放进度，高亮当前事件
-        if (playerInstance.on) {
-          playerInstance.on('ui-update-current-time', (time) => {
-            const idx = findEventIndexByTime(events, time)
-            if (idx !== activeEventIndex) {
-              activeEventIndex = idx
-              setActiveEvent(idx)
-            }
-          })
-        }
-      } catch (err) {
-        replayerEl.style.display = 'none'
-        replayEmpty.style.display = 'flex'
-        replayEmpty.textContent = '回放失败: ' + err.message
-      }
+            bindReplayHighlight(playerInstance, events)
+          } catch (err) {
+            replayerEl.style.display = 'none'
+            replayEmpty.style.display = 'flex'
+            replayEmpty.textContent = '回放失败: ' + err.message
+          }
+        })
       })
+    }
+
+    function bindReplayHighlight(player, events) {
+      const updateActiveEvent = (idx) => {
+        if (idx < 0 || idx === activeEventIndex) return
+        activeEventIndex = idx
+        setActiveEvent(idx)
+      }
+
+      const castHandler = (event) => {
+        updateActiveEvent(findReplayEventIndex(events, event))
+      }
+
+      const replayer = typeof player.getReplayer === 'function' ? player.getReplayer() : player.replayer
+      if (replayer && typeof replayer.on === 'function') {
+        replayer.on('event-cast', castHandler)
+      }
+      if (typeof player.on === 'function') {
+        player.on('event-cast', castHandler)
+        player.on('ui-update-current-time', (time) => updateActiveEvent(findEventIndexByTime(events, time)))
+      }
+      if (typeof player.addEventListener === 'function') {
+        player.addEventListener('event-cast', castHandler)
+        player.addEventListener('ui-update-current-time', (time) => updateActiveEvent(findEventIndexByTime(events, time)))
+      }
+    }
+
+    function findReplayEventIndex(events, castEvent) {
+      if (!castEvent) return -1
+
+      if (castEvent.id !== undefined && castEvent.id !== null) {
+        const byId = eventList.querySelector('[data-event-id="' + String(castEvent.id) + '"]')
+        if (byId) return parseInt(byId.dataset.index, 10)
+      }
+
+      const sameObjectIndex = events.indexOf(castEvent)
+      if (sameObjectIndex !== -1) return sameObjectIndex
+
+      for (let i = 0; i < events.length; i++) {
+        const event = events[i]
+        if (event.timestamp === castEvent.timestamp && event.type === castEvent.type) {
+          return i
+        }
+      }
+      return -1
     }
 
     function findEventIndexByTime(events, timeMs) {
@@ -517,14 +579,24 @@
 
     embeddedWebview.addEventListener('did-finish-load', () => {
       embeddedWcId = embeddedWebview.getWebContentsId?.() ?? null
-      if (targetSelect.value === EMBEDDED_WC_OPTION) {
+      if (targetSelect.value === EMBEDDED_WC_OPTION || !targetSelect.value) {
         currentWcId = embeddedWcId
+        updateButtons()
       }
     })
 
-    // 初始化
-    refreshTabs()
-    setStatus('就绪')
+    // 初始化：默认选择内嵌 webview
+    async function init() {
+      await refreshTabs()
+      targetSelect.value = EMBEDDED_WC_OPTION
+      urlBar.classList.add('visible')
+      webviewContainer.classList.add('visible')
+      // 加载默认 URL
+      const url = urlInput.value.trim()
+      if (url) embeddedWebview.loadURL(url)
+      setStatus('就绪')
+    }
+    init()
   </script>
 </body>
 </html>
