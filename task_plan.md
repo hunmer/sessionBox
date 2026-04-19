@@ -4,7 +4,7 @@
 将 sessionbox 的工作流编辑器、执行引擎、AI Agent/Chat 系统完整迁移到 /Users/Zhuanz/Documents/work_fox，构建独立的 Electron + Vue 3 + shadcn-vue 应用。
 
 ## Current Phase
-Phase 1
+Phase 7
 
 ## Phases
 
@@ -13,7 +13,7 @@ Phase 1
 - [ ] 配置 TypeScript、Tailwind CSS 4、shadcn-vue
 - [ ] 配置 electron-builder 打包
 - [ ] 安装核心依赖（vue-flow、dexie、dagre、zod 等）
-- **Status:** pending
+- **Status:** complete
 
 ### Phase 2: 主进程 - 基础设施迁移
 - [ ] 迁移 json-store 工具类
@@ -26,7 +26,7 @@ Phase 1
 - [ ] 迁移 MCP Server（按需）
 - [ ] 注册所有 IPC handlers
 - [ ] 迁移 preload 桥接层（chat/workflow/agent 命名空间）
-- **Status:** pending
+- **Status:** complete
 
 ### Phase 3: 渲染进程 - 类型与引擎迁移
 - [ ] 迁移 workflow 类型定义 (types.ts)
@@ -35,14 +35,14 @@ Phase 1
 - [ ] 迁移 lucide-resolver
 - [ ] 迁移 chat-db (Dexie)
 - [ ] 迁移 AI Provider 类型与 Store
-- **Status:** pending
+- **Status:** complete
 
 ### Phase 4: 渲染进程 - Agent 系统迁移
 - [ ] 迁移 src/lib/agent/ 全部文件（agent.ts、stream.ts、tools.ts）
 - [ ] 迁移 system-prompt.ts、workflow-tools.ts、workflow-renderer-tools.ts
 - [ ] 适配工具发现系统（移除浏览器专属工具或替换为通用工具）
 - [ ] 迁移 Pinia stores（workflow、chat、ai-provider）
-- **Status:** pending
+- **Status:** complete
 
 ### Phase 5: 渲染进程 - UI 组件迁移
 - [ ] 迁移 shadcn-vue 基础组件（button、input、dialog、scroll-area 等）
@@ -50,7 +50,7 @@ Phase 1
 - [ ] 迁移 chat/ 全部组件（ChatPanel、ChatInput、ChatMessage 等）
 - [ ] 迁移 lucide-resolver + 图标依赖
 - [ ] 样式与主题适配
-- **Status:** pending
+- **Status:** complete
 
 ### Phase 6: 集成测试与修复
 - [ ] 主进程启动测试

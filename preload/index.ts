@@ -210,16 +210,6 @@ export interface ChatCompletionParams {
   thinking?: { type: 'enabled'; budgetTokens: number }
   targetTabId?: string
   enabledToolNames?: string[]
-  _mode?: 'workflow'       // 新增
-  _workflowId?: string     // 新增
-}
-
-export interface WorkflowToolExecuteRequest {
-  requestId: string
-  toolUseId: string
-  name: string
-  args: Record<string, unknown>
-  workflowId: string
 }
 
 // IPC API 定义
@@ -526,11 +516,6 @@ const api = {
       ipcRenderer.invoke('chat:abort', requestId),
   },
 
-  workflowTool: {
-    respond: (requestId: string, result: unknown): Promise<{ resolved: boolean }> =>
-      ipcRenderer.invoke('workflow-tool:respond', requestId, result),
-  },
-
   aiProvider: {
     list: (): Promise<any[]> => ipcRenderer.invoke('ai-provider:list'),
     create: (data: any): Promise<any> => ipcRenderer.invoke('ai-provider:create', data),
@@ -647,60 +632,6 @@ const api = {
       ipcRenderer.invoke('skill:write', name, description, content),
     delete: (name: string): Promise<boolean> =>
       ipcRenderer.invoke('skill:delete', name),
-  },
-
-  workflow: {
-    list: (folderId?: string | null): Promise<any[]> =>
-      ipcRenderer.invoke('workflow:list', folderId),
-    get: (id: string): Promise<any | undefined> =>
-      ipcRenderer.invoke('workflow:get', id),
-    create: (data: any): Promise<any> =>
-      ipcRenderer.invoke('workflow:create', data),
-    update: (id: string, data: any): Promise<void> =>
-      ipcRenderer.invoke('workflow:update', id, data),
-    delete: (id: string): Promise<void> =>
-      ipcRenderer.invoke('workflow:delete', id),
-    importOpenFile: (): Promise<{ json: string } | null> =>
-      ipcRenderer.invoke('workflow:importOpenFile'),
-    exportSaveFile: (json: string): Promise<{ success: boolean }> =>
-      ipcRenderer.invoke('workflow:exportSaveFile', json),
-  },
-
-  workflowFolder: {
-    list: (): Promise<any[]> =>
-      ipcRenderer.invoke('workflowFolder:list'),
-    create: (data: any): Promise<any> =>
-      ipcRenderer.invoke('workflowFolder:create', data),
-    update: (id: string, data: any): Promise<void> =>
-      ipcRenderer.invoke('workflowFolder:update', id, data),
-    delete: (id: string): Promise<void> =>
-      ipcRenderer.invoke('workflowFolder:delete', id),
-  },
-
-  executionLog: {
-    list: (workflowId: string): Promise<any[]> =>
-      ipcRenderer.invoke('executionLog:list', workflowId),
-    save: (workflowId: string, log: any): Promise<any> =>
-      ipcRenderer.invoke('executionLog:save', workflowId, log),
-    delete: (workflowId: string, logId: string): Promise<void> =>
-      ipcRenderer.invoke('executionLog:delete', workflowId, logId),
-    clear: (workflowId: string): Promise<void> =>
-      ipcRenderer.invoke('executionLog:clear', workflowId),
-  },
-
-  workflowVersion: {
-    list: (workflowId: string): Promise<any[]> =>
-      ipcRenderer.invoke('workflowVersion:list', workflowId),
-    add: (workflowId: string, name: string, nodes: any[], edges: any[]): Promise<any> =>
-      ipcRenderer.invoke('workflowVersion:add', workflowId, name, nodes, edges),
-    get: (workflowId: string, versionId: string): Promise<any | undefined> =>
-      ipcRenderer.invoke('workflowVersion:get', workflowId, versionId),
-    delete: (workflowId: string, versionId: string): Promise<void> =>
-      ipcRenderer.invoke('workflowVersion:delete', workflowId, versionId),
-    clear: (workflowId: string): Promise<void> =>
-      ipcRenderer.invoke('workflowVersion:clear', workflowId),
-    nextName: (workflowId: string): Promise<string> =>
-      ipcRenderer.invoke('workflowVersion:nextName', workflowId),
   },
 
   debugger: {

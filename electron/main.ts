@@ -1,11 +1,9 @@
 import { app, BrowserWindow, nativeImage, protocol, net } from 'electron'
 import { join } from 'path'
 import { setupUserAgent } from './utils/user-agent'
-import { migrateBookmarksAndPasswords, migrateWorkflows } from './services/migration'
+import { migrateBookmarksAndPasswords } from './services/migration'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
-import { registerExecutionLogIpcHandlers } from './ipc/execution-log'
-import { registerWorkflowVersionIpcHandlers } from './ipc/workflow-version'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
 import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
@@ -290,9 +288,8 @@ if (!gotTheLock) {
 
     ensureWindowsBrowserRegistration()
 
-    // 迁移 bookmark/password/workflow 数据到独立 JsonStore
+    // 迁移 bookmark/password 数据到独立 JsonStore
     migrateBookmarksAndPasswords()
-    migrateWorkflows()
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -301,8 +298,6 @@ if (!gotTheLock) {
     // 注册所有 IPC 处理器
     registerIpcHandlers()
     registerDownloadIpcHandlers()
-    registerExecutionLogIpcHandlers()
-    registerWorkflowVersionIpcHandlers()
 
     // 初始化插件系统
     pluginManager.loadAll()

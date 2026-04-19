@@ -7,7 +7,6 @@ import {
   buildToolListResponse,
   isBrowserBusinessToolName,
 } from '../../src/lib/agent/tools'
-import { dispatchWorkflowTool, rejectPendingRendererToolsForRequest } from './workflow-tool-dispatcher'
 import {
   executeCreateTab, executeWindowTool, executeBrowserTool,
   executePageTool, executeSkillTool, executeInjectJs, cssEscape,
@@ -26,7 +25,6 @@ interface ProxyRequest {
   targetTabId?: string
   enabledToolNames?: string[]
   _mode?: string
-  _workflowId?: string
 }
 
 /** 可重试的 HTTP 状态码（服务过载、限流、临时故障） */
@@ -77,7 +75,7 @@ export async function proxyChatCompletions(
   mainWindow: BrowserWindow,
   params: ProxyRequest,
 ): Promise<void> {
-  const { _requestId, providerId, modelId, system, messages, tools, stream, maxTokens, thinking, targetTabId, enabledToolNames, _mode, _workflowId } = params
+  const { _requestId, providerId, modelId, system, messages, tools, stream, maxTokens, thinking, targetTabId, enabledToolNames, _mode } = params
 
   const abortController = new AbortController()
   activeRequests.set(_requestId, abortController)
@@ -172,11 +170,7 @@ export async function proxyChatCompletions(
       for (const tc of parsed.toolCalls) {
         console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
         let result: any
-        if (_mode === 'workflow' && _workflowId) {
-          result = await dispatchWorkflowTool(mainWindow, _requestId, tc.id, tc.name, tc.args, _workflowId)
-        } else {
-          result = await executeTool(tc.name, tc.args, targetTabId, enabledToolNames)
-        }
+        result = await executeTool(tc.name, tc.args, targetTabId, enabledToolNames)
 
         let toolResultContent: string | Array<Record<string, unknown>>
         const img = getImageToolContent(result)
@@ -213,7 +207,6 @@ export async function proxyChatCompletions(
     }
     send('on:chat:error', { requestId: _requestId, error: error instanceof Error ? error.message : String(error) })
   } finally {
-    rejectPendingRendererToolsForRequest(_requestId, new Error('聊天请求已结束，渲染进程工具等待已取消'))
     activeRequests.delete(_requestId)
   }
 }

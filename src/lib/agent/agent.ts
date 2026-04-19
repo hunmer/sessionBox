@@ -2,23 +2,6 @@ import { createToolDiscoveryTools } from './tools'
 import { listenToChatStream, type StreamCallbacks } from './stream'
 import { BROWSER_AGENT_SYSTEM_PROMPT } from './system-prompt'
 import { useAIProviderStore } from '@/stores/ai-provider'
-import { WORKFLOW_TOOL_DEFINITIONS, buildWorkflowSystemPrompt } from './workflow-tools'
-
-/** Agent 流式请求的可选配置 */
-export interface AgentStreamOptions {
-  /** 运行模式：浏览器模式（默认）或工作流模式 */
-  mode?: 'browser' | 'workflow'
-  /** 工作流 ID（仅 workflow 模式） */
-  workflowId?: string
-  /** 工作流摘要信息（仅 workflow 模式） */
-  workflowSummary?: {
-    id: string
-    name: string
-    description?: string
-    nodes: Array<{ id: string; type: string; label: string }>
-    edges: Array<{ id: string; source: string; target: string }>
-  }
-}
 
 /**
  * 通过主进程 API 代理运行 Agent 流式请求。
@@ -32,7 +15,6 @@ export async function runAgentStream(
   callbacks: StreamCallbacks,
   targetTabId: string | null,
   enabledToolNames?: Set<string>,
-  options?: AgentStreamOptions,
 ): Promise<{ requestId: string; cleanup: () => void }> {
   const providerStore = useAIProviderStore()
   const provider = providerStore.currentProvider
@@ -42,8 +24,6 @@ export async function runAgentStream(
     callbacks.onError(new Error('请先配置 AI 供应商和模型'))
     return { requestId: '', cleanup: () => {} }
   }
-
-  const isWorkflow = options?.mode === 'workflow'
 
   // 构造消息（含图片支持）
   const userContent = images?.length
@@ -64,15 +44,11 @@ export async function runAgentStream(
     { role: 'user', content: userContent },
   ]
 
-  // 工作流模式使用专用工具定义，浏览器模式使用工具发现系统
-  const tools = isWorkflow
-    ? WORKFLOW_TOOL_DEFINITIONS
-    : createToolDiscoveryTools()
+  // 工具发现系统
+  const tools = createToolDiscoveryTools()
 
   // 系统提示词
-  const systemPrompt = isWorkflow
-    ? buildWorkflowSystemPrompt(options!.workflowSummary!)
-    : BROWSER_AGENT_SYSTEM_PROMPT
+  const systemPrompt = BROWSER_AGENT_SYSTEM_PROMPT
 
   const requestId = crypto.randomUUID()
 
@@ -90,15 +66,8 @@ export async function runAgentStream(
       tools: tools as unknown as Array<Record<string, unknown>>,
       stream: true,
       maxTokens: model.maxTokens || 4096,
-      ...(isWorkflow
-        ? {
-            _mode: 'workflow' as const,
-            _workflowId: options!.workflowId,
-          }
-        : {
-            targetTabId: targetTabId ?? undefined,
-            enabledToolNames: enabledToolNames ? Array.from(enabledToolNames) : undefined,
-          }),
+      targetTabId: targetTabId ?? undefined,
+      enabledToolNames: enabledToolNames ? Array.from(enabledToolNames) : undefined,
       ...(model.supportsThinking ? { thinking: { type: 'enabled' as const, budgetTokens: 2000 } } : {}),
     })
   } catch (error) {

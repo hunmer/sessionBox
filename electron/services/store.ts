@@ -84,39 +84,6 @@ export interface Bookmark {
   order: number      // 排序
 }
 
-export interface WorkflowFolder {
-  id: string
-  name: string
-  parentId: string | null
-  order: number
-  createdAt: number
-}
-
-export interface WorkflowNode {
-  id: string
-  type: string
-  label: string
-  position: { x: number; y: number }
-  data: Record<string, any>
-}
-
-export interface WorkflowEdge {
-  id: string
-  source: string
-  target: string
-}
-
-export interface Workflow {
-  id: string
-  name: string
-  folderId: string | null
-  description?: string
-  nodes: WorkflowNode[]
-  edges: WorkflowEdge[]
-  createdAt: number
-  updatedAt: number
-}
-
 // 扩展配置
 export interface Extension {
   id: string

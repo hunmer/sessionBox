@@ -166,8 +166,7 @@ export type { PluginInfo, PluginMeta, PluginContext, PluginInstance, RemotePlugi
 export interface ChatSession {
   id: string
   title: string
-  scope: string               // 会话归属的作用域（agent / workflow / ...）
-  workflowId?: string | null  // 绑定的工作流 ID
+  scope: string               // 会话归属的作用域（agent / ...）
   browserViewId: string | null
   modelId: string
   providerId: string
@@ -248,8 +247,6 @@ export interface ChatCompletionParams {
   stream: boolean
   maxTokens?: number
   thinking?: { type: 'enabled'; budgetTokens: number }
-  _mode?: 'workflow'
-  _workflowId?: string
   targetTabId?: string
   enabledToolNames?: string[]
 }
@@ -305,16 +302,3 @@ export interface BrowserScreenshotArgs {
   tabId?: string
   format?: 'png' | 'jpeg'
 }
-
-// 工作流
-export type {
-  WorkflowFolder,
-  WorkflowNode,
-  WorkflowEdge,
-  Workflow,
-  NodeProperty,
-  NodeTypeDefinition,
-  OutputField,
-  ExecutionStep,
-  ExecutionLog,
-} from '@/lib/workflow/types'

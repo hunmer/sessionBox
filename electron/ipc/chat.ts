@@ -1,6 +1,5 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { proxyChatCompletions, activeRequests, executeTool } from '../services/ai-proxy'
-import { resolvePendingRendererTool } from '../services/workflow-tool-dispatcher'
 
 export function registerChatIpcHandlers(): void {
   // Workflow engine 工具执行通道
@@ -37,10 +36,6 @@ export function registerChatIpcHandlers(): void {
       return { aborted: true }
     }
     return { aborted: false, reason: 'not found' }
-  })
-
-  ipcMain.handle('workflow-tool:respond', (_event, requestId: string, result: unknown) => {
-    return { resolved: resolvePendingRendererTool(requestId, result) }
   })
 
   // ===== 浏览器交互工具（CDP） =====

@@ -276,9 +276,6 @@ const api = {
     completions: (params) => electron.ipcRenderer.invoke("chat:completions", params),
     abort: (requestId) => electron.ipcRenderer.invoke("chat:abort", requestId)
   },
-  workflowTool: {
-    respond: (requestId, result) => electron.ipcRenderer.invoke("workflow-tool:respond", requestId, result)
-  },
   aiProvider: {
     list: () => electron.ipcRenderer.invoke("ai-provider:list"),
     create: (data) => electron.ipcRenderer.invoke("ai-provider:create", data),
@@ -373,35 +370,6 @@ const api = {
     read: (name) => electron.ipcRenderer.invoke("skill:read", name),
     write: (name, description, content) => electron.ipcRenderer.invoke("skill:write", name, description, content),
     delete: (name) => electron.ipcRenderer.invoke("skill:delete", name)
-  },
-  workflow: {
-    list: (folderId) => electron.ipcRenderer.invoke("workflow:list", folderId),
-    get: (id) => electron.ipcRenderer.invoke("workflow:get", id),
-    create: (data) => electron.ipcRenderer.invoke("workflow:create", data),
-    update: (id, data) => electron.ipcRenderer.invoke("workflow:update", id, data),
-    delete: (id) => electron.ipcRenderer.invoke("workflow:delete", id),
-    importOpenFile: () => electron.ipcRenderer.invoke("workflow:importOpenFile"),
-    exportSaveFile: (json) => electron.ipcRenderer.invoke("workflow:exportSaveFile", json)
-  },
-  workflowFolder: {
-    list: () => electron.ipcRenderer.invoke("workflowFolder:list"),
-    create: (data) => electron.ipcRenderer.invoke("workflowFolder:create", data),
-    update: (id, data) => electron.ipcRenderer.invoke("workflowFolder:update", id, data),
-    delete: (id) => electron.ipcRenderer.invoke("workflowFolder:delete", id)
-  },
-  executionLog: {
-    list: (workflowId) => electron.ipcRenderer.invoke("executionLog:list", workflowId),
-    save: (workflowId, log) => electron.ipcRenderer.invoke("executionLog:save", workflowId, log),
-    delete: (workflowId, logId) => electron.ipcRenderer.invoke("executionLog:delete", workflowId, logId),
-    clear: (workflowId) => electron.ipcRenderer.invoke("executionLog:clear", workflowId)
-  },
-  workflowVersion: {
-    list: (workflowId) => electron.ipcRenderer.invoke("workflowVersion:list", workflowId),
-    add: (workflowId, name, nodes, edges) => electron.ipcRenderer.invoke("workflowVersion:add", workflowId, name, nodes, edges),
-    get: (workflowId, versionId) => electron.ipcRenderer.invoke("workflowVersion:get", workflowId, versionId),
-    delete: (workflowId, versionId) => electron.ipcRenderer.invoke("workflowVersion:delete", workflowId, versionId),
-    clear: (workflowId) => electron.ipcRenderer.invoke("workflowVersion:clear", workflowId),
-    nextName: (workflowId) => electron.ipcRenderer.invoke("workflowVersion:nextName", workflowId)
   },
   debugger: {
     createWindow: () => electron.ipcRenderer.invoke("debugger:create-window")

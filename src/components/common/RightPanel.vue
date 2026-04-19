@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Workflow, Bug } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Bug } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -24,7 +24,6 @@ import ContainerMiniPopover from './ContainerMiniPopover.vue'
 import SnifferMiniPopover from './SnifferMiniPopover.vue'
 import PluginMiniPopover from './PluginMiniPopover.vue'
 import PluginSettings from '@/components/plugins/PluginSettings.vue'
-import WorkflowDialog from '@/components/workflow/WorkflowDialog.vue'
 import { useChatUIStore } from '@/stores/chat-ui'
 
 const tabStore = useTabStore()
@@ -45,7 +44,6 @@ const proxyDialogOpen = ref(false)
 const containerOpen = ref(false)
 const snifferOpen = ref(false)
 const pluginOpen = ref(false)
-const workflowOpen = ref(false)
 
 function openDebugger() {
   window.api.debugger?.createWindow?.()
@@ -69,16 +67,6 @@ function openFullPage(site: string) {
       <!-- 区域一：书签 / 历史 / 下载 Popover 入口 -->
       <ResizablePanel :default-size="33">
         <div class="flex flex-col items-center justify-start gap-1 py-2 h-full">
-          <!-- 工作流 -->
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8"
-            @click="workflowOpen = true"
-          >
-            <Workflow class="h-4 w-4" />
-          </Button>
-
           <!-- 书签 -->
           <Popover v-model:open="bookmarkOpen">
             <PopoverTrigger as-child>
@@ -285,8 +273,5 @@ function openFullPage(site: string) {
 
     <!-- 插件设置对话框 -->
     <PluginSettings />
-
-    <!-- 工作流对话框 -->
-    <WorkflowDialog v-model:open="workflowOpen" />
   </div>
 </template>

@@ -89,7 +89,6 @@ import { registerPluginIpcHandlers } from './plugin'
 import { registerMcpIpcHandlers } from './mcp'
 import { registerChatIpcHandlers } from './chat'
 import { registerAIProviderIpcHandlers } from './ai-provider'
-import { registerWorkflowIpcHandlers } from './workflow'
 import { isDefaultBrowser, setDefaultBrowser } from '../services/default-browser'
 import { listSkills, searchSkill, readSkill, writeSkill, deleteSkill } from '../services/skill-store'
 import { registerDebuggerIpcHandlers } from './debugger'
@@ -589,7 +588,6 @@ export function registerIpcHandlers(): void {
   registerMcpIpcHandlers()
   registerChatIpcHandlers()
   registerAIProviderIpcHandlers()
-  registerWorkflowIpcHandlers()
   registerPasswordIpc()
   registerThemeIpc()
   registerSearchEngineIpc()

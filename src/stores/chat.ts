@@ -15,7 +15,6 @@ import {
 } from '@/lib/chat-db'
 import { useAIProviderStore } from './ai-provider'
 import { useChatUIStore } from './chat-ui'
-import { useWorkflowStore } from './workflow'
 import { runAgentStream } from '@/lib/agent/agent'
 
 // ====== 辅助函数 ======
@@ -47,27 +46,6 @@ function buildStreamUpdates(
       ? JSON.parse(JSON.stringify(toRaw(streamingToolCalls.value)))
       : undefined,
     usage: streamingUsage.value ? { ...toRaw(streamingUsage.value) } : undefined,
-  }
-}
-
-/** 构建工作流模式选项 */
-function buildWorkflowOptions(
-  sessions: { value: ChatSession[] },
-  currentSessionId: { value: string | null },
-) {
-  const workflowStore = useWorkflowStore()
-  const sessionData = sessions.value.find((s) => s.id === currentSessionId.value)
-  if (!sessionData?.workflowId || !workflowStore.currentWorkflow) return undefined
-  return {
-    mode: 'workflow' as const,
-    workflowId: workflowStore.currentWorkflow.id,
-    workflowSummary: {
-      id: workflowStore.currentWorkflow.id,
-      name: workflowStore.currentWorkflow.name,
-      description: workflowStore.currentWorkflow.description,
-      nodes: workflowStore.currentWorkflow.nodes.map(n => ({ id: n.id, type: n.type, label: n.label })),
-      edges: workflowStore.currentWorkflow.edges.map(e => ({ id: e.id, source: e.source, target: e.target })),
-    },
   }
 }
 
@@ -111,28 +89,7 @@ function createSessionActions(scope: string, sessions: Ref<ChatSession[]>, curre
     if (session) session.messageCount = 0
   }
 
-  async function switchToWorkflowSession(workflowId: string | undefined) {
-    if (!workflowId) return
-    const existing = sessions.value.find((s) => s.workflowId === workflowId)
-    if (existing) {
-      if (currentSessionId.value === existing.id) return
-      currentSessionId.value = existing.id
-      messages.value = await dbListMessages(existing.id)
-      return
-    }
-    const providerStore = useAIProviderStore()
-    if (!providerStore.currentProvider || !providerStore.currentModel) {
-      throw new Error('请先选择 AI 模型')
-    }
-    const session = await dbCreateSession(
-      scope, providerStore.currentModel.id, providerStore.currentProvider.id, null, workflowId,
-    )
-    sessions.value.unshift(session)
-    currentSessionId.value = session.id
-    messages.value = []
-  }
-
-  return { loadSessions, createSession, deleteSessionById, switchSession, clearSessionMessages, switchToWorkflowSession }
+  return { loadSessions, createSession, deleteSessionById, switchSession, clearSessionMessages }
 }
 
 // ====== 流式回调 ======
@@ -364,7 +321,6 @@ export function createChatStore(scope: string) {
         const result = await runAgentStream(
           history, content, images, callbacks,
           uiStore.targetTabId, uiStore.enabledToolNames,
-          buildWorkflowOptions(sessions, currentSessionId),
         )
         if (result) { currentRequestId = result.requestId; streamCleanup = result.cleanup }
       } catch (error) {
@@ -442,7 +398,6 @@ export function createChatStore(scope: string) {
       retryMessage: (messageId: string) => messageActions.retryMessage(messageId, streamAssistantReply),
       editMessage: (messageId: string, newContent: string) => messageActions.editMessage(messageId, newContent, streamAssistantReply),
       rerunTool: messageActions.rerunTool,
-      switchToWorkflowSession: sessionActions.switchToWorkflowSession,
       init,
     }
   })()

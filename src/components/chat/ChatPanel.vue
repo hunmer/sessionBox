@@ -4,7 +4,6 @@ import type { ChatStoreInstance } from '@/stores/chat'
 import { useAIProviderStore } from '@/stores/ai-provider'
 import { useChatUIStore } from '@/stores/chat-ui'
 import { BROWSER_TOOL_LIST } from '@/lib/agent/tools'
-import { WORKFLOW_TOOL_DEFINITIONS } from '@/lib/agent/workflow-tools'
 import type { ToolDisplayItem } from '@/types'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatInput from './ChatInput.vue'
@@ -26,30 +25,7 @@ const providerStore = useAIProviderStore()
 const uiStore = useChatUIStore()
 const showProviderManager = ref(false)
 
-const WORKFLOW_CATEGORY_MAP: Record<string, string> = {
-  get_workflow: '读取',
-  get_current_workflow: '读取',
-  list_node_types: '读取',
-  create_node: '编辑',
-  update_node: '编辑',
-  delete_node: '编辑',
-  create_edge: '编辑',
-  delete_edge: '编辑',
-  batch_update: '编辑',
-  auto_layout: '辅助',
-  execute_workflow_sync: '执行',
-  execute_workflow_async: '执行',
-  get_workflow_result: '执行',
-}
-
 const toolDisplayItems = computed<ToolDisplayItem[]>(() => {
-  if (props.embedded) {
-    return WORKFLOW_TOOL_DEFINITIONS.map((t) => ({
-      name: t.name,
-      description: t.description,
-      category: WORKFLOW_CATEGORY_MAP[t.name] ?? '其他',
-    }))
-  }
   return BROWSER_TOOL_LIST.map((t) => ({
     name: t.name,
     description: t.description,
@@ -58,14 +34,11 @@ const toolDisplayItems = computed<ToolDisplayItem[]>(() => {
 })
 
 const enabledTools = computed(() => {
-  if (props.embedded) return undefined
   return uiStore.enabledTools
 })
 
 function handleToggleTool(toolName: string) {
-  if (!props.embedded) {
-    uiStore.toggleTool(toolName)
-  }
+  uiStore.toggleTool(toolName)
 }
 
 function handleSend(content: string, images: string[]) {

@@ -12,16 +12,16 @@ class ChatDB extends Dexie {
       messages: 'id, sessionId, createdAt, [sessionId+createdAt]',
     })
     this.version(2).stores({
-      sessions: 'id, updatedAt, createdAt, workflowId',
+      sessions: 'id, updatedAt, createdAt',
       messages: 'id, sessionId, createdAt, [sessionId+createdAt]',
     })
     this.version(3).stores({
-      sessions: 'id, updatedAt, createdAt, scope, workflowId',
+      sessions: 'id, updatedAt, createdAt, scope',
       messages: 'id, sessionId, createdAt, [sessionId+createdAt]',
     }).upgrade(tx => {
       return tx.table('sessions').toCollection().modify(session => {
         if (!session.scope) {
-          session.scope = session.workflowId ? 'workflow' : 'agent'
+          session.scope = 'agent'
         }
       })
     })
@@ -38,7 +38,6 @@ export async function createSession(
   modelId: string,
   providerId: string,
   browserViewId: string | null = null,
-  workflowId: string | null = null,
 ): Promise<ChatSession> {
   const id = crypto.randomUUID()
   const now = Date.now()
@@ -46,7 +45,6 @@ export async function createSession(
     id,
     title: '新对话',
     scope,
-    workflowId,
     browserViewId,
     modelId,
     providerId,
