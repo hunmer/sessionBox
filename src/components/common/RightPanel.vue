@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Workflow } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Workflow, Bug } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -46,6 +46,10 @@ const containerOpen = ref(false)
 const snifferOpen = ref(false)
 const pluginOpen = ref(false)
 const workflowOpen = ref(false)
+
+function openDebugger() {
+  window.api.debugger?.createWindow?.()
+}
 
 function openFullPage(site: string) {
   bookmarkOpen.value = false
@@ -221,6 +225,16 @@ function openFullPage(site: string) {
               <PluginMiniPopover @open-full="openFullPage('sessionbox://plugins')" />
             </PopoverContent>
           </Popover>
+
+          <!-- 网页调试 -->
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            @click="openDebugger"
+          >
+            <Bug class="h-4 w-4" />
+          </Button>
 
           <!-- AI 聊天 -->
           <Button

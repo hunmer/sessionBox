@@ -703,6 +703,10 @@ const api = {
       ipcRenderer.invoke('workflowVersion:nextName', workflowId),
   },
 
+  debugger: {
+    createWindow: (): Promise<any> => ipcRenderer.invoke('debugger:create-window'),
+  },
+
   // 主进程 → 渲染进程事件监听
   on: (event: string, callback: (...args: unknown[]) => void): (() => void) => {
     const channel = `on:${event}`
