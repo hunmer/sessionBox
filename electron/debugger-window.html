@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; img-src * data: blob:;">
+  <title>调试工具</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    .titlebar { display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 12px; background: #16162a; -webkit-app-region: drag; user-select: none; }
+    .titlebar-title { font-size: 13px; font-weight: 500; }
+    .titlebar-controls { display: flex; gap: 8px; -webkit-app-region: no-drag; }
+    .titlebar-btn { width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer; }
+    .titlebar-btn.close { background: #ff5f57; }
+    .titlebar-btn.minimize { background: #febc2e; }
+    .titlebar-btn.maximize { background: #28c840; }
+    .titlebar-btn:hover { opacity: 0.8; }
+
+    .controls { padding: 10px 16px; background: #1e1e3a; border-bottom: 1px solid #2a2a4a; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .controls select, .controls input { background: #2a2a4a; color: #e0e0e0; border: 1px solid #3a3a5a; border-radius: 4px; padding: 4px 8px; font-size: 12px; outline: none; }
+    .controls select:focus, .controls input:focus { border-color: #6366f1; }
+    .controls select { min-width: 200px; }
+    .controls input[type="text"] { flex: 1; min-width: 150px; }
+    .controls button { padding: 5px 14px; border-radius: 4px; border: none; font-size: 12px; cursor: pointer; font-weight: 500; transition: opacity 0.15s; }
+    .controls button:hover { opacity: 0.85; }
+    .controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-inject { background: #6366f1; color: white; }
+    .btn-start { background: #22c55e; color: white; }
+    .btn-stop { background: #ef4444; color: white; }
+    .btn-export { background: #3b82f6; color: white; }
+    .btn-refresh { background: #64748b; color: white; }
+    .status { font-size: 11px; color: #94a3b8; margin-left: 4px; }
+    .status.recording { color: #ef4444; }
+    .url-bar { display: none; width: 100%; }
+    .url-bar.visible { display: flex; gap: 8px; align-items: center; }
+
+    .webview-container { display: none; height: 200px; border-bottom: 1px solid #2a2a4a; }
+    .webview-container.visible { display: block; }
+    .webview-container webview { width: 100%; height: 100%; }
+
+    .replayer-wrapper { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+    .replayer-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b; font-size: 14px; }
+    #replayer { width: 100%; height: 100%; }
+    .replayer-wrapper iframe { width: 100% !important; height: 100% !important; }
+  </style>
+</head>
+<body>
+  <div class="titlebar">
+    <span class="titlebar-title">调试工具</span>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn minimize" onclick="window.minimize()"></button>
+      <button class="titlebar-btn maximize" onclick="window.maximize()"></button>
+      <button class="titlebar-btn close" onclick="window.close()"></button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <select id="targetSelect">
+      <option value="">-- 选择目标页面 --</option>
+    </select>
+    <button class="btn-refresh" id="refreshBtn" title="刷新列表">刷新</button>
+    <button class="btn-inject" id="injectBtn" disabled>注入</button>
+    <button class="btn-start" id="startBtn" disabled>开始录制</button>
+    <button class="btn-stop" id="stopBtn" disabled>停止录制</button>
+    <button class="btn-export" id="exportBtn" disabled>导出</button>
+    <span class="status" id="status"></span>
+
+    <div class="url-bar" id="urlBar">
+      <input type="text" id="urlInput" placeholder="输入 URL..." value="https://example.com">
+      <button class="btn-inject" id="loadUrlBtn">加载</button>
+    </div>
+  </div>
+
+  <div class="webview-container" id="webviewContainer">
+    <webview id="embeddedWebview" src="about:blank"></webview>
+  </div>
+
+  <div class="replayer-wrapper">
+    <div class="replayer-empty" id="replayerEmpty">停止录制后自动回放</div>
+    <div id="replayer" style="display:none;"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/rrweb-player@latest/dist/index.js"></script>
+
+  <script>
+    const api = window.debuggerApi
+    const EMBEDDED_WC_OPTION = '__embedded__'
+    let currentWcId = null
+    let isRecording = false
+    let embeddedWcId = null
+
+    const targetSelect = document.getElementById('targetSelect')
+    const refreshBtn = document.getElementById('refreshBtn')
+    const injectBtn = document.getElementById('injectBtn')
+    const startBtn = document.getElementById('startBtn')
+    const stopBtn = document.getElementById('stopBtn')
+    const exportBtn = document.getElementById('exportBtn')
+    const statusEl = document.getElementById('status')
+    const urlBar = document.getElementById('urlBar')
+    const urlInput = document.getElementById('urlInput')
+    const loadUrlBtn = document.getElementById('loadUrlBtn')
+    const webviewContainer = document.getElementById('webviewContainer')
+    const embeddedWebview = document.getElementById('embeddedWebview')
+    const replayerEl = document.getElementById('replayer')
+    const replayerEmpty = document.getElementById('replayerEmpty')
+
+    window.minimize = () => {}
+    window.maximize = () => {}
+    window.close = () => {}
+
+    function setStatus(text, recording = false) {
+      statusEl.textContent = text
+      statusEl.className = recording ? 'status recording' : 'status'
+    }
+
+    function updateButtons() {
+      const hasTarget = currentWcId !== null
+      injectBtn.disabled = !hasTarget
+      startBtn.disabled = !hasTarget || isRecording
+      stopBtn.disabled = !isRecording
+      exportBtn.disabled = isRecording || !hasTarget
+    }
+
+    async function refreshTabs() {
+      const tabs = await api.getTabs()
+      const prev = targetSelect.value
+      targetSelect.innerHTML = '<option value="">-- 选择目标页面 --</option>'
+
+      const embeddedOpt = document.createElement('option')
+      embeddedOpt.value = EMBEDDED_WC_OPTION
+      embeddedOpt.textContent = '内嵌 WebView'
+      targetSelect.appendChild(embeddedOpt)
+
+      for (const tab of tabs) {
+        const opt = document.createElement('option')
+        opt.value = String(tab.webContentsId)
+        opt.textContent = tab.title + ' (ID: ' + tab.webContentsId + ')'
+        targetSelect.appendChild(opt)
+      }
+
+      if (prev && Array.from(targetSelect.options).some(o => o.value === prev)) {
+        targetSelect.value = prev
+      }
+    }
+
+    targetSelect.addEventListener('change', () => {
+      const val = targetSelect.value
+      if (val === EMBEDDED_WC_OPTION) {
+        urlBar.classList.add('visible')
+        webviewContainer.classList.add('visible')
+        embeddedWcId = embeddedWebview.getWebContentsId?.() ?? null
+        currentWcId = embeddedWcId
+      } else if (val) {
+        urlBar.classList.remove('visible')
+        webviewContainer.classList.remove('visible')
+        currentWcId = parseInt(val, 10)
+      } else {
+        urlBar.classList.remove('visible')
+        webviewContainer.classList.remove('visible')
+        currentWcId = null
+      }
+      updateButtons()
+    })
+
+    refreshBtn.addEventListener('click', refreshTabs)
+
+    injectBtn.addEventListener('click', async () => {
+      if (!currentWcId) return
+      setStatus('注入中...')
+      injectBtn.disabled = true
+      const result = await api.inject(currentWcId)
+      if (result.success) {
+        setStatus('注入成功')
+      } else {
+        setStatus('注入失败: ' + (result.error || '未知错误'))
+      }
+      updateButtons()
+    })
+
+    startBtn.addEventListener('click', async () => {
+      if (!currentWcId) return
+      const result = await api.startRecord(currentWcId)
+      if (result.success) {
+        isRecording = true
+        setStatus('录制中...', true)
+        replayerEl.style.display = 'none'
+        replayerEl.innerHTML = ''
+        replayerEmpty.style.display = 'flex'
+        replayerEmpty.textContent = '录制中...'
+      } else {
+        setStatus('启动失败: ' + (result.error || '未知错误'))
+      }
+      updateButtons()
+    })
+
+    stopBtn.addEventListener('click', async () => {
+      if (!currentWcId) return
+      const result = await api.stopRecord(currentWcId)
+      if (result.success) {
+        isRecording = false
+        setStatus('已停止')
+
+        const events = await api.getEvents(currentWcId)
+        if (events.length > 0) {
+          playEvents(events)
+        } else {
+          replayerEmpty.textContent = '无录制事件'
+        }
+      } else {
+        setStatus('停止失败: ' + (result.error || '未知错误'))
+      }
+      updateButtons()
+    })
+
+    exportBtn.addEventListener('click', async () => {
+      if (!currentWcId) return
+      const result = await api.exportEvents(currentWcId)
+      if (result.success) {
+        setStatus('已导出: ' + result.path)
+      } else {
+        setStatus('导出失败: ' + (result.error || '未知错误'))
+      }
+    })
+
+    loadUrlBtn.addEventListener('click', async () => {
+      const url = urlInput.value.trim()
+      if (!url) return
+      embeddedWebview.loadURL(url)
+    })
+
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadUrlBtn.click()
+    })
+
+    function playEvents(events) {
+      replayerEmpty.style.display = 'none'
+      replayerEl.style.display = 'block'
+      replayerEl.innerHTML = ''
+
+      try {
+        new rrwebPlayer({
+          target: replayerEl,
+          props: {
+            events,
+            width: replayerEl.offsetWidth,
+            height: replayerEl.offsetHeight,
+            autoPlay: true
+          }
+        })
+      } catch (err) {
+        replayerEl.style.display = 'none'
+        replayerEmpty.style.display = 'flex'
+        replayerEmpty.textContent = '回放失败: ' + err.message
+      }
+    }
+
+    api.on('debugger:load-url', (url) => {
+      if (embeddedWebview) {
+        embeddedWebview.loadURL(url)
+      }
+    })
+
+    embeddedWebview.addEventListener('did-finish-load', () => {
+      embeddedWcId = embeddedWebview.getWebContentsId?.() ?? null
+      if (targetSelect.value === EMBEDDED_WC_OPTION) {
+        currentWcId = embeddedWcId
+      }
+    })
+
+    refreshTabs()
+    setStatus('就绪')
+  </script>
+</body>
+</html>
