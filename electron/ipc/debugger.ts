@@ -1,6 +1,6 @@
-import { ipcMain, BrowserWindow, dialog, webContents } from 'electron'
+import { app, ipcMain, BrowserWindow, dialog, webContents } from 'electron'
 import { join } from 'path'
-import { writeFile } from 'fs/promises'
+import { mkdir, readdir, readFile, writeFile } from 'fs/promises'
 import {
   injectActionRecorder,
   startActionRecording,
@@ -16,6 +16,18 @@ import { getPageById, listTabs } from '../services/store'
 let debuggerWindow: BrowserWindow | null = null
 let embeddedWcId: number | null = null
 let activePlayId: string | null = null
+
+function getActionPresetDir(): string {
+  return join(app.getPath('userData'), 'action-presets')
+}
+
+function sanitizePresetName(name: string): string {
+  return String(name || '')
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, '-')
+    .slice(0, 60) || 'action-preset'
+}
 
 export function registerDebuggerIpcHandlers(): void {
 
@@ -153,6 +165,99 @@ export function registerDebuggerIpcHandlers(): void {
     })
 
     return { success: true }
+  })
+
+  ipcMain.handle('debugger:save-action-preset', async (_e, name: string, run: ActionRun) => {
+    if (!run || !Array.isArray(run.steps) || run.steps.length === 0) {
+      return { success: false, error: '没有可保存的动作' }
+    }
+
+    const safeName = String(name || '').trim()
+    if (!safeName) return { success: false, error: '名称不能为空' }
+
+    const dir = getActionPresetDir()
+    await mkdir(dir, { recursive: true })
+    const now = Date.now()
+    const id = `${now}-${sanitizePresetName(safeName)}`
+    const filePath = join(dir, `${id}.json`)
+    const payload = {
+      version: 1,
+      type: 'sessionbox-action-preset',
+      id,
+      name: safeName,
+      createdAt: now,
+      updatedAt: now,
+      initialUrl: run.initialUrl || '',
+      partition: run.partition || 'default',
+      stepCount: run.steps.length,
+      steps: run.steps
+    }
+    await writeFile(filePath, JSON.stringify(payload, null, 2), 'utf-8')
+    return { success: true, item: { id, name: safeName, createdAt: now, updatedAt: now, stepCount: run.steps.length, path: filePath } }
+  })
+
+  ipcMain.handle('debugger:list-action-presets', async () => {
+    const dir = getActionPresetDir()
+    await mkdir(dir, { recursive: true })
+    const entries = await readdir(dir, { withFileTypes: true })
+    const items: any[] = []
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.json')) continue
+      const filePath = join(dir, entry.name)
+      try {
+        const raw = await readFile(filePath, 'utf-8')
+        const parsed = JSON.parse(raw)
+        if (!Array.isArray(parsed.steps)) continue
+        items.push({
+          id: parsed.id || entry.name.replace(/\.json$/i, ''),
+          name: parsed.name || entry.name.replace(/\.json$/i, ''),
+          createdAt: Number(parsed.createdAt || 0),
+          updatedAt: Number(parsed.updatedAt || parsed.createdAt || 0),
+          stepCount: Number(parsed.stepCount || parsed.steps.length || 0),
+          initialUrl: parsed.initialUrl || '',
+          path: filePath
+        })
+      } catch (error) {
+        console.warn('[debugger-main] failed to read action preset:', filePath, error)
+      }
+    }
+
+    items.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+    return items
+  })
+
+  ipcMain.handle('debugger:load-action-preset', async (_e, id: string) => {
+    const dir = getActionPresetDir()
+    const filePath = join(dir, `${id}.json`)
+
+    try {
+      const raw = await readFile(filePath, 'utf-8')
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed.steps)) return { success: false, error: '动作文件无效' }
+      const run: ActionRun = {
+        id: parsed.id || `preset_${Date.now()}`,
+        partition: parsed.partition || 'default',
+        startedAt: Number(parsed.createdAt || Date.now()),
+        endedAt: Number(parsed.updatedAt || parsed.createdAt || Date.now()),
+        initialUrl: parsed.initialUrl || parsed.steps[0]?.url || '',
+        steps: parsed.steps
+      }
+      return {
+        success: true,
+        item: {
+          id: parsed.id || id,
+          name: parsed.name || id,
+          createdAt: Number(parsed.createdAt || 0),
+          updatedAt: Number(parsed.updatedAt || parsed.createdAt || 0),
+          stepCount: Number(parsed.stepCount || parsed.steps.length || 0),
+          initialUrl: parsed.initialUrl || ''
+        },
+        run
+      }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
+    }
   })
 
   ipcMain.handle('debugger:stop-action-play', (_e, playId?: string) => {

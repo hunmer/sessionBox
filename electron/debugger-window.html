@@ -25,6 +25,34 @@
       width: 4px; height: 7px; border: solid #0f172a; border-width: 0 1.5px 1.5px 0;
       transform: rotate(45deg);
     }
+    .icon-btn {
+      width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+      border: none; border-radius: 999px; background: rgba(51, 65, 85, 0.92); color: #cbd5e1; cursor: pointer;
+      transition: 0.15s opacity, 0.15s transform, 0.15s background;
+    }
+    .icon-btn:hover { opacity: 0.92; transform: translateY(-1px); background: rgba(71, 85, 105, 0.98); }
+    .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    .step-card-actions { opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
+    .step-card:hover .step-card-actions, .step-card.active .step-card-actions { opacity: 1; pointer-events: auto; }
+    .modal-mask { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.72); display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .modal-panel { width: min(480px, calc(100vw - 48px)); max-height: min(560px, calc(100vh - 48px)); overflow: hidden; border: 1px solid rgba(71, 85, 105, 0.8); border-radius: 16px; background: #111827; box-shadow: 0 24px 80px rgba(2, 6, 23, 0.55); }
+    .replay-progress {
+      position: relative; width: 84px; height: 84px; border-radius: 999px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: conic-gradient(#38bdf8 calc(var(--progress, 0) * 1%), rgba(51, 65, 85, 0.6) 0);
+    }
+    .replay-progress::after {
+      content: ''; position: absolute; inset: 7px; border-radius: 999px; background: #0f172a; border: 1px solid rgba(71, 85, 105, 0.6);
+    }
+    .replay-progress > * { position: relative; z-index: 1; }
+    .replay-main-btn {
+      width: 54px; height: 54px; border: none; border-radius: 999px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9); color: #f8fafc; font-size: 22px; transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .replay-main-btn:hover { transform: scale(1.03); opacity: 0.94; }
+    .replay-main-btn.stop { background: linear-gradient(135deg, #f59e0b, #fb7185); }
+    .replay-main-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
   </style>
 </head>
 <body>
@@ -55,17 +83,14 @@
       :class="isRecording ? 'bg-rose-500 text-white' : 'bg-rose-500/35 text-white cursor-not-allowed'"
       :disabled="!isRecording" @click="stopRecording">停止录制</button>
     <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
-      :class="canPlay ? 'bg-sky-500 text-white' : 'bg-sky-500/35 text-white cursor-not-allowed'"
-      :disabled="!canPlay" @click="startPlay">开始复原</button>
-    <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
-      :class="isPlaying ? 'bg-amber-500 text-slate-950' : 'bg-amber-500/35 text-white cursor-not-allowed'"
-      :disabled="!isPlaying" @click="stopPlay">停止复原</button>
-    <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
       :class="canExport ? 'bg-indigo-500 text-white' : 'bg-indigo-500/35 text-white cursor-not-allowed'"
       :disabled="!canExport" @click="exportRun">导出动作</button>
     <button v-if="selectedSteps.size > 0"
       class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer bg-slate-700 text-slate-100 hover:opacity-85"
       @click="copySelected">复制选中 ({{ selectedSteps.size }})</button>
+    <button v-if="selectedSteps.size > 0"
+      class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer bg-sky-600 text-white hover:opacity-85"
+      :disabled="!canPlaySelection" @click="replaySelected">重播选中 ({{ selectedSteps.size }})</button>
 
     <span class="text-[11px] ml-1" :class="statusClass">{{ statusText }}</span>
 
@@ -104,9 +129,17 @@
     <div class="bg-[#172033] flex flex-col overflow-hidden" :style="{ width: rightWidth + 'px' }" ref="rightPanel">
       <div class="px-3 py-2 text-xs font-semibold border-b border-slate-800 flex items-center justify-between">
         <span>动作步骤 <span class="text-sky-400 font-normal">{{ steps.length }}</span></span>
-        <button v-if="steps.length > 0"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 text-slate-100 border-none cursor-pointer hover:opacity-85"
-          @click="toggleAllVisible">{{ allSelected ? '取消全选' : '全选' }}</button>
+        <div class="flex items-center gap-1.5">
+          <button v-if="steps.length > 0"
+            class="px-2 py-0.5 rounded text-[10px] bg-slate-700 text-slate-100 border-none cursor-pointer hover:opacity-85"
+            @click="saveCurrentSelection">保存</button>
+          <button
+            class="px-2 py-0.5 rounded text-[10px] bg-slate-700 text-slate-100 border-none cursor-pointer hover:opacity-85"
+            @click="openLoadDialog">读取</button>
+          <button v-if="steps.length > 0"
+            class="px-2 py-0.5 rounded text-[10px] bg-slate-700 text-slate-100 border-none cursor-pointer hover:opacity-85"
+            @click="toggleAllVisible">{{ allSelected ? '取消全选' : '全选' }}</button>
+        </div>
       </div>
 
       <div class="flex-1 overflow-y-auto py-1 step-list" ref="stepListEl">
@@ -115,7 +148,7 @@
         </div>
 
         <div v-for="(step, index) in steps" :key="step.id"
-          class="px-3 py-2 text-[11px] border-l-2 flex gap-2 hover:bg-slate-800/70"
+          class="step-card px-3 py-2 text-[11px] border-l-2 flex gap-2 hover:bg-slate-800/70"
           :class="stepRowClass(step, index)"
           @click="activeStepIndex = index">
           <input type="checkbox" class="step-checkbox mt-0.5"
@@ -125,13 +158,101 @@
             <div class="flex items-center gap-1.5 min-w-0">
               <span class="text-slate-500 min-w-[26px] text-right">{{ index + 1 }}</span>
               <span class="inline-block px-[6px] py-[1px] rounded text-[10px] font-medium" :class="typeBadgeClass(step.type)">{{ step.type }}</span>
-              <span class="ml-auto text-[10px]" :class="resultTextClass(index)">{{ resultLabel(index) }}</span>
+              <div class="step-card-actions ml-auto flex items-center gap-1">
+                <button class="icon-btn" title="查看信息" @click.stop="showStepDetail(index)">i</button>
+                <button class="icon-btn" title="重播此动作" :disabled="!canPlaySingle" @click.stop="replaySingle(index)">↺</button>
+              </div>
             </div>
-            <div class="mt-1 text-slate-300 truncate">{{ locatorSummary(step) }}</div>
+            <div class="mt-1 flex items-start gap-2">
+              <div class="min-w-0 flex-1 text-slate-300 truncate">{{ locatorSummary(step) }}</div>
+              <span class="shrink-0 text-[10px]" :class="resultTextClass(index)">{{ resultLabel(index) }}</span>
+            </div>
             <div v-if="payloadSummary(step)" class="mt-0.5 text-slate-500 truncate">{{ payloadSummary(step) }}</div>
             <div class="mt-0.5 text-slate-600 truncate">{{ step.url }}</div>
           </div>
         </div>
+      </div>
+
+      <div class="border-t border-slate-800 px-4 py-3 bg-[#101827]">
+        <div class="flex items-center gap-3">
+          <div class="replay-progress" :style="{ '--progress': replayProgressPercent }">
+            <button class="replay-main-btn" :class="{ stop: isPlaying }"
+              :disabled="isPlaying ? !isPlaying : !canPlay"
+              :title="isPlaying ? '停止复原' : '开始复原'"
+              @click="isPlaying ? stopPlay() : startPlay()">
+              {{ isPlaying ? '■' : '▶' }}
+            </button>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-xs text-slate-200 font-medium">{{ isPlaying ? '停止复原' : '开始复原' }}</div>
+            <div class="mt-1 text-[11px] text-slate-500">
+              {{ replayProgressText }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="detailStepIndex >= 0" class="modal-mask" @click.self="closeStepDetail">
+    <div class="modal-panel">
+      <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold text-slate-100">动作详情</div>
+          <div class="text-[11px] text-slate-500 mt-1">第 {{ detailStepIndex + 1 }} 步</div>
+        </div>
+        <button class="icon-btn" @click="closeStepDetail">×</button>
+      </div>
+      <div class="p-4 overflow-auto max-h-[70vh]">
+        <pre class="text-[11px] leading-5 whitespace-pre-wrap break-all text-slate-300">{{ detailStepJson }}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="saveDialogVisible" class="modal-mask" @click.self="closeSaveDialog">
+    <div class="modal-panel">
+      <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold text-slate-100">保存动作集</div>
+          <div class="text-[11px] text-slate-500 mt-1">{{ saveScopeText }}</div>
+        </div>
+        <button class="icon-btn" @click="closeSaveDialog">×</button>
+      </div>
+      <div class="p-4">
+        <input ref="saveNameInputEl" v-model="saveNameInput" type="text" placeholder="输入名称"
+          class="w-full bg-slate-900 text-slate-100 border border-slate-700 rounded px-3 py-2 text-sm outline-none focus:border-sky-400"
+          @keydown.enter="confirmSaveSelection">
+        <div class="mt-4 flex justify-end gap-2">
+          <button class="px-3 py-1.5 rounded border-none text-xs font-medium cursor-pointer bg-slate-700 text-slate-100 hover:opacity-85" @click="closeSaveDialog">取消</button>
+          <button class="px-3 py-1.5 rounded border-none text-xs font-medium cursor-pointer bg-sky-500 text-white hover:opacity-85" @click="confirmSaveSelection">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="loadDialogVisible" class="modal-mask" @click.self="closeLoadDialog">
+    <div class="modal-panel">
+      <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold text-slate-100">读取动作集</div>
+          <div class="text-[11px] text-slate-500 mt-1">从本地数据目录读取已保存 JSON</div>
+        </div>
+        <button class="icon-btn" @click="closeLoadDialog">×</button>
+      </div>
+      <div class="p-3 overflow-auto max-h-[70vh]">
+        <div v-if="presetItems.length === 0" class="px-3 py-10 text-center text-xs text-slate-500">
+          暂无已保存动作
+        </div>
+        <button v-for="item in presetItems" :key="item.id"
+          class="w-full text-left px-3 py-3 rounded-xl border border-slate-800 bg-slate-900/70 hover:bg-slate-800/80 transition-colors mb-2"
+          @click="loadPreset(item.id)">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-sm text-slate-100 truncate">{{ item.name }}</span>
+            <span class="text-[10px] text-slate-500 shrink-0">{{ item.stepCount }} 步</span>
+          </div>
+          <div class="mt-1 text-[11px] text-slate-500 truncate">{{ item.initialUrl || '无初始地址' }}</div>
+          <div class="mt-1 text-[10px] text-slate-600">{{ formatTime(item.updatedAt || item.createdAt) }}</div>
+        </button>
       </div>
     </div>
   </div>
@@ -169,6 +290,15 @@ createApp({
     const playWebviewMounted = ref(false)
     const playInitialSrc = ref('about:blank')
     const selectedSteps = reactive(new Set())
+    const currentPlayIndexMap = ref([])
+    const currentPlayTotal = ref(0)
+    const detailStepIndex = ref(-1)
+    const saveDialogVisible = ref(false)
+    const loadDialogVisible = ref(false)
+    const saveNameInput = ref('')
+    const saveIndices = ref([])
+    const presetItems = ref([])
+    const saveNameInputEl = ref(null)
 
     const recordWebviewEl = ref(null)
     const playWebviewEl = ref(null)
@@ -179,7 +309,27 @@ createApp({
     const canExport = computed(() => !isRecording.value && steps.value.length > 0)
     const isPlaying = computed(() => playStatus.value === 'running')
     const canPlay = computed(() => !isRecording.value && !isPlaying.value && steps.value.length > 0)
+    const canPlaySingle = computed(() => !isRecording.value && !isPlaying.value)
+    const canPlaySelection = computed(() => !isRecording.value && !isPlaying.value && selectedSteps.size > 0)
     const allSelected = computed(() => steps.value.length > 0 && steps.value.every((_, i) => selectedSteps.has(i)))
+    const replayProgressPercent = computed(() => {
+      const total = currentPlayTotal.value || steps.value.length
+      if (total === 0) return 0
+      const done = results.value.length
+      return Math.max(0, Math.min(100, (done / total) * 100))
+    })
+    const replayProgressText = computed(() => {
+      const total = currentPlayTotal.value || steps.value.length
+      if (total === 0) return '暂无可复原动作'
+      if (isPlaying.value) return '已执行 ' + results.value.length + ' / ' + total + ' 步'
+      if (results.value.length > 0) return '上次执行 ' + results.value.length + ' / ' + total + ' 步'
+      return '当前动作共 ' + steps.value.length + ' 步'
+    })
+    const detailStepJson = computed(() => detailStepIndex.value < 0 ? '' : JSON.stringify(toPlainJson(steps.value[detailStepIndex.value] || {}), null, 2))
+    const saveScopeText = computed(() => {
+      const count = saveIndices.value.length
+      return count > 0 && count < steps.value.length ? '保存当前选中的 ' + count + ' 个动作' : '未选择时保存全部动作'
+    })
     const statusClass = computed(() => {
       if (isRecording.value) return 'text-rose-400'
       if (isPlaying.value) return 'text-sky-400'
@@ -253,15 +403,19 @@ createApp({
       return JSON.parse(JSON.stringify(value))
     }
 
-    function runForPlay() {
+    function selectedIndicesSorted() {
+      return Array.from(selectedSteps).sort((a, b) => a - b)
+    }
+
+    function runForPlay(stepSubset = steps.value) {
       const run = targetRun.value || {}
       return toPlainJson({
         id: run.id || 'run_local_' + Date.now(),
         partition: run.partition || EMBEDDED_PARTITION,
         startedAt: run.startedAt || Date.now(),
         endedAt: run.endedAt || null,
-        initialUrl: run.initialUrl || steps.value[0]?.url || urlInput.value,
-        steps: steps.value
+        initialUrl: run.initialUrl || stepSubset[0]?.url || steps.value[0]?.url || urlInput.value,
+        steps: stepSubset
       })
     }
 
@@ -330,25 +484,31 @@ createApp({
       })
     }
 
-    async function startPlay() {
-      if (steps.value.length === 0) return
+    async function playSteps(stepSubset, statusLabel, indexMap) {
+      if (!Array.isArray(stepSubset) || stepSubset.length === 0) return
       const ready = await waitForPlayWebviewReady()
       if (!ready || !playWcId.value) {
         statusText.value = '复原失败: 复原 WebView 未就绪'
         return
       }
+      currentPlayIndexMap.value = Array.isArray(indexMap) ? indexMap.slice() : stepSubset.map((_, index) => index)
+      currentPlayTotal.value = stepSubset.length
       results.value = []
       playStatus.value = 'running'
-      activeStepIndex.value = 0
-      const startUrl = playStartUrl()
+      activeStepIndex.value = currentPlayIndexMap.value[0] ?? 0
+      const startUrl = stepSubset[0]?.url || playStartUrl()
       statusText.value = '加载复原页...'
       await loadPlayStartUrl(startUrl)
-      statusText.value = '复原执行中...'
-      const result = await api.playActionRun(playWcId.value, runForPlay())
+      statusText.value = statusLabel || '复原执行中...'
+      const result = await api.playActionRun(playWcId.value, runForPlay(stepSubset))
       if (!result.success) {
         playStatus.value = 'failed'
         statusText.value = '复原启动失败: ' + (result.error || '未知错误')
       }
+    }
+
+    async function startPlay() {
+      return playSteps(steps.value, '复原执行中...', steps.value.map((_, index) => index))
     }
 
     async function stopPlay() {
@@ -374,13 +534,102 @@ createApp({
     }
 
     function copySelected() {
-      const indices = Array.from(selectedSteps).sort((a, b) => a - b)
+      const indices = selectedIndicesSorted()
       const selected = indices.map(i => steps.value[i]).filter(Boolean)
       navigator.clipboard.writeText(JSON.stringify(toPlainJson(selected), null, 2)).then(() => {
         statusText.value = '已复制 ' + selected.length + ' 步动作'
       }).catch(() => {
         statusText.value = '复制失败'
       })
+    }
+
+    function showStepDetail(index) {
+      detailStepIndex.value = index
+    }
+
+    function closeStepDetail() {
+      detailStepIndex.value = -1
+    }
+
+    async function replaySingle(index) {
+      const step = steps.value[index]
+      if (!step || !canPlaySingle.value) return
+      await playSteps([step], '单步重播中...', [index])
+    }
+
+    async function replaySelected() {
+      if (!canPlaySelection.value) return
+      const indices = selectedIndicesSorted()
+      const selected = indices.map(i => steps.value[i]).filter(Boolean)
+      await playSteps(selected, '选中动作重播中...', indices)
+    }
+
+    function openSaveDialog(indices) {
+      saveIndices.value = indices
+      saveNameInput.value = ''
+      saveDialogVisible.value = true
+      nextTick(() => {
+        if (saveNameInputEl.value) saveNameInputEl.value.focus()
+      })
+    }
+
+    function saveCurrentSelection() {
+      const indices = selectedIndicesSorted()
+      openSaveDialog(indices.length > 0 ? indices : steps.value.map((_, index) => index))
+    }
+
+    function closeSaveDialog() {
+      saveDialogVisible.value = false
+      saveNameInput.value = ''
+      saveIndices.value = []
+    }
+
+    async function confirmSaveSelection() {
+      const indices = saveIndices.value.length > 0 ? saveIndices.value : steps.value.map((_, index) => index)
+      const selected = indices.map(i => steps.value[i]).filter(Boolean)
+      const name = saveNameInput.value.trim()
+      if (!name) {
+        statusText.value = '请输入保存名称'
+        return
+      }
+      const result = await api.saveActionPreset(name, runForPlay(selected))
+      statusText.value = result.success ? '已保存动作集: ' + name : '保存失败: ' + (result.error || '未知错误')
+      if (result.success) closeSaveDialog()
+    }
+
+    async function openLoadDialog() {
+      presetItems.value = await api.listActionPresets()
+      loadDialogVisible.value = true
+    }
+
+    function closeLoadDialog() {
+      loadDialogVisible.value = false
+    }
+
+    async function loadPreset(id) {
+      const result = await api.loadActionPreset(id)
+      if (!result.success || !result.run) {
+        statusText.value = '读取失败: ' + (result.error || '未知错误')
+        return
+      }
+      targetRun.value = result.run
+      steps.value = result.run.steps || []
+      results.value = []
+      selectedSteps.clear()
+      activeStepIndex.value = -1
+      playStatus.value = 'idle'
+      currentPlayIndexMap.value = []
+      currentPlayTotal.value = 0
+      if (result.run.initialUrl) urlInput.value = result.run.initialUrl
+      statusText.value = '已读取动作集: ' + (result.item?.name || id)
+      closeLoadDialog()
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return '未知时间'
+      const value = new Date(timestamp)
+      if (Number.isNaN(value.getTime())) return '未知时间'
+      return value.toLocaleString('zh-CN', { hour12: false })
     }
 
     function locatorSummary(step) {
@@ -420,7 +669,9 @@ createApp({
     }
 
     function resultFor(index) {
-      return results.value.find(r => r.index === index)
+      const mappedIndex = currentPlayIndexMap.value.indexOf(index)
+      if (mappedIndex < 0) return undefined
+      return results.value.find(r => r.index === mappedIndex)
     }
 
     function resultLabel(index) {
@@ -443,7 +694,7 @@ createApp({
       const result = resultFor(index)
       if (result?.status === 'failed') return 'border-l-rose-500 bg-rose-500/5'
       if (result?.status === 'success') return 'border-l-emerald-500'
-      if (activeStepIndex.value === index) return 'border-l-sky-500 bg-sky-500/5'
+      if (activeStepIndex.value === index) return 'active border-l-sky-500 bg-sky-500/5'
       return 'border-l-transparent'
     }
 
@@ -482,7 +733,10 @@ createApp({
     api.on('debugger:action-play-state', (state) => {
       activePlayId.value = state.playId || activePlayId.value
       playStatus.value = state.status
-      activeStepIndex.value = typeof state.currentIndex === 'number' ? state.currentIndex : activeStepIndex.value
+      currentPlayTotal.value = Number(state.total || currentPlayTotal.value || 0)
+      activeStepIndex.value = typeof state.currentIndex === 'number'
+        ? (currentPlayIndexMap.value[state.currentIndex] ?? activeStepIndex.value)
+        : activeStepIndex.value
       results.value = state.results || []
       if (state.status === 'running') statusText.value = '复原执行中 ' + Math.max(0, state.currentIndex + 1) + '/' + state.total
       if (state.status === 'completed') statusText.value = '复原完成 (' + state.total + ' 步)'
@@ -542,9 +796,12 @@ createApp({
       activeView, playWebviewMounted, playInitialSrc,
       isRecording, isPlaying, statusText, statusClass, urlInput, rightWidth, isResizing,
       recordPartition, playPartition, selectedSteps, allSelected, recordWebviewEl, playWebviewEl, leftPanel, stepListEl,
-      canStart, canExport, canPlay,
+      detailStepIndex, detailStepJson, saveDialogVisible, loadDialogVisible, saveNameInput, saveIndices, presetItems, saveNameInputEl,
+      canStart, canExport, canPlay, canPlaySingle, canPlaySelection, replayProgressPercent, replayProgressText, saveScopeText,
       doMinimize, doMaximize, doClose, startRecording, stopRecording, startPlay, stopPlay,
-      exportRun, copySelected, loadUrl, ensurePlayWebview, toggleStep, toggleAllVisible, startResize,
+      exportRun, copySelected, replaySelected, replaySingle, showStepDetail, closeStepDetail,
+      loadUrl, ensurePlayWebview, toggleStep, toggleAllVisible, startResize,
+      saveCurrentSelection, openLoadDialog, closeLoadDialog, closeSaveDialog, confirmSaveSelection, loadPreset, formatTime,
       locatorSummary, payloadSummary, typeBadgeClass, resultLabel, resultTextClass, stepRowClass
     }
   }
