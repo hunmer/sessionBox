@@ -28,7 +28,7 @@ function isLikelyFilePath(text: string): boolean {
 }
 
 function looksLikeUrl(text: string): boolean {
-  return /[\.:/]/.test(text) && !text.includes(' ')
+  return /[.:/]/.test(text) && !text.includes(' ')
 }
 
 function toNavigableUrl(text: string): string | null {

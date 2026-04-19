@@ -124,7 +124,7 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
             工作区
           </DropdownMenuLabel>
           <DropdownMenuItem
-            v-for="(workspace, index) in workspaces"
+            v-for="workspace in workspaces"
             :key="workspace.id"
             class="gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
             @click="handleSelectWorkspace(workspace)"

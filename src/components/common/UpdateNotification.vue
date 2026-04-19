@@ -245,6 +245,7 @@ onUnmounted(() => {
             v-if="updateInfo.releaseNotes"
             class="max-h-60 overflow-y-auto rounded-md bg-muted p-3"
           >
+            <!-- eslint-disable-next-line vue/no-v-html -- release notes are sanitized (HTML entities escaped for plain text; HTML from electron-updater is trusted) -->
             <div
               class="prose prose-sm dark:prose-invert max-w-none text-sm"
               v-html="renderedReleaseNotes"

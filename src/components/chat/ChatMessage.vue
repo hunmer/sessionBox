@@ -413,60 +413,61 @@ const segments = computed<ContentSegment[]>(() => {
       </div>
 
       <!-- 按顺序穿插渲染思考、文本和工具调用 -->
-      <template
-        v-for="(seg, i) in segments"
-        v-if="!isEditing"
-        :key="i"
-      >
-        <ThinkingBlock
-          v-if="seg.type === 'thinking'"
-          :content="seg.content"
-        />
-        <div
-          v-else-if="seg.type === 'text' && seg.content"
-          class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden text-left"
-          :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
+      <template v-if="!isEditing">
+        <template
+          v-for="(seg, i) in segments"
+          :key="i"
         >
-          <Markdown
-            class="chat-markdown"
+          <ThinkingBlock
+            v-if="seg.type === 'thinking'"
             :content="seg.content"
-            :mode="isStreaming ? 'streaming' : 'static'"
-            :is-dark="themeStore.theme === 'dark'"
           />
-          <!-- 统计信息嵌入最后一个文本气泡右下角 -->
           <div
-            v-if="i === lastTextSegmentIndex && showStats"
-            class="flex items-center justify-end gap-2 mt-1 pt-1 border-t border-border/10 text-[11px] text-muted-foreground/50 cursor-pointer hover:text-muted-foreground/80 transition-colors"
-            @click="showRawDialog = true"
+            v-else-if="seg.type === 'text' && seg.content"
+            class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden text-left"
+            :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
           >
-            <span
-              v-if="durationMs !== null"
-              class="inline-flex items-center gap-1"
+            <Markdown
+              class="chat-markdown"
+              :content="seg.content"
+              :mode="isStreaming ? 'streaming' : 'static'"
+              :is-dark="themeStore.theme === 'dark'"
+            />
+            <!-- 统计信息嵌入最后一个文本气泡右下角 -->
+            <div
+              v-if="i === lastTextSegmentIndex && showStats"
+              class="flex items-center justify-end gap-2 mt-1 pt-1 border-t border-border/10 text-[11px] text-muted-foreground/50 cursor-pointer hover:text-muted-foreground/80 transition-colors"
+              @click="showRawDialog = true"
             >
               <span
-                v-if="isStreaming"
-                class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"
-              />
-              {{ formatDuration(durationMs) }}
-            </span>
-            <span
-              v-if="displayUsage"
-              class="inline-flex items-center gap-1.5"
-            >
-              <span title="输入 tokens">↑ {{ formatTokenCount(displayUsage.inputTokens) }}</span>
-              <span title="输出 tokens">↓ {{ formatTokenCount(displayUsage.outputTokens) }}</span>
-            </span>
+                v-if="durationMs !== null"
+                class="inline-flex items-center gap-1"
+              >
+                <span
+                  v-if="isStreaming"
+                  class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"
+                />
+                {{ formatDuration(durationMs) }}
+              </span>
+              <span
+                v-if="displayUsage"
+                class="inline-flex items-center gap-1.5"
+              >
+                <span title="输入 tokens">↑ {{ formatTokenCount(displayUsage.inputTokens) }}</span>
+                <span title="输出 tokens">↓ {{ formatTokenCount(displayUsage.outputTokens) }}</span>
+              </span>
+            </div>
           </div>
-        </div>
-        <div
-          v-else-if="seg.type === 'tool-call'"
-          class="max-w-[85%]"
-        >
-          <ToolCallCard
-            :tool-call="seg.toolCall"
-            @rerun="handleRerunTool"
-          />
-        </div>
+          <div
+            v-else-if="seg.type === 'tool-call'"
+            class="max-w-[85%]"
+          >
+            <ToolCallCard
+              :tool-call="seg.toolCall"
+              @rerun="handleRerunTool"
+            />
+          </div>
+        </template>
       </template>
 
       <!-- 时间 + 操作按钮（同行，避免高度跳动） -->

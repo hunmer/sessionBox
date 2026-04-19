@@ -526,7 +526,7 @@ async function readSocks5Reply(socket: net.Socket): Promise<void> {
   const header = await readExact(socket, 4)
   const atyp = header[3]
 
-  let restLength = 0
+  let restLength: number
   if (atyp === 0x01) restLength = 4 + 2
   else if (atyp === 0x03) {
     const domainLength = (await readExact(socket, 1))[0]

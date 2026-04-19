@@ -311,7 +311,7 @@ async function confirmDelete() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <template
-              v-for="([category, tools], gi) in groupedTools"
+              v-for="([category, categoryTools], gi) in groupedTools"
               :key="category"
             >
               <DropdownMenuLabel
@@ -321,7 +321,7 @@ async function confirmDelete() {
                 {{ category }}
               </DropdownMenuLabel>
               <DropdownMenuItem
-                v-for="tool in tools"
+                v-for="tool in categoryTools"
                 :key="tool.name"
                 class="flex items-center justify-between gap-3"
                 @select.prevent

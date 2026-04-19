@@ -42,7 +42,7 @@ const defaultEngineId = ref('')
 
 /** 判断输入是否像 URL（含 . 或 / 或 ://） */
 function looksLikeUrl(text: string): boolean {
-  return /[\.:\/]/.test(text) && !text.includes(' ')
+  return /[.:/]/.test(text) && !text.includes(' ')
 }
 
 /** 输入内容是否触发搜索候选 */

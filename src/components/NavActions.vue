@@ -132,15 +132,15 @@ const isOpen = ref(false)
         >
           <SidebarContent>
             <SidebarGroup
-              v-for="(group, index) in data"
-              :key="index"
+              v-for="(group, gi) in data"
+              :key="gi"
               class="border-b last:border-none"
             >
               <SidebarGroupContent class="gap-0">
                 <SidebarMenu>
                   <SidebarMenuItem
-                    v-for="(item, index) in group"
-                    :key="index"
+                    v-for="(item, ii) in group"
+                    :key="ii"
                   >
                     <SidebarMenuButton>
                       <component :is="item.icon" /> <span>{{ item.label }}</span>

@@ -49,7 +49,7 @@ function keyToAcceleratorPart(e: KeyboardEvent): string {
   if (e.altKey) parts.push('Alt')
   if (e.shiftKey) parts.push('Shift')
 
-  let key = ''
+  let key: string
   if (e.key === ' ') key = 'Space'
   else if (e.key === 'ArrowUp') key = 'Up'
   else if (e.key === 'ArrowDown') key = 'Down'
@@ -69,7 +69,7 @@ function keyToAcceleratorPart(e: KeyboardEvent): string {
   else if (e.key.length === 1) key = e.key.toUpperCase()
   else return ''
 
-  if (key) parts.push(key)
+  parts.push(key)
   return parts.join('+')
 }
 
