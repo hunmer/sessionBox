@@ -1,7 +1,7 @@
 import { webContents, WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 
-export type ActionStepType = 'navigate' | 'click' | 'input' | 'change' | 'scroll' | 'keydown'
+export type ActionStepType = 'navigate' | 'click' | 'input' | 'change' | 'scroll' | 'keydown' | 'hover' | 'file'
 
 export interface ActionLocator {
   primary: 'testId' | 'id' | 'name' | 'css' | 'text' | 'xpath'
@@ -45,6 +45,7 @@ export interface RecorderState {
   destroyedListener?: () => void
   didNavigateListener?: (_event: Electron.Event, url: string) => void
   didNavigateInPageListener?: (_event: Electron.Event, url: string, isMainFrame: boolean) => void
+  domReadyListener?: () => void
   didFinishLoadListener?: () => void
 }
 
@@ -201,6 +202,9 @@ export function buildRecorderScript(): string {
 
   function valueFor(el) {
     if (!el) return '';
+    if (el.type === 'file') {
+      return Array.from(el.files || []).map(file => file.path || file.name || '').filter(Boolean);
+    }
     if (el.type === 'checkbox') return !!el.checked;
     if (el.type === 'radio') return !!el.checked;
     if (el.isContentEditable) return el.innerText || el.textContent || '';
@@ -229,12 +233,39 @@ export function buildRecorderScript(): string {
 
   function onInput(event) {
     const target = event.target;
+    if (target && target.type === 'file') {
+      emit('file', target, {
+        files: valueFor(target),
+        multiple: !!target.multiple,
+        accept: target.accept || ''
+      }, { sensitive: true });
+      return;
+    }
     emit('input', target, { value: valueFor(target) }, { sensitive: false });
   }
 
   function onChange(event) {
     const target = event.target;
+    if (target && target.type === 'file') {
+      emit('file', target, {
+        files: valueFor(target),
+        multiple: !!target.multiple,
+        accept: target.accept || ''
+      }, { sensitive: true });
+      return;
+    }
     emit('change', target, { value: valueFor(target) }, { sensitive: false });
+  }
+
+  let lastHoverTarget = null;
+  let lastHoverAt = 0;
+  function onHover(event) {
+    const target = event.target;
+    const now = Date.now();
+    if (!target || target === lastHoverTarget && now - lastHoverAt < 600) return;
+    lastHoverTarget = target;
+    lastHoverAt = now;
+    emit('hover', target, { clientX: event.clientX, clientY: event.clientY });
   }
 
   let lastScrollAt = 0;
@@ -264,6 +295,7 @@ export function buildRecorderScript(): string {
   document.addEventListener('input', onInput, true);
   document.addEventListener('change', onChange, true);
   document.addEventListener('keydown', onKeydown, true);
+  document.addEventListener('mouseover', onHover, true);
   document.addEventListener('scroll', onScroll, true);
   window.addEventListener('hashchange', () => onLocationChange('hashchange'), true);
   window.addEventListener('popstate', () => onLocationChange('popstate'), true);
@@ -275,6 +307,7 @@ export function buildRecorderScript(): string {
     document.removeEventListener('input', onInput, true);
     document.removeEventListener('change', onChange, true);
     document.removeEventListener('keydown', onKeydown, true);
+    document.removeEventListener('mouseover', onHover, true);
     document.removeEventListener('scroll', onScroll, true);
     window.__actionRecorderReady = false;
   };
@@ -341,6 +374,11 @@ export async function startActionRecording(
   const didNavigateInPageListener = (_event: Electron.Event, url: string, isMainFrame: boolean) => {
     if (isMainFrame) pushStep(wcId, createNavigationStep(url, 'did-navigate-in-page'))
   }
+  const domReadyListener = () => {
+    if (activeRuns.has(wcId)) {
+      injectActionRecorder(wcId).catch(() => {})
+    }
+  }
   const didFinishLoadListener = () => {
     if (activeRuns.has(wcId)) {
       injectActionRecorder(wcId).catch(() => {})
@@ -354,6 +392,7 @@ export async function startActionRecording(
     destroyedListener,
     didNavigateListener,
     didNavigateInPageListener,
+    domReadyListener,
     didFinishLoadListener
   }
 
@@ -362,6 +401,7 @@ export async function startActionRecording(
   wc.once('destroyed', destroyedListener)
   wc.on('did-navigate', didNavigateListener)
   wc.on('did-navigate-in-page', didNavigateInPageListener)
+  wc.on('dom-ready', domReadyListener)
   wc.on('did-finish-load', didFinishLoadListener)
 
   return { success: true, run }
@@ -390,6 +430,7 @@ function cleanupActionRecording(wcId: number, keepRun = false): void {
     if (state.listener) wc.off('console-message', state.listener)
     if (state.didNavigateListener) wc.off('did-navigate', state.didNavigateListener)
     if (state.didNavigateInPageListener) wc.off('did-navigate-in-page', state.didNavigateInPageListener)
+    if (state.domReadyListener) wc.off('dom-ready', state.domReadyListener)
     if (state.didFinishLoadListener) wc.off('did-finish-load', state.didFinishLoadListener)
   }
 

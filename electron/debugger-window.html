@@ -70,20 +70,33 @@
     <span class="text-[11px] ml-1" :class="statusClass">{{ statusText }}</span>
 
     <div class="w-full flex gap-2 items-center">
-      <input type="text" v-model="urlInput" placeholder="输入内嵌 WebView URL..."
+      <input type="text" v-model="urlInput" placeholder="输入录制 WebView URL..."
         class="flex-1 min-w-[180px] bg-slate-800 text-slate-100 border border-slate-700 rounded px-2 py-1 text-xs outline-none focus:border-sky-400"
         @keydown.enter="loadUrl">
-      <button class="px-3 py-1 rounded border-none text-xs font-medium cursor-pointer bg-sky-500 text-white hover:opacity-85" @click="loadUrl">加载</button>
+      <button class="px-3 py-1 rounded border-none text-xs font-medium cursor-pointer bg-emerald-500 text-white hover:opacity-85" @click="loadUrl">加载录制页</button>
     </div>
   </div>
 
   <div class="flex flex-1 min-h-0 overflow-hidden">
     <div class="flex-1 flex flex-col min-w-[320px] overflow-hidden" ref="leftPanel">
-      <div class="px-3 py-2 bg-[#172033] border-b border-slate-800 flex items-center justify-between text-xs">
-        <span class="text-slate-300">真实复原 WebView</span>
-        <span class="text-slate-500">录制外部标签页时，复原仍在此 WebView 中执行</span>
+      <div class="flex bg-[#172033] border-b border-slate-800">
+        <button
+          class="flex-1 py-2 text-center text-xs cursor-pointer border-none transition-all"
+          :class="activeView === 'record' ? 'text-emerald-300 border-b-2 border-emerald-400 bg-slate-800' : 'text-slate-500 bg-transparent hover:text-slate-200 hover:bg-slate-800/60'"
+          @click="activeView = 'record'">录制 WebView</button>
+        <button
+          class="flex-1 py-2 text-center text-xs cursor-pointer border-none transition-all"
+          :class="activeView === 'play' ? 'text-sky-300 border-b-2 border-sky-400 bg-slate-800' : 'text-slate-500 bg-transparent hover:text-slate-200 hover:bg-slate-800/60'"
+          @click="ensurePlayWebview">复原 WebView</button>
       </div>
-      <webview ref="webviewEl" :partition="embeddedPartition" src="about:blank"></webview>
+      <div class="flex-1 min-h-0 overflow-hidden">
+        <div v-show="activeView === 'record'" class="h-full flex flex-col min-h-0">
+          <webview ref="recordWebviewEl" :partition="recordPartition" src="about:blank"></webview>
+        </div>
+        <div v-if="playWebviewMounted" v-show="activeView === 'play'" class="h-full flex flex-col min-h-0">
+          <webview ref="playWebviewEl" :partition="playPartition" :src="playInitialSrc"></webview>
+        </div>
+      </div>
     </div>
 
     <div class="resizer" :class="{ dragging: isResizing }" @mousedown.prevent="startResize"></div>
@@ -137,29 +150,35 @@ createApp({
     const targetId = ref('')
     const tabs = ref([])
     const currentWcId = ref(null)
-    const embeddedWcId = ref(null)
+    const recordWcId = ref(null)
+    const playWcId = ref(null)
     const targetRun = ref(null)
     const steps = ref([])
     const results = ref([])
     const activeStepIndex = ref(-1)
     const activePlayId = ref(null)
+    const activeView = ref('record')
     const playStatus = ref('idle')
     const isRecording = ref(false)
     const statusText = ref('就绪')
     const urlInput = ref('https://baidu.com')
     const rightWidth = ref(360)
     const isResizing = ref(false)
-    const embeddedPartition = ref(EMBEDDED_PARTITION)
+    const recordPartition = ref(EMBEDDED_PARTITION)
+    const playPartition = ref('persist:debugger-action-play')
+    const playWebviewMounted = ref(false)
+    const playInitialSrc = ref('about:blank')
     const selectedSteps = reactive(new Set())
 
-    const webviewEl = ref(null)
+    const recordWebviewEl = ref(null)
+    const playWebviewEl = ref(null)
     const leftPanel = ref(null)
     const stepListEl = ref(null)
 
     const canStart = computed(() => currentWcId.value !== null && !isRecording.value)
     const canExport = computed(() => !isRecording.value && steps.value.length > 0)
     const isPlaying = computed(() => playStatus.value === 'running')
-    const canPlay = computed(() => !isRecording.value && !isPlaying.value && steps.value.length > 0 && embeddedWcId.value !== null)
+    const canPlay = computed(() => !isRecording.value && !isPlaying.value && steps.value.length > 0)
     const allSelected = computed(() => steps.value.length > 0 && steps.value.every((_, i) => selectedSteps.has(i)))
     const statusClass = computed(() => {
       if (isRecording.value) return 'text-rose-400'
@@ -178,7 +197,7 @@ createApp({
 
     watch(targetId, async (val) => {
       if (val === EMBEDDED || val === '') {
-        currentWcId.value = embeddedWcId.value || await api.getEmbeddedWcId()
+        currentWcId.value = recordWcId.value || await api.getEmbeddedWcId()
       } else {
         currentWcId.value = parseInt(val, 10)
       }
@@ -246,13 +265,87 @@ createApp({
       })
     }
 
+    function playStartUrl() {
+      const run = targetRun.value || {}
+      const firstNavigate = steps.value.find(step => step.type === 'navigate' && (step.payload?.url || step.url))
+      return run.initialUrl || firstNavigate?.payload?.url || firstNavigate?.url || steps.value[0]?.url || urlInput.value || 'about:blank'
+    }
+
+    function ensurePlayWebview() {
+      activeView.value = 'play'
+      if (!playWebviewMounted.value) {
+        playWebviewMounted.value = true
+      }
+      nextTick(() => {
+        if (!playWebviewEl.value) return
+        try {
+          playWcId.value = playWebviewEl.value.getWebContentsId()
+        } catch (error) {
+          console.warn('[debugger] failed to read play wcId:', error)
+        }
+      })
+    }
+
+    function waitForPlayWebviewReady() {
+      ensurePlayWebview()
+      return new Promise((resolve) => {
+        let attempts = 0
+        const tick = () => {
+          attempts++
+          if (playWcId.value) {
+            resolve(true)
+            return
+          }
+          try {
+            if (playWebviewEl.value) playWcId.value = playWebviewEl.value.getWebContentsId()
+          } catch {}
+          if (playWcId.value || attempts > 50) {
+            resolve(!!playWcId.value)
+            return
+          }
+          setTimeout(tick, 50)
+        }
+        nextTick(tick)
+      })
+    }
+
+    function loadPlayStartUrl(url) {
+      return new Promise((resolve) => {
+        const view = playWebviewEl.value
+        if (!view || !url || url === 'about:blank') {
+          resolve(true)
+          return
+        }
+        let settled = false
+        const done = () => {
+          if (settled) return
+          settled = true
+          view.removeEventListener('did-finish-load', done)
+          view.removeEventListener('did-fail-load', done)
+          resolve(true)
+        }
+        view.addEventListener('did-finish-load', done)
+        view.addEventListener('did-fail-load', done)
+        view.loadURL(url)
+        setTimeout(done, 8000)
+      })
+    }
+
     async function startPlay() {
-      if (!embeddedWcId.value || steps.value.length === 0) return
+      if (steps.value.length === 0) return
+      const ready = await waitForPlayWebviewReady()
+      if (!ready || !playWcId.value) {
+        statusText.value = '复原失败: 复原 WebView 未就绪'
+        return
+      }
       results.value = []
       playStatus.value = 'running'
       activeStepIndex.value = 0
+      const startUrl = playStartUrl()
+      statusText.value = '加载复原页...'
+      await loadPlayStartUrl(startUrl)
       statusText.value = '复原执行中...'
-      const result = await api.playActionRun(embeddedWcId.value, runForPlay())
+      const result = await api.playActionRun(playWcId.value, runForPlay())
       if (!result.success) {
         playStatus.value = 'failed'
         statusText.value = '复原启动失败: ' + (result.error || '未知错误')
@@ -266,7 +359,7 @@ createApp({
 
     function loadUrl() {
       const url = urlInput.value.trim()
-      if (url && webviewEl.value) webviewEl.value.loadURL(url)
+      if (url && recordWebviewEl.value) recordWebviewEl.value.loadURL(url)
     }
 
     function toggleStep(index) {
@@ -308,6 +401,8 @@ createApp({
       if (step.type === 'input' || step.type === 'change') return 'value: ' + String(step.payload.value ?? '').slice(0, 80)
       if (step.type === 'scroll') return 'scroll: ' + Number(step.payload.x || 0) + ', ' + Number(step.payload.y || 0)
       if (step.type === 'keydown') return 'key: ' + step.payload.key
+      if (step.type === 'hover') return 'hover'
+      if (step.type === 'file') return 'files: ' + (Array.isArray(step.payload.files) ? step.payload.files.join(', ') : '')
       if (step.type === 'click') return 'button: ' + (step.payload.button ?? 0)
       return ''
     }
@@ -319,7 +414,9 @@ createApp({
         input: 'bg-fuchsia-500/15 text-fuchsia-300',
         change: 'bg-violet-500/15 text-violet-300',
         scroll: 'bg-amber-500/15 text-amber-300',
-        keydown: 'bg-slate-500/20 text-slate-300'
+        keydown: 'bg-slate-500/20 text-slate-300',
+        hover: 'bg-orange-500/15 text-orange-300',
+        file: 'bg-lime-500/15 text-lime-300'
       }
       return map[type] || 'bg-slate-500/20 text-slate-300'
     }
@@ -396,42 +493,60 @@ createApp({
     })
 
     api.on('debugger:embedded-wcid', (wcId) => {
-      embeddedWcId.value = wcId
+      recordWcId.value = wcId
       if (targetId.value === EMBEDDED || !targetId.value) currentWcId.value = wcId
     })
 
     api.on('debugger:load-url', (url) => {
-      if (webviewEl.value) webviewEl.value.loadURL(url)
+      if (recordWebviewEl.value) recordWebviewEl.value.loadURL(url)
     })
 
     onMounted(async () => {
       await refreshTabs()
       targetId.value = EMBEDDED
-      embeddedWcId.value = await api.getEmbeddedWcId()
-      currentWcId.value = embeddedWcId.value
+      recordWcId.value = await api.getEmbeddedWcId()
+      currentWcId.value = recordWcId.value
 
       nextTick(() => {
-        if (!webviewEl.value) return
-        webviewEl.value.addEventListener('dom-ready', async () => {
+        if (recordWebviewEl.value) {
+          recordWebviewEl.value.addEventListener('dom-ready', async () => {
+            try {
+              const wcId = recordWebviewEl.value.getWebContentsId()
+              recordWcId.value = wcId
+              await api.setEmbeddedWcId(wcId)
+              if (targetId.value === EMBEDDED || !targetId.value) currentWcId.value = wcId
+            } catch (error) {
+              console.warn('[debugger] failed to set record wcId:', error)
+            }
+          })
+        }
+
+        watch(playWebviewEl, (view) => {
+          if (!view) return
+          view.addEventListener('dom-ready', () => {
+            try {
+              playWcId.value = view.getWebContentsId()
+            } catch (error) {
+              console.warn('[debugger] failed to set play wcId:', error)
+            }
+          })
           try {
-            const wcId = webviewEl.value.getWebContentsId()
-            embeddedWcId.value = wcId
-            await api.setEmbeddedWcId(wcId)
-            if (targetId.value === EMBEDDED || !targetId.value) currentWcId.value = wcId
+            playWcId.value = view.getWebContentsId()
           } catch (error) {
-            console.warn('[debugger] failed to set embedded wcId:', error)
+            console.warn('[debugger] failed to read play wcId:', error)
           }
-        })
+        }, { immediate: true })
       })
     })
 
     return {
-      targetId, tabs, currentWcId, embeddedWcId, steps, results, activeStepIndex,
+      targetId, tabs, currentWcId, recordWcId, playWcId, steps, results, activeStepIndex,
+      activeView, playWebviewMounted, playInitialSrc,
       isRecording, isPlaying, statusText, statusClass, urlInput, rightWidth, isResizing,
-      embeddedPartition, selectedSteps, allSelected, webviewEl, leftPanel, stepListEl,
+      recordPartition, playPartition, selectedSteps, allSelected, recordWebviewEl, playWebviewEl, leftPanel, stepListEl,
       canStart, canExport, canPlay,
       doMinimize, doMaximize, doClose, startRecording, stopRecording, startPlay, stopPlay,
-      exportRun, copySelected, loadUrl, toggleStep, toggleAllVisible, startResize,
+      exportRun, copySelected, loadUrl, ensurePlayWebview, toggleStep, toggleAllVisible, startResize,
       locatorSummary, payloadSummary, typeBadgeClass, resultLabel, resultTextClass, stepRowClass
     }
   }

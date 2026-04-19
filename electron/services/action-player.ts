@@ -214,6 +214,42 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
     return
   }
 
+  if (step.type === 'hover') {
+    const point = await targetWc.executeJavaScript(`
+(() => {
+  const el = window.__actionPlayerElement;
+  if (!el) return null;
+  el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+  const rect = el.getBoundingClientRect();
+  const clientX = rect.left + rect.width / 2;
+  const clientY = rect.top + rect.height / 2;
+  const options = { bubbles: true, cancelable: true, view: window, clientX, clientY };
+  el.dispatchEvent(new MouseEvent('mouseover', options));
+  el.dispatchEvent(new MouseEvent('mouseenter', options));
+  el.dispatchEvent(new MouseEvent('mousemove', options));
+  return { x: Math.round(clientX), y: Math.round(clientY) };
+})();
+`)
+    if (point && typeof point.x === 'number' && typeof point.y === 'number') {
+      await targetWc.debugger.attach('1.3').catch((error) => {
+        const message = error instanceof Error ? error.message : String(error)
+        if (!message.includes('already attached')) throw error
+      })
+      try {
+        await targetWc.debugger.sendCommand('Input.dispatchMouseEvent', {
+          type: 'mouseMoved',
+          x: point.x,
+          y: point.y,
+          button: 'none'
+        })
+      } finally {
+        targetWc.debugger.detach()
+      }
+    }
+    await delay(Math.max(options.settleMs, 500))
+    return
+  }
+
   if (step.type === 'input' || step.type === 'change') {
     await targetWc.executeJavaScript(`
 (() => {
@@ -235,6 +271,47 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
   return true;
 })();
 `)
+    await delay(options.settleMs)
+    return
+  }
+
+  if (step.type === 'file') {
+    const files = Array.isArray(step.payload?.files)
+      ? step.payload.files.map(file => String(file)).filter(Boolean)
+      : []
+    if (files.length === 0) throw new Error('file 动作缺少文件路径')
+
+    await targetWc.debugger.attach('1.3').catch((error) => {
+      const message = error instanceof Error ? error.message : String(error)
+      if (!message.includes('already attached')) throw error
+    })
+
+    try {
+      const documentResult = await targetWc.debugger.sendCommand('DOM.getDocument', { depth: -1, pierce: true }) as any
+      const rootNodeId = documentResult?.root?.nodeId
+      if (!rootNodeId) throw new Error('无法获取 DOM root')
+      const selector = step.locator?.css || (step.locator?.id ? `#${step.locator.id}` : '')
+      if (!selector) throw new Error('file 动作缺少可用于 CDP 的 CSS locator')
+      const queryResult = await targetWc.debugger.sendCommand('DOM.querySelector', {
+        nodeId: rootNodeId,
+        selector
+      }) as any
+      const nodeId = queryResult?.nodeId
+      if (!nodeId) throw new Error('文件输入元素未找到')
+      await targetWc.debugger.sendCommand('DOM.setFileInputFiles', { nodeId, files })
+    } finally {
+      targetWc.debugger.detach()
+    }
+
+    await targetWc.executeJavaScript(`
+(() => {
+  const el = window.__actionPlayerElement;
+  if (!el) return false;
+  el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+  return true;
+})();
+`).catch(() => {})
     await delay(options.settleMs)
     return
   }
