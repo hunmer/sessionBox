@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, nextTick } from 'vue'
-import { useVueFlow } from '@vue-flow/core'
+import { computed, ref } from 'vue'
 import { useWorkflowStore } from '@/stores/workflow'
-import { getNodeDefinition, CONDITION_OPERATORS, NO_VALUE_OPERATORS } from '@/lib/workflow/nodeRegistry'
-import type { OutputField, ConditionItem } from '@/lib/workflow/types'
+import { getNodeDefinition } from '@/lib/workflow/nodeRegistry'
+import type { OutputField } from '@/lib/workflow/types'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
@@ -12,8 +11,9 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { resolveLucideIcon } from '@/lib/lucide-resolver'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight, Import, FileDown, Info, Braces, X } from 'lucide-vue-next'
+import { Bug, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight, Import, FileDown, Info, Braces } from 'lucide-vue-next'
 import OutputFieldEditor from './OutputFieldEditor.vue'
+import ConditionEditor from './ConditionEditor.vue'
 import VariablePicker from './VariablePicker.vue'
 import {
   Dialog,
@@ -151,47 +151,6 @@ function confirmImport() {
   } catch {
     importError.value = 'JSON 格式不正确，请检查输入'
   }
-}
-
-// ===== 条件编辑器 =====
-const conditions = computed<ConditionItem[]>({
-  get: () => store.selectedNode?.data?.conditions || [],
-  set: (val) => {
-    if (store.selectedNodeId) {
-      store.updateNodeData(store.selectedNodeId, { conditions: val })
-      nextTick(() => {
-        const { updateNodeInternals } = useVueFlow()
-        updateNodeInternals([store.selectedNodeId!])
-      })
-    }
-  },
-})
-
-function addCondition() {
-  const cond: ConditionItem = {
-    id: 'cond_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-    variable: '',
-    operator: 'equals',
-    value: '',
-  }
-  conditions.value = [...conditions.value, cond]
-}
-
-function removeCondition(index: number) {
-  const next = [...conditions.value]
-  next.splice(index, 1)
-  conditions.value = next
-}
-
-function updateCondition(index: number, field: keyof ConditionItem, value: string) {
-  const next = [...conditions.value]
-  next[index] = { ...next[index], [field]: value }
-  conditions.value = next
-}
-
-function insertVariableToCondition(index: number, variablePath: string) {
-  const cond = conditions.value[index]
-  updateCondition(index, 'variable', (cond?.variable || '') + variablePath)
 }
 </script>
 
@@ -448,92 +407,7 @@ function insertVariableToCondition(index: number, variablePath: string) {
           </div>
 
           <!-- 条件编辑器（switch 节点） -->
-          <template v-if="definition.type === 'switch'">
-            <div class="border-t border-border pt-3 space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-medium">条件分支</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  class="h-5 px-1.5 text-[10px] gap-0.5"
-                  @click="addCondition"
-                >
-                  + 添加条件
-                </Button>
-              </div>
-
-              <div
-                v-for="(cond, idx) in conditions"
-                :key="cond.id"
-                class="rounded border border-border p-2 space-y-1.5 relative group/cond"
-              >
-                <div class="flex items-center gap-1">
-                  <span class="text-[10px] text-muted-foreground w-8 shrink-0">条件 {{ idx + 1 }}</span>
-                  <div class="flex-1 flex items-center gap-1">
-                    <Input
-                      :model-value="cond.variable"
-                      placeholder="变量"
-                      class="h-6 text-[11px] flex-1"
-                      @update:model-value="updateCondition(idx, 'variable', $event)"
-                    />
-                    <VariablePicker
-                      v-if="store.selectedNodeId"
-                      :exclude-node-id="store.selectedNodeId"
-                      @select="insertVariableToCondition(idx, $event)"
-                    />
-                  </div>
-                </div>
-                <div class="flex items-center gap-1">
-                  <Select
-                    :model-value="cond.operator"
-                    @update:model-value="updateCondition(idx, 'operator', $event)"
-                  >
-                    <SelectTrigger class="h-6 text-[11px] w-full">
-                      <SelectValue placeholder="操作符" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem
-                        v-for="op in CONDITION_OPERATORS"
-                        :key="op.value"
-                        :value="op.value"
-                        class="text-xs"
-                      >
-                        {{ op.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div
-                  v-if="!NO_VALUE_OPERATORS.has(cond.operator)"
-                  class="flex items-center gap-1"
-                >
-                  <Input
-                    :model-value="cond.value"
-                    placeholder="比较值"
-                    class="h-6 text-[11px] flex-1"
-                    @update:model-value="updateCondition(idx, 'value', $event)"
-                  />
-                </div>
-                <button
-                  class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover/cond:opacity-100 transition-opacity"
-                  @click="removeCondition(idx)"
-                >
-                  <X class="w-2.5 h-2.5" />
-                </button>
-              </div>
-
-              <div
-                v-if="conditions.length === 0"
-                class="text-[11px] text-muted-foreground text-center py-2"
-              >
-                无条件，所有输入走默认分支
-              </div>
-
-              <div class="rounded border border-dashed border-orange-400/50 p-1.5">
-                <span class="text-[10px] text-orange-500">默认分支：以上条件均不匹配时执行</span>
-              </div>
-            </div>
-          </template>
+          <ConditionEditor v-if="definition.type === 'switch'" />
 
           <!-- 输出字段编辑区 -->
           <div class="border-t border-border pt-3">
