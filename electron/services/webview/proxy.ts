@@ -91,18 +91,6 @@ export async function refreshProxyInfo(
     return
   }
 
-  console.log('[WebviewManager] refreshProxyInfo', {
-    tabId,
-    pageId: entry.pageId,
-    containerId: entry.containerId,
-    proxyId: proxy.id,
-    proxyName: proxy.name,
-    proxyEnabled,
-    applied,
-    isOverride,
-    sessionProxyEnabled: sessionProxyEnabled.get(entry.containerId)
-  })
-
   sendProxyInfo(mainWindow, tabId, {
     enabled: proxyEnabled,
     applied,

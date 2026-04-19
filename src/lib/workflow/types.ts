@@ -12,6 +12,14 @@ export interface WorkflowFolder {
 /** 节点运行状态 */
 export type NodeRunState = 'normal' | 'disabled' | 'skipped'
 
+/** 选择器条件项 */
+export interface ConditionItem {
+  id: string
+  variable: string
+  operator: string
+  value: string
+}
+
 /** 工作流节点 */
 export interface WorkflowNode {
   id: string
@@ -55,7 +63,7 @@ export interface OutputField {
 export interface NodeProperty {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'number' | 'select' | 'checkbox' | 'code'
+  type: 'text' | 'textarea' | 'number' | 'select' | 'checkbox' | 'code' | 'conditions'
   required?: boolean
   readonly?: boolean
   default?: any
@@ -67,6 +75,11 @@ export interface NodeProperty {
 export interface NodeHandleConfig {
   source?: boolean // 是否显示输出连接点，默认 true
   target?: boolean // 是否显示输入连接点，默认 true
+  /** 动态源连接点配置，设置后忽略 source */
+  dynamicSource?: {
+    dataKey: string // node data 中条件数组的 key
+    extraCount?: number // 额外输出数量（如 else = 1）
+  }
 }
 
 /** 节点注册表项 */

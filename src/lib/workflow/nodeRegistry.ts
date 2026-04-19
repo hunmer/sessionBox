@@ -247,6 +247,7 @@ function getToolIcon(name: string): string {
     run_code: 'Terminal',
     toast: 'Bell',
     agent_chat: 'Bot',
+    switch: 'GitBranch',
     start: 'LogIn',
     end: 'LogOut',
   }
@@ -267,6 +268,25 @@ function buildToolNodeDefinitions(): NodeTypeDefinition[] {
     }
   })
 }
+
+/** 选择器条件操作符 */
+export const CONDITION_OPERATORS = [
+  { value: 'equals', label: '等于' },
+  { value: 'not_equals', label: '不等于' },
+  { value: 'greater_than', label: '大于' },
+  { value: 'less_than', label: '小于' },
+  { value: 'greater_than_or_equal', label: '大于等于' },
+  { value: 'less_than_or_equal', label: '小于等于' },
+  { value: 'contains', label: '包含' },
+  { value: 'not_contains', label: '不包含' },
+  { value: 'starts_with', label: '开头是' },
+  { value: 'ends_with', label: '结尾是' },
+  { value: 'is_empty', label: '为空' },
+  { value: 'is_not_empty', label: '不为空' },
+] as const
+
+/** 不需要比较值的操作符 */
+export const NO_VALUE_OPERATORS = new Set(['is_empty', 'is_not_empty'])
 
 /** 新增节点定义 */
 const customNodeDefinitions: NodeTypeDefinition[] = [
@@ -331,6 +351,28 @@ const customNodeDefinitions: NodeTypeDefinition[] = [
         ],
       },
     ],
+  },
+  {
+    type: 'switch',
+    label: '选择器',
+    category: '流程控制',
+    icon: 'GitBranch',
+    description: '条件分支路由，按条件顺序匹配，输出 = 条件数 + 1（默认）',
+    properties: [
+      {
+        key: 'conditions',
+        label: '条件列表',
+        type: 'conditions',
+        tooltip: '按顺序评估条件，匹配则走对应分支，全部不匹配走默认分支',
+      },
+    ],
+    handles: {
+      target: true,
+      dynamicSource: {
+        dataKey: 'conditions',
+        extraCount: 1,
+      },
+    },
   },
   {
     type: 'agent_chat',

@@ -1,6 +1,6 @@
 // src/lib/workflow/engine.ts
 import { toRaw } from 'vue'
-import type { WorkflowNode, WorkflowEdge, ExecutionLog, ExecutionStep } from './types'
+import type { WorkflowNode, WorkflowEdge, ExecutionLog, ExecutionStep, ConditionItem } from './types'
 import { getNodeDefinition } from './nodeRegistry'
 
 export type EngineStatus = 'idle' | 'running' | 'paused' | 'error'
@@ -18,6 +18,7 @@ export class WorkflowEngine {
   private steps: ExecutionStep[] = []
   private onLogUpdate?: (log: ExecutionLog) => void
   private onNodeStatusChange?: (nodeId: string, status: ExecutionStep['status']) => void
+  private activeBranches: Map<string, string> = new Map() // switchNodeId -> selectedHandle
 
   constructor(
     nodes: WorkflowNode[],
@@ -116,6 +117,7 @@ export class WorkflowEngine {
     this.stopRequested = false
     this._status = 'idle'
     this.startTime = 0
+    this.activeBranches.clear()
   }
 
   private async runFromIndex(startIndex: number): Promise<void> {
@@ -137,6 +139,12 @@ export class WorkflowEngine {
       this.currentIndex = i
       const node = this.executionOrder[i]
       const nodeState = node.nodeState || 'normal'
+
+      // 检查节点是否在活跃分支路径上
+      if (this.activeBranches.size > 0 && !this.isNodeReachable(node.id)) {
+        this.recordSkippedStep(node, '非活跃分支')
+        continue
+      }
 
       // 禁用状态：中止执行
       if (nodeState === 'disabled') {
@@ -199,9 +207,12 @@ export class WorkflowEngine {
       step.status = 'completed'
       step.output = result
       this.context[node.id] = result
-      // 同时写入 __data__ 以支持 {{ __data__["nodeId"].field }} 语法
       if (!this.context.__data__) this.context.__data__ = {}
       this.context.__data__[node.id] = result
+      // switch 节点记录活跃分支
+      if (node.type === 'switch' && result?.__branch__) {
+        this.activeBranches.set(node.id, result.__branch__)
+      }
       this.onNodeStatusChange?.(node.id, 'completed')
     } catch (err: any) {
       step.finishedAt = Date.now()
@@ -229,6 +240,8 @@ export class WorkflowEngine {
         return this.executeCode(resolvedData.code || '')
       case 'toast':
         return this.executeToast(resolvedData.message || '', resolvedData.type || 'info')
+      case 'switch':
+        return this.executeSwitch(resolvedData.conditions || [])
       case 'agent_chat':
         return this.executeAgentChat(resolvedData.prompt || '', resolvedData.systemPrompt || '')
       default:
@@ -255,6 +268,54 @@ export class WorkflowEngine {
 
   private async executeAgentChat(prompt: string, systemPrompt: string): Promise<any> {
     throw new Error('agent_chat 节点需要集成 AI provider，待后续实现')
+  }
+
+  private executeSwitch(conditions: ConditionItem[]): any {
+    for (let i = 0; i < conditions.length; i++) {
+      const cond = conditions[i]
+      const variable = this.resolveStringValue(cond.variable)
+      const value = this.resolveStringValue(cond.value)
+      if (this.evaluateCondition(variable, value, cond.operator)) {
+        return { __branch__: `case-${i}`, matchedIndex: i }
+      }
+    }
+    return { __branch__: 'default', matchedIndex: -1 }
+  }
+
+  private evaluateCondition(variable: any, value: any, operator: string): boolean {
+    switch (operator) {
+      case 'equals': return variable == value
+      case 'not_equals': return variable != value
+      case 'greater_than': return Number(variable) > Number(value)
+      case 'less_than': return Number(variable) < Number(value)
+      case 'greater_than_or_equal': return Number(variable) >= Number(value)
+      case 'less_than_or_equal': return Number(variable) <= Number(value)
+      case 'contains': return String(variable).includes(String(value))
+      case 'not_contains': return !String(variable).includes(String(value))
+      case 'starts_with': return String(variable).startsWith(String(value))
+      case 'ends_with': return String(variable).endsWith(String(value))
+      case 'is_empty': return variable === '' || variable === null || variable === undefined
+      case 'is_not_empty': return variable !== '' && variable !== null && variable !== undefined
+      default: return false
+    }
+  }
+
+  private isNodeReachable(nodeId: string, visited?: Set<string>): boolean {
+    const v = visited || new Set<string>()
+    if (v.has(nodeId)) return false
+    v.add(nodeId)
+
+    const incoming = this.edges.filter((e) => e.target === nodeId)
+    if (incoming.length === 0) return true
+
+    for (const edge of incoming) {
+      const activeHandle = this.activeBranches.get(edge.source)
+      if (activeHandle !== undefined) {
+        if (edge.sourceHandle !== activeHandle) continue
+      }
+      if (this.isNodeReachable(edge.source, v)) return true
+    }
+    return false
   }
 
   private async executeBrowserTool(toolType: string, params: Record<string, any>): Promise<any> {

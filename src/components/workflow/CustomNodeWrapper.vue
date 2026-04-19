@@ -121,6 +121,26 @@ function refreshNodeInternals(reason: string) {
 
 const displayLabel = computed(() => props.data?.label || definition.value?.label || props.type)
 
+/** 动态输出连接点（switch 节点） */
+const dynamicHandles = computed(() => {
+  const ds = definition.value?.handles?.dynamicSource
+  if (!ds) return null
+  const conditions: any[] = props.data?.[ds.dataKey] || []
+  const extra = ds.extraCount || 0
+  const total = conditions.length + extra
+  if (total === 0) return null
+  return Array.from({ length: total }, (_, i) => ({
+    id: i < conditions.length ? `case-${i}` : 'default',
+    label: i < conditions.length ? `条件 ${i + 1}` : '默认',
+    index: i,
+    total,
+  }))
+})
+
+function getHandleTop(index: number, total: number): string {
+  return `${((index + 1) / (total + 1)) * 100}%`
+}
+
 onMounted(() => {
   refreshNodeInternals('mounted')
 })
@@ -201,13 +221,34 @@ onMounted(() => {
 
         <!-- 输出连接点 -->
         <Handle
-          v-if="showSourceHandle"
+          v-if="showSourceHandle && !dynamicHandles"
           id="source"
           type="source"
           :position="Position.Right"
           :connectable="props.connectable"
           class="!z-10 !w-3 !h-3 !bg-emerald-500 !border-2 !border-emerald-300"
         />
+
+        <!-- 动态输出连接点（switch 节点） -->
+        <template v-if="dynamicHandles">
+          <div
+            v-for="h in dynamicHandles"
+            :key="h.id"
+            class="absolute right-0 flex items-center"
+            :style="{ top: getHandleTop(h.index, h.total), transform: 'translateY(-50%)' }"
+          >
+            <span class="text-[9px] text-muted-foreground mr-1 whitespace-nowrap">{{ h.label }}</span>
+            <Handle
+              :id="h.id"
+              type="source"
+              :position="Position.Right"
+              :connectable="props.connectable"
+              class="!relative !top-0 !translate-y-0 !z-10 !w-2.5 !h-2.5"
+              :class="h.id === 'default' ? '!bg-orange-500 !border-orange-300' : '!bg-emerald-500 !border-emerald-300'"
+              :style="{ borderWidth: '2px' }"
+            />
+          </div>
+        </template>
       </div>
     </ContextMenuTrigger>
 
