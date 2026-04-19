@@ -76,8 +76,10 @@ export function registerDebuggerIpcHandlers(): void {
     debuggerWindow.loadFile(join(__dirname, '../preload/debugger-window.html'))
     debuggerWindow.once('ready-to-show', () => debuggerWindow?.show())
 
-    debuggerWindow.webContents.on('did-attach-webview', (_e, webContents) => {
-      console.log('[debugger-main] did-attach-webview, id:', webContents.id, 'url:', webContents.getURL())
+    debuggerWindow.webContents.on('did-attach-webview', (_e, attachedWebContents) => {
+      embeddedWcId = attachedWebContents.id
+      console.log('[debugger-main] did-attach-webview, id:', embeddedWcId, 'url:', attachedWebContents.getURL())
+      debuggerWindow?.webContents.send('debugger:embedded-wcid', embeddedWcId)
     })
 
     debuggerWindow.on('closed', () => {

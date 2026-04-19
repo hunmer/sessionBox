@@ -536,12 +536,65 @@ createApp({
       tabs.value = await api.getTabs()
     }
 
+    async function refreshEmbeddedWcId(options = {}) {
+      if (targetId.value !== EMBEDDED && options.force !== true) return null
+      try {
+        const wcId = await api.getEmbeddedWcId()
+        if (typeof wcId === 'number' && wcId > 0) {
+          recordWcId.value = wcId
+          currentWcId.value = wcId
+          return wcId
+        }
+      } catch (error) {
+        console.warn('[debugger] failed to get embedded wcId:', error)
+      }
+      return null
+    }
+
     function unwrapWebviewRef(view) {
       const candidate = Array.isArray(view) ? view[0] : view
       if (!candidate) return null
       if (typeof candidate.getWebContentsId === 'function') return candidate
       if (candidate.$el && typeof candidate.$el.getWebContentsId === 'function') return candidate.$el
       return null
+    }
+
+    async function syncRecordWebviewIdentity(webview) {
+      if (!webview) return false
+      try {
+        const wcId = webview.getWebContentsId()
+        if (!wcId) return false
+        recordWcId.value = wcId
+        currentWcId.value = wcId
+        await api.setEmbeddedWcId(wcId)
+        return true
+      } catch (error) {
+        return false
+      }
+    }
+
+    function bindRecordWebview(webview) {
+      if (!webview || webview.__debuggerRecordBound) return
+      webview.__debuggerRecordBound = true
+
+      const sync = () => {
+        void syncRecordWebviewIdentity(webview)
+      }
+
+      webview.addEventListener('dom-ready', sync)
+      webview.addEventListener('did-start-loading', sync)
+      webview.addEventListener('did-stop-loading', sync)
+      sync()
+
+      let attempts = 0
+      const retry = () => {
+        attempts += 1
+        if (recordWcId.value || attempts > 20) return
+        syncRecordWebviewIdentity(webview).then((ok) => {
+          if (!ok && !recordWcId.value && attempts <= 20) setTimeout(retry, 100)
+        })
+      }
+      retry()
     }
 
     function syncRecordWebviewKey() {
@@ -557,12 +610,17 @@ createApp({
       recordInitialSrc.value = normalizedUrl
       syncRecordWebviewKey()
       await nextTick()
+      bindRecordWebview(unwrapWebviewRef(recordWebviewEl.value))
+      if (normalizedPartition === EMBEDDED_PARTITION) {
+        void refreshEmbeddedWcId({ force: true })
+      }
     }
 
     async function applySelectedTarget(val) {
       if (val === EMBEDDED || val === '') {
         selectedTargetInfo.value = null
         await rebuildRecordWebview(EMBEDDED_PARTITION, urlInput.value.trim() || 'about:blank')
+        await refreshEmbeddedWcId({ force: true })
         return
       }
 
@@ -813,13 +871,10 @@ createApp({
       }
     }
 
-    function loadUrl() {
+    async function loadUrl() {
       const url = urlInput.value.trim()
       if (!url) return
-      recordInitialSrc.value = url
-      syncRecordWebviewKey()
-      const recordView = unwrapWebviewRef(recordWebviewEl.value)
-      if (recordView) recordView.loadURL(url)
+      await rebuildRecordWebview(recordPartition.value, url)
     }
 
     function toggleStep(index) {
@@ -1344,27 +1399,13 @@ createApp({
       await refreshTabs()
       targetId.value = EMBEDDED
       await rebuildRecordWebview(EMBEDDED_PARTITION, urlInput.value.trim() || 'about:blank')
+      await refreshEmbeddedWcId({ force: true })
 
       nextTick(() => {
         watch(recordWebviewEl, (view) => {
           const webview = unwrapWebviewRef(view)
           if (!webview) return
-          webview.addEventListener('dom-ready', async () => {
-            try {
-              const wcId = webview.getWebContentsId()
-              recordWcId.value = wcId
-              currentWcId.value = wcId
-              await api.setEmbeddedWcId(wcId)
-            } catch (error) {
-              console.warn('[debugger] failed to set record wcId:', error)
-            }
-          })
-          try {
-            recordWcId.value = webview.getWebContentsId()
-            currentWcId.value = recordWcId.value
-          } catch (error) {
-            console.warn('[debugger] failed to read record wcId:', error)
-          }
+          bindRecordWebview(webview)
         }, { immediate: true })
 
         watch(playWebviewEl, (view) => {

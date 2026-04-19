@@ -4,6 +4,7 @@ import { getPageById, getContainerById, getGroupById, getProxyById, getZoomPrefe
 import { applyProxyToSession } from './proxy'
 import { getUserAgent } from '../utils/user-agent'
 import { broadcastToRenderer, pluginEventBus } from './plugin-event-bus'
+import { handleBeforeInputEvent } from './shortcut-manager'
 
 import type { ViewEntry, FrozenTabInfo, PendingViewInfo } from './webview/types'
 import { BLOCKED_SCHEMES } from './webview/blocked-protocols'
