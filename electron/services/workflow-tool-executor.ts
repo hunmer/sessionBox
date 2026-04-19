@@ -76,6 +76,22 @@ export interface WorkflowChanges {
   deleteEdgeIds: string[]
 }
 
+interface ToolContext {
+  args: any
+  nodes: any[]
+  edges: any[]
+  changes: WorkflowChanges
+}
+
+interface ToolHandlerResult {
+  result: ToolResult
+  mutated: boolean
+  nodes: any[]
+  edges: any[]
+}
+
+type ToolHandler = (ctx: ToolContext) => ToolHandlerResult
+
 function getArgWorkflowId(args: any): string {
   return typeof args?.workflow_id === 'string'
     ? args.workflow_id
@@ -182,6 +198,276 @@ function notifyRenderer(
   }
 }
 
+// ====== 各工具处理函数 ======
+
+function handleGetCurrentWorkflow(): ToolHandlerResult {
+  return {
+    result: {
+      success: false,
+      message: 'get_current_workflow 只能在渲染进程直接读取当前画布数据',
+    },
+    mutated: false,
+    nodes: [],
+    edges: [],
+  }
+}
+
+function handleListNodeTypes(ctx: ToolContext): ToolHandlerResult {
+  const { args } = ctx
+  const category = args?.category
+  const filtered = category
+    ? NODE_TYPE_DEFINITIONS.filter((d) => d.category === category)
+    : NODE_TYPE_DEFINITIONS
+  return {
+    result: {
+      success: true,
+      message: `共 ${filtered.length} 种节点类型`,
+      data: { nodeTypes: filtered, categories: Array.from(new Set(NODE_TYPE_DEFINITIONS.map((d) => d.category))) },
+    },
+    mutated: false,
+    nodes: ctx.nodes,
+    edges: ctx.edges,
+  }
+}
+
+function handleCreateNode(ctx: ToolContext): ToolHandlerResult {
+  const { args, nodes, changes } = ctx
+  const { type, label } = args || {}
+  if (!type) {
+    return { result: { success: false, message: '缺少必填参数: type' }, mutated: false, nodes, edges: ctx.edges }
+  }
+  const typeDef = NODE_TYPE_DEFINITIONS.find((d) => d.type === type)
+  if (!typeDef) {
+    return {
+      result: {
+        success: false,
+        message: `未知节点类型: ${type}，可用类型: ${NODE_TYPE_DEFINITIONS.map((d) => d.type).join(', ')}`,
+      },
+      mutated: false,
+      nodes,
+      edges: ctx.edges,
+    }
+  }
+  const nodeId = randomUUID()
+  const newNode = {
+    id: nodeId,
+    type,
+    label: label || typeDef.label,
+    position: { x: 0, y: 0 },
+    data: args?.data || {},
+  }
+  nodes.push(newNode)
+  changes.upsertNodes.push(newNode)
+  return {
+    result: { success: true, message: `节点已创建: ${newNode.label} (${nodeId})`, data: { nodeId } },
+    mutated: true,
+    nodes,
+    edges: ctx.edges,
+  }
+}
+
+function handleUpdateNode(ctx: ToolContext): ToolHandlerResult {
+  const { args, nodes, changes } = ctx
+  const { nodeId, data } = args || {}
+  if (!nodeId) {
+    return { result: { success: false, message: '缺少必填参数: nodeId' }, mutated: false, nodes, edges: ctx.edges }
+  }
+  const nodeIdx = nodes.findIndex((n: any) => n.id === nodeId)
+  if (nodeIdx === -1) {
+    return { result: { success: false, message: `节点 ${nodeId} 不存在` }, mutated: false, nodes, edges: ctx.edges }
+  }
+  if (args?.label) {
+    nodes[nodeIdx].label = args.label
+  }
+  if (data) {
+    nodes[nodeIdx].data = { ...nodes[nodeIdx].data, ...data }
+  }
+  changes.upsertNodes.push(nodes[nodeIdx])
+  return {
+    result: {
+      success: true,
+      message: `节点已更新: ${nodeId}`,
+      data: { node: nodes[nodeIdx] },
+    },
+    mutated: true,
+    nodes,
+    edges: ctx.edges,
+  }
+}
+
+function handleDeleteNode(ctx: ToolContext): ToolHandlerResult {
+  const { args, nodes, changes } = ctx
+  let { edges } = ctx
+  const { nodeId: delNodeId } = args || {}
+  if (!delNodeId) {
+    return { result: { success: false, message: '缺少必填参数: nodeId' }, mutated: false, nodes, edges }
+  }
+  const delNodeIdx = nodes.findIndex((n: any) => n.id === delNodeId)
+  if (delNodeIdx === -1) {
+    return { result: { success: false, message: `节点 ${delNodeId} 不存在` }, mutated: false, nodes, edges }
+  }
+  // 移除节点
+  nodes.splice(delNodeIdx, 1)
+  // 移除关联的边
+  const relatedEdges = edges.filter(
+    (e: any) => e.source === delNodeId || e.target === delNodeId,
+  )
+  edges = edges.filter((e: any) => e.source !== delNodeId && e.target !== delNodeId)
+  changes.deleteNodeIds.push(delNodeId)
+  changes.deleteEdgeIds.push(...relatedEdges.map((e: any) => e.id))
+  return {
+    result: {
+      success: true,
+      message: `节点 ${delNodeId} 已删除，同时删除 ${relatedEdges.length} 条关联边`,
+      data: { deletedNodeId: delNodeId, deletedEdgeIds: relatedEdges.map((e: any) => e.id) },
+    },
+    mutated: true,
+    nodes,
+    edges,
+  }
+}
+
+function handleCreateEdge(ctx: ToolContext): ToolHandlerResult {
+  const { args, nodes, edges, changes } = ctx
+  const { source, target, sourceHandle, targetHandle } = args || {}
+  if (!source || !target) {
+    return { result: { success: false, message: '缺少必填参数: source, target' }, mutated: false, nodes, edges }
+  }
+  // 验证 source/target 节点存在
+  if (!nodes.find((n: any) => n.id === source)) {
+    return { result: { success: false, message: `源节点 ${source} 不存在` }, mutated: false, nodes, edges }
+  }
+  if (!nodes.find((n: any) => n.id === target)) {
+    return { result: { success: false, message: `目标节点 ${target} 不存在` }, mutated: false, nodes, edges }
+  }
+  // 检查重复边
+  const sh = sourceHandle || 'default'
+  const th = targetHandle || 'default'
+  const duplicate = edges.find(
+    (e: any) =>
+      e.source === source &&
+      e.target === target &&
+      (e.sourceHandle || 'default') === sh &&
+      (e.targetHandle || 'default') === th,
+  )
+  if (duplicate) {
+    return { result: { success: false, message: `边已存在: ${duplicate.id}`, data: { edgeId: duplicate.id } }, mutated: false, nodes, edges }
+  }
+  const edgeId = `e-${source}-${sh}-${target}-${th}`
+  const newEdge = { id: edgeId, source, target, sourceHandle: sh, targetHandle: th }
+  edges.push(newEdge)
+  changes.upsertEdges.push(newEdge)
+  return {
+    result: { success: true, message: `边已创建: ${edgeId}`, data: { edgeId } },
+    mutated: true,
+    nodes,
+    edges,
+  }
+}
+
+function handleDeleteEdge(ctx: ToolContext): ToolHandlerResult {
+  const { args, nodes, edges, changes } = ctx
+  const { edgeId } = args || {}
+  if (!edgeId) {
+    return { result: { success: false, message: '缺少必填参数: edgeId' }, mutated: false, nodes, edges }
+  }
+  const edgeIdx = edges.findIndex((e: any) => e.id === edgeId)
+  if (edgeIdx === -1) {
+    return { result: { success: false, message: `边 ${edgeId} 不存在` }, mutated: false, nodes, edges }
+  }
+  edges.splice(edgeIdx, 1)
+  changes.deleteEdgeIds.push(edgeId)
+  return {
+    result: { success: true, message: `边 ${edgeId} 已删除`, data: { deletedEdgeId: edgeId } },
+    mutated: true,
+    nodes,
+    edges,
+  }
+}
+
+function handleBatchUpdate(ctx: ToolContext): ToolHandlerResult {
+  const { args, nodes, edges } = ctx
+  const { operations } = args || {}
+  if (!Array.isArray(operations) || operations.length === 0) {
+    return { result: { success: false, message: '缺少必填参数: operations (非空数组)' }, mutated: false, nodes, edges }
+  }
+  // 事务性执行：收集所有变更，全部成功后一次性写入
+  const batchChanges: WorkflowChanges = {
+    upsertNodes: [],
+    deleteNodeIds: [],
+    upsertEdges: [],
+    deleteEdgeIds: [],
+  }
+  const batchResults: any[] = []
+  try {
+    for (const op of operations) {
+      if (!op.tool) {
+        throw new Error(`操作缺少 tool 字段: ${JSON.stringify(op)}`)
+      }
+      const opResult = executeSingleOp(op.tool, op.args || {}, nodes, edges, batchChanges)
+      batchResults.push(opResult)
+      if (!opResult.success) {
+        throw new Error(`操作 ${op.tool} 失败: ${opResult.message}`)
+      }
+    }
+  } catch (err: any) {
+    return {
+      result: { success: false, message: `批量操作中断: ${err.message}`, data: { results: batchResults } },
+      mutated: false,
+      nodes,
+      edges,
+    }
+  }
+  // 全部成功，应用变更
+  ctx.changes.upsertNodes.push(...batchChanges.upsertNodes)
+  ctx.changes.deleteNodeIds.push(...batchChanges.deleteNodeIds)
+  ctx.changes.upsertEdges.push(...batchChanges.upsertEdges)
+  ctx.changes.deleteEdgeIds.push(...batchChanges.deleteEdgeIds)
+  return {
+    result: {
+      success: true,
+      message: `批量操作完成，共 ${operations.length} 个操作`,
+      data: { results: batchResults },
+    },
+    mutated: true,
+    nodes,
+    edges,
+  }
+}
+
+function handleAutoLayout(ctx: ToolContext): ToolHandlerResult {
+  const { nodes, edges, changes } = ctx
+  if (nodes.length === 0) {
+    return { result: { success: true, message: '工作流没有节点，无需布局', data: {} }, mutated: false, nodes, edges }
+  }
+  nodes = autoLayout(nodes, edges)
+  changes.upsertNodes.push(...nodes)
+  return {
+    result: {
+      success: true,
+      message: `自动布局完成，${nodes.length} 个节点已重新排列`,
+      data: { nodes },
+    },
+    mutated: true,
+    nodes,
+    edges,
+  }
+}
+
+// ====== Handler Map ======
+
+const WORKFLOW_TOOL_HANDLERS = new Map<string, ToolHandler>([
+  ['get_current_workflow', () => handleGetCurrentWorkflow()],
+  ['list_node_types', handleListNodeTypes],
+  ['create_node', handleCreateNode],
+  ['update_node', handleUpdateNode],
+  ['delete_node', handleDeleteNode],
+  ['create_edge', handleCreateEdge],
+  ['delete_edge', handleDeleteEdge],
+  ['batch_update', handleBatchUpdate],
+  ['auto_layout', handleAutoLayout],
+])
+
 // ====== 主入口：执行工作流工具 ======
 
 export async function executeWorkflowTool(
@@ -212,234 +498,20 @@ export async function executeWorkflowTool(
     deleteEdgeIds: [],
   }
 
-  let mutated = false
+  // 4. 查找并执行对应 handler
+  const handler = WORKFLOW_TOOL_HANDLERS.get(name)
   let result: ToolResult
+  let mutated: boolean
 
-  // 4. 根据工具名分发处理
-  switch (name) {
-    case 'get_current_workflow':
-      result = {
-        success: false,
-        message: 'get_current_workflow 只能在渲染进程直接读取当前画布数据',
-      }
-      break
-
-    case 'list_node_types': {
-      const category = args?.category
-      const filtered = category
-        ? NODE_TYPE_DEFINITIONS.filter((d) => d.category === category)
-        : NODE_TYPE_DEFINITIONS
-      result = {
-        success: true,
-        message: `共 ${filtered.length} 种节点类型`,
-        data: { nodeTypes: filtered, categories: Array.from(new Set(NODE_TYPE_DEFINITIONS.map((d) => d.category))) },
-      }
-      break
-    }
-
-    case 'create_node': {
-      const { type, label } = args || {}
-      if (!type) {
-        result = { success: false, message: '缺少必填参数: type' }
-        break
-      }
-      const typeDef = NODE_TYPE_DEFINITIONS.find((d) => d.type === type)
-      if (!typeDef) {
-        result = {
-          success: false,
-          message: `未知节点类型: ${type}，可用类型: ${NODE_TYPE_DEFINITIONS.map((d) => d.type).join(', ')}`,
-        }
-        break
-      }
-      const nodeId = randomUUID()
-      const newNode = {
-        id: nodeId,
-        type,
-        label: label || typeDef.label,
-        position: { x: 0, y: 0 },
-        data: args?.data || {},
-      }
-      nodes.push(newNode)
-      changes.upsertNodes.push(newNode)
-      mutated = true
-      result = { success: true, message: `节点已创建: ${newNode.label} (${nodeId})`, data: { nodeId } }
-      break
-    }
-
-    case 'update_node': {
-      const { nodeId, data } = args || {}
-      if (!nodeId) {
-        result = { success: false, message: '缺少必填参数: nodeId' }
-        break
-      }
-      const nodeIdx = nodes.findIndex((n: any) => n.id === nodeId)
-      if (nodeIdx === -1) {
-        result = { success: false, message: `节点 ${nodeId} 不存在` }
-        break
-      }
-      if (args?.label) {
-        nodes[nodeIdx].label = args.label
-      }
-      if (data) {
-        nodes[nodeIdx].data = { ...nodes[nodeIdx].data, ...data }
-      }
-      changes.upsertNodes.push(nodes[nodeIdx])
-      mutated = true
-      result = {
-        success: true,
-        message: `节点已更新: ${nodeId}`,
-        data: { node: nodes[nodeIdx] },
-      }
-      break
-    }
-
-    case 'delete_node': {
-      const { nodeId: delNodeId } = args || {}
-      if (!delNodeId) {
-        result = { success: false, message: '缺少必填参数: nodeId' }
-        break
-      }
-      const delNodeIdx = nodes.findIndex((n: any) => n.id === delNodeId)
-      if (delNodeIdx === -1) {
-        result = { success: false, message: `节点 ${delNodeId} 不存在` }
-        break
-      }
-      // 移除节点
-      nodes.splice(delNodeIdx, 1)
-      // 移除关联的边
-      const relatedEdges = edges.filter(
-        (e: any) => e.source === delNodeId || e.target === delNodeId,
-      )
-      edges = edges.filter((e: any) => e.source !== delNodeId && e.target !== delNodeId)
-      changes.deleteNodeIds.push(delNodeId)
-      changes.deleteEdgeIds.push(...relatedEdges.map((e: any) => e.id))
-      mutated = true
-      result = {
-        success: true,
-        message: `节点 ${delNodeId} 已删除，同时删除 ${relatedEdges.length} 条关联边`,
-        data: { deletedNodeId: delNodeId, deletedEdgeIds: relatedEdges.map((e: any) => e.id) },
-      }
-      break
-    }
-
-    case 'create_edge': {
-      const { source, target, sourceHandle, targetHandle } = args || {}
-      if (!source || !target) {
-        result = { success: false, message: '缺少必填参数: source, target' }
-        break
-      }
-      // 验证 source/target 节点存在
-      if (!nodes.find((n: any) => n.id === source)) {
-        result = { success: false, message: `源节点 ${source} 不存在` }
-        break
-      }
-      if (!nodes.find((n: any) => n.id === target)) {
-        result = { success: false, message: `目标节点 ${target} 不存在` }
-        break
-      }
-      // 检查重复边
-      const sh = sourceHandle || 'default'
-      const th = targetHandle || 'default'
-      const duplicate = edges.find(
-        (e: any) =>
-          e.source === source &&
-          e.target === target &&
-          (e.sourceHandle || 'default') === sh &&
-          (e.targetHandle || 'default') === th,
-      )
-      if (duplicate) {
-        result = { success: false, message: `边已存在: ${duplicate.id}`, data: { edgeId: duplicate.id } }
-        break
-      }
-      const edgeId = `e-${source}-${sh}-${target}-${th}`
-      const newEdge = { id: edgeId, source, target, sourceHandle: sh, targetHandle: th }
-      edges.push(newEdge)
-      changes.upsertEdges.push(newEdge)
-      mutated = true
-      result = { success: true, message: `边已创建: ${edgeId}`, data: { edgeId } }
-      break
-    }
-
-    case 'delete_edge': {
-      const { edgeId } = args || {}
-      if (!edgeId) {
-        result = { success: false, message: '缺少必填参数: edgeId' }
-        break
-      }
-      const edgeIdx = edges.findIndex((e: any) => e.id === edgeId)
-      if (edgeIdx === -1) {
-        result = { success: false, message: `边 ${edgeId} 不存在` }
-        break
-      }
-      edges.splice(edgeIdx, 1)
-      changes.deleteEdgeIds.push(edgeId)
-      mutated = true
-      result = { success: true, message: `边 ${edgeId} 已删除`, data: { deletedEdgeId: edgeId } }
-      break
-    }
-
-    case 'batch_update': {
-      const { operations } = args || {}
-      if (!Array.isArray(operations) || operations.length === 0) {
-        result = { success: false, message: '缺少必填参数: operations (非空数组)' }
-        break
-      }
-      // 事务性执行：收集所有变更，全部成功后一次性写入
-      const batchChanges: WorkflowChanges = {
-        upsertNodes: [],
-        deleteNodeIds: [],
-        upsertEdges: [],
-        deleteEdgeIds: [],
-      }
-      const batchResults: any[] = []
-      try {
-        for (const op of operations) {
-          if (!op.tool) {
-            throw new Error(`操作缺少 tool 字段: ${JSON.stringify(op)}`)
-          }
-          const opResult = executeSingleOp(op.tool, op.args || {}, nodes, edges, batchChanges)
-          batchResults.push(opResult)
-          if (!opResult.success) {
-            throw new Error(`操作 ${op.tool} 失败: ${opResult.message}`)
-          }
-        }
-      } catch (err: any) {
-        result = { success: false, message: `批量操作中断: ${err.message}`, data: { results: batchResults } }
-        break
-      }
-      // 全部成功，应用变更
-      changes.upsertNodes.push(...batchChanges.upsertNodes)
-      changes.deleteNodeIds.push(...batchChanges.deleteNodeIds)
-      changes.upsertEdges.push(...batchChanges.upsertEdges)
-      changes.deleteEdgeIds.push(...batchChanges.deleteEdgeIds)
-      mutated = true
-      result = {
-        success: true,
-        message: `批量操作完成，共 ${operations.length} 个操作`,
-        data: { results: batchResults },
-      }
-      break
-    }
-
-    case 'auto_layout': {
-      if (nodes.length === 0) {
-        result = { success: true, message: '工作流没有节点，无需布局', data: {} }
-        break
-      }
-      nodes = autoLayout(nodes, edges)
-      changes.upsertNodes.push(...nodes)
-      mutated = true
-      result = {
-        success: true,
-        message: `自动布局完成，${nodes.length} 个节点已重新排列`,
-        data: { nodes },
-      }
-      break
-    }
-
-    default:
-      result = { success: false, message: `未知工作流工具: ${name}` }
-      break
+  if (handler) {
+    const handlerResult = handler({ args, nodes, edges, changes })
+    result = handlerResult.result
+    mutated = handlerResult.mutated
+    nodes = handlerResult.nodes
+    edges = handlerResult.edges
+  } else {
+    result = { success: false, message: `未知工作流工具: ${name}` }
+    mutated = false
   }
 
   // 5. 如果有变更，持久化并通知渲染进程

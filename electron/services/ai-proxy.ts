@@ -1,10 +1,6 @@
-import { BrowserWindow, app, webContents } from 'electron'
-import { join } from 'path'
-import { mkdirSync, writeFileSync } from 'fs'
-import { getAIProvider, listTabs, createTab, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
+import { BrowserWindow } from 'electron'
+import { getAIProvider, listTabs, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
 import { webviewManager } from './webview-manager'
-import { extractPageSummary, extractPageMarkdown, extractInteractiveNodes, extractInteractiveNodeDetail } from './page-extractor'
-import { writeSkill, readSkill, listSkills, searchSkill } from './skill-store'
 import {
   buildCategoryListResponse,
   buildToolDetailResponse,
@@ -12,6 +8,10 @@ import {
   isBrowserBusinessToolName,
 } from '../../src/lib/agent/tools'
 import { dispatchWorkflowTool, rejectPendingRendererToolsForRequest } from './workflow-tool-dispatcher'
+import {
+  executeCreateTab, executeWindowTool, executeBrowserTool,
+  executePageTool, executeSkillTool, executeInjectJs, cssEscape,
+} from './ai-proxy-tools'
 
 interface ProxyRequest {
   _requestId: string
@@ -37,17 +37,10 @@ const INITIAL_RETRY_DELAY_MS = 2000
 /** 活跃请求的 AbortController 映射，供外部中止 */
 export const activeRequests = new Map<string, AbortController>()
 
-/**
- * 判断错误是否可重试。
- * 529 (overloaded) 和 429 (rate_limit) 是典型场景。
- */
 function isRetryableError(status: number): boolean {
   return RETRYABLE_STATUS_CODES.has(status)
 }
 
-/**
- * 延迟指定毫秒数（指数退避）。
- */
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -66,15 +59,12 @@ interface ImageToolContent {
 function getImageToolContent(result: unknown): ImageToolContent | null {
   if (!isRecord(result)) return null
   if ('_isImageContent' in result) return result as unknown as ImageToolContent
-
   const data = result.data
   if (!isRecord(data)) return null
-
   const nestedResult = data.result
   if (isRecord(nestedResult) && '_isImageContent' in nestedResult) {
     return nestedResult as unknown as ImageToolContent
   }
-
   return null
 }
 
@@ -89,7 +79,6 @@ export async function proxyChatCompletions(
 ): Promise<void> {
   const { _requestId, providerId, modelId, system, messages, tools, stream, maxTokens, thinking, targetTabId, enabledToolNames, _mode, _workflowId } = params
 
-  // 创建 AbortController 并注册到全局映射
   const abortController = new AbortController()
   activeRequests.set(_requestId, abortController)
 
@@ -112,8 +101,6 @@ export async function proxyChatCompletions(
 
     const apiUrl = `${provider.apiBase.replace(/\/$/, '')}/v1/messages`
     const MAX_TOOL_ROUNDS = 100
-
-    // 多轮对话循环：LLM 可能多次请求 tool_use
     const currentMessages = [...messages]
     const cumulativeUsage = { inputTokens: 0, outputTokens: 0 }
     let contentBlockOffset = 0
@@ -122,22 +109,13 @@ export async function proxyChatCompletions(
       console.log(`[ai-proxy] round ${round + 1}, messages count: ${currentMessages.length}`)
 
       const body: Record<string, unknown> = {
-        model: modelId,
-        messages: currentMessages,
-        max_tokens: maxTokens ?? 4096,
-        stream: true,
+        model: modelId, messages: currentMessages, max_tokens: maxTokens ?? 4096, stream: true,
       }
-      if (system) {
-        body.system = system
-      }
-      if (tools && tools.length > 0) {
-        body.tools = tools
-      }
+      if (system) body.system = system
+      if (tools && tools.length > 0) body.tools = tools
       if (thinking) {
         body.thinking = thinking
-        if (!maxTokens || maxTokens < (thinking.budgetTokens + 1024)) {
-          body.max_tokens = (thinking.budgetTokens + 4096)
-        }
+        if (!maxTokens || maxTokens < (thinking.budgetTokens + 1024)) body.max_tokens = (thinking.budgetTokens + 4096)
       }
 
       let response: Response | null = null
@@ -155,29 +133,15 @@ export async function proxyChatCompletions(
           body: JSON.stringify(body),
           signal: abortController.signal,
         })
-
         if (response.ok) break
-
         lastErrorText = await response.text()
-
         if (attempt < MAX_RETRIES && isRetryableError(response.status)) {
           const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt)
-          console.warn(
-            `[ai-proxy] API error ${response.status} (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${retryDelay}ms...`,
-          )
-          send('on:chat:retry', {
-            requestId: _requestId,
-            attempt: attempt + 1,
-            maxRetries: MAX_RETRIES,
-            delayMs: retryDelay,
-            status: response.status,
-            error: lastErrorText,
-          })
+          console.warn(`[ai-proxy] API error ${response.status} (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${retryDelay}ms...`)
+          send('on:chat:retry', { requestId: _requestId, attempt: attempt + 1, maxRetries: MAX_RETRIES, delayMs: retryDelay, status: response.status, error: lastErrorText })
           await delay(retryDelay)
           continue
         }
-
-        // 不可重试或已耗尽重试次数
         send('on:chat:error', { requestId: _requestId, error: `API error ${response.status}: ${lastErrorText}` })
         return
       }
@@ -187,15 +151,10 @@ export async function proxyChatCompletions(
         return
       }
 
-      // 解析 SSE 流，累积完整的 assistant message
       const parsed = await parseSSEStream(response.body, send, _requestId, cumulativeUsage, contentBlockOffset)
-
       console.log(`[ai-proxy] round ${round + 1} done, stop_reason: ${parsed.stopReason}, tool_calls: ${parsed.toolCalls.length}`)
-
-      // 累加本轮 content block 数量，作为下轮 index 偏移
       contentBlockOffset += parsed.blockCount
 
-      // 没有 tool_use，正常结束
       if (parsed.stopReason !== 'tool_use' || parsed.toolCalls.length === 0) {
         send('on:chat:done', { requestId: _requestId, usage: cumulativeUsage })
         return
@@ -203,40 +162,22 @@ export async function proxyChatCompletions(
 
       // === 工具执行阶段 ===
       console.log(`[ai-proxy] executing ${parsed.toolCalls.length} tool call(s)...`)
-
-      // 构造 assistant message（含文本 + tool_use blocks）
       const assistantContent: Array<Record<string, unknown>> = []
-      if (parsed.textContent) {
-        assistantContent.push({ type: 'text', text: parsed.textContent })
-      }
+      if (parsed.textContent) assistantContent.push({ type: 'text', text: parsed.textContent })
       for (const tc of parsed.toolCalls) {
-        assistantContent.push({
-          type: 'tool_use',
-          id: tc.id,
-          name: tc.name,
-          input: tc.args,
-        })
+        assistantContent.push({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.args })
       }
 
-      // 执行每个工具，收集 tool_result
       const toolResults: Array<Record<string, unknown>> = []
       for (const tc of parsed.toolCalls) {
         console.log(`[ai-proxy] executing tool: ${tc.name}, args: ${JSON.stringify(tc.args)}`)
         let result: any
         if (_mode === 'workflow' && _workflowId) {
-          result = await dispatchWorkflowTool(
-            mainWindow,
-            _requestId,
-            tc.id,
-            tc.name,
-            tc.args,
-            _workflowId,
-          )
+          result = await dispatchWorkflowTool(mainWindow, _requestId, tc.id, tc.name, tc.args, _workflowId)
         } else {
           result = await executeTool(tc.name, tc.args, targetTabId, enabledToolNames)
         }
 
-        // 构建工具结果内容：图片需要结构化数组格式
         let toolResultContent: string | Array<Record<string, unknown>>
         const img = getImageToolContent(result)
         if (img) {
@@ -250,35 +191,18 @@ export async function proxyChatCompletions(
           console.log(`[ai-proxy] tool ${tc.name} result: ${(toolResultContent as string).slice(0, 200)}`)
         }
 
-        // 通知渲染进程：工具执行完成 + 结果
-        // 安全序列化：部分工具可能返回不可直接克隆的对象（如 electron-store 的代理对象）
-        const safeResult = typeof result === 'string'
-          ? result
-          : JSON.parse(JSON.stringify(result))
-        send('on:chat:tool-result', {
-          requestId: _requestId,
-          toolUseId: tc.id,
-          name: tc.name,
-          result: safeResult,
-        })
-
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: tc.id,
-          content: toolResultContent,
-        })
+        const safeResult = typeof result === 'string' ? result : JSON.parse(JSON.stringify(result))
+        send('on:chat:tool-result', { requestId: _requestId, toolUseId: tc.id, name: tc.name, result: safeResult })
+        toolResults.push({ type: 'tool_result', tool_use_id: tc.id, content: toolResultContent })
       }
 
-      // 把 assistant message + tool_result 追加到消息历史，进入下一轮
       currentMessages.push({ role: 'assistant', content: assistantContent })
       currentMessages.push({ role: 'user', content: toolResults })
     }
 
-    // 超过最大轮次，强制结束
     console.warn(`[ai-proxy] reached max tool rounds (${MAX_TOOL_ROUNDS}), stopping`)
     send('on:chat:done', { requestId: _requestId })
   } catch (error) {
-    // AbortError 表示用户主动中止，静默处理
     if (error instanceof DOMException && error.name === 'AbortError') {
       console.log(`[ai-proxy] request ${_requestId} aborted by user`)
       return
@@ -287,22 +211,14 @@ export async function proxyChatCompletions(
       console.log(`[ai-proxy] request ${_requestId} aborted by user`)
       return
     }
-    send('on:chat:error', {
-      requestId: _requestId,
-      error: error instanceof Error ? error.message : String(error),
-    })
+    send('on:chat:error', { requestId: _requestId, error: error instanceof Error ? error.message : String(error) })
   } finally {
-    rejectPendingRendererToolsForRequest(
-      _requestId,
-      new Error('聊天请求已结束，渲染进程工具等待已取消'),
-    )
+    rejectPendingRendererToolsForRequest(_requestId, new Error('聊天请求已结束，渲染进程工具等待已取消'))
     activeRequests.delete(_requestId)
   }
 }
 
-/**
- * 根据 Anthropic SSE event type 转发到对应的 IPC 通道
- */
+/** 根据 Anthropic SSE event type 转发到对应的 IPC 通道 */
 function forwardSSEEvent(
   send: (channel: string, data: unknown) => void,
   requestId: string,
@@ -310,7 +226,6 @@ function forwardSSEEvent(
   indexOffset = 0,
 ): void {
   const type = event.type as string
-
   switch (type) {
     case 'content_block_delta': {
       const delta = event.delta as Record<string, unknown> | undefined
@@ -326,56 +241,30 @@ function forwardSSEEvent(
     case 'content_block_start': {
       const contentBlock = event.content_block as Record<string, unknown> | undefined
       if (contentBlock?.type === 'tool_use') {
-        send('on:chat:tool-call', {
-          requestId,
-          toolCall: {
-            id: contentBlock.id,
-            name: contentBlock.name,
-            args: {},
-            status: 'running',
-            startedAt: Date.now(),
-          },
-        })
+        send('on:chat:tool-call', { requestId, toolCall: { id: contentBlock.id, name: contentBlock.name, args: {}, status: 'running', startedAt: Date.now() } })
       }
       break
     }
-    case 'content_block_stop': {
-      const index = event.index as number
-      send('on:chat:tool-call-update', { requestId, index, status: 'completed', completedAt: Date.now() })
+    case 'content_block_stop':
+      send('on:chat:tool-call-update', { requestId, index: event.index, status: 'completed', completedAt: Date.now() })
       break
-    }
     case 'message_delta': {
       const delta = event.delta as Record<string, unknown> | undefined
-      if (delta?.stop_reason) {
-        send('on:chat:stop-reason', { requestId, stopReason: delta.stop_reason })
-      }
+      if (delta?.stop_reason) send('on:chat:stop-reason', { requestId, stopReason: delta.stop_reason })
       break
     }
-    case 'error': {
+    case 'error':
       send('on:chat:error', { requestId, error: event.error })
       break
-    }
   }
 }
 
 // ===== SSE 流解析（累积 tool_use 信息） =====
 
-interface ParsedToolCall {
-  id: string
-  name: string
-  args: Record<string, unknown>
-}
+interface ParsedToolCall { id: string; name: string; args: Record<string, unknown> }
+interface ParsedStream { textContent: string; toolCalls: ParsedToolCall[]; stopReason: string | null }
 
-interface ParsedStream {
-  textContent: string
-  toolCalls: ParsedToolCall[]
-  stopReason: string | null
-}
-
-/**
- * 解析完整 SSE 流，同时转发事件到渲染进程并累积 tool_use 信息。
- * cumulativeUsage 用于跨多轮 tool_use 循环累积 token 用量。
- */
+/** 解析完整 SSE 流，同时转发事件到渲染进程并累积 tool_use 信息 */
 async function parseSSEStream(
   body: NodeJS.ReadableStream,
   send: (channel: string, data: unknown) => void,
@@ -386,21 +275,15 @@ async function parseSSEStream(
   const reader = body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-
   let textContent = ''
   let stopReason: string | null = null
   let maxIndex = -1
-
-  // tool_use 累积状态
-  // content_block 的 index 并不总是从 0 开始（前面可能有 text block），
-  // 所以用 index → toolCalls 数组下标 的映射来关联
   const toolCalls: ParsedToolCall[] = []
   const toolJsonBuffers = new Map<number, { callIndex: number; json: string }>()
 
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
-
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop() ?? ''
@@ -409,82 +292,49 @@ async function parseSSEStream(
       if (!line.startsWith('data: ')) continue
       const data = line.slice(6).trim()
       if (data === '[DONE]') continue
-
       let event: Record<string, unknown>
       try { event = JSON.parse(data) } catch { continue }
-
       const type = event.type as string
 
-      // 转发事件给渲染进程
       forwardSSEEvent(send, requestId, event, indexOffset)
+      if (typeof event.index === 'number') maxIndex = Math.max(maxIndex, event.index)
 
-      // 追踪最大 block index
-      if (typeof event.index === 'number') {
-        maxIndex = Math.max(maxIndex, event.index)
-      }
-
-      // 累积文本 & tool_use 参数 JSON（都在 content_block_delta 事件中）
       if (type === 'content_block_delta') {
         const delta = event.delta as Record<string, unknown> | undefined
-        if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
-          textContent += delta.text
-        }
-        // Anthropic 格式：delta.type === 'input_json_delta'，字段为 partial_json
+        if (delta?.type === 'text_delta' && typeof delta.text === 'string') textContent += delta.text
         if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
-          const idx = event.index as number
-          const buf = toolJsonBuffers.get(idx)
-          if (buf) {
-            buf.json += delta.partial_json
-          }
+          const buf = toolJsonBuffers.get(event.index as number)
+          if (buf) buf.json += delta.partial_json
         }
       }
-
-      // 累积 tool_use 开始
       if (type === 'content_block_start') {
         const cb = event.content_block as Record<string, unknown> | undefined
         if (cb?.type === 'tool_use') {
           const idx = event.index as number
-          const callIndex = toolCalls.length
+          toolJsonBuffers.set(idx, { callIndex: toolCalls.length, json: '' })
           toolCalls.push({ id: cb.id as string, name: cb.name as string, args: {} })
-          toolJsonBuffers.set(idx, { callIndex, json: '' })
         }
       }
-
-      // tool_use 参数结束 → 解析 JSON 并通知渲染进程
       if (type === 'content_block_stop') {
-        const idx = event.index as number
-        const buf = toolJsonBuffers.get(idx)
+        const buf = toolJsonBuffers.get(event.index as number)
         if (buf) {
           try {
             const parsed = JSON.parse(buf.json || '{}')
             toolCalls[buf.callIndex].args = parsed
-            // 将完整 args 回传给渲染进程
-            send('on:chat:tool-call-args', {
-              requestId,
-              toolUseId: toolCalls[buf.callIndex].id,
-              args: parsed,
-            })
-          } catch {
-            console.error(`[ai-proxy] failed to parse tool args JSON: ${buf.json}`)
-          }
-          toolJsonBuffers.delete(idx)
+            send('on:chat:tool-call-args', { requestId, toolUseId: toolCalls[buf.callIndex].id, args: parsed })
+          } catch { console.error(`[ai-proxy] failed to parse tool args JSON: ${buf.json}`) }
+          toolJsonBuffers.delete(event.index as number)
         }
       }
-
-      // stop_reason & usage
       if (type === 'message_delta') {
         const delta = event.delta as Record<string, unknown> | undefined
-        if (delta?.stop_reason) {
-          stopReason = delta.stop_reason as string
-        }
+        if (delta?.stop_reason) stopReason = delta.stop_reason as string
         const usage = event.usage as Record<string, unknown> | undefined
         if (usage && typeof usage.output_tokens === 'number') {
           cumulativeUsage.outputTokens += usage.output_tokens
           send('on:chat:usage', { requestId, ...cumulativeUsage })
         }
       }
-
-      // message_start 携带本輪 input_tokens
       if (type === 'message_start') {
         const msg = event.message as Record<string, unknown> | undefined
         const usage = msg?.usage as Record<string, unknown> | undefined
@@ -495,15 +345,12 @@ async function parseSSEStream(
       }
     }
   }
-
   return { textContent, toolCalls, stopReason, blockCount: maxIndex + 1 }
 }
 
 // ===== 工具执行（主进程内直接调用 store / webviewManager） =====
 
-/**
- * 根据工具名在主进程内执行对应操作，返回结果。
- */
+/** 根据工具名在主进程内执行对应操作，返回结果。 */
 export async function executeTool(
   name: string,
   args: Record<string, unknown>,
@@ -511,48 +358,28 @@ export async function executeTool(
   enabledToolNames?: string[],
 ): Promise<unknown> {
   console.log(`[ai-proxy executeTool] name=${name}, args=${JSON.stringify(args)}`)
-
   try {
     switch (name) {
-      case 'list_categories': {
-        return buildCategoryListResponse()
-      }
-
+      case 'list_categories': return buildCategoryListResponse()
       case 'list_tools_by_category': {
         const category = args.category as string
         if (!category) return { error: 'category is required' }
         return buildToolListResponse(category, enabledToolNames)
       }
-
       case 'get_tool_detail': {
         const toolName = (args.tool_name || args.toolName || args.name) as string
         if (!toolName) return { error: 'tool_name is required' }
         return buildToolDetailResponse(toolName, enabledToolNames)
       }
-
       case 'execute_tool': {
         const toolName = (args.tool_name || args.toolName || args.name) as string
         const toolArgs = isRecord(args.args) ? args.args : {}
-
         if (!toolName) return { error: 'tool_name is required' }
         if (!isBrowserBusinessToolName(toolName)) return { error: `Unknown tool: ${toolName}` }
-        if (enabledToolNames && !enabledToolNames.includes(toolName)) {
-          return { error: `Tool is disabled: ${toolName}` }
-        }
-
+        if (enabledToolNames && !enabledToolNames.includes(toolName)) return { error: `Tool is disabled: ${toolName}` }
         const result = await executeTool(toolName, toolArgs, targetTabId, enabledToolNames)
-        return {
-          stage: 'execute',
-          need_next: false,
-          next_action: 'none',
-          data: {
-            tool: toolName,
-            result,
-          },
-          message: '工具执行完成。',
-        }
+        return { stage: 'execute', need_next: false, next_action: 'none', data: { tool: toolName, result }, message: '工具执行完成。' }
       }
-
       case 'list_tabs': {
         const tabs = listTabs()
         const activeTabId = webviewManager.getActiveTabId()
@@ -561,125 +388,34 @@ export async function executeTool(
           const page = tab.pageId ? getPageById(tab.pageId) : undefined
           const group = page?.groupId ? getGroupById(page.groupId) : undefined
           return {
-            tabId: tab.id,
-            pageId: tab.pageId,
-            title: tab.title,
-            url: viewInfo?.url ?? tab.url,
-            isActive: tab.id === activeTabId,
-            isFrozen: webviewManager.isFrozen(tab.id),
-            pinned: tab.pinned,
-            muted: tab.muted,
+            tabId: tab.id, pageId: tab.pageId, title: tab.title,
+            url: viewInfo?.url ?? tab.url, isActive: tab.id === activeTabId,
+            isFrozen: webviewManager.isFrozen(tab.id), pinned: tab.pinned, muted: tab.muted,
             groupName: group?.name,
           }
         })
         console.log(`[ai-proxy executeTool] list_tabs returning ${result.length} tabs`)
         return result
       }
-
-      case 'list_groups': {
-        return listGroups()
-      }
-
-      case 'list_workspaces': {
-        return listWorkspaces()
-      }
-
-      case 'list_pages': {
-        return listPages()
-      }
-
+      case 'list_groups': return listGroups()
+      case 'list_workspaces': return listWorkspaces()
+      case 'list_pages': return listPages()
       case 'get_active_tab': {
         const activeTabId = targetTabId || webviewManager.getActiveTabId()
-        if (!activeTabId) {
-          return { error: '没有选中的标签页' }
-        }
+        if (!activeTabId) return { error: '没有选中的标签页' }
         const viewInfo = webviewManager.getViewInfo(activeTabId)
         const tabs = listTabs()
         const tab = tabs.find((t) => t.id === activeTabId)
-        if (!tab) {
-          return { error: `标签页 ${activeTabId} 不存在` }
-        }
+        if (!tab) return { error: `标签页 ${activeTabId} 不存在` }
         const page = tab.pageId ? getPageById(tab.pageId) : undefined
         const group = page?.groupId ? getGroupById(page.groupId) : undefined
         return {
-          tabId: tab.id,
-          pageId: tab.pageId,
-          title: tab.title,
-          url: viewInfo?.url ?? tab.url,
-          isFrozen: webviewManager.isFrozen(tab.id),
-          groupName: group?.name,
-          containerId: page?.containerId,
+          tabId: tab.id, pageId: tab.pageId, title: tab.title,
+          url: viewInfo?.url ?? tab.url, isFrozen: webviewManager.isFrozen(tab.id),
+          groupName: group?.name, containerId: page?.containerId,
         }
       }
-
-      case 'create_tab': {
-        const url = (args.url as string) || 'https://www.baidu.com'
-        const active = args.active !== false // 默认激活
-        const pageId = (args.pageId as string) || null
-        let workspaceId = args.workspaceId as string | undefined
-        const tabs = listTabs()
-
-        // 未指定工作区时，从当前激活标签页反推
-        if (!workspaceId) {
-          const activeTabId = webviewManager.getActiveTabId()
-          if (activeTabId) {
-            const activeTab = tabs.find((t) => t.id === activeTabId)
-            if (activeTab?.pageId) {
-              const page = getPageById(activeTab.pageId)
-              if (page?.groupId) {
-                const group = getGroupById(page.groupId)
-                workspaceId = group?.workspaceId
-              }
-            }
-          }
-        }
-
-        const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
-        const mainWindow = webviewManager.getMainWindow()
-
-        if (pageId) {
-          const page = getPageById(pageId)
-          if (!page) return { error: `页面 ${pageId} 不存在` }
-          const tabUrl = url || page.url
-          const tab = createTab({ pageId, title: page.name, url: tabUrl, order })
-          webviewManager.registerPendingView(tab.id, pageId, page.containerId || '', tabUrl)
-          mainWindow?.webContents.send('on:tab:created', tab)
-          if (active) webviewManager.switchView(tab.id)
-          return {
-            success: true,
-            mode: 'tab',
-            tabId: tab.id,
-            pageId,
-            containerId: page.containerId || undefined,
-            title: tab.title,
-            url: tabUrl,
-            workspaceId,
-          }
-        }
-
-        const containerId = (args.containerId as string) || ''
-        const tab = createTab({
-          pageId: '',
-          title: '新标签页',
-          url,
-          order,
-          workspaceId
-        })
-        webviewManager.registerPendingView(tab.id, '', containerId, url)
-        mainWindow?.webContents.send('on:tab:created', tab)
-        if (active) webviewManager.switchView(tab.id)
-        return {
-          success: true,
-          mode: 'tab',
-          tabId: tab.id,
-          pageId: '',
-          containerId: containerId || undefined,
-          title: tab.title,
-          url,
-          workspaceId,
-        }
-      }
-
+      case 'create_tab': return executeCreateTab(args)
       case 'navigate_tab': {
         const tabId = (args.tabId as string) || webviewManager.getActiveTabId()
         const url = args.url as string
@@ -687,433 +423,46 @@ export async function executeTool(
         webviewManager.navigate(tabId, url)
         return { success: true, tabId, url }
       }
-
-      // ===== 窗口操作工具 =====
-
-      case 'create_window': {
-        const url = (args.url as string) || 'about:blank'
-        const pageId = (args.pageId as string) || null
-        const containerId = (args.containerId as string) || ''
-        const title = (args.title as string) || (pageId ? (getPageById(pageId)?.name ?? '新窗口') : '新窗口')
-        const width = (args.width as number) || 1280
-        const height = (args.height as number) || 800
-
-        const resolvedContainerId = pageId
-          ? (getPageById(pageId)?.containerId || '')
-          : containerId
-        const partition = resolvedContainerId
-          ? `persist:container-${resolvedContainerId}`
-          : undefined
-
-        const win = new BrowserWindow({
-          width,
-          height,
-          show: false,
-          autoHideMenuBar: true,
-          title,
-          webPreferences: {
-            partition,
-            sandbox: false,
-          },
-        })
-        win.loadURL(url)
-        win.once('ready-to-show', () => win.show())
-        return {
-          success: true,
-          windowId: win.id,
-          title,
-          url,
-          containerId: resolvedContainerId || undefined,
-        }
-      }
-
-      case 'navigate_window': {
-        const windowId = args.windowId as number | undefined
-        const url = args.url as string
-        if (windowId == null || !url) return { error: 'windowId and url are required' }
-        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
-        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
-        void win.webContents.loadURL(url)
-        return { success: true, windowId, url }
-      }
-
-      case 'close_window': {
-        const windowId = args.windowId as number | undefined
-        if (windowId == null) return { error: 'windowId is required' }
-        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
-        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
-        win.close()
-        return { success: true, windowId }
-      }
-
-      case 'list_windows': {
-        return BrowserWindow.getAllWindows().map(w => ({
-          windowId: w.id,
-          title: w.getTitle(),
-          url: w.webContents.getURL(),
-          width: w.getBounds().width,
-          height: w.getBounds().height,
-          isMaximized: w.isMaximized(),
-          isMain: w === webviewManager.getMainWindow(),
-        }))
-      }
-
-      case 'focus_window': {
-        const windowId = args.windowId as number | undefined
-        if (windowId == null) return { error: 'windowId is required' }
-        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
-        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
-        if (win.isMinimized()) win.restore()
-        win.focus()
-        return { success: true, windowId }
-      }
-
-      case 'screenshot_window': {
-        const windowId = args.windowId as number | undefined
-        if (windowId == null) return { error: 'windowId is required' }
-        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
-        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
-        try {
-          const image = await win.webContents.capturePage()
-          if (image.isEmpty()) return { error: 'Window content is empty' }
-          const jpeg = image.toJPEG(80)
-          const size = image.getSize()
-
-          const filename = `screenshot-window-${windowId}-${Date.now()}.jpg`
-          const screenshotDir = join(app.getPath('userData'), 'ai-screenshots')
-          mkdirSync(screenshotDir, { recursive: true })
-          writeFileSync(join(screenshotDir, filename), jpeg)
-
-          const base64 = jpeg.toString('base64')
-          return {
-            _isImageContent: true,
-            url: `screenshot://${filename}`,
-            mediaType: 'image/jpeg',
-            data: base64,
-            width: size.width,
-            height: size.height,
-          }
-        } catch (err) {
-          return { error: `Screenshot failed: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
-      case 'get_window_detail': {
-        const windowId = args.windowId as number | undefined
-        if (windowId == null) return { error: 'windowId is required' }
-        const win = BrowserWindow.getAllWindows().find(w => w.id === windowId)
-        if (!win || win.isDestroyed()) return { error: `Window ${windowId} not found` }
-        const bounds = win.getBounds()
-        return {
-          windowId: win.id,
-          title: win.getTitle(),
-          url: win.webContents.getURL(),
-          bounds,
-          isMaximized: win.isMaximized(),
-          isMinimized: win.isMinimized(),
-          isFullScreen: win.isFullScreen(),
-          isFocused: win.isFocused(),
-          isMain: win === webviewManager.getMainWindow(),
-        }
-      }
-
+      case 'create_window':
+      case 'navigate_window':
+      case 'close_window':
+      case 'list_windows':
+      case 'focus_window':
+      case 'screenshot_window':
+      case 'get_window_detail':
+        return executeWindowTool(name, args)
       case 'switch_tab': {
         const tabId = args.tabId as string
         if (!tabId) return { error: 'tabId is required' }
         webviewManager.switchView(tabId)
         return { success: true, tabId }
       }
-
       case 'close_tab': {
         const tabId = args.tabId as string
         if (!tabId) return { error: 'tabId is required' }
         webviewManager.destroyView(tabId)
         return { success: true, tabId }
       }
-
-      // 浏览器交互工具（需要 CDP / executeJavaScript）
-      case 'click_element': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        if (!args.selector || typeof args.selector !== 'string') return { error: 'selector is required' }
-        const selector = args.selector as string
-        await wc.executeJavaScript(`document.querySelector('${cssEscape(selector)}')?.click()`)
-        return { success: true }
-      }
-
-      case 'input_text': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        if (!args.text || typeof args.text !== 'string') return { error: 'text is required' }
-        const text = (args.text as string).replace(/'/g, "\\'")
-        const selector = args.selector as string | undefined
-        if (selector) {
-          await wc.executeJavaScript(`
-            const el = document.querySelector('${cssEscape(selector)}')
-            if (el) { el.focus(); el.value = '${text}'; el.dispatchEvent(new Event('input', { bubbles: true })) }
-          `)
-        } else {
-          await wc.executeJavaScript(`
-            const el = document.activeElement
-            if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
-              if (el.isContentEditable) { el.textContent += '${text}' }
-              else { el.value += '${text}'; el.dispatchEvent(new Event('input', { bubbles: true })) }
-            }
-          `)
-        }
-        return { success: true }
-      }
-
-      case 'scroll_page': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        const amount = (args.amount as number) || 300
-        const scrollMap: Record<string, string> = {
-          up: `window.scrollBy(0, -${amount})`,
-          down: `window.scrollBy(0, ${amount})`,
-          left: `window.scrollBy(-${amount}, 0)`,
-          right: `window.scrollBy(${amount}, 0)`,
-        }
-        await wc.executeJavaScript(scrollMap[args.direction as string] ?? '')
-        return { success: true }
-      }
-
-      case 'get_page_content': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        try {
-          const content = await wc.executeJavaScript('document.body.innerText')
-          return { content }
-        } catch (err) {
-          return { error: `Failed to get page content: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
-      case 'get_dom': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        const selector = args.selector as string
-        if (!selector) return { error: 'selector is required' }
-        try {
-          const html = await wc.executeJavaScript(`
-            (function() {
-              const el = document.querySelector('${cssEscape(selector)}');
-              if (!el) return null;
-
-              const clone = el.cloneNode(true);
-
-              // 移除 script / style / noscript
-              clone.querySelectorAll('script, style, noscript, svg, path').forEach(n => n.remove());
-
-              // 移除注释节点
-              const walker = document.createTreeWalker(clone, NodeFilter.SHOW_COMMENT);
-              const comments = [];
-              while (walker.nextNode()) comments.push(walker.currentNode);
-              comments.forEach(n => n.remove());
-
-              // 收集关键属性白名单（按标签类型）
-              const keepAttrs = {
-                '*': ['id', 'class', 'role', 'aria-label', 'aria-expanded', 'aria-selected', 'aria-checked', 'aria-disabled', 'placeholder', 'type', 'name', 'value', 'href', 'src', 'alt', 'title', 'disabled', 'readonly', 'required', 'checked', 'selected'],
-                'input': ['type', 'name', 'value', 'placeholder', 'disabled', 'readonly', 'required', 'checked'],
-                'a': ['href', 'target'],
-                'img': ['src', 'alt'],
-                'form': ['action', 'method'],
-                'option': ['value', 'selected'],
-              };
-              const globalSet = new Set(keepAttrs['*']);
-
-              clone.querySelectorAll('*').forEach(node => {
-                const tagAttrs = keepAttrs[node.tagName.toLowerCase()] || [];
-                const allowed = new Set([...globalSet, ...tagAttrs]);
-                [...node.attributes].forEach(attr => {
-                  if (!allowed.has(attr.name)) node.removeAttribute(attr.name);
-                });
-              });
-
-              let raw = clone.outerHTML;
-
-              // 解码 HTML 实体
-              const txt = document.createElement('textarea');
-
-              // 多轮解码：&amp;quot; -> &quot; -> "
-              for (let i = 0; i < 2; i++) {
-                txt.innerHTML = raw;
-                raw = txt.value;
-              }
-
-              // 压缩空白：多个空白字符变一个空格，去掉标签间空白
-              raw = raw.replace(/\\s+/g, ' ');
-              raw = raw.replace(/\\s*>/g, '>');
-              raw = raw.replace(/<\\s*/g, '<');
-
-              return raw;
-            })()
-          `)
-          if (!html) return { error: `Element not found: ${selector}` }
-          return { html }
-        } catch (err) {
-          return { error: `Failed to get DOM: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
-      case 'get_page_screenshot': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        try {
-          const image = await wc.capturePage()
-          if (image.isEmpty()) return { error: 'Page is empty or not loaded' }
-          const jpeg = image.toJPEG(80)
-          const size = image.getSize()
-
-          // 保存到临时文件
-          const filename = `screenshot-${Date.now()}.jpg`
-          const screenshotDir = join(app.getPath('userData'), 'ai-screenshots')
-          mkdirSync(screenshotDir, { recursive: true })
-          writeFileSync(join(screenshotDir, filename), jpeg)
-
-          const base64 = jpeg.toString('base64')
-          return {
-            _isImageContent: true,
-            url: `screenshot://${filename}`,
-            mediaType: 'image/jpeg',
-            data: base64,
-            width: size.width,
-            height: size.height,
-          }
-        } catch (err) {
-          return { error: `Screenshot failed: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
-      case 'select_option': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        if (!args.selector || typeof args.selector !== 'string') return { error: 'selector is required' }
-        if (!args.value || typeof args.value !== 'string') return { error: 'value is required' }
-        const selector = args.selector as string
-        const value = (args.value as string).replace(/'/g, "\\'")
-        await wc.executeJavaScript(`
-          const el = document.querySelector('${cssEscape(selector)}')
-          if (el) { el.value = '${value}'; el.dispatchEvent(new Event('change', { bubbles: true })) }
-        `)
-        return { success: true }
-      }
-
-      case 'hover_element': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        if (!args.selector || typeof args.selector !== 'string') return { error: 'selector is required' }
-        const selector = args.selector as string
-        await wc.executeJavaScript(`
-          const el = document.querySelector('${cssEscape(selector)}')
-          if (el) { el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true })); el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })) }
-        `)
-        return { success: true }
-      }
-
-      // ===== 页面感知工具 =====
-      case 'get_page_summary': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        const pageCheck = checkPageAvailable(wc)
-        if (pageCheck) return pageCheck
-        try {
-          return await extractPageSummary(wc)
-        } catch (err) {
-          return { error: `Failed to get page summary: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
-      case 'get_page_markdown': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        const pageCheck = checkPageAvailable(wc)
-        if (pageCheck) return pageCheck
-        try {
-          const maxLength = (args.maxLength as number) || 10000
-          return await extractPageMarkdown(wc, maxLength)
-        } catch (err) {
-          return { error: `Failed to get page markdown: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
-      case 'get_interactive_nodes': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        const pageCheck = checkPageAvailable(wc)
-        if (pageCheck) return pageCheck
-        try {
-          const viewportOnly = args.viewportOnly !== false
-          return await extractInteractiveNodes(wc, viewportOnly)
-        } catch (err) {
-          return { error: `Failed to get interactive nodes: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
-      case 'get_interactive_node_detail': {
-        const wc = getWebContentsFromManager(args.tabId as string | undefined)
-        if (!wc) return { error: 'Tab not found' }
-        const pageCheck = checkPageAvailable(wc)
-        if (pageCheck) return pageCheck
-        try {
-          const selector = args.selector as string
-          if (!selector) return { error: 'selector is required' }
-          return await extractInteractiveNodeDetail(wc, selector)
-        } catch (err) {
-          return { error: `Failed to get node detail: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
-      // ===== 技能管理工具 =====
-      case 'write_skill': {
-        const skillName = args.name as string
-        const skillDesc = args.description as string
-        const skillContent = args.content as string
-        if (!skillName || !skillDesc || !skillContent) {
-          return { error: 'name, description, content 均为必填' }
-        }
-        try {
-          const skill = writeSkill(skillName, skillDesc, skillContent)
-          return { success: true, name: skill.name, message: `Skill "${skill.name}" 已保存` }
-        } catch (err) {
-          return { error: `保存失败: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
-      case 'read_skill': {
-        const skillName = args.name as string
-        if (!skillName) return { error: 'name 为必填' }
-        const skill = readSkill(skillName)
-        if (!skill) return { error: `Skill "${skillName}" 不存在` }
-        return { name: skill.name, description: skill.description, content: skill.content, updated: skill.updated }
-      }
-
-      case 'list_skills': {
-        const skills = listSkills()
-        return { skills, total: skills.length }
-      }
-
-      case 'search_skill': {
-        const query = args.name as string
-        if (!query) return { error: 'name (搜索关键词) 为必填' }
-        const results = searchSkill(query)
-        return { skills: results, total: results.length }
-      }
-
-      case 'inject_js': {
-        const wcId = args.webContentId as number
-        if (!wcId) return { error: 'webContentId is required' }
-        if (!args.code || typeof args.code !== 'string') return { error: 'code is required' }
-        try {
-          const wc = webContents.fromId(wcId)
-          if (!wc || wc.isDestroyed()) return { error: `WebContents not found or destroyed: ${wcId}` }
-          const result = await wc.executeJavaScript(args.code as string)
-          return { success: true, result }
-        } catch (err) {
-          return { error: `JS execution failed: ${err instanceof Error ? err.message : String(err)}` }
-        }
-      }
-
+      case 'click_element':
+      case 'input_text':
+      case 'scroll_page':
+      case 'get_page_content':
+      case 'get_dom':
+      case 'get_page_screenshot':
+      case 'select_option':
+      case 'hover_element':
+        return executeBrowserTool(name, args)
+      case 'get_page_summary':
+      case 'get_page_markdown':
+      case 'get_interactive_nodes':
+      case 'get_interactive_node_detail':
+        return executePageTool(name, args)
+      case 'write_skill':
+      case 'read_skill':
+      case 'list_skills':
+      case 'search_skill':
+        return executeSkillTool(name, args)
+      case 'inject_js': return executeInjectJs(args)
       default:
         console.warn(`[ai-proxy executeTool] unknown tool: ${name}`)
         return { error: `Unknown tool: ${name}` }
@@ -1124,47 +473,10 @@ export async function executeTool(
   }
 }
 
-/** 检查页面是否可用于内容提取（内部页面、未加载完成） */
-function checkPageAvailable(wc: Electron.WebContents): { error: string } | null {
-  const url = wc.getURL()
-  if (
-    url.startsWith('sessionbox://') ||
-    url === 'about:blank' ||
-    url.startsWith('chrome-error://') ||
-    url === ''
-  ) {
-    return { error: 'Cannot extract content from internal pages' }
-  }
-  if (wc.isLoading()) {
-    return { error: 'Page is still loading' }
-  }
-  return null
-}
-
-/** 获取 webContents */
-function getWebContentsFromManager(tabId?: string): Electron.WebContents | null {
-  if (!tabId) {
-    tabId = webviewManager.getActiveTabId() ?? undefined
-  }
-  if (!tabId) return null
-  return webviewManager.getWebContents?.(tabId) ?? null
-}
-
-/** CSS 选择器转义 */
-function cssEscape(selector: string): string {
-  return selector.replace(/'/g, "\\'")
-}
-
-
-/**
- * 测试供应商连接是否正常
- */
+/** 测试供应商连接是否正常 */
 export async function testProviderConnection(providerId: string): Promise<{ success: boolean; error?: string }> {
   const provider = getAIProvider(providerId)
-  if (!provider) {
-    return { success: false, error: `Provider not found: ${providerId}` }
-  }
-
+  if (!provider) return { success: false, error: `Provider not found: ${providerId}` }
   try {
     const apiUrl = `${provider.apiBase.replace(/\/$/, '')}/v1/messages`
     const response = await fetch(apiUrl, {
@@ -1182,16 +494,10 @@ export async function testProviderConnection(providerId: string): Promise<{ succ
         stream: false,
       }),
     })
-
-    if (response.ok) {
-      return { success: true }
-    }
+    if (response.ok) return { success: true }
     const errorText = await response.text()
     return { success: false, error: `HTTP ${response.status}: ${errorText}` }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    }
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }

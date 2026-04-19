@@ -471,6 +471,89 @@ const GENERIC_OUTPUT_SCHEMA = {
   },
 }
 
+/** DOM 交互工具：点击、输入、滚动、选择、悬停 */
+function createDomInteractionTools(tabIdField: { type: 'string'; description: string }): ToolDefinition[] {
+  return [
+    { name: 'click_element', description: '点击页面上的元素。通过 CSS 选择器定位目标元素。', input_schema: { type: 'object', properties: { selector: { type: 'string', description: 'CSS 选择器，例如 "#login-btn", ".submit-button"' }, tabId: tabIdField }, required: ['selector'] } },
+    { name: 'input_text', description: '在输入框中输入文字。', input_schema: { type: 'object', properties: { text: { type: 'string', description: '要输入的文字' }, selector: { type: 'string', description: 'CSS 选择器定位输入框' }, tabId: tabIdField }, required: ['text'] } },
+    { name: 'scroll_page', description: '滚动页面。', input_schema: { type: 'object', properties: { direction: { type: 'string', enum: ['up', 'down', 'left', 'right'], description: '滚动方向' }, amount: { type: 'number', description: '滚动像素数', default: 300 }, tabId: tabIdField }, required: ['direction'] } },
+    { name: 'select_option', description: '选择下拉框的选项。', input_schema: { type: 'object', properties: { selector: { type: 'string', description: 'select 元素的 CSS 选择器' }, value: { type: 'string', description: '要选中的选项值' }, tabId: tabIdField }, required: ['selector', 'value'] } },
+    { name: 'hover_element', description: '鼠标悬停在元素上。', input_schema: { type: 'object', properties: { selector: { type: 'string', description: 'CSS 选择器' }, tabId: tabIdField }, required: ['selector'] } },
+  ]
+}
+
+/** 页面信息工具：获取内容、DOM、截图、摘要、Markdown */
+function createPageInfoTools(tabIdField: { type: 'string'; description: string }): ToolDefinition[] {
+  return [
+    { name: 'get_page_content', description: '获取页面的文本内容。', input_schema: { type: 'object', properties: { tabId: tabIdField } } },
+    { name: 'get_dom', description: '获取指定元素的 outerHTML。', input_schema: { type: 'object', properties: { selector: { type: 'string', description: 'CSS 选择器' }, tabId: tabIdField }, required: ['selector'] } },
+    { name: 'get_page_screenshot', description: '截取页面截图。', input_schema: { type: 'object', properties: { tabId: tabIdField, format: { type: 'string', enum: ['png', 'jpeg'], description: '截图格式' } } } },
+    { name: 'get_page_summary', description: '获取页面结构化摘要，包括标题、URL、description、headings、links（最多 50 条）和 meta 信息。', input_schema: { type: 'object', properties: { tabId: tabIdField } } },
+    { name: 'get_page_markdown', description: '获取页面正文内容的 Markdown 表示。使用 Readability 提取正文，再转为 Markdown。适合阅读文章、博客、文档类页面。', input_schema: { type: 'object', properties: { tabId: tabIdField, maxLength: { type: 'number', description: 'Markdown 内容最大字符数，默认 10000', default: 10000 } } } },
+  ]
+}
+
+/** 标签页管理工具 */
+function createTabTools(tabIdField: { type: 'string'; description: string }): ToolDefinition[] {
+  return [
+    { name: 'list_tabs', description: '列出所有打开的标签页。', input_schema: { type: 'object', properties: {} } },
+    { name: 'create_tab', description: '创建新标签页。', input_schema: { type: 'object', properties: { url: { type: 'string', description: '要打开的 URL' }, pageId: { type: 'string', description: '已有页面 ID' } }, required: ['url'] } },
+    { name: 'navigate_tab', description: '在标签页中导航到指定 URL。', input_schema: { type: 'object', properties: { url: { type: 'string', description: '目标 URL' }, tabId: tabIdField }, required: ['url'] } },
+    { name: 'switch_tab', description: '切换到指定标签页。', input_schema: { type: 'object', properties: { tabId: { type: 'string', description: '要切换到的标签页 ID' } }, required: ['tabId'] } },
+    { name: 'close_tab', description: '关闭指定标签页。（破坏性操作，请谨慎使用）', input_schema: { type: 'object', properties: { tabId: { type: 'string', description: '要关闭的标签页 ID' } }, required: ['tabId'] } },
+    { name: 'get_active_tab', description: '获取当前对话中用户选中的目标标签页信息（BrowserViewPicker 中选择的标签页）。返回标签页 ID、标题、URL 等信息。当不确定应操作哪个标签页时，应先调用此工具确认目标。', input_schema: { type: 'object', properties: {} } },
+  ]
+}
+
+/** 窗口管理工具 */
+function createWindowTools(): ToolDefinition[] {
+  const wid = { type: 'number' as const, description: '目标窗口 ID' }
+  return [
+    { name: 'create_window', description: '创建独立浏览器窗口。用于在独立 BrowserWindow 中打开页面。', input_schema: { type: 'object', properties: { url: { type: 'string', description: '要打开的 URL' }, pageId: { type: 'string', description: '已有页面 ID，用于关联容器' }, containerId: { type: 'string', description: '容器 ID，用于 Session 隔离' }, title: { type: 'string', description: '窗口标题' }, width: { type: 'number', description: '窗口宽度，默认 1280' }, height: { type: 'number', description: '窗口高度，默认 800' } }, required: ['url'] } },
+    { name: 'navigate_window', description: '导航独立窗口到指定 URL。', input_schema: { type: 'object', properties: { windowId: wid, url: { type: 'string', description: '目标 URL' } }, required: ['windowId', 'url'] } },
+    { name: 'close_window', description: '关闭指定的独立浏览器窗口。（破坏性操作）', input_schema: { type: 'object', properties: { windowId: wid }, required: ['windowId'] } },
+    { name: 'list_windows', description: '列出所有打开的浏览器窗口。', input_schema: { type: 'object', properties: {} } },
+    { name: 'focus_window', description: '将指定窗口聚焦到前台。如果窗口最小化则恢复。', input_schema: { type: 'object', properties: { windowId: wid }, required: ['windowId'] } },
+    { name: 'screenshot_window', description: '截取独立窗口的页面截图。', input_schema: { type: 'object', properties: { windowId: wid }, required: ['windowId'] } },
+    { name: 'get_window_detail', description: '获取窗口详细信息（标题、URL、尺寸、状态等）。', input_schema: { type: 'object', properties: { windowId: wid }, required: ['windowId'] } },
+  ]
+}
+
+/** 工作区/分组/页面资源管理工具 */
+function createWorkspaceTools(): ToolDefinition[] {
+  return [
+    { name: 'list_workspaces', description: '列出所有工作区。', input_schema: { type: 'object', properties: {} } },
+    { name: 'list_groups', description: '列出所有分组。', input_schema: { type: 'object', properties: {} } },
+    { name: 'list_pages', description: '列出所有页面。', input_schema: { type: 'object', properties: {} } },
+  ]
+}
+
+/** DOM 查询工具：交互节点列表与详情 */
+function createDomQueryTools(tabIdField: { type: 'string'; description: string }): ToolDefinition[] {
+  return [
+    { name: 'get_interactive_nodes', description: '获取页面中可见的交互节点简要列表（按钮、链接、输入框等），每个节点仅返回 name、text、selector。用于快速定位目标元素，再用 get_interactive_node_detail 获取详情。默认仅返回视口内元素。', input_schema: { type: 'object', properties: { tabId: tabIdField, viewportOnly: { type: 'boolean', description: '是否仅返回视口内元素，默认 true', default: true } } } },
+    { name: 'get_interactive_node_detail', description: '根据 CSS 选择器获取单个交互节点的详细信息，包括 tag、role、name、text、rect、visible、clickable、attributes、styles 等。先用 get_interactive_nodes 定位目标，再用本工具查看详情。', input_schema: { type: 'object', properties: { selector: { type: 'string', description: 'CSS 选择器，来自 get_interactive_nodes 返回的 selector' }, tabId: tabIdField }, required: ['selector'] } },
+  ]
+}
+
+/** 技能管理工具 */
+function createSkillTools(): ToolDefinition[] {
+  return [
+    { name: 'write_skill', description: '保存或更新一个 Skill。Skill 以 Markdown 格式存储，包含名称、说明和内容（步骤 + 代码）。`js` 代码块可直接写可执行代码，不要求注释；保存时会自动补齐统一返回对象，确保执行结果至少返回 { success: true/false }。当用户说"保存 skill"或"创建技能"时使用。如果同名 Skill 已存在则覆盖。', input_schema: { type: 'object', properties: { name: { type: 'string', description: 'Skill 名称，使用小写英文 + 短横线，如 "scrape-product"、"batch-download"。作为唯一标识和文件名。' }, description: { type: 'string', description: 'Skill 的一句话说明，用于 list/search 时展示。' }, content: { type: 'string', description: 'Skill 的 Markdown 正文，包含步骤、代码片段、参数说明等。支持 ```js 代码块，执行时会提取运行。代码块无需写注释；若未显式 return，保存时也会自动包装为返回对象。' } }, required: ['name', 'description', 'content'] } },
+    { name: 'read_skill', description: '按名称读取 Skill 的完整内容。返回 Markdown 正文。当用户说"查看 skill"、"读取技能"时使用。', input_schema: { type: 'object', properties: { name: { type: 'string', description: 'Skill 名称' } }, required: ['name'] } },
+    { name: 'list_skills', description: '列出所有已保存的 Skill，返回名称和说明。当用户说"列出 skill"、"有哪些技能"时使用。', input_schema: { type: 'object', properties: {} } },
+    { name: 'search_skill', description: '按名称模糊搜索 Skill。返回匹配的 Skill 列表（名称 + 说明）。当用户说"搜索 skill"或不确定完整名称时使用。', input_schema: { type: 'object', properties: { name: { type: 'string', description: '搜索关键词（支持模糊匹配）' } }, required: ['name'] } },
+  ]
+}
+
+/** 辅助工具：延迟等待、JS 注入 */
+function createUtilityTools(): ToolDefinition[] {
+  return [
+    { name: 'delay', description: '延迟等待指定毫秒数后继续执行。用于等待页面加载、AJAX 请求返回、动画结束等场景。不依赖标签页。', input_schema: { type: 'object', properties: { milliseconds: { type: 'number', description: '等待时长（毫秒），范围 100-30000，默认 1000。建议根据场景选择：页面导航后等 2000-5000ms，动画结束后等 300-500ms。', default: 1000 }, reason: { type: 'string', description: '等待原因说明（可选），用于日志记录，例如 "等待搜索结果加载"。' } }, required: ['milliseconds'] } },
+    { name: 'inject_js', description: '向指定 WebContents 注入并执行 JavaScript 代码，返回代码执行结果。高风险工具，请确认代码安全后再执行。', input_schema: { type: 'object', properties: { webContentId: { type: 'number', description: '目标 WebContents ID（Electron webContents.id）' }, code: { type: 'string', description: '要执行的 JavaScript 代码，代码在页面上下文中运行，可使用 document、window 等对象。支持 return 返回结果。' } }, required: ['webContentId', 'code'] } },
+  ]
+}
+
 /**
  * 创建真正的浏览器业务工具集。
  * @param _targetTabId 默认目标标签页 ID，由执行层兜底处理。
@@ -479,407 +562,14 @@ export function createBrowserTools(_targetTabId: string | null): ToolDefinition[
   const tabIdField = { type: 'string' as const, description: '目标标签页 ID' }
 
   return [
-    {
-      name: 'click_element',
-      description: '点击页面上的元素。通过 CSS 选择器定位目标元素。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          selector: { type: 'string', description: 'CSS 选择器，例如 "#login-btn", ".submit-button"' },
-          tabId: tabIdField,
-        },
-        required: ['selector'],
-      },
-    },
-    {
-      name: 'input_text',
-      description: '在输入框中输入文字。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          text: { type: 'string', description: '要输入的文字' },
-          selector: { type: 'string', description: 'CSS 选择器定位输入框' },
-          tabId: tabIdField,
-        },
-        required: ['text'],
-      },
-    },
-    {
-      name: 'scroll_page',
-      description: '滚动页面。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          direction: { type: 'string', enum: ['up', 'down', 'left', 'right'], description: '滚动方向' },
-          amount: { type: 'number', description: '滚动像素数', default: 300 },
-          tabId: tabIdField,
-        },
-        required: ['direction'],
-      },
-    },
-    {
-      name: 'select_option',
-      description: '选择下拉框的选项。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          selector: { type: 'string', description: 'select 元素的 CSS 选择器' },
-          value: { type: 'string', description: '要选中的选项值' },
-          tabId: tabIdField,
-        },
-        required: ['selector', 'value'],
-      },
-    },
-    {
-      name: 'hover_element',
-      description: '鼠标悬停在元素上。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          selector: { type: 'string', description: 'CSS 选择器' },
-          tabId: tabIdField,
-        },
-        required: ['selector'],
-      },
-    },
-    {
-      name: 'get_page_content',
-      description: '获取页面的文本内容。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tabId: tabIdField,
-        },
-      },
-    },
-    {
-      name: 'get_dom',
-      description: '获取指定元素的 outerHTML。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          selector: { type: 'string', description: 'CSS 选择器' },
-          tabId: tabIdField,
-        },
-        required: ['selector'],
-      },
-    },
-    {
-      name: 'get_page_screenshot',
-      description: '截取页面截图。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tabId: tabIdField,
-          format: { type: 'string', enum: ['png', 'jpeg'], description: '截图格式' },
-        },
-      },
-    },
-    {
-      name: 'list_tabs',
-      description: '列出所有打开的标签页。',
-      input_schema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'create_tab',
-      description: '创建新标签页。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          url: { type: 'string', description: '要打开的 URL' },
-          pageId: { type: 'string', description: '已有页面 ID' },
-        },
-        required: ['url'],
-      },
-    },
-    {
-      name: 'navigate_tab',
-      description: '在标签页中导航到指定 URL。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          url: { type: 'string', description: '目标 URL' },
-          tabId: tabIdField,
-        },
-        required: ['url'],
-      },
-    },
-    {
-      name: 'switch_tab',
-      description: '切换到指定标签页。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tabId: { type: 'string', description: '要切换到的标签页 ID' },
-        },
-        required: ['tabId'],
-      },
-    },
-    {
-      name: 'close_tab',
-      description: '关闭指定标签页。（破坏性操作，请谨慎使用）',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tabId: { type: 'string', description: '要关闭的标签页 ID' },
-        },
-        required: ['tabId'],
-      },
-    },
-    {
-      name: 'create_window',
-      description: '创建独立浏览器窗口。用于在独立 BrowserWindow 中打开页面。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          url: { type: 'string', description: '要打开的 URL' },
-          pageId: { type: 'string', description: '已有页面 ID，用于关联容器' },
-          containerId: { type: 'string', description: '容器 ID，用于 Session 隔离' },
-          title: { type: 'string', description: '窗口标题' },
-          width: { type: 'number', description: '窗口宽度，默认 1280' },
-          height: { type: 'number', description: '窗口高度，默认 800' },
-        },
-        required: ['url'],
-      },
-    },
-    {
-      name: 'navigate_window',
-      description: '导航独立窗口到指定 URL。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          windowId: { type: 'number', description: '目标窗口 ID' },
-          url: { type: 'string', description: '目标 URL' },
-        },
-        required: ['windowId', 'url'],
-      },
-    },
-    {
-      name: 'close_window',
-      description: '关闭指定的独立浏览器窗口。（破坏性操作）',
-      input_schema: {
-        type: 'object',
-        properties: {
-          windowId: { type: 'number', description: '要关闭的窗口 ID' },
-        },
-        required: ['windowId'],
-      },
-    },
-    {
-      name: 'list_windows',
-      description: '列出所有打开的浏览器窗口。',
-      input_schema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'focus_window',
-      description: '将指定窗口聚焦到前台。如果窗口最小化则恢复。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          windowId: { type: 'number', description: '目标窗口 ID' },
-        },
-        required: ['windowId'],
-      },
-    },
-    {
-      name: 'screenshot_window',
-      description: '截取独立窗口的页面截图。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          windowId: { type: 'number', description: '目标窗口 ID' },
-        },
-        required: ['windowId'],
-      },
-    },
-    {
-      name: 'get_window_detail',
-      description: '获取窗口详细信息（标题、URL、尺寸、状态等）。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          windowId: { type: 'number', description: '目标窗口 ID' },
-        },
-        required: ['windowId'],
-      },
-    },
-    {
-      name: 'list_workspaces',
-      description: '列出所有工作区。',
-      input_schema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'list_groups',
-      description: '列出所有分组。',
-      input_schema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'list_pages',
-      description: '列出所有页面。',
-      input_schema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'get_page_summary',
-      description: '获取页面结构化摘要，包括标题、URL、description、headings、links（最多 50 条）和 meta 信息。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tabId: tabIdField,
-        },
-      },
-    },
-    {
-      name: 'get_page_markdown',
-      description: '获取页面正文内容的 Markdown 表示。使用 Readability 提取正文，再转为 Markdown。适合阅读文章、博客、文档类页面。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tabId: tabIdField,
-          maxLength: { type: 'number', description: 'Markdown 内容最大字符数，默认 10000', default: 10000 },
-        },
-      },
-    },
-    {
-      name: 'get_interactive_nodes',
-      description: '获取页面中可见的交互节点简要列表（按钮、链接、输入框等），每个节点仅返回 name、text、selector。用于快速定位目标元素，再用 get_interactive_node_detail 获取详情。默认仅返回视口内元素。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tabId: tabIdField,
-          viewportOnly: { type: 'boolean', description: '是否仅返回视口内元素，默认 true', default: true },
-        },
-      },
-    },
-    {
-      name: 'get_interactive_node_detail',
-      description: '根据 CSS 选择器获取单个交互节点的详细信息，包括 tag、role、name、text、rect、visible、clickable、attributes、styles 等。先用 get_interactive_nodes 定位目标，再用本工具查看详情。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          selector: { type: 'string', description: 'CSS 选择器，来自 get_interactive_nodes 返回的 selector' },
-          tabId: tabIdField,
-        },
-        required: ['selector'],
-      },
-    },
-    {
-      name: 'get_active_tab',
-      description: '获取当前对话中用户选中的目标标签页信息（BrowserViewPicker 中选择的标签页）。返回标签页 ID、标题、URL 等信息。当不确定应操作哪个标签页时，应先调用此工具确认目标。',
-      input_schema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'write_skill',
-      description:
-        '保存或更新一个 Skill。Skill 以 Markdown 格式存储，包含名称、说明和内容（步骤 + 代码）。`js` 代码块可直接写可执行代码，不要求注释；保存时会自动补齐统一返回对象，确保执行结果至少返回 { success: true/false }。当用户说"保存 skill"或"创建技能"时使用。如果同名 Skill 已存在则覆盖。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          name: {
-            type: 'string',
-            description:
-              'Skill 名称，使用小写英文 + 短横线，如 "scrape-product"、"batch-download"。作为唯一标识和文件名。',
-          },
-          description: {
-            type: 'string',
-            description: 'Skill 的一句话说明，用于 list/search 时展示。',
-          },
-          content: {
-            type: 'string',
-            description:
-              'Skill 的 Markdown 正文，包含步骤、代码片段、参数说明等。支持 ```js 代码块，执行时会提取运行。代码块无需写注释；若未显式 return，保存时也会自动包装为返回对象。',
-          },
-        },
-        required: ['name', 'description', 'content'],
-      },
-    },
-    {
-      name: 'read_skill',
-      description:
-        '按名称读取 Skill 的完整内容。返回 Markdown 正文。当用户说"查看 skill"、"读取技能"时使用。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: 'Skill 名称' },
-        },
-        required: ['name'],
-      },
-    },
-    {
-      name: 'list_skills',
-      description:
-        '列出所有已保存的 Skill，返回名称和说明。当用户说"列出 skill"、"有哪些技能"时使用。',
-      input_schema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'search_skill',
-      description:
-        '按名称模糊搜索 Skill。返回匹配的 Skill 列表（名称 + 说明）。当用户说"搜索 skill"或不确定完整名称时使用。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: '搜索关键词（支持模糊匹配）' },
-        },
-        required: ['name'],
-      },
-    },
-    {
-      name: 'delay',
-      description: '延迟等待指定毫秒数后继续执行。用于等待页面加载、AJAX 请求返回、动画结束等场景。不依赖标签页。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          milliseconds: {
-            type: 'number',
-            description: '等待时长（毫秒），范围 100-30000，默认 1000。建议根据场景选择：页面导航后等 2000-5000ms，动画结束后等 300-500ms。',
-            default: 1000,
-          },
-          reason: {
-            type: 'string',
-            description: '等待原因说明（可选），用于日志记录，例如 "等待搜索结果加载"。',
-          },
-        },
-        required: ['milliseconds'],
-      },
-    },
-    {
-      name: 'inject_js',
-      description: '向指定 WebContents 注入并执行 JavaScript 代码，返回代码执行结果。高风险工具，请确认代码安全后再执行。',
-      input_schema: {
-        type: 'object',
-        properties: {
-          webContentId: {
-            type: 'number',
-            description: '目标 WebContents ID（Electron webContents.id）',
-          },
-          code: {
-            type: 'string',
-            description: '要执行的 JavaScript 代码，代码在页面上下文中运行，可使用 document、window 等对象。支持 return 返回结果。',
-          },
-        },
-        required: ['webContentId', 'code'],
-      },
-    },
+    ...createDomInteractionTools(tabIdField),
+    ...createPageInfoTools(tabIdField),
+    ...createTabTools(tabIdField),
+    ...createWindowTools(),
+    ...createWorkspaceTools(),
+    ...createDomQueryTools(tabIdField),
+    ...createSkillTools(),
+    ...createUtilityTools(),
   ]
 }
 

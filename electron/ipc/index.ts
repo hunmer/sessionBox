@@ -96,60 +96,33 @@ import { listSkills, searchSkill, readSkill, writeSkill, deleteSkill } from '../
 /** 容器图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'container-icons')
 
-/**
- * 注册所有 IPC 处理器
- * 在 app ready 后调用
- */
-export function registerIpcHandlers(): void {
-  // ====== IPC 调用广播代理 ======
-  const originalHandle = ipcMain.handle.bind(ipcMain)
-  ipcMain.handle = function(channel: string, handler: (...args: any[]) => any) {
-    const wrappedHandler = async (event: Electron.IpcMainInvokeEvent, ...args: any[]) => {
-      const result = await handler(event, ...args)
-      try {
-        pluginEventBus.emit(`ipc:${channel}`, { channel, args, result })
-      } catch { /* 忽略事件广播错误 */ }
-      return result
-    }
-    return originalHandle(channel, wrappedHandler)
-  } as typeof ipcMain.handle
+// ====== 分组注册函数 ======
 
-  // ====== Page 数据迁移 ======
-  migrateContainersToPages()
-  migrateTabContainerIdToPageId()
-
-  // ====== 嗅探器 ======
-  registerSnifferIpcHandlers()
-
-  // ====== 工作区 ======
+/** 工作区 IPC */
+function registerWorkspaceIpc(): void {
   ipcMain.handle('workspace:list', () => listWorkspaces())
-
   ipcMain.handle('workspace:create', (_e, title: string, color: string) => createWorkspace(title, color))
-
   ipcMain.handle('workspace:update', (_e, id: string, data: Partial<Omit<Workspace, 'id'>>) =>
     updateWorkspace(id, data)
   )
-
   ipcMain.handle('workspace:delete', (_e, id: string) => deleteWorkspace(id))
-
   ipcMain.handle('workspace:reorder', (_e, workspaceIds: string[]) => reorderWorkspaces(workspaceIds))
+}
 
-  // ====== 分组 ======
+/** 分组 IPC */
+function registerGroupIpc(): void {
   ipcMain.handle('group:list', () => listGroups())
-
   ipcMain.handle('group:create', (_e, name: string, color?: string, workspaceId?: string, proxyId?: string, icon?: string) => createGroup(name, color, workspaceId, proxyId, icon))
-
   ipcMain.handle('group:update', (_e, id: string, data: Partial<Omit<Group, 'id'>>) =>
     updateGroup(id, data)
   )
-
   ipcMain.handle('group:delete', (_e, id: string) => deleteGroup(id))
-
   ipcMain.handle('group:reorder', (_e, groupIds: string[]) => reorderGroups(groupIds))
+}
 
-  // ====== 容器 ======
+/** 容器 IPC（含图标上传、桌面快捷方式） */
+function registerContainerIpc(): void {
   ipcMain.handle('container:list', () => listContainers())
-
   ipcMain.handle('container:create', (_e, data: Omit<Container, 'id'>) => createContainer(data))
 
   ipcMain.handle('container:update', (_e, id: string, data: Partial<Omit<Container, 'id'>>) =>
@@ -183,13 +156,6 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('container:reorder', (_e, containerIds: string[]) => reorderContainers(containerIds))
-
-  // ====== 页面管理 ======
-  ipcMain.handle('page:list', () => listPages())
-  ipcMain.handle('page:create', (_e, data: Omit<Page, 'id'>) => createPage(data))
-  ipcMain.handle('page:update', (_e, id: string, data: Partial<Omit<Page, 'id'>>) => updatePage(id, data))
-  ipcMain.handle('page:delete', (_e, id: string) => deletePage(id))
-  ipcMain.handle('page:reorder', (_e, pageIds: string[]) => reorderPages(pageIds))
 
   /** 创建桌面快捷方式（.url 文件），使用 sessionbox:// 协议打开容器 */
   ipcMain.handle('container:createDesktopShortcut', (_e, containerId: string) => {
@@ -305,29 +271,19 @@ $img.Dispose()`
       return null
     }
   })
+}
 
-  // ====== 代理（详细处理在 ipc/proxy.ts，含热更新） ======
-  registerProxyIpcHandlers()
+/** 页面管理 IPC */
+function registerPageIpc(): void {
+  ipcMain.handle('page:list', () => listPages())
+  ipcMain.handle('page:create', (_e, data: Omit<Page, 'id'>) => createPage(data))
+  ipcMain.handle('page:update', (_e, id: string, data: Partial<Omit<Page, 'id'>>) => updatePage(id, data))
+  ipcMain.handle('page:delete', (_e, id: string) => deletePage(id))
+  ipcMain.handle('page:reorder', (_e, pageIds: string[]) => reorderPages(pageIds))
+}
 
-  // ====== Tab（详细处理在 ipc/tab.ts） ======
-  registerTabIpcHandlers()
-
-  // ====== 自动更新 ======
-  registerUpdaterIpc()
-
-  // ====== 扩展 ======
-  registerExtensionHandlers()
-
-  // ====== 快捷键 ======
-  registerShortcutIpcHandlers()
-
-  // ====== 书签健康检查 ======
-  registerBookmarkCheckIpc()
-
-  // ====== 分屏 ======
-  registerSplitIpcHandlers()
-
-  // ====== 书签 ======
+/** 书签 IPC（含导入导出） */
+function registerBookmarkIpc(): void {
   ipcMain.handle('bookmark:list', () => listBookmarks())
 
   ipcMain.handle('bookmark:create', (_e, data: Omit<BookmarkType, 'id'>) =>
@@ -386,7 +342,7 @@ $img.Dispose()`
     }
   )
 
-  // ====== 书签文件夹 ======
+  // 书签文件夹
   ipcMain.handle('bookmarkFolder:list', () => listBookmarkFolders())
 
   ipcMain.handle('bookmarkFolder:create', (_e, data: Omit<BookmarkFolder, 'id'>) =>
@@ -402,8 +358,10 @@ $img.Dispose()`
   ipcMain.handle('bookmarkFolder:deleteEmpty', () => deleteEmptyBookmarkFolders())
 
   ipcMain.handle('bookmarkFolder:reorder', (_e, ids: string[]) => reorderBookmarkFolders(ids))
+}
 
-  // ====== 窗口控制 ======
+/** 窗口控制 IPC */
+function registerWindowIpc(): void {
   ipcMain.handle('window:minimize', (e) => {
     BrowserWindow.fromWebContents(e.sender)?.minimize()
   })
@@ -433,10 +391,12 @@ $img.Dispose()`
     win.setFullScreen(!win.isFullScreen())
   })
 
-  // ====== 外部链接 ======
+  // 外部链接
   ipcMain.handle('openExternal', (_e, url: string) => shell.openExternal(url))
+}
 
-  // ====== 应用设置 ======
+/** 应用设置 IPC */
+function registerSettingsIpc(): void {
   ipcMain.handle('settings:getTabFreezeMinutes', () => getTabFreezeMinutes())
   ipcMain.handle('settings:setTabFreezeMinutes', (_e, minutes: number) => {
     setTabFreezeMinutes(minutes)
@@ -455,33 +415,21 @@ $img.Dispose()`
   ipcMain.handle('settings:getDefaultWorkspaceId', () => getDefaultWorkspaceId())
   ipcMain.handle('settings:setDefaultWorkspaceId', (_e, id: string) => setDefaultWorkspaceId(id))
 
-  // ====== 默认浏览器 ======
+  // 默认浏览器
   ipcMain.handle('settings:setDefaultBrowser', (_e, enabled: boolean) => setDefaultBrowser(enabled))
-
   ipcMain.handle('settings:checkDefaultBrowser', () => isDefaultBrowser())
+}
 
-  // ====== 默认静音网站 ======
+/** 静音网站 IPC */
+function registerMutedSitesIpc(): void {
   ipcMain.handle('mutedSites:list', () => getMutedSites())
   ipcMain.handle('mutedSites:set', (_e, sites: string[]) => setMutedSites(sites))
   ipcMain.handle('mutedSites:add', (_e, hostname: string) => addMutedSite(hostname))
   ipcMain.handle('mutedSites:remove', (_e, hostname: string) => removeMutedSite(hostname))
+}
 
-  // ====== 插件管理 ======
-  registerPluginIpcHandlers()
-
-  // ====== MCP Server ======
-  registerMcpIpcHandlers()
-
-  // ====== AI Chat ======
-  registerChatIpcHandlers()
-
-  // ====== AI Provider ======
-  registerAIProviderIpcHandlers()
-
-  // ====== 工作流 ======
-  registerWorkflowIpcHandlers()
-
-  // ====== 密码/笔记管理 ======
+/** 密码/笔记管理 IPC */
+function registerPasswordIpc(): void {
   ipcMain.handle('password:list', () => listPasswords())
   ipcMain.handle('password:listBySite', (_e, siteOrigin: string) => listPasswordsBySite(siteOrigin))
   ipcMain.handle('password:create', (_e, data: Omit<PasswordEntry, 'id'>) => createPassword(data))
@@ -517,8 +465,10 @@ $img.Dispose()`
     writeFileSync(filePath, csv, 'utf-8')
     return { success: true }
   })
+}
 
-  // ====== 主题导入导出 ======
+/** 主题导入导出 IPC */
+function registerThemeIpc(): void {
   ipcMain.handle('theme:importOpenFile', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     if (!win) return null
@@ -550,14 +500,18 @@ $img.Dispose()`
     zip.writeZip(filePath)
     return { success: true }
   })
+}
 
-  // ====== 搜索引擎 ======
+/** 搜索引擎 IPC */
+function registerSearchEngineIpc(): void {
   ipcMain.handle('searchEngine:list', () => listSearchEngines())
   ipcMain.handle('searchEngine:set', (_e, engines: SearchEngine[]) => setSearchEngines(engines))
   ipcMain.handle('searchEngine:getDefault', () => getDefaultSearchEngineId())
   ipcMain.handle('searchEngine:setDefault', (_e, id: string) => setDefaultSearchEngineId(id))
+}
 
-  // ====== Skill 管理 ======
+/** 技能管理 IPC */
+function registerSkillIpc(): void {
   ipcMain.handle('skill:list', () => listSkills())
   ipcMain.handle('skill:search', (_e, query: string) => searchSkill(query))
   ipcMain.handle('skill:read', (_e, name: string) => readSkill(name))
@@ -566,8 +520,10 @@ $img.Dispose()`
     (_e, name: string, description: string, content: string) => writeSkill(name, description, content),
   )
   ipcMain.handle('skill:delete', (_e, name: string) => deleteSkill(name))
+}
 
-  // ====== 系统内存信息 ======
+/** 系统信息 IPC */
+function registerSystemIpc(): void {
   ipcMain.handle('system:memory', () => {
     const processMemory = process.getProcessMemoryInfo()
     const systemMemory = process.getSystemMemoryInfo()
@@ -585,4 +541,57 @@ $img.Dispose()`
       freeMemoryKB: systemMemory.free,
     }
   })
+}
+
+// ====== 主注册入口 ======
+
+/**
+ * 注册所有 IPC 处理器
+ * 在 app ready 后调用
+ */
+export function registerIpcHandlers(): void {
+  // ====== IPC 调用广播代理 ======
+  const originalHandle = ipcMain.handle.bind(ipcMain)
+  ipcMain.handle = function(channel: string, handler: (...args: any[]) => any) {
+    const wrappedHandler = async (event: Electron.IpcMainInvokeEvent, ...args: any[]) => {
+      const result = await handler(event, ...args)
+      try {
+        pluginEventBus.emit(`ipc:${channel}`, { channel, args, result })
+      } catch { /* 忽略事件广播错误 */ }
+      return result
+    }
+    return originalHandle(channel, wrappedHandler)
+  } as typeof ipcMain.handle
+
+  // ====== 数据迁移 ======
+  migrateContainersToPages()
+  migrateTabContainerIdToPageId()
+
+  // ====== 各模块注册 ======
+  registerSnifferIpcHandlers()
+  registerWorkspaceIpc()
+  registerGroupIpc()
+  registerContainerIpc()
+  registerPageIpc()
+  registerProxyIpcHandlers()
+  registerTabIpcHandlers()
+  registerUpdaterIpc()
+  registerExtensionHandlers()
+  registerShortcutIpcHandlers()
+  registerBookmarkCheckIpc()
+  registerSplitIpcHandlers()
+  registerBookmarkIpc()
+  registerWindowIpc()
+  registerSettingsIpc()
+  registerMutedSitesIpc()
+  registerPluginIpcHandlers()
+  registerMcpIpcHandlers()
+  registerChatIpcHandlers()
+  registerAIProviderIpcHandlers()
+  registerWorkflowIpcHandlers()
+  registerPasswordIpc()
+  registerThemeIpc()
+  registerSearchEngineIpc()
+  registerSkillIpc()
+  registerSystemIpc()
 }
