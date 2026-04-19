@@ -29,6 +29,7 @@ export interface ActionPlayOptions {
   timeoutMs?: number
   pollIntervalMs?: number
   settleMs?: number
+  pauseOnError?: boolean
   onState?: (state: ActionPlayState) => void
   onStepResult?: (result: ActionStepResult, state: ActionPlayState) => void
 }
@@ -46,8 +47,8 @@ interface ActivePlay {
 }
 
 const activePlays = new Map<string, ActivePlay>()
-const STEP_RETRY_COUNT = 10
-const STEP_RETRY_DELAY_MS = 1000
+const STEP_RETRY_COUNT = 5
+const STEP_RETRY_DELAY_MS = 300
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -339,9 +340,10 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Act
     return
   }
 
-  if (!(await hasTargetElement(targetWc, step))) {
-    await waitForSourceUrl(targetWc, step.url, options.timeoutMs, options.pollIntervalMs)
-  }
+  // 暂时禁用
+  // if (!(await hasTargetElement(targetWc, step))) {
+  //   await waitForSourceUrl(targetWc, step.url, options.timeoutMs, options.pollIntervalMs)
+  // }
 
   if (step.type === 'scroll' && step.payload?.page !== false) {
     const x = Number(step.payload?.x || 0)
@@ -457,17 +459,39 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Act
   const value = ${literal(step.payload?.value ?? '')};
   const eventType = ${literal(step.type)};
   if (!el) return false;
+
+  function setNativeValue(target, nextValue) {
+    const proto = target instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : target instanceof HTMLInputElement
+        ? HTMLInputElement.prototype
+        : null;
+    const descriptor = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null;
+    if (descriptor && typeof descriptor.set === 'function') {
+      descriptor.set.call(target, nextValue);
+      return;
+    }
+    target.value = nextValue;
+  }
+
   el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
   if (typeof el.focus === 'function') el.focus({ preventScroll: true });
   if (el.type === 'checkbox' || el.type === 'radio') {
     el.checked = !!value;
   } else if (el.isContentEditable) {
     el.textContent = value == null ? '' : String(value);
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: String(value ?? '') }));
   } else {
-    el.value = value == null ? '' : String(value);
+    setNativeValue(el, value == null ? '' : String(value));
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: String(value ?? '') }));
   }
-  el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-  if (eventType === 'change') el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+  if (el.type === 'checkbox' || el.type === 'radio') {
+    el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+  }
+  if (eventType === 'change') {
+    el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+    if (typeof el.blur === 'function') el.blur();
+  }
   return true;
 })();
 `)
@@ -591,6 +615,7 @@ export async function playActionRun(
     timeoutMs: options.timeoutMs ?? 5000,
     pollIntervalMs: options.pollIntervalMs ?? 100,
     settleMs: options.settleMs ?? 300,
+    pauseOnError: options.pauseOnError !== false,
     fileSelectionCache: new Map<string, string[]>()
   }
 
@@ -634,8 +659,10 @@ export async function playActionRun(
       } catch (error) {
         result.status = 'failed'
         result.error = error instanceof Error ? error.message : String(error)
-        active.state.status = 'failed'
-        active.state.error = result.error
+        if (resolvedOptions.pauseOnError) {
+          active.state.status = 'failed'
+          active.state.error = result.error
+        }
       } finally {
         result.endedAt = Date.now()
         active.state.results.push(result)
@@ -643,7 +670,7 @@ export async function playActionRun(
         emitState(active, options)
       }
 
-      if (result.status === 'failed') break
+      if (result.status === 'failed' && resolvedOptions.pauseOnError) break
     }
 
     if (active.state.status === 'running') {

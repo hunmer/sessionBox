@@ -198,6 +198,18 @@ export function buildRecorderScript(): string {
     return el.value;
   }
 
+  function isTextValueControl(el) {
+    if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
+    if (el.isContentEditable) return true;
+    if (el.tagName === 'TEXTAREA') return true;
+    if (el.tagName !== 'INPUT') return false;
+    const type = String(el.type || 'text').toLowerCase();
+    return [
+      'text', 'search', 'url', 'tel', 'email', 'password', 'number',
+      'date', 'datetime-local', 'month', 'time', 'week'
+    ].includes(type);
+  }
+
   function findRelatedFileInput(el) {
     if (!el || el.nodeType !== Node.ELEMENT_NODE) return null;
     if (el.matches && el.matches('input[type="file"]')) return el;
@@ -242,6 +254,8 @@ export function buildRecorderScript(): string {
 
   let lastFileEmitSignature = '';
   let lastFileEmitAt = 0;
+  const pendingTextInputs = new Map();
+  let lastTextEmitSignature = '';
 
   function emitFile(target) {
     const payload = {
@@ -263,6 +277,36 @@ export function buildRecorderScript(): string {
     emit('file', target, payload, { sensitive: true });
   }
 
+  function targetKey(target) {
+    const locator = locatorFor(target);
+    return JSON.stringify({ url: location.href, locator });
+  }
+
+  function rememberTextInput(target) {
+    if (!target || !isTextValueControl(target)) return;
+    pendingTextInputs.set(targetKey(target), {
+      target,
+      value: valueFor(target),
+      locator: locatorFor(target),
+      url: location.href
+    });
+  }
+
+  function emitTextFinal(target) {
+    if (!target || !isTextValueControl(target)) return false;
+    const key = targetKey(target);
+    const pending = pendingTextInputs.get(key);
+    const value = valueFor(target);
+    const locator = locatorFor(target);
+    const signature = JSON.stringify({ type: 'change', url: location.href, locator, value });
+    pendingTextInputs.delete(key);
+    if (!pending && !value) return true;
+    if (signature === lastTextEmitSignature) return true;
+    lastTextEmitSignature = signature;
+    emit('change', target, { value }, { sensitive: false, final: true });
+    return true;
+  }
+
   function onClick(event) {
     if (event.button !== 0) return;
     const fileInput = findRelatedFileInput(event.target);
@@ -280,6 +324,10 @@ export function buildRecorderScript(): string {
       emitFile(target);
       return;
     }
+    if (isTextValueControl(target)) {
+      rememberTextInput(target);
+      return;
+    }
     emit('input', target, { value: valueFor(target) }, { sensitive: false });
   }
 
@@ -289,7 +337,12 @@ export function buildRecorderScript(): string {
       emitFile(target);
       return;
     }
+    if (emitTextFinal(target)) return;
     emit('change', target, { value: valueFor(target) }, { sensitive: false });
+  }
+
+  function onBlur(event) {
+    emitTextFinal(event.target);
   }
 
   let lastHoverTarget = null;
@@ -336,6 +389,7 @@ export function buildRecorderScript(): string {
   document.addEventListener('click', onClick, true);
   document.addEventListener('input', onInput, true);
   document.addEventListener('change', onChange, true);
+  document.addEventListener('blur', onBlur, true);
   document.addEventListener('keydown', onKeydown, true);
   document.addEventListener('mouseover', onHover, true);
   document.addEventListener('scroll', onScroll, true);
@@ -345,6 +399,7 @@ export function buildRecorderScript(): string {
     document.removeEventListener('click', onClick, true);
     document.removeEventListener('input', onInput, true);
     document.removeEventListener('change', onChange, true);
+    document.removeEventListener('blur', onBlur, true);
     document.removeEventListener('keydown', onKeydown, true);
     document.removeEventListener('mouseover', onHover, true);
     document.removeEventListener('scroll', onScroll, true);

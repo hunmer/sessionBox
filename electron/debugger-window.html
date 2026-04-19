@@ -34,6 +34,16 @@
     .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
     .step-card-actions { opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
     .step-card:hover .step-card-actions, .step-card.active .step-card-actions { opacity: 1; pointer-events: auto; }
+    .step-menu {
+      position: absolute; right: 10px; top: 30px; z-index: 30; min-width: 132px;
+      border: 1px solid rgba(71, 85, 105, 0.9); border-radius: 10px; overflow: hidden;
+      background: #0f172a; box-shadow: 0 14px 36px rgba(2, 6, 23, 0.45);
+    }
+    .step-menu button {
+      width: 100%; display: block; border: none; background: transparent; color: #cbd5e1;
+      text-align: left; padding: 8px 10px; font-size: 11px; cursor: pointer;
+    }
+    .step-menu button:hover { background: rgba(51, 65, 85, 0.85); color: #f8fafc; }
     .modal-mask { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.72); display: flex; align-items: center; justify-content: center; padding: 24px; }
     .modal-panel { width: min(480px, calc(100vw - 48px)); max-height: min(560px, calc(100vh - 48px)); overflow: hidden; border: 1px solid rgba(71, 85, 105, 0.8); border-radius: 16px; background: #111827; box-shadow: 0 24px 80px rgba(2, 6, 23, 0.55); }
     .replay-progress {
@@ -60,6 +70,8 @@
   <div class="flex items-center justify-between h-9 px-3 bg-[#0f172a] border-b border-slate-800" style="-webkit-app-region: drag; user-select: none;">
     <span class="text-[13px] font-medium">动作录制与复原</span>
     <div class="flex gap-2" style="-webkit-app-region: no-drag;">
+      <button class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-200 border border-slate-700 cursor-pointer hover:bg-slate-700"
+        @click="openSettingsDialog">设置</button>
       <button class="w-3 h-3 rounded-full border-none cursor-pointer bg-[#febc2e] hover:opacity-80" @click="doMinimize"></button>
       <button class="w-3 h-3 rounded-full border-none cursor-pointer bg-[#28c840] hover:opacity-80" @click="doMaximize"></button>
       <button class="w-3 h-3 rounded-full border-none cursor-pointer bg-[#ff5f57] hover:opacity-80" @click="doClose"></button>
@@ -141,34 +153,49 @@
             @click="toggleAllVisible">{{ allSelected ? '取消全选' : '全选' }}</button>
         </div>
       </div>
+      <div v-if="availableStepTypes.length > 1" class="px-3 py-2 border-b border-slate-800 flex flex-wrap gap-1.5">
+        <button v-for="type in availableStepTypes" :key="type"
+          class="px-2 py-1 rounded-full border-none text-[10px] cursor-pointer hover:opacity-85"
+          :class="isTypeFilterActive(type) ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-400'"
+          @click="toggleTypeFilter(type, $event)">
+          {{ type === '__all__' ? '全部' : type }}
+        </button>
+      </div>
 
       <div class="flex-1 overflow-y-auto py-1 step-list" ref="stepListEl">
-        <div v-if="steps.length === 0" class="flex items-center justify-center h-full text-slate-600 text-xs px-6 text-center">
+        <div v-if="filteredSteps.length === 0" class="flex items-center justify-center h-full text-slate-600 text-xs px-6 text-center">
           暂无动作。选择页面后点击“注入并录制”，操作网页即可看到高层步骤。
         </div>
 
-        <div v-for="(step, index) in steps" :key="step.id"
-          class="step-card px-3 py-2 text-[11px] border-l-2 flex gap-2 hover:bg-slate-800/70"
-          :class="stepRowClass(step, index)"
-          @click="activeStepIndex = index">
+        <div v-for="item in filteredSteps" :key="item.step.id"
+          class="step-card relative px-3 py-2 text-[11px] border-l-2 flex gap-2 hover:bg-slate-800/70"
+          :class="stepRowClass(item.step, item.index)"
+          @click="activeStepIndex = item.index">
           <input type="checkbox" class="step-checkbox mt-0.5"
-            :checked="selectedSteps.has(index)"
-            @click.stop="toggleStep(index)" />
+            :checked="selectedSteps.has(item.index)"
+            @click.stop="toggleStep(item.index)" />
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="text-slate-500 min-w-[26px] text-right">{{ index + 1 }}</span>
-              <span class="inline-block px-[6px] py-[1px] rounded text-[10px] font-medium" :class="typeBadgeClass(step.type)">{{ step.type }}</span>
+              <span class="text-slate-500 min-w-[26px] text-right">{{ item.index + 1 }}</span>
+              <span class="inline-block px-[6px] py-[1px] rounded text-[10px] font-medium" :class="typeBadgeClass(item.step.type)">{{ item.step.type }}</span>
               <div class="step-card-actions ml-auto flex items-center gap-1">
-                <button class="icon-btn" title="查看信息" @click.stop="showStepDetail(index)">i</button>
-                <button class="icon-btn" title="重播此动作" :disabled="!canPlaySingle" @click.stop="replaySingle(index)">↺</button>
+                <button class="icon-btn" title="查看信息" @click.stop="showStepDetail(item.index)">i</button>
+                <button class="icon-btn" title="重播此动作" :disabled="!canPlaySingle" @click.stop="replaySingle(item.index)">↺</button>
+                <button class="icon-btn" title="更多" @click.stop="toggleStepMenu(item.index)">⋯</button>
               </div>
             </div>
-            <div class="mt-1 flex items-start gap-2">
-              <div class="min-w-0 flex-1 text-slate-300 truncate">{{ locatorSummary(step) }}</div>
-              <span class="shrink-0 text-[10px]" :class="resultTextClass(index)">{{ resultLabel(index) }}</span>
+            <div v-if="openStepMenuIndex === item.index" class="step-menu" @click.stop>
+              <button @click="replayFromIndex(item.index)">从此处开始重播</button>
+              <button @click="setReplayPointA(item.index)">设置重播 A 点</button>
+              <button @click="setReplayPointB(item.index)">设置重播 B 点</button>
+              <button class="!text-rose-300" @click="deleteStep(item.index)">删除</button>
             </div>
-            <div v-if="payloadSummary(step)" class="mt-0.5 text-slate-500 truncate">{{ payloadSummary(step) }}</div>
-            <div class="mt-0.5 text-slate-600 truncate">{{ step.url }}</div>
+            <div class="mt-1 flex items-start gap-2">
+              <div class="min-w-0 flex-1 text-slate-300 truncate">{{ locatorSummary(item.step) }}</div>
+              <span class="shrink-0 text-[10px]" :class="resultTextClass(item.index)">{{ resultLabel(item.index) }}</span>
+            </div>
+            <div v-if="payloadSummary(item.step)" class="mt-0.5 text-slate-500 truncate">{{ payloadSummary(item.step) }}</div>
+            <div class="mt-0.5 text-slate-600 truncate">{{ item.step.url }}</div>
           </div>
         </div>
       </div>
@@ -177,7 +204,7 @@
         <div class="flex items-center gap-3">
           <div class="replay-progress" :style="{ '--progress': replayProgressPercent }">
             <button class="replay-main-btn" :class="{ stop: isPlaying }"
-              :disabled="isPlaying ? !isPlaying : !canPlay"
+              :disabled="isStoppingPlay || (isPlaying ? false : !canPlay)"
               :title="isPlaying ? '停止复原' : '开始复原'"
               @click="isPlaying ? stopPlay() : startPlay()">
               {{ isPlaying ? '■' : '▶' }}
@@ -187,6 +214,14 @@
             <div class="text-xs text-slate-200 font-medium">{{ isPlaying ? '停止复原' : '开始复原' }}</div>
             <div class="mt-1 text-[11px] text-slate-500">
               {{ replayProgressText }}
+            </div>
+            <div v-if="hasReplayRange" class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+              <span class="px-2 py-1 rounded-full bg-slate-800 text-slate-300">A: {{ replayPointLabel(replayPointA) }}</span>
+              <span class="px-2 py-1 rounded-full bg-slate-800 text-slate-300">B: {{ replayPointLabel(replayPointB) }}</span>
+              <button class="px-2 py-1 rounded-full border-none bg-sky-600 text-white cursor-pointer hover:opacity-85"
+                :disabled="!canPlayRange" @click="replayRange">重播 A-B</button>
+              <button class="px-2 py-1 rounded-full border-none bg-slate-700 text-slate-200 cursor-pointer hover:opacity-85"
+                @click="clearReplayRange">取消 A/B</button>
             </div>
           </div>
         </div>
@@ -205,6 +240,27 @@
       </div>
       <div class="p-4 overflow-auto max-h-[70vh]">
         <pre class="text-[11px] leading-5 whitespace-pre-wrap break-all text-slate-300">{{ detailStepJson }}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="settingsDialogVisible" class="modal-mask" @click.self="closeSettingsDialog">
+    <div class="modal-panel">
+      <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold text-slate-100">设置</div>
+          <div class="text-[11px] text-slate-500 mt-1">复原执行行为</div>
+        </div>
+        <button class="icon-btn" @click="closeSettingsDialog">×</button>
+      </div>
+      <div class="p-4">
+        <label class="flex items-center justify-between gap-4 cursor-pointer">
+          <span>
+            <span class="block text-sm text-slate-100">遇错误暂停</span>
+            <span class="block mt-1 text-[11px] text-slate-500">关闭后，失败步骤会记录错误并继续执行后续动作。</span>
+          </span>
+          <input type="checkbox" class="step-checkbox" v-model="pauseOnError">
+        </label>
       </div>
     </div>
   </div>
@@ -280,7 +336,10 @@ createApp({
     const activePlayId = ref(null)
     const activeView = ref('record')
     const playStatus = ref('idle')
+    const isStoppingPlay = ref(false)
     const isRecording = ref(false)
+    const pauseOnError = ref(true)
+    const settingsDialogVisible = ref(false)
     const statusText = ref('就绪')
     const urlInput = ref('https://creator.douyin.com')
     const rightWidth = ref(360)
@@ -299,6 +358,9 @@ createApp({
     const saveIndices = ref([])
     const presetItems = ref([])
     const saveNameInputEl = ref(null)
+    const openStepMenuIndex = ref(-1)
+    const replayPointA = ref(-1)
+    const replayPointB = ref(-1)
 
     const recordWebviewEl = ref(null)
     const playWebviewEl = ref(null)
@@ -311,7 +373,24 @@ createApp({
     const canPlay = computed(() => !isRecording.value && !isPlaying.value && steps.value.length > 0)
     const canPlaySingle = computed(() => !isRecording.value && !isPlaying.value)
     const canPlaySelection = computed(() => !isRecording.value && !isPlaying.value && selectedSteps.size > 0)
+    const hasReplayRange = computed(() => replayPointA.value >= 0 || replayPointB.value >= 0)
+    const replayRangeIndices = computed(() => {
+      if (replayPointA.value < 0 || replayPointB.value < 0) return []
+      const start = Math.min(replayPointA.value, replayPointB.value)
+      const end = Math.max(replayPointA.value, replayPointB.value)
+      return steps.value.map((_, index) => index).filter(index => index >= start && index <= end)
+    })
+    const canPlayRange = computed(() => !isRecording.value && !isPlaying.value && replayRangeIndices.value.length > 0)
     const allSelected = computed(() => steps.value.length > 0 && steps.value.every((_, i) => selectedSteps.has(i)))
+    const uniqueStepTypes = computed(() => Array.from(new Set(steps.value.map(step => step.type))).sort())
+    const availableStepTypes = computed(() => steps.value.length > 0 ? ['__all__', ...uniqueStepTypes.value] : [])
+    const activeTypeFilters = ref(new Set())
+    const filteredSteps = computed(() => {
+      const active = activeTypeFilters.value
+      return steps.value
+        .map((step, index) => ({ step, index }))
+        .filter(item => active.size === 0 || active.has(item.step.type))
+    })
     const replayProgressPercent = computed(() => {
       const total = currentPlayTotal.value || steps.value.length
       if (total === 0) return 0
@@ -337,9 +416,17 @@ createApp({
       return 'text-slate-400'
     })
 
+    watch(uniqueStepTypes, (types) => {
+      const allowed = new Set(types)
+      const next = new Set(Array.from(activeTypeFilters.value).filter(type => allowed.has(type)))
+      if (next.size !== activeTypeFilters.value.size) activeTypeFilters.value = next
+    })
+
     function doMinimize() { api.minimize() }
     function doMaximize() { api.maximize() }
     function doClose() { api.close() }
+    function openSettingsDialog() { settingsDialogVisible.value = true }
+    function closeSettingsDialog() { settingsDialogVisible.value = false }
 
     async function refreshTabs() {
       tabs.value = await api.getTabs()
@@ -462,7 +549,7 @@ createApp({
       })
     }
 
-    function loadPlayStartUrl(url) {
+    function loadPlayStartUrl(url, options = {}) {
       return new Promise((resolve) => {
         const view = playWebviewEl.value
         if (!view || !url || url === 'about:blank') {
@@ -479,7 +566,11 @@ createApp({
         }
         view.addEventListener('did-finish-load', done)
         view.addEventListener('did-fail-load', done)
-        view.loadURL(url)
+        if (options.forceReload && typeof view.getURL === 'function' && view.getURL() === url && typeof view.reloadIgnoringCache === 'function') {
+          view.reloadIgnoringCache()
+        } else {
+          view.loadURL(url)
+        }
         setTimeout(done, 8000)
       })
     }
@@ -500,10 +591,12 @@ createApp({
       if (shouldLoadStartUrl) {
         const startUrl = stepSubset[0]?.url || playStartUrl()
         statusText.value = '加载复原页...'
-        await loadPlayStartUrl(startUrl)
+        await loadPlayStartUrl(startUrl, { forceReload: options.forceReload === true })
       }
       statusText.value = statusLabel || '复原执行中...'
-      const result = await api.playActionRun(playWcId.value, runForPlay(stepSubset))
+      const result = await api.playActionRun(playWcId.value, runForPlay(stepSubset), {
+        pauseOnError: pauseOnError.value
+      })
       if (!result.success) {
         playStatus.value = 'failed'
         statusText.value = '复原启动失败: ' + (result.error || '未知错误')
@@ -511,12 +604,19 @@ createApp({
     }
 
     async function startPlay() {
-      return playSteps(steps.value, '复原执行中...', steps.value.map((_, index) => index), { loadStartUrl: true })
+      return playSteps(steps.value, '复原执行中...', steps.value.map((_, index) => index), { loadStartUrl: true, forceReload: true })
     }
 
     async function stopPlay() {
+      if (isStoppingPlay.value) return
+      isStoppingPlay.value = true
       const result = await api.stopActionPlay(activePlayId.value || undefined)
-      statusText.value = result.success ? '正在停止复原...' : '停止失败: ' + (result.error || '未知错误')
+      if (result.success) {
+        statusText.value = '正在停止复原...'
+      } else {
+        isStoppingPlay.value = false
+        statusText.value = '停止失败: ' + (result.error || '未知错误')
+      }
     }
 
     function loadUrl() {
@@ -533,6 +633,25 @@ createApp({
         selectedSteps.clear()
       } else {
         steps.value.forEach((_, i) => selectedSteps.add(i))
+      }
+    }
+
+    function isTypeFilterActive(type) {
+      return type === '__all__' ? activeTypeFilters.value.size === 0 : activeTypeFilters.value.has(type)
+    }
+
+    function toggleTypeFilter(type, event) {
+      if (type === '__all__') {
+        activeTypeFilters.value = new Set()
+        return
+      }
+
+      if (event?.ctrlKey || event?.metaKey) {
+        const next = new Set(activeTypeFilters.value)
+        next.has(type) ? next.delete(type) : next.add(type)
+        activeTypeFilters.value = next
+      } else {
+        activeTypeFilters.value = new Set([type])
       }
     }
 
@@ -554,17 +673,93 @@ createApp({
       detailStepIndex.value = -1
     }
 
+    function toggleStepMenu(index) {
+      openStepMenuIndex.value = openStepMenuIndex.value === index ? -1 : index
+    }
+
     async function replaySingle(index) {
       const step = steps.value[index]
       if (!step || !canPlaySingle.value) return
+      openStepMenuIndex.value = -1
       await playSteps([step], '单步重播中...', [index], { loadStartUrl: false })
+    }
+
+    async function replayFromIndex(index) {
+      if (!canPlaySingle.value || index < 0 || index >= steps.value.length) return
+      openStepMenuIndex.value = -1
+      const indices = steps.value.map((_, i) => i).filter(i => i >= index)
+      const selected = indices.map(i => steps.value[i]).filter(Boolean)
+      await playSteps(selected, '从第 ' + (index + 1) + ' 步开始重播...', indices, { loadStartUrl: false })
     }
 
     async function replaySelected() {
       if (!canPlaySelection.value) return
+      openStepMenuIndex.value = -1
       const indices = selectedIndicesSorted()
       const selected = indices.map(i => steps.value[i]).filter(Boolean)
       await playSteps(selected, '选中动作重播中...', indices, { loadStartUrl: false })
+    }
+
+    function setReplayPointA(index) {
+      replayPointA.value = index
+      openStepMenuIndex.value = -1
+      statusText.value = '已设置重播 A 点: 第 ' + (index + 1) + ' 步'
+    }
+
+    function setReplayPointB(index) {
+      replayPointB.value = index
+      openStepMenuIndex.value = -1
+      statusText.value = '已设置重播 B 点: 第 ' + (index + 1) + ' 步'
+    }
+
+    function clearReplayRange() {
+      replayPointA.value = -1
+      replayPointB.value = -1
+      statusText.value = '已取消 A/B 点'
+    }
+
+    function replayPointLabel(index) {
+      return index >= 0 ? '第 ' + (index + 1) + ' 步' : '未设置'
+    }
+
+    async function replayRange() {
+      if (!canPlayRange.value) return
+      openStepMenuIndex.value = -1
+      const indices = replayRangeIndices.value
+      const selected = indices.map(i => steps.value[i]).filter(Boolean)
+      await playSteps(selected, 'A-B 范围重播中...', indices, { loadStartUrl: false })
+    }
+
+    function remapSelectedAfterDelete(deletedIndex) {
+      const next = new Set()
+      for (const index of selectedSteps) {
+        if (index < deletedIndex) next.add(index)
+        if (index > deletedIndex) next.add(index - 1)
+      }
+      selectedSteps.clear()
+      next.forEach(index => selectedSteps.add(index))
+    }
+
+    function remapPointAfterDelete(point, deletedIndex) {
+      if (point === deletedIndex) return -1
+      if (point > deletedIndex) return point - 1
+      return point
+    }
+
+    function deleteStep(index) {
+      if (index < 0 || index >= steps.value.length) return
+      steps.value = steps.value.filter((_, i) => i !== index)
+      if (targetRun.value) targetRun.value.steps = steps.value
+      results.value = []
+      currentPlayIndexMap.value = []
+      currentPlayTotal.value = 0
+      remapSelectedAfterDelete(index)
+      replayPointA.value = remapPointAfterDelete(replayPointA.value, index)
+      replayPointB.value = remapPointAfterDelete(replayPointB.value, index)
+      if (activeStepIndex.value === index) activeStepIndex.value = -1
+      if (activeStepIndex.value > index) activeStepIndex.value--
+      openStepMenuIndex.value = -1
+      statusText.value = '已删除第 ' + (index + 1) + ' 步'
     }
 
     function openSaveDialog(indices) {
@@ -619,6 +814,9 @@ createApp({
       steps.value = result.run.steps || []
       results.value = []
       selectedSteps.clear()
+      openStepMenuIndex.value = -1
+      replayPointA.value = -1
+      replayPointB.value = -1
       activeStepIndex.value = -1
       playStatus.value = 'idle'
       currentPlayIndexMap.value = []
@@ -695,10 +893,13 @@ createApp({
 
     function stepRowClass(step, index) {
       const result = resultFor(index)
-      if (result?.status === 'failed') return 'border-l-rose-500 bg-rose-500/5'
-      if (result?.status === 'success') return 'border-l-emerald-500'
-      if (activeStepIndex.value === index) return 'active border-l-sky-500 bg-sky-500/5'
-      return 'border-l-transparent'
+      const isA = replayPointA.value === index
+      const isB = replayPointB.value === index
+      const pointClass = isA && isB ? ' ring-1 ring-cyan-300/70' : isA ? ' ring-1 ring-emerald-300/70' : isB ? ' ring-1 ring-amber-300/70' : ''
+      if (result?.status === 'failed') return 'border-l-rose-500 bg-rose-500/5' + pointClass
+      if (result?.status === 'success') return 'border-l-emerald-500' + pointClass
+      if (activeStepIndex.value === index) return 'active border-l-sky-500 bg-sky-500/5' + pointClass
+      return 'border-l-transparent' + pointClass
     }
 
     function startResize() {
@@ -751,6 +952,7 @@ createApp({
       if (state.status === 'completed') statusText.value = '复原完成 (' + state.total + ' 步)'
       if (state.status === 'failed') statusText.value = '复原失败: ' + (state.error || '未知错误')
       if (state.status === 'stopped') statusText.value = '复原已停止'
+      if (state.status !== 'running') isStoppingPlay.value = false
     })
 
     api.on('debugger:embedded-wcid', (wcId) => {
@@ -803,13 +1005,18 @@ createApp({
     return {
       targetId, tabs, currentWcId, recordWcId, playWcId, steps, results, activeStepIndex,
       activeView, playWebviewMounted, playInitialSrc,
-      isRecording, isPlaying, statusText, statusClass, urlInput, rightWidth, isResizing,
+      isRecording, isPlaying, isStoppingPlay, pauseOnError, settingsDialogVisible,
+      statusText, statusClass, urlInput, rightWidth, isResizing,
       recordPartition, playPartition, selectedSteps, allSelected, recordWebviewEl, playWebviewEl, leftPanel, stepListEl,
+      openStepMenuIndex, replayPointA, replayPointB, hasReplayRange,
+      availableStepTypes, filteredSteps,
       detailStepIndex, detailStepJson, saveDialogVisible, loadDialogVisible, saveNameInput, saveIndices, presetItems, saveNameInputEl,
-      canStart, canExport, canPlay, canPlaySingle, canPlaySelection, replayProgressPercent, replayProgressText, saveScopeText,
-      doMinimize, doMaximize, doClose, startRecording, stopRecording, startPlay, stopPlay,
-      exportRun, copySelected, replaySelected, replaySingle, showStepDetail, closeStepDetail,
-      loadUrl, ensurePlayWebview, toggleStep, toggleAllVisible, startResize,
+      canStart, canExport, canPlay, canPlaySingle, canPlaySelection, canPlayRange, replayProgressPercent, replayProgressText, saveScopeText,
+      doMinimize, doMaximize, doClose, openSettingsDialog, closeSettingsDialog,
+      startRecording, stopRecording, startPlay, stopPlay,
+      exportRun, copySelected, replaySelected, replaySingle, replayFromIndex, replayRange,
+      showStepDetail, closeStepDetail, toggleStepMenu, setReplayPointA, setReplayPointB, clearReplayRange, replayPointLabel,
+      deleteStep, loadUrl, ensurePlayWebview, toggleStep, toggleAllVisible, isTypeFilterActive, toggleTypeFilter, startResize,
       saveCurrentSelection, openLoadDialog, closeLoadDialog, closeSaveDialog, confirmSaveSelection, loadPreset, formatTime,
       locatorSummary, payloadSummary, typeBadgeClass, resultLabel, resultTextClass, stepRowClass
     }
