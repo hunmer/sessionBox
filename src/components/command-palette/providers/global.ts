@@ -6,6 +6,7 @@ export function createGlobalCommandProvider(
   callbacks: {
     toggleSidebar: () => void
     openSettings: () => void
+    openNewTabDialog: () => void
   }
 ): CommandProvider {
   return {

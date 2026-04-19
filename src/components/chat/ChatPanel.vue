@@ -73,7 +73,7 @@ function handleSend(content: string, images: string[]) {
 }
 
 function handleClose() {
-  // 由父组件处理
+  uiStore.togglePanel()
 }
 
 function handleClear() {

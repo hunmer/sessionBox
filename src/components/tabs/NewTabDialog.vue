@@ -4,7 +4,7 @@ import { Search } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
-import { getFaviconUrl } from '@/lib/utils'
+import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import type { Page } from '@/types'
 
 interface UrlRecord {
@@ -82,10 +82,6 @@ function getUrlLabel(url: string) {
   }
 }
 
-function isImageIcon(icon: string | undefined) {
-  return icon?.startsWith('img:')
-}
-
 function handleUrlSubmit() {
   let url = urlInput.value.trim()
   if (!url) return
@@ -113,12 +109,12 @@ function handleSelectHistory(record: UrlRecord) {
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="w-[80vw] gap-3 p-4 sm:max-w-[640px]" show-close-button>
+    <DialogContent class="flex max-h-[80vh] w-[80vw] flex-col gap-3 p-4 sm:max-w-[640px]" show-close-button>
       <DialogHeader>
         <DialogTitle>新建标签页</DialogTitle>
       </DialogHeader>
 
-      <div class="relative">
+      <div class="relative flex-shrink-0">
         <Search class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           v-model="urlInput"
@@ -129,58 +125,49 @@ function handleSelectHistory(record: UrlRecord) {
         />
       </div>
 
-      <div v-if="pages.length > 0">
-        <div class="mb-1.5 px-1 text-xs text-muted-foreground">页面</div>
-        <div class="flex gap-2 overflow-x-auto pb-1">
-          <button
-            v-for="page in pages"
-            :key="page.id"
-            class="flex w-16 flex-shrink-0 flex-col items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-accent"
-            :title="page.name"
-            @click="handleSelectPage(page)"
-          >
-            <span class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted text-lg">
-              <img
-                v-if="isImageIcon(page.icon)"
-                :src="`account-icon://${page.icon!.slice(4)}`"
-                alt=""
-                class="h-full w-full object-cover"
-              />
-              <span v-else class="leading-none">{{ page.icon }}</span>
-            </span>
-            <span class="w-full truncate text-center text-[11px] leading-tight">{{ page.name }}</span>
-          </button>
+      <div class="min-h-0 flex-1 space-y-3 overflow-y-auto">
+        <div v-if="pages.length > 0">
+          <div class="mb-1.5 px-1 text-xs text-muted-foreground">页面</div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="page in pages"
+              :key="page.id"
+              class="flex w-16 flex-shrink-0 flex-col items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-accent"
+              :title="page.name"
+              @click="handleSelectPage(page)"
+            >
+              <span class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted text-lg">
+                <EmojiRenderer :emoji="page.icon" :url="page.url" />
+              </span>
+              <span class="w-full truncate text-center text-[11px] leading-tight">{{ page.name }}</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div v-if="filteredHistory.length > 0">
-        <div class="mb-1.5 px-1 text-xs text-muted-foreground">历史记录</div>
-        <div class="flex gap-2 overflow-x-auto pb-1">
-          <button
-            v-for="record in filteredHistory"
-            :key="record.url"
-            class="flex w-16 flex-shrink-0 flex-col items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-accent"
-            :title="record.url"
-            @click="handleSelectHistory(record)"
-          >
-            <span class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted">
-              <img
-                :src="getFaviconUrl(record.url)"
-                alt=""
-                class="h-5 w-5 rounded-sm object-cover"
-                @error="($event.target as HTMLImageElement).style.display = 'none'"
-              />
-            </span>
-            <span class="w-full truncate text-center text-[11px] leading-tight">{{ getUrlLabel(record.url) }}</span>
-          </button>
+        <div v-if="filteredHistory.length > 0">
+          <div class="mb-1.5 px-1 text-xs text-muted-foreground">历史记录</div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="record in filteredHistory"
+              :key="record.url"
+              class="flex w-16 flex-shrink-0 flex-col items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-accent"
+              :title="record.url"
+              @click="handleSelectHistory(record)"
+            >
+              <span class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                <EmojiRenderer :url="record.url" />
+              </span>
+              <span class="w-full truncate text-center text-[11px] leading-tight">{{ getUrlLabel(record.url) }}</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div
-        v-if="pages.length === 0 && filteredHistory.length === 0 && !urlInput.trim()"
-        class="py-4 text-center text-sm text-muted-foreground"
-      >
-        暂无内容
+        <div
+          v-if="pages.length === 0 && filteredHistory.length === 0 && !urlInput.trim()"
+          class="py-4 text-center text-sm text-muted-foreground"
+        >
+          暂无内容
+        </div>
       </div>
     </DialogContent>
   </Dialog>

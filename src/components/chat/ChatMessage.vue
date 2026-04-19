@@ -3,7 +3,7 @@ import { computed, ref, watch, onUnmounted } from 'vue'
 import type { ChatMessage as ChatMessageType, ToolCall, ChatThinkingBlock } from '@/types'
 import ThinkingBlock from './ThinkingBlock.vue'
 import ToolCallCard from './ToolCallCard.vue'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Dialog,
@@ -16,10 +16,12 @@ import { Copy, RefreshCw, Trash2, Pencil, Check } from 'lucide-vue-next'
 import { Markdown } from 'vue-stream-markdown'
 import 'vue-stream-markdown/index.css'
 import { useThemeStore } from '@/stores/theme'
+import { useUserProfileStore } from '@/stores/userProfile'
 import { BROWSER_AGENT_SYSTEM_PROMPT } from '@/lib/agent/system-prompt'
 import type { ChatStoreInstance } from '@/stores/chat'
 
 const themeStore = useThemeStore()
+const userProfile = useUserProfileStore()
 
 type ContentSegment =
   | { type: 'thinking'; content: string }
@@ -313,8 +315,9 @@ const segments = computed<ContentSegment[]>(() => {
   >
     <!-- Avatar -->
     <Avatar class="h-7 w-7 shrink-0 mt-0.5">
+      <AvatarImage v-if="isUser && userProfile.avatarSrc" :src="userProfile.avatarSrc" />
       <AvatarFallback class="text-xs" :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'">
-        {{ isUser ? '你' : 'AI' }}
+        {{ isUser ? (userProfile.isEmojiAvatar ? userProfile.profile.avatar : userProfile.avatarFallback) : 'AI' }}
       </AvatarFallback>
     </Avatar>
 
