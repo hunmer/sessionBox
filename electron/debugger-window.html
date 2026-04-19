@@ -52,15 +52,15 @@
     .tab-content.active { display: flex; }
 
     /* 内嵌 webview */
-    .webview-container { display: none; height: 200px; border-bottom: 1px solid #2a2a4a; }
-    .webview-container.visible { display: block; }
-    .webview-container webview { width: 100%; height: 100%; }
+    .webview-container { display: none; flex: 3; min-height: 0; border-bottom: 1px solid #2a2a4a; }
+    .webview-container.visible { display: flex; }
+    .webview-container webview { width: 100%; height: 100%; flex: 1; }
 
     /* 录制/回放区域 */
-    .recorder-area, .replayer-area { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+    .recorder-area, .replayer-area { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; min-height: 0; }
     .area-empty { color: #64748b; font-size: 14px; }
-    #replayer { width: 100%; height: 100%; }
-    .replayer-area iframe { width: 100% !important; height: 100% !important; }
+    #replayer { width: 100%; height: 100%; flex: 1; min-height: 0; }
+    #replayer > div, #replayer iframe { width: 100% !important; height: 100% !important; }
 
     /* 拖拽分隔条 */
     .resizer { width: 4px; background: #2a2a4a; cursor: col-resize; transition: background 0.15s; flex-shrink: 0; }
@@ -88,6 +88,10 @@
 
     .event-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #475569; font-size: 12px; }
   </style>
+  <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/@rrweb/replay@latest/dist/style.css"
+/>
 </head>
 <body>
   <div class="titlebar">
@@ -454,20 +458,23 @@
     // ===== 回放 =====
     function playEvents(events) {
       replayEmpty.style.display = 'none'
-      replayerEl.style.display = 'block'
+      replayerEl.style.display = 'flex'
       replayerEl.innerHTML = ''
 
-      try {
-        playerInstance = new rrwebPlayer({
-          target: replayerEl,
-          props: {
-            events,
-            width: replayerEl.offsetWidth || 600,
-            height: replayerEl.offsetHeight || 400,
-            autoPlay: true,
-            showController: true
-          }
-        })
+      // 用 requestAnimationFrame 确保容器已获得布局尺寸
+      requestAnimationFrame(() => {
+        const rect = replayerEl.getBoundingClientRect()
+        try {
+          playerInstance = new rrwebPlayer({
+            target: replayerEl,
+            props: {
+              events,
+              width: Math.max(rect.width, 400),
+              height: Math.max(rect.height, 300),
+              autoPlay: true,
+              showController: true
+            }
+          })
 
         // 监听回放进度，高亮当前事件
         if (playerInstance.on) {
@@ -484,6 +491,7 @@
         replayEmpty.style.display = 'flex'
         replayEmpty.textContent = '回放失败: ' + err.message
       }
+      })
     }
 
     function findEventIndexByTime(events, timeMs) {
