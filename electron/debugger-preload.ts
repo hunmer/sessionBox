@@ -9,6 +9,7 @@ const api = {
   getEvents: (wcId: number): Promise<any[]> => ipcRenderer.invoke('debugger:get-events', wcId),
   exportEvents: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:export-events', wcId),
   loadUrl: (url: string): Promise<any> => ipcRenderer.invoke('debugger:load-url', url),
+  getEmbeddedWcId: (): Promise<number | null> => ipcRenderer.invoke('debugger:get-embedded-wcid'),
 
   minimize: () => ipcRenderer.invoke('debugger:window-minimize'),
   maximize: () => ipcRenderer.invoke('debugger:window-maximize'),

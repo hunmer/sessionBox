@@ -12,6 +12,7 @@ import { webviewManager } from '../services/webview-manager'
 import { listTabs } from '../services/store'
 
 let debuggerWindow: BrowserWindow | null = null
+let embeddedWcId: number | null = null
 
 export function registerDebuggerIpcHandlers(): void {
 
@@ -38,7 +39,15 @@ export function registerDebuggerIpcHandlers(): void {
     debuggerWindow.loadFile(join(__dirname, '../preload/debugger-window.html'))
     debuggerWindow.once('ready-to-show', () => debuggerWindow?.show())
 
+    // 捕获内嵌 webview 的 webContentsId
+    debuggerWindow.webContents.on('did-attach-webview', (_e, webContents) => {
+      console.log('[debugger-main] did-attach-webview, id:', webContents.id)
+      embeddedWcId = webContents.id
+      debuggerWindow?.webContents.send('debugger:embedded-wcid', embeddedWcId)
+    })
+
     debuggerWindow.on('closed', () => {
+      embeddedWcId = null
       for (const wcId of getActiveRecordings()) {
         stopRecording(wcId)
       }
@@ -113,4 +122,9 @@ export function registerDebuggerIpcHandlers(): void {
   ipcMain.handle('debugger:window-minimize', () => { debuggerWindow?.minimize() })
   ipcMain.handle('debugger:window-maximize', () => { debuggerWindow?.maximize() })
   ipcMain.handle('debugger:window-close', () => { debuggerWindow?.close() })
+
+  ipcMain.handle('debugger:get-embedded-wcid', () => {
+    console.log('[debugger-main] get-embedded-wcid requested, returning:', embeddedWcId)
+    return embeddedWcId
+  })
 }

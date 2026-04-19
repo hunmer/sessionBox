@@ -193,11 +193,10 @@ createApp({
     const leftPanel = ref(null)
     const rightPanel = ref(null)
 
-    let currentWcId = null
-    let embeddedWcId = null
+    const currentWcId = ref(null)
 
     const showUrlBar = computed(() => targetId.value === EMBEDDED || targetId.value === '')
-    const canStart = computed(() => currentWcId !== null && !isRecording.value)
+    const canStart = computed(() => currentWcId.value !== null && !isRecording.value)
     const canExport = computed(() => !isRecording.value && allEvents.value.length > 0)
 
     // ---- 事件分类 ----
@@ -288,32 +287,38 @@ createApp({
       tabs.value = list
     }
 
-    watch(targetId, (val) => {
-      if (val === EMBEDDED) { currentWcId = embeddedWcId }
-      else if (val) { currentWcId = parseInt(val, 10) }
-      else { currentWcId = embeddedWcId }
+    watch(targetId, async (val) => {
+      console.log('[debugger] targetId changed:', val)
+      if (val === EMBEDDED || val === '') {
+        currentWcId.value = await api.getEmbeddedWcId()
+        console.log('[debugger] got embeddedWcId:', currentWcId.value)
+      } else {
+        currentWcId.value = parseInt(val, 10)
+        console.log('[debugger] parsed wcId:', currentWcId.value)
+      }
     })
 
     // 录制控制
     async function startRecording() {
-      if (!currentWcId) return
+      console.log('[debugger] startRecording called, currentWcId:', currentWcId.value, 'canStart:', canStart.value)
+      if (!currentWcId.value) return
       statusText.value = '注入中...'
-      const injectResult = await api.inject(currentWcId)
+      const injectResult = await api.inject(currentWcId.value)
       if (!injectResult.success) { statusText.value = '注入失败: ' + (injectResult.error || '未知错误'); return }
       statusText.value = '开始录制...'
       allEvents.value = []
       activeEventIndex.value = -1
-      const r = await api.startRecord(currentWcId)
+      const r = await api.startRecord(currentWcId.value)
       if (r.success) { isRecording.value = true; statusText.value = '录制中...'; activeTab.value = 'record' }
       else { statusText.value = '录制失败: ' + (r.error || '未知错误') }
     }
 
     async function stopRecording() {
-      if (!currentWcId) return
-      const r = await api.stopRecord(currentWcId)
+      if (!currentWcId.value) return
+      const r = await api.stopRecord(currentWcId.value)
       if (r.success) {
         isRecording.value = false
-        const events = await api.getEvents(currentWcId)
+        const events = await api.getEvents(currentWcId.value)
         allEvents.value = events
         statusText.value = '已停止 (' + events.length + ' 事件)'
         if (events.length > 0) { playEvents(events); activeTab.value = 'replay' }
@@ -324,8 +329,8 @@ createApp({
     }
 
     async function exportEvents() {
-      if (!currentWcId) return
-      const r = await api.exportEvents(currentWcId)
+      if (!currentWcId.value) return
+      const r = await api.exportEvents(currentWcId.value)
       statusText.value = r.success ? '已导出: ' + r.path : '导出失败: ' + (r.error || '未知错误')
     }
 
@@ -417,6 +422,10 @@ createApp({
     // 拖拽分隔条
     function startResize() {
       isResizing.value = true
+      // 创建遮罩层防止 iframe/webview 吞掉鼠标事件
+      const overlay = document.createElement('div')
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;cursor:col-resize;'
+      document.body.appendChild(overlay)
       const onMove = (e) => {
         const container = leftPanel.value?.parentElement
         if (!container) return
@@ -426,13 +435,10 @@ createApp({
       }
       const onUp = () => {
         isResizing.value = false
+        overlay.remove()
         document.removeEventListener('mousemove', onMove)
         document.removeEventListener('mouseup', onUp)
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
       }
-      document.body.style.cursor = 'col-resize'
-      document.body.style.userSelect = 'none'
       document.addEventListener('mousemove', onMove)
       document.addEventListener('mouseup', onUp)
     }
@@ -547,25 +553,24 @@ createApp({
       allEvents.value.push(event)
     })
 
+    // 主进程推送内嵌 webview 的 webContentsId
+    api.on('debugger:embedded-wcid', (wcId) => {
+      console.log('[debugger] received embedded-wcid from main:', wcId)
+      if (targetId.value === EMBEDDED || !targetId.value) {
+        currentWcId.value = wcId
+      }
+    })
+
     api.on('debugger:load-url', (url) => {
       if (webviewEl.value) webviewEl.value.loadURL(url)
     })
 
     onMounted(async () => {
+      console.log('[debugger] onMounted, webviewEl:', !!webviewEl.value)
       await refreshTabs()
       targetId.value = EMBEDDED
-
-      const wv = webviewEl.value
-      if (wv) {
-        wv.addEventListener('did-finish-load', () => {
-          embeddedWcId = wv.getWebContentsId?.() ?? null
-          if (targetId.value === EMBEDDED || !targetId.value) {
-            currentWcId = embeddedWcId
-          }
-        })
-        const url = urlInput.value.trim()
-        if (url) wv.src = url
-      }
+      currentWcId.value = await api.getEmbeddedWcId()
+      console.log('[debugger] initial embeddedWcId:', currentWcId.value, 'canStart:', canStart.value)
     })
 
     return {
