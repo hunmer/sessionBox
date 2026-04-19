@@ -49,6 +49,26 @@ function literal(value: unknown): string {
   return JSON.stringify(value)
 }
 
+async function attachDebugger(targetWc: WebContents): Promise<void> {
+  try {
+    const result = targetWc.debugger.attach('1.3') as unknown
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      await (result as Promise<void>)
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (!message.includes('already attached')) throw error
+  }
+}
+
+function detachDebugger(targetWc: WebContents): void {
+  try {
+    targetWc.debugger.detach()
+  } catch {
+    // The debugger may already be detached by Electron or another caller.
+  }
+}
+
 function buildElementExpression(step: ActionStep): string {
   const locator = step.locator ?? null
   return `
@@ -200,16 +220,64 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
 
   if (step.type === 'click') {
     const previousUrl = targetWc.getURL()
-    await targetWc.executeJavaScript(`
+    const opensFilePicker = !!step.payload?.opensFilePicker
+    const clickResult = await targetWc.executeJavaScript(`
 (() => {
-  const el = window.__actionPlayerElement;
-  if (!el) return false;
+  const originalEl = window.__actionPlayerElement;
+  const opensFilePicker = ${literal(opensFilePicker)};
+  if (!originalEl) return { ok: false, error: '元素不存在' };
+
+  function clickableElement(target) {
+    if (!target || target.nodeType !== Node.ELEMENT_NODE) return target;
+    if (typeof target.click === 'function') return target;
+    const parent = target.closest && target.closest('button, a, input, select, textarea, label, [role="button"], [onclick], [tabindex]');
+    return parent || target;
+  }
+
+  function isFileControl(target) {
+    if (!target || target.nodeType !== Node.ELEMENT_NODE) return false;
+    if (target.matches && target.matches('input[type="file"]')) return true;
+    if (target.querySelector && target.querySelector('input[type="file"]')) return true;
+    if (target.tagName === 'LABEL') {
+      const forId = target.getAttribute('for');
+      if (forId) {
+        const input = document.getElementById(forId);
+        if (input && input.matches && input.matches('input[type="file"]')) return true;
+      }
+    }
+    return false;
+  }
+
+  const el = clickableElement(originalEl);
   el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
   if (typeof el.focus === 'function') el.focus({ preventScroll: true });
-  el.click();
-  return true;
+  const rect = el.getBoundingClientRect();
+  const clientX = rect.left + rect.width / 2;
+  const clientY = rect.top + rect.height / 2;
+  const options = { bubbles: true, cancelable: true, view: window, clientX, clientY, button: 0 };
+  el.dispatchEvent(new MouseEvent('mousedown', options));
+  el.dispatchEvent(new MouseEvent('mouseup', options));
+
+  if (opensFilePicker || isFileControl(el)) {
+    return { ok: true, skippedNativeClick: true, reason: 'file-control' };
+  }
+
+  try {
+    if (typeof el.click !== 'function') {
+      const clickEvent = new MouseEvent('click', options);
+      const dispatched = el.dispatchEvent(clickEvent);
+      return { ok: dispatched !== false, fallbackDispatch: true };
+    }
+    el.click();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error && error.message ? error.message : String(error) };
+  }
 })();
 `)
+    if (!clickResult?.ok && !String(clickResult?.error || '').includes('File chooser')) {
+      throw new Error(`点击失败: ${clickResult?.error || '未知错误'}`)
+    }
     await waitForNavigationOrSettled(targetWc, previousUrl, options.settleMs, options.timeoutMs)
     return
   }
@@ -229,12 +297,9 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
   el.dispatchEvent(new MouseEvent('mousemove', options));
   return { x: Math.round(clientX), y: Math.round(clientY) };
 })();
-`)
+    `)
     if (point && typeof point.x === 'number' && typeof point.y === 'number') {
-      await targetWc.debugger.attach('1.3').catch((error) => {
-        const message = error instanceof Error ? error.message : String(error)
-        if (!message.includes('already attached')) throw error
-      })
+      await attachDebugger(targetWc)
       try {
         await targetWc.debugger.sendCommand('Input.dispatchMouseEvent', {
           type: 'mouseMoved',
@@ -243,7 +308,7 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
           button: 'none'
         })
       } finally {
-        targetWc.debugger.detach()
+        detachDebugger(targetWc)
       }
     }
     await delay(Math.max(options.settleMs, 500))
@@ -281,10 +346,7 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
       : []
     if (files.length === 0) throw new Error('file 动作缺少文件路径')
 
-    await targetWc.debugger.attach('1.3').catch((error) => {
-      const message = error instanceof Error ? error.message : String(error)
-      if (!message.includes('already attached')) throw error
-    })
+    await attachDebugger(targetWc)
 
     try {
       const documentResult = await targetWc.debugger.sendCommand('DOM.getDocument', { depth: -1, pierce: true }) as any
@@ -300,7 +362,7 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
       if (!nodeId) throw new Error('文件输入元素未找到')
       await targetWc.debugger.sendCommand('DOM.setFileInputFiles', { nodeId, files })
     } finally {
-      targetWc.debugger.detach()
+      detachDebugger(targetWc)
     }
 
     await targetWc.executeJavaScript(`

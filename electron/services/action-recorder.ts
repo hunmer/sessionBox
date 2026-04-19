@@ -211,6 +211,33 @@ export function buildRecorderScript(): string {
     return el.value;
   }
 
+  function findRelatedFileInput(el) {
+    if (!el || el.nodeType !== Node.ELEMENT_NODE) return null;
+    if (el.matches && el.matches('input[type="file"]')) return el;
+    if (el.querySelector) {
+      const child = el.querySelector('input[type="file"]');
+      if (child) return child;
+    }
+    if (el.tagName === 'LABEL') {
+      const forId = el.getAttribute('for');
+      if (forId) {
+        const input = document.getElementById(forId);
+        if (input && input.matches && input.matches('input[type="file"]')) return input;
+      }
+    }
+    const closestLabel = el.closest ? el.closest('label') : null;
+    if (closestLabel) {
+      const nested = closestLabel.querySelector('input[type="file"]');
+      if (nested) return nested;
+      const forId = closestLabel.getAttribute('for');
+      if (forId) {
+        const input = document.getElementById(forId);
+        if (input && input.matches && input.matches('input[type="file"]')) return input;
+      }
+    }
+    return null;
+  }
+
   function emit(type, target, payload, meta) {
     const step = {
       id: makeId(),
@@ -228,7 +255,13 @@ export function buildRecorderScript(): string {
 
   function onClick(event) {
     if (event.button !== 0) return;
-    emit('click', event.target, { button: event.button, clientX: event.clientX, clientY: event.clientY });
+    const fileInput = findRelatedFileInput(event.target);
+    emit('click', event.target, {
+      button: event.button,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      opensFilePicker: !!fileInput
+    });
   }
 
   function onInput(event) {
