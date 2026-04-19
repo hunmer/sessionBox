@@ -403,6 +403,9 @@ const api = {
     clear: (workflowId) => electron.ipcRenderer.invoke("workflowVersion:clear", workflowId),
     nextName: (workflowId) => electron.ipcRenderer.invoke("workflowVersion:nextName", workflowId)
   },
+  debugger: {
+    createWindow: () => electron.ipcRenderer.invoke("debugger:create-window")
+  },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {
     const channel = `on:${event}`;

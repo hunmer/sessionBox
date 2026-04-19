@@ -11,6 +11,8 @@ interface RecordingState {
 }
 
 const recordings = new Map<number, RecordingState>()
+/** 已停止录制的缓存事件，供回放使用 */
+const finishedEvents = new Map<number, any[]>()
 
 function getWebContents(id: number): WebContents | null {
   const wc = webContents.fromId(id)
@@ -88,7 +90,7 @@ export function stopRecording(wcId: number): { success: boolean; error?: string 
   const state = recordings.get(wcId)
   if (!state) return { success: false, error: '该页面未在录制中' }
 
-  cleanupRecording(wcId)
+  cleanupRecording(wcId, true)
 
   const wc = getWebContents(wcId)
   if (wc) {
@@ -98,7 +100,7 @@ export function stopRecording(wcId: number): { success: boolean; error?: string 
   return { success: true }
 }
 
-function cleanupRecording(wcId: number) {
+function cleanupRecording(wcId: number, keepEvents = false) {
   const state = recordings.get(wcId)
   if (!state) return
 
@@ -107,14 +109,18 @@ function cleanupRecording(wcId: number) {
     wc.off('console-message', state.listener)
   }
 
+  if (keepEvents && state.events.length > 0) {
+    finishedEvents.set(wcId, state.events)
+  }
+
   recordings.delete(wcId)
 }
 
-/** 获取录制事件 */
+/** 获取录制事件（录制中或已停止均可） */
 export function getRecordedEvents(wcId: number): any[] {
   const state = recordings.get(wcId)
   if (state) return state.events
-  return []
+  return finishedEvents.get(wcId) ?? []
 }
 
 /** 获取所有正在录制的 wcId 列表 */

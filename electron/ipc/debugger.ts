@@ -104,4 +104,9 @@ export function registerDebuggerIpcHandlers(): void {
     debuggerWindow.webContents.send('debugger:load-url', url)
     return { success: true }
   })
+
+  // 窗口控制
+  ipcMain.handle('debugger:window-minimize', () => { debuggerWindow?.minimize() })
+  ipcMain.handle('debugger:window-maximize', () => { debuggerWindow?.maximize() })
+  ipcMain.handle('debugger:window-close', () => { debuggerWindow?.close() })
 }

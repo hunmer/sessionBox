@@ -105,9 +105,9 @@
     const replayerEl = document.getElementById('replayer')
     const replayerEmpty = document.getElementById('replayerEmpty')
 
-    window.minimize = () => {}
-    window.maximize = () => {}
-    window.close = () => {}
+    window.minimize = () => api.minimize()
+    window.maximize = () => api.maximize()
+    window.close = () => api.close()
 
     function setStatus(text, recording = false) {
       statusEl.textContent = text

@@ -10,6 +10,10 @@ const api = {
   exportEvents: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:export-events', wcId),
   loadUrl: (url: string): Promise<any> => ipcRenderer.invoke('debugger:load-url', url),
 
+  minimize: () => ipcRenderer.invoke('debugger:window-minimize'),
+  maximize: () => ipcRenderer.invoke('debugger:window-maximize'),
+  close: () => ipcRenderer.invoke('debugger:window-close'),
+
   on: (channel: string, callback: (...args: any[]) => void) => {
     const handler = (_e: any, ...args: any[]) => callback(...args)
     ipcRenderer.on(channel, handler)
