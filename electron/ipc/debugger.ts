@@ -38,7 +38,7 @@ export function registerDebuggerIpcHandlers(): void {
         webviewTag: true
       }
     })
-
+    debuggerWindow.maximize()
     debuggerWindow.loadFile(join(__dirname, '../preload/debugger-window.html'))
     debuggerWindow.once('ready-to-show', () => debuggerWindow?.show())
 

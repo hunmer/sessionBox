@@ -43,8 +43,6 @@ export interface RecorderState {
   listener: ((event: Electron.Event, level: number, message: string, line: number, sourceId: string) => void) | null
   onStep?: (step: ActionStep) => void
   destroyedListener?: () => void
-  didNavigateListener?: (_event: Electron.Event, url: string) => void
-  didNavigateInPageListener?: (_event: Electron.Event, url: string, isMainFrame: boolean) => void
   domReadyListener?: () => void
   didFinishLoadListener?: () => void
 }
@@ -75,17 +73,6 @@ function pushStep(wcId: number, step: ActionStep): void {
 
   if (state.run.steps.length >= MAX_STEPS) {
     stopActionRecording(wcId)
-  }
-}
-
-function createNavigationStep(url: string, source: string): ActionStep {
-  return {
-    id: `step_${randomUUID()}`,
-    type: 'navigate',
-    timestamp: Date.now(),
-    url,
-    payload: { url },
-    meta: { source }
   }
 }
 
@@ -292,8 +279,19 @@ export function buildRecorderScript(): string {
 
   let lastHoverTarget = null;
   let lastHoverAt = 0;
+  function findPointerHoverTarget(target) {
+    let node = target && target.nodeType === Node.ELEMENT_NODE ? target : target?.parentElement;
+    while (node && node !== document.documentElement) {
+      try {
+        if (window.getComputedStyle(node).cursor === 'pointer') return node;
+      } catch {}
+      node = node.parentElement;
+    }
+    return null;
+  }
+
   function onHover(event) {
-    const target = event.target;
+    const target = findPointerHoverTarget(event.target);
     const now = Date.now();
     if (!target || target === lastHoverTarget && now - lastHoverAt < 600) return;
     lastHoverTarget = target;
@@ -320,19 +318,12 @@ export function buildRecorderScript(): string {
     emit('keydown', event.target, { key: event.key });
   }
 
-  function onLocationChange(source) {
-    emit('navigate', null, { url: location.href }, { source });
-  }
-
   document.addEventListener('click', onClick, true);
   document.addEventListener('input', onInput, true);
   document.addEventListener('change', onChange, true);
   document.addEventListener('keydown', onKeydown, true);
   document.addEventListener('mouseover', onHover, true);
   document.addEventListener('scroll', onScroll, true);
-  window.addEventListener('hashchange', () => onLocationChange('hashchange'), true);
-  window.addEventListener('popstate', () => onLocationChange('popstate'), true);
-  window.addEventListener('beforeunload', () => onLocationChange('beforeunload'), true);
 
   window.__actionRecorderReady = true;
   window.__actionRecorderStopFn = () => {
@@ -401,12 +392,6 @@ export async function startActionRecording(
   }
 
   const destroyedListener = () => cleanupActionRecording(wcId, true)
-  const didNavigateListener = (_event: Electron.Event, url: string) => {
-    pushStep(wcId, createNavigationStep(url, 'did-navigate'))
-  }
-  const didNavigateInPageListener = (_event: Electron.Event, url: string, isMainFrame: boolean) => {
-    if (isMainFrame) pushStep(wcId, createNavigationStep(url, 'did-navigate-in-page'))
-  }
   const domReadyListener = () => {
     if (activeRuns.has(wcId)) {
       injectActionRecorder(wcId).catch(() => {})
@@ -423,8 +408,6 @@ export async function startActionRecording(
     listener,
     onStep,
     destroyedListener,
-    didNavigateListener,
-    didNavigateInPageListener,
     domReadyListener,
     didFinishLoadListener
   }
@@ -432,8 +415,6 @@ export async function startActionRecording(
   activeRuns.set(wcId, state)
   wc.on('console-message', listener)
   wc.once('destroyed', destroyedListener)
-  wc.on('did-navigate', didNavigateListener)
-  wc.on('did-navigate-in-page', didNavigateInPageListener)
   wc.on('dom-ready', domReadyListener)
   wc.on('did-finish-load', didFinishLoadListener)
 
@@ -461,8 +442,6 @@ function cleanupActionRecording(wcId: number, keepRun = false): void {
   const wc = getWebContents(wcId)
   if (wc) {
     if (state.listener) wc.off('console-message', state.listener)
-    if (state.didNavigateListener) wc.off('did-navigate', state.didNavigateListener)
-    if (state.didNavigateInPageListener) wc.off('did-navigate-in-page', state.didNavigateInPageListener)
     if (state.domReadyListener) wc.off('dom-ready', state.domReadyListener)
     if (state.didFinishLoadListener) wc.off('did-finish-load', state.didFinishLoadListener)
   }

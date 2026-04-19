@@ -49,6 +49,32 @@ function literal(value: unknown): string {
   return JSON.stringify(value)
 }
 
+function normalizeUrlForMatch(value: string): string {
+  try {
+    const url = new URL(value)
+    url.hash = ''
+    return url.toString()
+  } catch {
+    return value
+  }
+}
+
+function urlsMatch(currentUrl: string, expectedUrl: string): boolean {
+  if (!expectedUrl || expectedUrl === 'about:blank') return true
+  return normalizeUrlForMatch(currentUrl) === normalizeUrlForMatch(expectedUrl)
+}
+
+async function waitForSourceUrl(targetWc: WebContents, expectedUrl: string, timeoutMs: number, pollIntervalMs: number): Promise<void> {
+  if (!expectedUrl || expectedUrl === 'about:blank') return
+  const started = Date.now()
+  while (Date.now() - started < timeoutMs) {
+    const currentUrl = targetWc.getURL()
+    if (urlsMatch(currentUrl, expectedUrl)) return
+    await delay(pollIntervalMs)
+  }
+  throw new Error(`页面地址未匹配: 当前 ${targetWc.getURL()}，期望 ${expectedUrl}`)
+}
+
 async function attachDebugger(targetWc: WebContents): Promise<void> {
   try {
     const result = targetWc.debugger.attach('1.3') as unknown
@@ -207,6 +233,8 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
     await waitForLoad(targetWc, options.timeoutMs)
     return
   }
+
+  await waitForSourceUrl(targetWc, step.url, options.timeoutMs, options.pollIntervalMs)
 
   if (step.type === 'scroll' && step.payload?.page !== false) {
     const x = Number(step.payload?.x || 0)

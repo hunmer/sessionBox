@@ -161,11 +161,11 @@ createApp({
     const playStatus = ref('idle')
     const isRecording = ref(false)
     const statusText = ref('就绪')
-    const urlInput = ref('https://baidu.com')
+    const urlInput = ref('https://creator.douyin.com')
     const rightWidth = ref(360)
     const isResizing = ref(false)
     const recordPartition = ref(EMBEDDED_PARTITION)
-    const playPartition = ref('persist:debugger-action-play')
+    const playPartition = ref('persist:debugger-embedded')
     const playWebviewMounted = ref(false)
     const playInitialSrc = ref('about:blank')
     const selectedSteps = reactive(new Set())
@@ -267,8 +267,7 @@ createApp({
 
     function playStartUrl() {
       const run = targetRun.value || {}
-      const firstNavigate = steps.value.find(step => step.type === 'navigate' && (step.payload?.url || step.url))
-      return run.initialUrl || firstNavigate?.payload?.url || firstNavigate?.url || steps.value[0]?.url || urlInput.value || 'about:blank'
+      return run.initialUrl || steps.value[0]?.url || urlInput.value || 'about:blank'
     }
 
     function ensurePlayWebview() {
@@ -385,7 +384,7 @@ createApp({
     }
 
     function locatorSummary(step) {
-      if (!step.locator) return step.type === 'navigate' ? '导航到 ' + (step.payload?.url || step.url) : '无定位器'
+      if (!step.locator) return '无定位器'
       const l = step.locator
       if (l.testId) return 'data-testid=' + l.testId
       if (l.id) return '#' + l.id
@@ -409,7 +408,6 @@ createApp({
 
     function typeBadgeClass(type) {
       const map = {
-        navigate: 'bg-cyan-500/15 text-cyan-300',
         click: 'bg-emerald-500/15 text-emerald-300',
         input: 'bg-fuchsia-500/15 text-fuchsia-300',
         change: 'bg-violet-500/15 text-violet-300',
