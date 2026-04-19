@@ -74,7 +74,11 @@ export function registerDebuggerIpcHandlers(): void {
   })
 
   ipcMain.handle('debugger:start-record', (_e, wcId: number) => {
-    return startRecording(wcId)
+    return startRecording(wcId, (event) => {
+      if (debuggerWindow && !debuggerWindow.isDestroyed()) {
+        debuggerWindow.webContents.send('debugger:event', event)
+      }
+    })
   })
 
   ipcMain.handle('debugger:stop-record', (_e, wcId: number) => {

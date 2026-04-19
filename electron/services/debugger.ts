@@ -44,7 +44,7 @@ export async function injectRrweb(wcId: number): Promise<{ success: boolean; err
 }
 
 /** 启动录制 */
-export function startRecording(wcId: number): { success: boolean; error?: string } {
+export function startRecording(wcId: number, onEvent?: (event: any) => void): { success: boolean; error?: string } {
   const wc = getWebContents(wcId)
   if (!wc) return { success: false, error: 'WebContents 不存在或已销毁' }
   if (recordings.has(wcId)) return { success: false, error: '该页面已在录制中' }
@@ -56,7 +56,9 @@ export function startRecording(wcId: number): { success: boolean; error?: string
     const json = message.slice(EVENT_PREFIX.length)
     if (json.length > MAX_EVENT_SIZE) return
     try {
-      events.push(JSON.parse(json))
+      const parsed = JSON.parse(json)
+      events.push(parsed)
+      onEvent?.(parsed)
     } catch { /* ignore malformed */ }
 
     if (events.length >= MAX_EVENTS) {

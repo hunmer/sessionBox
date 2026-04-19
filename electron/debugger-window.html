@@ -8,6 +8,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
+    /* 标题栏 */
     .titlebar { display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 12px; background: #16162a; -webkit-app-region: drag; user-select: none; }
     .titlebar-title { font-size: 13px; font-weight: 500; }
     .titlebar-controls { display: flex; gap: 8px; -webkit-app-region: no-drag; }
@@ -17,7 +18,8 @@
     .titlebar-btn.maximize { background: #28c840; }
     .titlebar-btn:hover { opacity: 0.8; }
 
-    .controls { padding: 10px 16px; background: #1e1e3a; border-bottom: 1px solid #2a2a4a; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    /* 控制面板 */
+    .controls { padding: 8px 16px; background: #1e1e3a; border-bottom: 1px solid #2a2a4a; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .controls select, .controls input { background: #2a2a4a; color: #e0e0e0; border: 1px solid #3a3a5a; border-radius: 4px; padding: 4px 8px; font-size: 12px; outline: none; }
     .controls select:focus, .controls input:focus { border-color: #6366f1; }
     .controls select { min-width: 200px; }
@@ -35,14 +37,56 @@
     .url-bar { display: none; width: 100%; }
     .url-bar.visible { display: flex; gap: 8px; align-items: center; }
 
+    /* 主内容区：左右布局 */
+    .main-content { flex: 1; display: flex; overflow: hidden; }
+
+    /* 左侧面板 */
+    .left-panel { flex: 1; display: flex; flex-direction: column; min-width: 300px; overflow: hidden; }
+
+    /* 左侧 tabs */
+    .left-tabs { display: flex; background: #1e1e3a; border-bottom: 1px solid #2a2a4a; }
+    .left-tab { flex: 1; padding: 8px 0; text-align: center; font-size: 12px; cursor: pointer; border: none; background: transparent; color: #94a3b8; transition: all 0.15s; }
+    .left-tab:hover { color: #e0e0e0; background: #2a2a4a; }
+    .left-tab.active { color: #6366f1; border-bottom: 2px solid #6366f1; background: #2a2a4a; }
+    .tab-content { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+    .tab-content.active { display: flex; }
+
+    /* 内嵌 webview */
     .webview-container { display: none; height: 200px; border-bottom: 1px solid #2a2a4a; }
     .webview-container.visible { display: block; }
     .webview-container webview { width: 100%; height: 100%; }
 
-    .replayer-wrapper { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
-    .replayer-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b; font-size: 14px; }
+    /* 录制/回放区域 */
+    .recorder-area, .replayer-area { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+    .area-empty { color: #64748b; font-size: 14px; }
     #replayer { width: 100%; height: 100%; }
-    .replayer-wrapper iframe { width: 100% !important; height: 100% !important; }
+    .replayer-area iframe { width: 100% !important; height: 100% !important; }
+
+    /* 拖拽分隔条 */
+    .resizer { width: 4px; background: #2a2a4a; cursor: col-resize; transition: background 0.15s; flex-shrink: 0; }
+    .resizer:hover, .resizer.dragging { background: #6366f1; }
+
+    /* 右侧面板：事件列表 */
+    .right-panel { width: 280px; min-width: 180px; display: flex; flex-direction: column; background: #1e1e3a; overflow: hidden; }
+    .right-panel-header { padding: 8px 12px; font-size: 12px; font-weight: 600; border-bottom: 1px solid #2a2a4a; display: flex; align-items: center; justify-content: space-between; }
+    .event-count { color: #6366f1; font-weight: 400; }
+    .event-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .event-list::-webkit-scrollbar { width: 4px; }
+    .event-list::-webkit-scrollbar-track { background: transparent; }
+    .event-list::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
+
+    .event-item { padding: 4px 12px; font-size: 11px; font-family: 'SF Mono', 'Menlo', monospace; border-left: 2px solid transparent; cursor: default; display: flex; align-items: center; gap: 6px; }
+    .event-item:hover { background: #2a2a4a; }
+    .event-item.active { background: #2a2a5a; border-left-color: #6366f1; }
+    .event-type { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 500; }
+    .event-type.IncrementalSnapshot { background: #3b82f620; color: #60a5fa; }
+    .event-type.FullSnapshot { background: #22c55e20; color: #4ade80; }
+    .event-type.Meta { background: #a855f720; color: #c084fc; }
+    .event-type.Custom { background: #f59e0b20; color: #fbbf24; }
+    .event-seq { color: #64748b; min-width: 28px; text-align: right; }
+    .event-ts { color: #475569; margin-left: auto; font-size: 10px; }
+
+    .event-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #475569; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -72,13 +116,43 @@
     </div>
   </div>
 
-  <div class="webview-container" id="webviewContainer">
-    <webview id="embeddedWebview" src="about:blank"></webview>
-  </div>
+  <div class="main-content">
+    <!-- 左侧：录制/回放 -->
+    <div class="left-panel" id="leftPanel">
+      <div class="left-tabs">
+        <button class="left-tab active" data-tab="record">录制</button>
+        <button class="left-tab" data-tab="replay">回放</button>
+      </div>
 
-  <div class="replayer-wrapper">
-    <div class="replayer-empty" id="replayerEmpty">停止录制后自动回放</div>
-    <div id="replayer" style="display:none;"></div>
+      <div class="tab-content active" id="tab-record">
+        <div class="webview-container" id="webviewContainer">
+          <webview id="embeddedWebview" src="about:blank"></webview>
+        </div>
+        <div class="recorder-area">
+          <span class="area-empty" id="recordEmpty">注入 rrweb 后点击"开始录制"</span>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-replay">
+        <div class="replayer-area">
+          <span class="area-empty" id="replayEmpty">停止录制后自动回放</span>
+          <div id="replayer" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 可拖拽分隔条 -->
+    <div class="resizer" id="resizer"></div>
+
+    <!-- 右侧：事件列表 -->
+    <div class="right-panel" id="rightPanel">
+      <div class="right-panel-header">
+        交互记录 <span class="event-count" id="eventCount">0</span>
+      </div>
+      <div class="event-list" id="eventList">
+        <div class="event-empty" id="eventEmpty">暂无事件</div>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/rrweb-player@latest/dist/index.js"></script>
@@ -89,6 +163,9 @@
     let currentWcId = null
     let isRecording = false
     let embeddedWcId = null
+    let allEvents = []
+    let activeEventIndex = -1
+    let playerInstance = null
 
     const targetSelect = document.getElementById('targetSelect')
     const refreshBtn = document.getElementById('refreshBtn')
@@ -103,12 +180,150 @@
     const webviewContainer = document.getElementById('webviewContainer')
     const embeddedWebview = document.getElementById('embeddedWebview')
     const replayerEl = document.getElementById('replayer')
-    const replayerEmpty = document.getElementById('replayerEmpty')
+    const recordEmpty = document.getElementById('recordEmpty')
+    const replayEmpty = document.getElementById('replayEmpty')
+    const eventList = document.getElementById('eventList')
+    const eventCount = document.getElementById('eventCount')
+    const eventEmpty = document.getElementById('eventEmpty')
 
     window.minimize = () => api.minimize()
     window.maximize = () => api.maximize()
     window.close = () => api.close()
 
+    // ===== Tabs 切换 =====
+    document.querySelectorAll('.left-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.left-tab').forEach(t => t.classList.remove('active'))
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'))
+        tab.classList.add('active')
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active')
+      })
+    })
+
+    function switchTab(name) {
+      document.querySelectorAll('.left-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === name)
+      })
+      document.querySelectorAll('.tab-content').forEach(c => {
+        c.classList.toggle('active', c.id === 'tab-' + name)
+      })
+    }
+
+    // ===== 拖拽分隔条 =====
+    const resizer = document.getElementById('resizer')
+    const leftPanel = document.getElementById('leftPanel')
+    const rightPanel = document.getElementById('rightPanel')
+
+    let isResizing = false
+    resizer.addEventListener('mousedown', (e) => {
+      isResizing = true
+      resizer.classList.add('dragging')
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+      e.preventDefault()
+    })
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return
+      const container = document.querySelector('.main-content')
+      const rect = container.getBoundingClientRect()
+      const rightWidth = rect.right - e.clientX
+      const clamped = Math.max(180, Math.min(rightWidth, rect.width * 0.7))
+      rightPanel.style.width = clamped + 'px'
+    })
+    document.addEventListener('mouseup', () => {
+      if (!isResizing) return
+      isResizing = false
+      resizer.classList.remove('dragging')
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    })
+
+    // ===== 事件列表 =====
+    const typeLabels = {
+      2: 'IncrementalSnapshot',
+      4: 'Meta',
+      1: 'DomContentLoaded',
+      5: 'Load',
+      3: 'FullSnapshot',
+      6: 'Custom'
+    }
+
+    function getEventTypeLabel(event) {
+      const t = event.type
+      if (t === 2 && event.data) {
+        const source = event.data.source
+        const sourceMap = { 0:'Mutation', 1:'MouseMove', 2:'MouseInteraction', 3:'Scroll', 4:'ViewportResize', 5:'Input', 6:'TouchMove', 7:'MediaInteraction', 8:'StyleSheetRule', 9:'CanvasMutation', 10:'Font', 11:'Log', 12:'Drag', 13:'StyleDeclaration', 14:'Selection', 15:'AdoptedStyleSheet', 16:'Custom' }
+        return sourceMap[source] || 'Incremental'
+      }
+      return typeLabels[t] || 'Type' + t
+    }
+
+    function addEventToList(event, index) {
+      if (eventEmpty.style.display !== 'none') {
+        eventEmpty.style.display = 'none'
+      }
+      const item = document.createElement('div')
+      item.className = 'event-item'
+      item.dataset.index = index
+
+      const seq = document.createElement('span')
+      seq.className = 'event-seq'
+      seq.textContent = index + 1
+
+      const typeBadge = document.createElement('span')
+      typeBadge.className = 'event-type ' + getEventTypeGroup(event)
+      typeBadge.textContent = getEventTypeLabel(event)
+
+      const ts = document.createElement('span')
+      ts.className = 'event-ts'
+      ts.textContent = formatTs(event.timestamp)
+
+      item.appendChild(seq)
+      item.appendChild(typeBadge)
+      item.appendChild(ts)
+
+      item.addEventListener('click', () => {
+        if (playerInstance && playerInstance.emit) {
+          playerInstance.emit('goTo', index)
+        }
+      })
+
+      eventList.appendChild(item)
+      eventList.scrollTop = eventList.scrollHeight
+      eventCount.textContent = allEvents.length
+    }
+
+    function getEventTypeGroup(event) {
+      if (event.type === 3) return 'FullSnapshot'
+      if (event.type === 4) return 'Meta'
+      if (event.type === 6) return 'Custom'
+      return 'IncrementalSnapshot'
+    }
+
+    function formatTs(ts) {
+      const d = new Date(ts)
+      return d.getMinutes().toString().padStart(2, '0') + ':' +
+             d.getSeconds().toString().padStart(2, '0') + '.' +
+             d.getMilliseconds().toString().padStart(3, '0').slice(0, 2)
+    }
+
+    function clearEventList() {
+      eventList.innerHTML = '<div class="event-empty" id="eventEmpty">暂无事件</div>'
+      eventCount.textContent = '0'
+      allEvents = []
+      activeEventIndex = -1
+    }
+
+    function setActiveEvent(index) {
+      const items = eventList.querySelectorAll('.event-item')
+      items.forEach(item => item.classList.toggle('active', parseInt(item.dataset.index) === index))
+      const activeItem = eventList.querySelector('.event-item.active')
+      if (activeItem) {
+        activeItem.scrollIntoView({ block: 'nearest', behavior: 'auto' })
+      }
+    }
+
+    // ===== 控制逻辑 =====
     function setStatus(text, recording = false) {
       statusEl.textContent = text
       statusEl.className = recording ? 'status recording' : 'status'
@@ -172,6 +387,7 @@
       const result = await api.inject(currentWcId)
       if (result.success) {
         setStatus('注入成功')
+        recordEmpty.textContent = '点击"开始录制"开始'
       } else {
         setStatus('注入失败: ' + (result.error || '未知错误'))
       }
@@ -183,11 +399,10 @@
       const result = await api.startRecord(currentWcId)
       if (result.success) {
         isRecording = true
+        clearEventList()
         setStatus('录制中...', true)
-        replayerEl.style.display = 'none'
-        replayerEl.innerHTML = ''
-        replayerEmpty.style.display = 'flex'
-        replayerEmpty.textContent = '录制中...'
+        recordEmpty.textContent = '录制中...'
+        switchTab('record')
       } else {
         setStatus('启动失败: ' + (result.error || '未知错误'))
       }
@@ -199,13 +414,16 @@
       const result = await api.stopRecord(currentWcId)
       if (result.success) {
         isRecording = false
-        setStatus('已停止')
+        setStatus('已停止 (' + allEvents.length + ' 事件)')
 
+        // 获取完整事件列表用于回放
         const events = await api.getEvents(currentWcId)
         if (events.length > 0) {
+          allEvents = events
           playEvents(events)
+          switchTab('replay')
         } else {
-          replayerEmpty.textContent = '无录制事件'
+          replayEmpty.textContent = '无录制事件'
         }
       } else {
         setStatus('停止失败: ' + (result.error || '未知错误'))
@@ -223,7 +441,7 @@
       }
     })
 
-    loadUrlBtn.addEventListener('click', async () => {
+    loadUrlBtn.addEventListener('click', () => {
       const url = urlInput.value.trim()
       if (!url) return
       embeddedWebview.loadURL(url)
@@ -233,27 +451,57 @@
       if (e.key === 'Enter') loadUrlBtn.click()
     })
 
+    // ===== 回放 =====
     function playEvents(events) {
-      replayerEmpty.style.display = 'none'
+      replayEmpty.style.display = 'none'
       replayerEl.style.display = 'block'
       replayerEl.innerHTML = ''
 
       try {
-        new rrwebPlayer({
+        playerInstance = new rrwebPlayer({
           target: replayerEl,
           props: {
             events,
-            width: replayerEl.offsetWidth,
-            height: replayerEl.offsetHeight,
-            autoPlay: true
+            width: replayerEl.offsetWidth || 600,
+            height: replayerEl.offsetHeight || 400,
+            autoPlay: true,
+            showController: true
           }
         })
+
+        // 监听回放进度，高亮当前事件
+        if (playerInstance.on) {
+          playerInstance.on('ui-update-current-time', (time) => {
+            const idx = findEventIndexByTime(events, time)
+            if (idx !== activeEventIndex) {
+              activeEventIndex = idx
+              setActiveEvent(idx)
+            }
+          })
+        }
       } catch (err) {
         replayerEl.style.display = 'none'
-        replayerEmpty.style.display = 'flex'
-        replayerEmpty.textContent = '回放失败: ' + err.message
+        replayEmpty.style.display = 'flex'
+        replayEmpty.textContent = '回放失败: ' + err.message
       }
     }
+
+    function findEventIndexByTime(events, timeMs) {
+      // timeMs 是相对于开始的毫秒数
+      const baseTs = events[0]?.timestamp || 0
+      const targetTs = baseTs + timeMs
+      for (let i = events.length - 1; i >= 0; i--) {
+        if (events[i].timestamp <= targetTs) return i
+      }
+      return 0
+    }
+
+    // ===== 实时事件推送 =====
+    api.on('debugger:event', (event) => {
+      if (!isRecording) return
+      allEvents.push(event)
+      addEventToList(event, allEvents.length - 1)
+    })
 
     api.on('debugger:load-url', (url) => {
       if (embeddedWebview) {
@@ -268,6 +516,7 @@
       }
     })
 
+    // 初始化
     refreshTabs()
     setStatus('就绪')
   </script>
