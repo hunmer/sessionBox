@@ -60,6 +60,11 @@ function copyDebuggerWindowHtml() {
         copyFileSync(htmlSrc, resolve(destDir, 'debugger-window.html'))
       }
 
+      const replayHtmlSrc = resolve(__dirname, 'electron/debugger-replay.html')
+      if (existsSync(replayHtmlSrc)) {
+        copyFileSync(replayHtmlSrc, resolve(destDir, 'debugger-replay.html'))
+      }
+
       const assetsDir = resolve(__dirname, 'electron/debugger-assets')
       const destAssetsDir = resolve(destDir, 'debugger-assets')
       if (existsSync(assetsDir)) {
@@ -94,7 +99,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'preload/index.ts'),
-          'debugger-preload': resolve(__dirname, 'electron/debugger-preload.ts')
+          'debugger-preload': resolve(__dirname, 'electron/debugger-preload.ts'),
+          'debugger-replay-preload': resolve(__dirname, 'electron/debugger-replay-preload.ts')
         }
       }
     }

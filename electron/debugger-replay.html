@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src * data: blob:;">
+  <title>RRWeb Replay</title>
+  <link rel="stylesheet" href="./debugger-assets/rrweb-player.css">
+  <link rel="stylesheet" href="./debugger-assets/rrweb-replay.css">
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #111827;
+      color: #e5e7eb;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    #replayer {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #replayer .rr-player {
+      width: 100% !important;
+      height: 100% !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    #replayer .rr-player__frame {
+      width: 100% !important;
+      flex: 1 !important;
+      min-height: 0 !important;
+      height: auto !important;
+      overflow: hidden !important;
+    }
+
+    #replayer .rr-player__frame > div {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #replayer .rr-player__controller {
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    #empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 13px;
+      pointer-events: none;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="replayer"></div>
+  <div id="empty">等待回放数据</div>
+
+  <script src="./debugger-assets/rrweb-player.js"></script>
+  <script>
+    let player = null
+    let currentEvents = []
+    let currentTime = 0
+
+    const replayerEl = document.getElementById('replayer')
+    const emptyEl = document.getElementById('empty')
+
+    function emit(channel, payload) {
+      if (window.debuggerReplayApi?.sendToHost) {
+        window.debuggerReplayApi.sendToHost(channel, payload)
+      }
+    }
+
+    function setEmpty(message) {
+      emptyEl.textContent = message
+      emptyEl.style.display = 'flex'
+    }
+
+    function hideEmpty() {
+      emptyEl.style.display = 'none'
+    }
+
+    function getPlayerTime() {
+      const replayer = player && (typeof player.getReplayer === 'function' ? player.getReplayer() : player.replayer)
+      if (replayer && typeof replayer.getCurrentTime === 'function') {
+        return replayer.getCurrentTime()
+      }
+      return currentTime
+    }
+
+    function bindPlayerEvents(instance, events) {
+      const replayer = typeof instance.getReplayer === 'function' ? instance.getReplayer() : instance.replayer
+
+      const updateByTime = (timeMs) => {
+        currentTime = Math.max(0, Number(timeMs) || 0)
+        emit('debugger:replay-time', { timeMs: currentTime })
+      }
+
+      if (replayer && typeof replayer.on === 'function') {
+        replayer.on('event-cast', (event) => {
+          if (!event) return
+          const base = events[0]?.timestamp || 0
+          updateByTime((event.timestamp || base) - base)
+        })
+      }
+
+      if (typeof instance.addEventListener === 'function') {
+        instance.addEventListener('ui-update-current-time', (time) => {
+          updateByTime(time)
+        })
+      } else if (typeof instance.on === 'function') {
+        instance.on('ui-update-current-time', (time) => {
+          updateByTime(time)
+        })
+      }
+    }
+
+    function render(events) {
+      currentEvents = Array.isArray(events) ? events : []
+      currentTime = 0
+      replayerEl.innerHTML = ''
+      player = null
+
+      if (currentEvents.length === 0) {
+        setEmpty('暂无可回放事件')
+        emit('debugger:replay-meta', { ready: true, hasEvents: false, totalTime: 0 })
+        return
+      }
+
+      const rect = replayerEl.getBoundingClientRect()
+      const width = Math.max(Math.floor(rect.width), 300)
+      const height = Math.max(Math.floor(rect.height), 200)
+
+      try {
+        player = new rrwebPlayer({
+          target: replayerEl,
+          props: {
+            events: currentEvents,
+            width,
+            height,
+            autoPlay: true,
+            showController: true
+          }
+        })
+        hideEmpty()
+        bindPlayerEvents(player, currentEvents)
+
+        const meta = typeof player.getMetaData === 'function'
+          ? player.getMetaData()
+          : { totalTime: currentEvents[currentEvents.length - 1].timestamp - currentEvents[0].timestamp }
+        emit('debugger:replay-meta', {
+          ready: true,
+          hasEvents: true,
+          totalTime: meta?.totalTime || 0
+        })
+      } catch (error) {
+        setEmpty('回放失败: ' + (error?.message || String(error)))
+        emit('debugger:replay-error', error?.message || String(error))
+      }
+    }
+
+    function seek(timeMs) {
+      currentTime = Math.max(0, Number(timeMs) || 0)
+      if (!player) return
+
+      const replayer = typeof player.getReplayer === 'function' ? player.getReplayer() : player.replayer
+      if (replayer) {
+        if (typeof replayer.play === 'function') replayer.play(currentTime)
+        if (typeof replayer.setTimeOffset === 'function') replayer.setTimeOffset(currentTime)
+      }
+      if (typeof player.goto === 'function') player.goto(currentTime)
+      if (typeof player.seek === 'function') player.seek(currentTime)
+
+      emit('debugger:replay-time', { timeMs: currentTime, manual: true })
+    }
+
+    function resize() {
+      if (!player) return
+      if (typeof player.triggerResize === 'function') {
+        player.triggerResize()
+      } else {
+        render(currentEvents)
+        seek(currentTime)
+      }
+    }
+
+    window.addEventListener('sessionbox:replay-command', (event) => {
+      const command = event.detail || {}
+      if (command.type === 'load-events') {
+        render(command.events)
+      } else if (command.type === 'seek') {
+        seek(command.timeMs)
+      } else if (command.type === 'resize') {
+        resize()
+      }
+    })
+  </script>
+</body>
+</html>

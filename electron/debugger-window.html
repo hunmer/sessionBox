@@ -4,18 +4,13 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src * data: blob:;">
   <title>调试工具</title>
-  <link rel="stylesheet" href="./debugger-assets/rrweb-player.css">
-  <link rel="stylesheet" href="./debugger-assets/rrweb-replay.css">
   <script src="./debugger-assets/tailwind.browser.js"></script>
   <style>
     body { margin: 0; padding: 0; background: #1a1a2e; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
     #app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
     #replayer { width: 100%; height: 100%; min-height: 0; overflow: hidden; }
-    #replayer .rr-player { width: 100% !important; height: 100% !important; display: flex !important; flex-direction: column !important; }
-    #replayer .rr-player__frame { width: 100% !important; flex: 1 !important; min-height: 0 !important; height: auto !important; overflow: hidden; }
-    #replayer .rr-player__frame > div { width: 100% !important; height: 100% !important; }
-    #replayer .rr-player__controller { flex-shrink: 0; position: relative; }
+    #replayer webview { width: 100%; height: 100%; border: 0; background: #111827; }
 
     .resizer { width: 4px; background: #2a2a4a; cursor: col-resize; transition: background 0.15s; flex-shrink: 0; }
     .resizer:hover, .resizer.dragging { background: #6366f1; }
@@ -95,7 +90,7 @@
       <!-- 录制 Tab -->
       <div v-show="activeTab === 'record'" class="flex-1 flex flex-col overflow-hidden">
         <div v-if="showUrlBar" class="flex-1 flex min-h-0">
-          <webview ref="webviewEl" src="about:blank"></webview>
+          <webview ref="webviewEl" :partition="embeddedPartition" src="about:blank"></webview>
         </div>
       </div>
 
@@ -104,7 +99,14 @@
         <span v-if="allEvents.length === 0" class="text-slate-500 text-sm absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
           {{ replayHint }}
         </span>
-        <div v-show="allEvents.length > 0" id="replayer" ref="replayerEl"></div>
+        <div v-show="allEvents.length > 0" id="replayer" ref="replayerEl">
+          <webview
+            :key="replayPartition"
+            ref="replayWebviewEl"
+            :partition="replayPartition"
+            src="./debugger-replay.html"
+            preload="./debugger-replay-preload.js"></webview>
+        </div>
       </div>
     </div>
 
@@ -167,7 +169,6 @@
 </div>
 
 <script src="./debugger-assets/vue.global.prod.js"></script>
-<script src="./debugger-assets/rrweb-player.js"></script>
 <script>
 const { createApp, ref, reactive, computed, watch, onMounted, nextTick } = Vue
 
@@ -175,6 +176,8 @@ createApp({
   setup() {
     const api = window.debuggerApi
     const EMBEDDED = '__embedded__'
+    const EMBEDDED_PARTITION = 'persist:debugger-embedded'
+    const DEFAULT_REPLAY_PARTITION = 'persist:debugger-replay-default'
 
     const targetId = ref('')
     const tabs = ref([])
@@ -187,12 +190,15 @@ createApp({
     const rightWidth = ref(280)
     const isResizing = ref(false)
     const replayHint = ref('停止录制后自动回放')
-    const playerInstance = ref(null)
+    const replayReady = ref(false)
+    const replayPartition = ref(DEFAULT_REPLAY_PARTITION)
+    const embeddedPartition = ref(EMBEDDED_PARTITION)
     const selectedCategories = reactive(new Set())
     const selectedEvents = reactive(new Set())
 
     const webviewEl = ref(null)
     const replayerEl = ref(null)
+    const replayWebviewEl = ref(null)
     const eventListEl = ref(null)
     const leftPanel = ref(null)
     const rightPanel = ref(null)
@@ -314,6 +320,7 @@ createApp({
         currentWcId.value = parseInt(val, 10)
         console.log('[debugger] parsed wcId:', currentWcId.value)
       }
+      syncReplayPartition()
     })
 
     // 录制控制
@@ -414,11 +421,80 @@ createApp({
       if (url && webviewEl.value) webviewEl.value.loadURL(url)
     }
 
+    function getCurrentTabMeta() {
+      if (targetId.value && targetId.value !== EMBEDDED) {
+        return tabs.value.find(tab => String(tab.webContentsId) === String(currentWcId.value)) || null
+      }
+      return null
+    }
+
+    function syncReplayPartition() {
+      const tab = getCurrentTabMeta()
+      replayPartition.value = tab?.partition || EMBEDDED_PARTITION
+    }
+
+    function postReplayCommand(command) {
+      const view = replayWebviewEl.value
+      if (!view || typeof view.send !== 'function') return false
+      view.send('debugger:replay-command', command)
+      return true
+    }
+
+    function findEventIndexByTime(timeMs) {
+      const base = allEvents.value[0]?.timestamp || 0
+      const target = base + Math.max(0, Number(timeMs) || 0)
+      for (let i = allEvents.value.length - 1; i >= 0; i--) {
+        if (allEvents.value[i].timestamp <= target) return i
+      }
+      return allEvents.value.length > 0 ? 0 : -1
+    }
+
+    function updateActiveEventByTime(timeMs) {
+      const idx = findEventIndexByTime(timeMs)
+      if (idx >= 0 && idx !== activeEventIndex.value) {
+        activeEventIndex.value = idx
+      }
+    }
+
+    function ensureReplayWebview() {
+      nextTick(() => {
+        const view = replayWebviewEl.value
+        if (!view) return
+        if (view.dataset.initialized === '1') return
+
+        view.dataset.initialized = '1'
+
+        view.addEventListener('dom-ready', () => {
+          replayReady.value = false
+        })
+
+        view.addEventListener('ipc-message', (event) => {
+          if (event.channel === 'debugger:replay-ready') {
+            replayReady.value = true
+            if (allEvents.value.length > 0) {
+              playEvents(allEvents.value)
+            }
+            return
+          }
+
+          if (event.channel === 'debugger:replay-time') {
+            const payload = event.args[0] || {}
+            updateActiveEventByTime(payload.timeMs)
+            return
+          }
+
+          if (event.channel === 'debugger:replay-error') {
+            replayHint.value = '回放失败: ' + (event.args[0] || '未知错误')
+          }
+        })
+      })
+    }
+
     // ---- 点击事件跳转 ----
     function goToEvent(index) {
       activeEventIndex.value = index
       // 回放模式：seek 到对应时间点
-      if (activeTab.value === 'replay' && playerInstance.value) {
+      if (activeTab.value === 'replay' && replayReady.value) {
         const ev = allEvents.value[index]
         if (ev) {
           const baseTs = allEvents.value[0]?.timestamp || 0
@@ -428,15 +504,7 @@ createApp({
     }
 
     function seekReplayer(timeMs) {
-      const player = playerInstance.value
-      if (!player) return
-      const replayer = typeof player.getReplayer === 'function' ? player.getReplayer() : player.replayer
-      if (replayer) {
-        if (typeof replayer.play === 'function') replayer.play(timeMs)
-        if (typeof replayer.setTimeOffset === 'function') replayer.setTimeOffset(timeMs)
-      }
-      if (typeof player.goto === 'function') player.goto(timeMs)
-      if (typeof player.seek === 'function') player.seek(timeMs)
+      postReplayCommand({ type: 'seek', timeMs })
     }
 
     // 拖拽分隔条
@@ -510,60 +578,13 @@ createApp({
     // 回放
     function playEvents(events) {
       nextTick(() => {
+        ensureReplayWebview()
         requestAnimationFrame(() => {
-          const el = replayerEl.value
-          if (!el) return
-          el.innerHTML = ''
-          const rect = el.getBoundingClientRect()
-          const w = Math.max(rect.width, 300)
-          const h = Math.max(rect.height, 200)
-          try {
-            playerInstance.value = new rrwebPlayer({
-              target: el,
-              props: { events, width: w, height: h, autoPlay: true, showController: true }
-            })
-            bindReplayHighlight(playerInstance.value, events)
-          } catch (err) {
-            replayHint.value = '回放失败: ' + err.message
-          }
+          if (!replayReady.value) return
+          const ok = postReplayCommand({ type: 'load-events', events })
+          if (!ok) replayHint.value = '回放容器未就绪'
         })
       })
-    }
-
-    function bindReplayHighlight(player, events) {
-      const updateActive = (idx) => {
-        if (idx < 0 || idx === activeEventIndex.value) return
-        activeEventIndex.value = idx
-      }
-      const findById = (castEvent) => {
-        if (!castEvent) return -1
-        for (let i = 0; i < events.length; i++) {
-          if (events[i].timestamp === castEvent.timestamp && events[i].type === castEvent.type) return i
-        }
-        return -1
-      }
-      const findByTime = (timeMs) => {
-        const base = events[0]?.timestamp || 0
-        const target = base + timeMs
-        for (let i = events.length - 1; i >= 0; i--) {
-          if (events[i].timestamp <= target) return i
-        }
-        return 0
-      }
-      const castHandler = (ev) => {
-        const idx = findById(ev)
-        updateActive(idx >= 0 ? idx : findByTime(ev?.timestamp || 0))
-      }
-      const replayer = typeof player.getReplayer === 'function' ? player.getReplayer() : player.replayer
-      if (replayer && typeof replayer.on === 'function') replayer.on('event-cast', castHandler)
-      if (typeof player.on === 'function') {
-        player.on('event-cast', castHandler)
-        player.on('ui-update-current-time', (time) => updateActive(findByTime(time)))
-      }
-      if (typeof player.addEventListener === 'function') {
-        player.addEventListener('event-cast', castHandler)
-        player.addEventListener('ui-update-current-time', (time) => updateActive(findByTime(time)))
-      }
     }
 
     // 实时事件推送
@@ -592,18 +613,52 @@ createApp({
       if (webviewEl.value) webviewEl.value.loadURL(url)
     })
 
+    watch(activeTab, (val) => {
+      if (val === 'replay') {
+        ensureReplayWebview()
+      }
+    })
+
+    watch(replayPartition, () => {
+      replayReady.value = false
+      nextTick(() => ensureReplayWebview())
+    })
+
+    watch(() => rightWidth.value, () => {
+      nextTick(() => postReplayCommand({ type: 'resize' }))
+    })
+
     onMounted(async () => {
       console.log('[debugger] onMounted, webviewEl:', !!webviewEl.value)
       await refreshTabs()
       targetId.value = EMBEDDED
       currentWcId.value = await api.getEmbeddedWcId()
+      syncReplayPartition()
       console.log('[debugger] initial embeddedWcId:', currentWcId.value, 'canStart:', canStart.value)
+
+      nextTick(() => {
+        if (webviewEl.value) {
+          webviewEl.value.addEventListener('dom-ready', async () => {
+            try {
+              const wcId = webviewEl.value.getWebContentsId()
+              await api.setEmbeddedWcId(wcId)
+              if (targetId.value === EMBEDDED || !targetId.value) {
+                currentWcId.value = wcId
+              }
+            } catch (error) {
+              console.warn('[debugger] failed to set embedded wcId:', error)
+            }
+          })
+        }
+        ensureReplayWebview()
+      })
     })
 
     return {
       targetId, tabs, isRecording, statusText, allEvents, activeEventIndex,
       activeTab, urlInput, rightWidth, isResizing, replayHint,
-      webviewEl, replayerEl, eventListEl, leftPanel, rightPanel,
+      webviewEl, replayerEl, replayWebviewEl, eventListEl, leftPanel, rightPanel,
+      replayPartition, embeddedPartition,
       showUrlBar, canStart, canExport,
       selectedCategories, selectedEvents, eventCategories, filteredIndices, isAllCategoriesSelected,
       doMinimize, doMaximize, doClose, startRecording, stopRecording,

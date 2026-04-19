@@ -9,7 +9,7 @@ import {
   getActiveRecordings
 } from '../services/debugger'
 import { webviewManager } from '../services/webview-manager'
-import { listTabs } from '../services/store'
+import { getPageById, listTabs } from '../services/store'
 
 let debuggerWindow: BrowserWindow | null = null
 let embeddedWcId: number | null = null
@@ -39,11 +39,8 @@ export function registerDebuggerIpcHandlers(): void {
     debuggerWindow.loadFile(join(__dirname, '../preload/debugger-window.html'))
     debuggerWindow.once('ready-to-show', () => debuggerWindow?.show())
 
-    // 捕获内嵌 webview 的 webContentsId
     debuggerWindow.webContents.on('did-attach-webview', (_e, webContents) => {
-      console.log('[debugger-main] did-attach-webview, id:', webContents.id)
-      embeddedWcId = webContents.id
-      debuggerWindow?.webContents.send('debugger:embedded-wcid', embeddedWcId)
+      console.log('[debugger-main] did-attach-webview, id:', webContents.id, 'url:', webContents.getURL())
     })
 
     debuggerWindow.on('closed', () => {
@@ -66,12 +63,16 @@ export function registerDebuggerIpcHandlers(): void {
 
     for (const tab of tabs) {
       const wc = manager.getWebContents(tab.id)
+      const page = getPageById(tab.pageId)
+      const containerId = page?.containerId || ''
+      const partition = containerId ? `persist:container-${containerId}` : 'default'
       if (wc && !wc.isDestroyed()) {
         result.push({
           tabId: tab.id,
           title: tab.title || tab.url || '未命名',
           url: tab.url || '',
-          webContentsId: wc.id
+          webContentsId: wc.id,
+          partition
         })
       }
     }
@@ -126,5 +127,12 @@ export function registerDebuggerIpcHandlers(): void {
   ipcMain.handle('debugger:get-embedded-wcid', () => {
     console.log('[debugger-main] get-embedded-wcid requested, returning:', embeddedWcId)
     return embeddedWcId
+  })
+
+  ipcMain.handle('debugger:set-embedded-wcid', (_e, wcId: number | null) => {
+    embeddedWcId = typeof wcId === 'number' ? wcId : null
+    console.log('[debugger-main] set-embedded-wcid:', embeddedWcId)
+    debuggerWindow?.webContents.send('debugger:embedded-wcid', embeddedWcId)
+    return { success: true }
   })
 }
