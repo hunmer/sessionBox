@@ -1,4 +1,4 @@
-import { WebContents } from 'electron'
+import { dialog, WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import type { ActionRun, ActionStep } from './action-recorder'
 
@@ -93,6 +93,75 @@ function detachDebugger(targetWc: WebContents): void {
   } catch {
     // The debugger may already be detached by Electron or another caller.
   }
+}
+
+function filtersFromAccept(accept: unknown): Electron.FileFilter[] {
+  if (typeof accept !== 'string' || !accept.trim()) {
+    return [{ name: 'All Files', extensions: ['*'] }]
+  }
+
+  const extensions = new Set<string>()
+  const mimeGroups = new Set<string>()
+
+  for (const rawPart of accept.split(',')) {
+    const part = rawPart.trim().toLowerCase()
+    if (!part) continue
+
+    if (part.startsWith('.')) {
+      const ext = part.slice(1).trim()
+      if (ext) extensions.add(ext)
+      continue
+    }
+
+    if (part === 'image/*') {
+      mimeGroups.add('Images')
+      ;['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif', 'ico'].forEach(ext => extensions.add(ext))
+      continue
+    }
+
+    if (part === 'video/*') {
+      mimeGroups.add('Videos')
+      ;['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v'].forEach(ext => extensions.add(ext))
+      continue
+    }
+
+    if (part === 'audio/*') {
+      mimeGroups.add('Audio')
+      ;['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'].forEach(ext => extensions.add(ext))
+      continue
+    }
+
+    const subtype = part.split('/')[1]
+    if (subtype && !subtype.includes('*')) {
+      const normalized = subtype.split('+').pop() || subtype
+      if (/^[a-z0-9]+$/.test(normalized)) extensions.add(normalized)
+    }
+  }
+
+  if (extensions.size === 0) {
+    return [{ name: 'All Files', extensions: ['*'] }]
+  }
+
+  const name = mimeGroups.size > 0 ? Array.from(mimeGroups).join(' / ') : 'Accepted Files'
+  return [
+    { name, extensions: Array.from(extensions) },
+    { name: 'All Files', extensions: ['*'] }
+  ]
+}
+
+async function chooseFilesForStep(step: ActionStep): Promise<string[]> {
+  const multiple = !!step.payload?.multiple
+  const result = await dialog.showOpenDialog({
+    title: '选择要上传的文件',
+    properties: multiple ? ['openFile', 'multiSelections'] : ['openFile'],
+    filters: filtersFromAccept(step.payload?.accept)
+  })
+
+  if (result.canceled || result.filePaths.length === 0) {
+    throw new Error('用户取消了文件选择')
+  }
+
+  return result.filePaths
 }
 
 function buildElementExpression(step: ActionStep): string {
@@ -369,10 +438,7 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
   }
 
   if (step.type === 'file') {
-    const files = Array.isArray(step.payload?.files)
-      ? step.payload.files.map(file => String(file)).filter(Boolean)
-      : []
-    if (files.length === 0) throw new Error('file 动作缺少文件路径')
+    const files = await chooseFilesForStep(step)
 
     await attachDebugger(targetWc)
 
