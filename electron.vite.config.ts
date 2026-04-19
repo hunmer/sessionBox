@@ -1,5 +1,5 @@
 import { resolve } from 'path'
-import { existsSync, copyFileSync, mkdirSync } from 'node:fs'
+import { existsSync, copyFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
@@ -45,23 +45,34 @@ function copyChromeExtensionPreload() {
   }
 }
 
-// 自定义插件：在构建后复制 debugger-window.html
+// 自定义插件：在构建后复制 debugger-window.html 及其资源
 function copyDebuggerWindowHtml() {
   return {
     name: 'copy-debugger-window-html',
     closeBundle() {
-      const src = resolve(__dirname, 'electron/debugger-window.html')
       const destDir = resolve(__dirname, 'out/preload')
-      const dest = resolve(destDir, 'debugger-window.html')
+      if (!existsSync(destDir)) {
+        mkdirSync(destDir, { recursive: true })
+      }
 
-      if (existsSync(src)) {
-        if (!existsSync(destDir)) {
-          mkdirSync(destDir, { recursive: true })
+      const htmlSrc = resolve(__dirname, 'electron/debugger-window.html')
+      if (existsSync(htmlSrc)) {
+        copyFileSync(htmlSrc, resolve(destDir, 'debugger-window.html'))
+      }
+
+      const assetsDir = resolve(__dirname, 'electron/debugger-assets')
+      const destAssetsDir = resolve(destDir, 'debugger-assets')
+      if (existsSync(assetsDir)) {
+        if (!existsSync(destAssetsDir)) {
+          mkdirSync(destAssetsDir, { recursive: true })
         }
-        copyFileSync(src, dest)
-        console.log('[copy-debugger-window-html] Copied to out/preload/')
+        for (const file of readdirSync(assetsDir)) {
+          if (file.startsWith('.')) continue
+          copyFileSync(resolve(assetsDir, file), resolve(destAssetsDir, file))
+        }
+        console.log('[copy-debugger-window-html] Copied HTML + assets to out/preload/')
       } else {
-        console.warn('[copy-debugger-window-html] Source not found:', src)
+        console.warn('[copy-debugger-window-html] assets dir not found:', assetsDir)
       }
     }
   }
