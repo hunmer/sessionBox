@@ -141,12 +141,12 @@ export function registerDebuggerIpcHandlers(): void {
     return injectActionRecorder(wcId)
   })
 
-  ipcMain.handle('debugger:start-action-record', async (_e, wcId: number) => {
+  ipcMain.handle('debugger:start-action-record', async (_e, wcId: number, options?: { eventTypes?: any[] }) => {
     return startActionRecording(wcId, (step) => {
       if (debuggerWindow && !debuggerWindow.isDestroyed()) {
         debuggerWindow.webContents.send('debugger:action-step', step)
       }
-    })
+    }, { eventTypes: Array.isArray(options?.eventTypes) ? options.eventTypes as any : undefined })
   })
 
   ipcMain.handle('debugger:stop-action-record', (_e, wcId: number) => {

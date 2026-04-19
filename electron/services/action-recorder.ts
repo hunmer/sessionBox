@@ -42,9 +42,14 @@ export interface RecorderState {
   run: ActionRun
   listener: ((event: Electron.Event, level: number, message: string, line: number, sourceId: string) => void) | null
   onStep?: (step: ActionStep) => void
+  enabledEventTypes?: Set<ActionStepType>
   destroyedListener?: () => void
   domReadyListener?: () => void
   didFinishLoadListener?: () => void
+}
+
+export interface ActionRecorderOptions {
+  eventTypes?: ActionStepType[]
 }
 
 const activeRuns = new Map<number, RecorderState>()
@@ -76,12 +81,21 @@ function pushStep(wcId: number, step: ActionStep): void {
   }
 }
 
-export function buildRecorderScript(): string {
+function normalizeEventTypes(eventTypes?: ActionStepType[]): ActionStepType[] {
+  const supported: ActionStepType[] = ['click', 'input', 'change', 'scroll', 'keydown', 'hover', 'file']
+  if (!Array.isArray(eventTypes) || eventTypes.length === 0) return supported
+  const selected = supported.filter(type => eventTypes.includes(type))
+  return selected.length > 0 ? selected : supported
+}
+
+export function buildRecorderScript(options: ActionRecorderOptions = {}): string {
   const prefix = JSON.stringify(ACTION_PREFIX)
+  const enabledEventTypes = JSON.stringify(normalizeEventTypes(options.eventTypes))
 
   return `
 (() => {
   const ACTION_PREFIX = ${prefix};
+  const ENABLED_EVENT_TYPES = new Set(${enabledEventTypes});
   const IMPORTANT_KEYS = new Set(['Enter', 'Tab', 'Escape']);
   const MAX_TEXT = 120;
 
@@ -238,6 +252,7 @@ export function buildRecorderScript(): string {
   }
 
   function emit(type, target, payload, meta) {
+    if (!ENABLED_EVENT_TYPES.has(type)) return;
     const step = {
       id: makeId(),
       type,
@@ -411,14 +426,18 @@ export function buildRecorderScript(): string {
 `
 }
 
-export async function injectActionRecorder(wcId: number): Promise<{ success: boolean; error?: string }> {
+export async function injectActionRecorder(wcId: number, options: ActionRecorderOptions = {}): Promise<{ success: boolean; error?: string }> {
   const wc = getWebContents(wcId)
   if (!wc) return { success: false, error: 'WebContents 不存在或已销毁' }
 
   try {
+    const enabledEventTypes = normalizeEventTypes(options.eventTypes)
+    const desiredSignature = JSON.stringify(enabledEventTypes)
+    const currentSignature = await wc.executeJavaScript('window.__actionRecorderEventTypesSignature || ""').catch(() => '')
     const alreadyReady = await wc.executeJavaScript('!!window.__actionRecorderReady').catch(() => false)
-    if (!alreadyReady) {
-      await wc.executeJavaScript(buildRecorderScript())
+    if (!alreadyReady || currentSignature !== desiredSignature) {
+      await wc.executeJavaScript(buildRecorderScript({ eventTypes: enabledEventTypes }))
+      await wc.executeJavaScript(`window.__actionRecorderEventTypesSignature = ${JSON.stringify(desiredSignature)}`)
     }
     const ready = await wc.executeJavaScript('!!window.__actionRecorderReady').catch(() => false)
     if (!ready) return { success: false, error: '动作录制器注入失败' }
@@ -430,13 +449,16 @@ export async function injectActionRecorder(wcId: number): Promise<{ success: boo
 
 export async function startActionRecording(
   wcId: number,
-  onStep?: (step: ActionStep) => void
+  onStep?: (step: ActionStep) => void,
+  options: ActionRecorderOptions = {}
 ): Promise<{ success: boolean; error?: string; run?: ActionRun }> {
   const wc = getWebContents(wcId)
   if (!wc) return { success: false, error: 'WebContents 不存在或已销毁' }
   if (activeRuns.has(wcId)) return { success: false, error: '该页面已在动作录制中' }
 
-  const injected = await injectActionRecorder(wcId)
+  const enabledEventTypes = normalizeEventTypes(options.eventTypes)
+  const enabledEventTypeSet = new Set(enabledEventTypes)
+  const injected = await injectActionRecorder(wcId, { eventTypes: enabledEventTypes })
   if (!injected.success) return injected
 
   const run: ActionRun = {
@@ -455,6 +477,7 @@ export async function startActionRecording(
     try {
       const parsed = JSON.parse(json) as ActionStep
       if (!parsed || typeof parsed.type !== 'string') return
+      if (!enabledEventTypeSet.has(parsed.type)) return
       pushStep(wcId, parsed)
     } catch {
       // ignore malformed page messages
@@ -464,12 +487,12 @@ export async function startActionRecording(
   const destroyedListener = () => cleanupActionRecording(wcId, true)
   const domReadyListener = () => {
     if (activeRuns.has(wcId)) {
-      injectActionRecorder(wcId).catch(() => {})
+      injectActionRecorder(wcId, { eventTypes: enabledEventTypes }).catch(() => {})
     }
   }
   const didFinishLoadListener = () => {
     if (activeRuns.has(wcId)) {
-      injectActionRecorder(wcId).catch(() => {})
+      injectActionRecorder(wcId, { eventTypes: enabledEventTypes }).catch(() => {})
     }
   }
 
@@ -477,6 +500,7 @@ export async function startActionRecording(
     run,
     listener,
     onStep,
+    enabledEventTypes: enabledEventTypeSet,
     destroyedListener,
     domReadyListener,
     didFinishLoadListener

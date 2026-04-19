@@ -92,7 +92,7 @@
 
     <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
       :class="canStart ? 'bg-emerald-500 text-white' : 'bg-emerald-500/35 text-white cursor-not-allowed'"
-      :disabled="!canStart" @click="startRecording">注入并录制</button>
+      :disabled="!canStart" @click="openRecordEventDialog">注入并录制</button>
     <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
       :class="isRecording ? 'bg-rose-500 text-white' : 'bg-rose-500/35 text-white cursor-not-allowed'"
       :disabled="!isRecording" @click="stopRecording">停止录制</button>
@@ -315,6 +315,40 @@
     </div>
   </div>
 
+  <div v-if="recordEventDialogVisible" class="modal-mask" @click.self="closeRecordEventDialog">
+    <div class="modal-panel">
+      <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold text-slate-100">选择录制事件</div>
+          <div class="text-[11px] text-slate-500 mt-1">只记录勾选的事件类型</div>
+        </div>
+        <button class="icon-btn" @click="closeRecordEventDialog">×</button>
+      </div>
+      <div class="p-4">
+        <div class="grid grid-cols-2 gap-2">
+          <label v-for="eventType in recordEventTypes" :key="eventType.value"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900/70 border border-slate-800 cursor-pointer hover:bg-slate-800/80">
+            <input type="checkbox" class="step-checkbox" :checked="selectedRecordEventTypes.has(eventType.value)"
+              @change="toggleRecordEventType(eventType.value)">
+            <span class="text-xs text-slate-100">{{ eventType.label }}</span>
+          </label>
+        </div>
+        <div class="mt-4 flex items-center justify-between gap-2">
+          <button class="px-3 py-1.5 rounded border-none text-xs font-medium cursor-pointer bg-slate-700 text-slate-100 hover:opacity-85"
+            @click="selectAllRecordEventTypes">全选</button>
+          <div class="flex justify-end gap-2">
+            <button class="px-3 py-1.5 rounded border-none text-xs font-medium cursor-pointer bg-slate-700 text-slate-100 hover:opacity-85"
+              @click="closeRecordEventDialog">取消</button>
+            <button class="px-3 py-1.5 rounded border-none text-xs font-medium cursor-pointer hover:opacity-85"
+              :class="selectedRecordEventTypes.size > 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/35 text-white cursor-not-allowed'"
+              :disabled="selectedRecordEventTypes.size === 0"
+              @click="confirmStartRecording">开始录制</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div v-if="saveDialogVisible" class="modal-mask" @click.self="closeSaveDialog">
     <div class="modal-panel">
       <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
@@ -392,6 +426,7 @@ createApp({
     const retryCount = ref(5)
     const retryDelayMs = ref(300)
     const settingsDialogVisible = ref(false)
+    const recordEventDialogVisible = ref(false)
     const statusText = ref('就绪')
     const urlInput = ref('https://creator.douyin.com')
     const rightWidth = ref(360)
@@ -421,6 +456,16 @@ createApp({
     const editingStepName = ref('')
     const isCheckingSelectors = ref(false)
     const runnableSelectorKeys = ref(new Set())
+    const recordEventTypes = [
+      { value: 'click', label: '点击 click' },
+      { value: 'input', label: '输入 input' },
+      { value: 'change', label: '变更 change' },
+      { value: 'scroll', label: '滚动 scroll' },
+      { value: 'keydown', label: '按键 keydown' },
+      { value: 'hover', label: '悬停 hover' },
+      { value: 'file', label: '文件 file' }
+    ]
+    const selectedRecordEventTypes = ref(new Set(recordEventTypes.map(item => item.value)))
 
     const recordWebviewEl = ref(null)
     const playWebviewEl = ref(null)
@@ -538,8 +583,41 @@ createApp({
       await applySelectedTarget(val)
     })
 
-    async function startRecording() {
+    function clearReplayState() {
+      results.value = []
+      playStatus.value = 'idle'
+      isStoppingPlay.value = false
+      activePlayId.value = null
+      activeStepIndex.value = -1
+      currentPlayIndexMap.value = []
+      currentPlayTotal.value = 0
+      runnableSelectorKeys.value = new Set()
+    }
+
+    function openRecordEventDialog() {
       if (!currentWcId.value) return
+      clearReplayState()
+      selectedRecordEventTypes.value = new Set(recordEventTypes.map(item => item.value))
+      recordEventDialogVisible.value = true
+    }
+
+    function closeRecordEventDialog() {
+      recordEventDialogVisible.value = false
+    }
+
+    function toggleRecordEventType(type) {
+      const next = new Set(selectedRecordEventTypes.value)
+      next.has(type) ? next.delete(type) : next.add(type)
+      selectedRecordEventTypes.value = next
+    }
+
+    function selectAllRecordEventTypes() {
+      selectedRecordEventTypes.value = new Set(recordEventTypes.map(item => item.value))
+    }
+
+    async function confirmStartRecording() {
+      if (!currentWcId.value || selectedRecordEventTypes.value.size === 0) return
+      closeRecordEventDialog()
       statusText.value = '注入中...'
       const injectResult = await api.injectActionRecorder(currentWcId.value)
       if (!injectResult.success) {
@@ -554,11 +632,12 @@ createApp({
       targetRun.value = null
       playStatus.value = 'idle'
 
-      const result = await api.startActionRecord(currentWcId.value)
+      const eventTypes = Array.from(selectedRecordEventTypes.value)
+      const result = await api.startActionRecord(currentWcId.value, { eventTypes })
       if (result.success) {
         isRecording.value = true
         targetRun.value = result.run || null
-        statusText.value = '录制中...'
+        statusText.value = '录制中... 已启用事件: ' + eventTypes.join(', ')
       } else {
         statusText.value = '录制失败: ' + (result.error || '未知错误')
       }
@@ -1311,6 +1390,7 @@ createApp({
       targetId, tabs, currentWcId, recordWcId, playWcId, steps, results, activeStepIndex,
       activeView, playWebviewMounted, playInitialSrc,
       isRecording, isPlaying, isStoppingPlay, pauseOnError, retryCount, retryDelayMs, settingsDialogVisible,
+      recordEventDialogVisible, recordEventTypes, selectedRecordEventTypes,
       statusText, statusClass, urlInput, rightWidth, isResizing,
       recordPartition, recordInitialSrc, recordWebviewKey, playPartition, selectedSteps, recordWebviewEl, playWebviewEl, leftPanel, stepListEl,
       openStepMenuIndex, replayPointA, replayPointB, hasReplayRange,
@@ -1319,7 +1399,8 @@ createApp({
       editingStepInputEl, editingStepIndex, editingStepName, isCheckingSelectors,
       canStart, canExport, canPlay, canPlaySingle, canPlaySelection, canPlayRange, replayProgressPercent, replayProgressText, saveScopeText,
       doMinimize, doMaximize, doClose, openSettingsDialog, closeSettingsDialog,
-      startRecording, stopRecording, startPlay, stopPlay, refreshTabs,
+      openRecordEventDialog, closeRecordEventDialog, toggleRecordEventType, selectAllRecordEventTypes, confirmStartRecording,
+      stopRecording, startPlay, stopPlay, refreshTabs,
       exportRun, copySelected, replaySelected, replaySingle, replayFromIndex, replayRange,
       showStepDetail, closeStepDetail, toggleStepMenu, setReplayPointA, setReplayPointB, clearReplayRange, replayPointLabel,
       deleteStep, loadUrl, ensurePlayWebview, toggleStep, isTypeFilterActive, toggleTypeFilter, confirmRemoveTypeSteps,
