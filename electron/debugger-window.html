@@ -70,8 +70,6 @@
   <div class="flex items-center justify-between h-9 px-3 bg-[#0f172a] border-b border-slate-800" style="-webkit-app-region: drag; user-select: none;">
     <span class="text-[13px] font-medium">动作录制与复原</span>
     <div class="flex gap-2" style="-webkit-app-region: no-drag;">
-      <button class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-200 border border-slate-700 cursor-pointer hover:bg-slate-700"
-        @click="openSettingsDialog">设置</button>
       <button class="w-3 h-3 rounded-full border-none cursor-pointer bg-[#febc2e] hover:opacity-80" @click="doMinimize"></button>
       <button class="w-3 h-3 rounded-full border-none cursor-pointer bg-[#28c840] hover:opacity-80" @click="doMaximize"></button>
       <button class="w-3 h-3 rounded-full border-none cursor-pointer bg-[#ff5f57] hover:opacity-80" @click="doClose"></button>
@@ -103,8 +101,6 @@
     <button v-if="selectedSteps.size > 0"
       class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer bg-sky-600 text-white hover:opacity-85"
       :disabled="!canPlaySelection" @click="replaySelected">重播选中 ({{ selectedSteps.size }})</button>
-
-    <span class="text-[11px] ml-1" :class="statusClass">{{ statusText }}</span>
 
     <div class="w-full flex gap-2 items-center">
       <input type="text" v-model="urlInput" placeholder="输入录制 WebView URL..."
@@ -229,6 +225,11 @@
     </div>
   </div>
 
+  <div class="h-8 px-3 bg-[#0f172a] border-t border-slate-800 flex items-center justify-between gap-3 shrink-0">
+    <span class="text-[11px] min-w-0 truncate" :class="statusClass">{{ statusText }}</span>
+    <button class="icon-btn shrink-0" title="设置" @click="openSettingsDialog">⚙</button>
+  </div>
+
   <div v-if="detailStepIndex >= 0" class="modal-mask" @click.self="closeStepDetail">
     <div class="modal-panel">
       <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
@@ -261,6 +262,21 @@
           </span>
           <input type="checkbox" class="step-checkbox" v-model="pauseOnError">
         </label>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="block text-xs text-slate-400 mb-1">重试次数</span>
+            <input type="number" min="1" max="50" step="1" v-model.number="retryCount"
+              class="w-full bg-slate-900 text-slate-100 border border-slate-700 rounded px-3 py-2 text-sm outline-none focus:border-sky-400">
+          </label>
+          <label class="block">
+            <span class="block text-xs text-slate-400 mb-1">重试间隔 ms</span>
+            <input type="number" min="0" max="60000" step="100" v-model.number="retryDelayMs"
+              class="w-full bg-slate-900 text-slate-100 border border-slate-700 rounded px-3 py-2 text-sm outline-none focus:border-sky-400">
+          </label>
+        </div>
+        <div class="mt-3 text-[11px] text-slate-500 leading-5">
+          实际耗时 = 每次动作内部等待/定位超时 + 重试间隔；间隔 300ms 不代表一次失败只消耗 300ms。
+        </div>
       </div>
     </div>
   </div>
@@ -339,6 +355,8 @@ createApp({
     const isStoppingPlay = ref(false)
     const isRecording = ref(false)
     const pauseOnError = ref(true)
+    const retryCount = ref(5)
+    const retryDelayMs = ref(300)
     const settingsDialogVisible = ref(false)
     const statusText = ref('就绪')
     const urlInput = ref('https://creator.douyin.com')
@@ -595,7 +613,9 @@ createApp({
       }
       statusText.value = statusLabel || '复原执行中...'
       const result = await api.playActionRun(playWcId.value, runForPlay(stepSubset), {
-        pauseOnError: pauseOnError.value
+        pauseOnError: pauseOnError.value,
+        retryCount: retryCount.value,
+        retryDelayMs: retryDelayMs.value
       })
       if (!result.success) {
         playStatus.value = 'failed'
@@ -746,8 +766,11 @@ createApp({
       return point
     }
 
-    function deleteStep(index) {
+    async function deleteStep(index) {
       if (index < 0 || index >= steps.value.length) return
+      if (isPlaying.value && activeStepIndex.value === index) {
+        await stopPlay()
+      }
       steps.value = steps.value.filter((_, i) => i !== index)
       if (targetRun.value) targetRun.value.steps = steps.value
       results.value = []
@@ -1005,7 +1028,7 @@ createApp({
     return {
       targetId, tabs, currentWcId, recordWcId, playWcId, steps, results, activeStepIndex,
       activeView, playWebviewMounted, playInitialSrc,
-      isRecording, isPlaying, isStoppingPlay, pauseOnError, settingsDialogVisible,
+      isRecording, isPlaying, isStoppingPlay, pauseOnError, retryCount, retryDelayMs, settingsDialogVisible,
       statusText, statusClass, urlInput, rightWidth, isResizing,
       recordPartition, playPartition, selectedSteps, allSelected, recordWebviewEl, playWebviewEl, leftPanel, stepListEl,
       openStepMenuIndex, replayPointA, replayPointB, hasReplayRange,

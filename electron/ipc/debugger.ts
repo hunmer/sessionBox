@@ -140,13 +140,15 @@ export function registerDebuggerIpcHandlers(): void {
     return { success: true, path: result.filePath }
   })
 
-  ipcMain.handle('debugger:play-action-run', async (_e, targetWcId: number, run: ActionRun, options?: { pauseOnError?: boolean }) => {
+  ipcMain.handle('debugger:play-action-run', async (_e, targetWcId: number, run: ActionRun, options?: { pauseOnError?: boolean; retryCount?: number; retryDelayMs?: number }) => {
     const targetWc = webContents.fromId(targetWcId)
     if (!targetWc || targetWc.isDestroyed()) return { success: false, error: '目标 WebContents 不存在或已销毁' }
     if (!run || !Array.isArray(run.steps)) return { success: false, error: 'ActionRun 无效' }
 
     playActionRun(targetWc, run, {
       pauseOnError: options?.pauseOnError !== false,
+      retryCount: options?.retryCount,
+      retryDelayMs: options?.retryDelayMs,
       onState: (state) => {
         activePlayId = state.status === 'running' ? state.playId : activePlayId
         if (state.status !== 'running' && activePlayId === state.playId) activePlayId = null

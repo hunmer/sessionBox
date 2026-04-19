@@ -30,6 +30,8 @@ export interface ActionPlayOptions {
   pollIntervalMs?: number
   settleMs?: number
   pauseOnError?: boolean
+  retryCount?: number
+  retryDelayMs?: number
   onState?: (state: ActionPlayState) => void
   onStepResult?: (result: ActionStepResult, state: ActionPlayState) => void
 }
@@ -38,6 +40,8 @@ interface ActionPlayerRuntimeOptions {
   timeoutMs: number
   pollIntervalMs: number
   settleMs: number
+  retryCount: number
+  retryDelayMs: number
   fileSelectionCache: Map<string, string[]>
 }
 
@@ -47,8 +51,8 @@ interface ActivePlay {
 }
 
 const activePlays = new Map<string, ActivePlay>()
-const STEP_RETRY_COUNT = 5
-const STEP_RETRY_DELAY_MS = 300
+const DEFAULT_STEP_RETRY_COUNT = 5
+const DEFAULT_STEP_RETRY_DELAY_MS = 300
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -578,7 +582,10 @@ async function executeStepWithRetry(
 ): Promise<void> {
   let lastError: unknown = null
 
-  for (let attempt = 1; attempt <= STEP_RETRY_COUNT; attempt++) {
+  const retryCount = Math.max(1, Math.min(50, Number(options.retryCount || DEFAULT_STEP_RETRY_COUNT)))
+  const retryDelayMs = Math.max(0, Math.min(60000, Number(options.retryDelayMs || DEFAULT_STEP_RETRY_DELAY_MS)))
+
+  for (let attempt = 1; attempt <= retryCount; attempt++) {
     if (active.stopped) throw new Error('复原已停止')
 
     try {
@@ -589,12 +596,12 @@ async function executeStepWithRetry(
       return
     } catch (error) {
       lastError = error
-      if (attempt >= STEP_RETRY_COUNT) break
+      if (attempt >= retryCount) break
       active.state.retryAttempt = attempt
-      active.state.retryMax = STEP_RETRY_COUNT
+      active.state.retryMax = retryCount
       active.state.retryReason = error instanceof Error ? error.message : String(error || '未知错误')
       emitState(active, options)
-      await delayWithStop(STEP_RETRY_DELAY_MS, active)
+      await delayWithStop(retryDelayMs, active)
     }
   }
 
@@ -602,7 +609,7 @@ async function executeStepWithRetry(
   active.state.retryMax = undefined
   active.state.retryReason = undefined
   const message = lastError instanceof Error ? lastError.message : String(lastError || '未知错误')
-  throw new Error(`动作执行失败，已重试 ${STEP_RETRY_COUNT} 次: ${message}`)
+  throw new Error(`动作执行失败，已重试 ${retryCount} 次: ${message}`)
 }
 
 export async function playActionRun(
@@ -616,6 +623,8 @@ export async function playActionRun(
     pollIntervalMs: options.pollIntervalMs ?? 100,
     settleMs: options.settleMs ?? 300,
     pauseOnError: options.pauseOnError !== false,
+    retryCount: options.retryCount ?? DEFAULT_STEP_RETRY_COUNT,
+    retryDelayMs: options.retryDelayMs ?? DEFAULT_STEP_RETRY_DELAY_MS,
     fileSelectionCache: new Map<string, string[]>()
   }
 
