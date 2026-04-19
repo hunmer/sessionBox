@@ -62,6 +62,8 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'open-history', label: '打开历史记录', defaultAccelerator: 'CmdOrCtrl+H', supportsGlobal: true, group: 'tools' },
   { id: 'command-palette', label: '命令面板', defaultAccelerator: 'CmdOrCtrl+K', supportsGlobal: true, group: 'tools' },
   { id: 'new-container', label: '新建容器', defaultAccelerator: 'CmdOrCtrl+N', supportsGlobal: true, group: 'tools' },
+  { id: 'prev-workspace', label: '切换到上一个工作区', defaultAccelerator: 'CmdOrCtrl+Shift+Left', supportsGlobal: true, group: 'tools' },
+  { id: 'next-workspace', label: '切换到下一个工作区', defaultAccelerator: 'CmdOrCtrl+Shift+Right', supportsGlobal: true, group: 'tools' },
   // 窗口
   { id: 'toggle-window', label: '唤起/最小化主窗口', defaultAccelerator: '', supportsGlobal: true, group: 'window' }
 ]

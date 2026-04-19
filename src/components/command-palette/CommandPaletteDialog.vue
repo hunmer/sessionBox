@@ -16,6 +16,7 @@ const props = defineProps<{
   open: boolean
   toggleSidebar: () => void
   openSettings: () => void
+  openNewTabDialog: () => void
 }>()
 
 const emit = defineEmits<{
@@ -44,6 +45,7 @@ registerProviders(
   createAllProviders({
     toggleSidebar: props.toggleSidebar,
     openSettings: props.openSettings,
+    openNewTabDialog: props.openNewTabDialog,
   })
 )
 

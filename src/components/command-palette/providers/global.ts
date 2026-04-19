@@ -25,10 +25,7 @@ export function createGlobalCommandProvider(
           icon: Plus,
           shortcut: '⌘T',
           keywords: ['new', 'tab', '新建', '标签'],
-          run: () => {
-            const pageId = tabStore.activeTab?.pageId
-            if (pageId) tabStore.createTab(pageId)
-          },
+          run: () => callbacks.openNewTabDialog(),
         },
         {
           id: 'cmd-close-tab',

@@ -19,6 +19,7 @@ import RightPanel from '@/components/common/RightPanel.vue'
 import InternalPageHost from '@/components/common/InternalPageHost.vue'
 import SplitView from '@/components/tabs/SplitView.vue'
 import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
+import NewTabDialog from '@/components/tabs/NewTabDialog.vue'
 import CommandPaletteDialog from '@/components/command-palette/CommandPaletteDialog.vue'
 import ContainerSelectDialog from '@/components/containers/ContainerSelectDialog.vue'
 import { useSplitStore } from '@/stores/split'
@@ -66,6 +67,7 @@ const immersiveMode = ref(localStorage.getItem(IMMERSIVE_STORAGE_KEY) === '1')
 const verticalTabAddDialog = ref(false)
 const tabOverviewOpen = ref(false)
 const commandPaletteOpen = ref(false)
+const newTabDialogOpen = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
 const shouldShowWebContentsView = computed(() =>
   !!tabStore.activeTab && !tabStore.isInternalPage && !isWebviewBlocked.value
@@ -586,6 +588,22 @@ useIpcEvent('shortcut', (actionId) => {
     case 'open-history':
       tabStore.openInternalPage('history')
       break
+    case 'prev-workspace': {
+      const sorted = workspaceStore.sortedWorkspaces
+      if (sorted.length < 2) break
+      const curIdx = sorted.findIndex(w => w.id === workspaceStore.activeWorkspaceId)
+      const prev = sorted[(curIdx - 1 + sorted.length) % sorted.length]
+      if (prev) workspaceStore.activate(prev.id)
+      break
+    }
+    case 'next-workspace': {
+      const sorted = workspaceStore.sortedWorkspaces
+      if (sorted.length < 2) break
+      const curIdx = sorted.findIndex(w => w.id === workspaceStore.activeWorkspaceId)
+      const next = sorted[(curIdx + 1) % sorted.length]
+      if (next) workspaceStore.activate(next.id)
+      break
+    }
     case 'zoom-in':
       if (!window.dispatchEvent(new CustomEvent('workflow:zoom-in', { cancelable: true, detail: true }))) break
       if (tab) tabStore.zoomIn(tab.id)
@@ -936,11 +954,20 @@ useIpcEvent('shortcut', (actionId) => {
       :open="commandPaletteOpen"
       :toggle-sidebar="toggleSidebar"
       :open-settings="() => { settingsDialogOpen = true; settingsInitialTab = 'general' }"
+      :open-new-tab-dialog="() => { newTabDialogOpen = true }"
       @update:open="commandPaletteOpen = $event"
     />
 
     <!-- 外部链接容器选择对话框 -->
     <ContainerSelectDialog />
+
+    <!-- 新建标签页对话框（命令面板入口） -->
+    <NewTabDialog
+      :open="newTabDialogOpen"
+      @update:open="newTabDialogOpen = $event"
+      @select="(page) => tabStore.createTab(page.id)"
+      @navigate="(url) => tabStore.createTabForSite(url)"
+    />
 
     <!-- 更新提示弹窗 -->
     <UpdateNotification />

@@ -10,6 +10,7 @@ import { createGlobalCommandProvider } from './global'
 interface GlobalCallbacks {
   toggleSidebar: () => void
   openSettings: () => void
+  openNewTabDialog: () => void
 }
 
 /** 创建并返回所有已注册的 Provider 列表 */
