@@ -29,13 +29,13 @@ export function registerDebuggerIpcHandlers(): void {
       frame: false,
       title: '调试工具',
       webPreferences: {
-        preload: join(__dirname, '../debugger-preload/index.js'),
+        preload: join(__dirname, '../preload/debugger-preload.js'),
         sandbox: false,
         webviewTag: true
       }
     })
 
-    debuggerWindow.loadFile(join(__dirname, '../debugger-window.html'))
+    debuggerWindow.loadFile(join(__dirname, '../preload/debugger-window.html'))
     debuggerWindow.once('ready-to-show', () => debuggerWindow?.show())
 
     debuggerWindow.on('closed', () => {

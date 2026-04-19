@@ -45,6 +45,28 @@ function copyChromeExtensionPreload() {
   }
 }
 
+// 自定义插件：在构建后复制 debugger-window.html
+function copyDebuggerWindowHtml() {
+  return {
+    name: 'copy-debugger-window-html',
+    closeBundle() {
+      const src = resolve(__dirname, 'electron/debugger-window.html')
+      const destDir = resolve(__dirname, 'out/preload')
+      const dest = resolve(destDir, 'debugger-window.html')
+
+      if (existsSync(src)) {
+        if (!existsSync(destDir)) {
+          mkdirSync(destDir, { recursive: true })
+        }
+        copyFileSync(src, dest)
+        console.log('[copy-debugger-window-html] Copied to out/preload/')
+      } else {
+        console.warn('[copy-debugger-window-html] Source not found:', src)
+      }
+    }
+  }
+}
+
 export default defineConfig({
   main: {
     build: {
@@ -56,11 +78,12 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [copyChromeExtensionPreload()],
+    plugins: [copyChromeExtensionPreload(), copyDebuggerWindowHtml()],
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'preload/index.ts')
+          index: resolve(__dirname, 'preload/index.ts'),
+          'debugger-preload': resolve(__dirname, 'electron/debugger-preload.ts')
         }
       }
     }
