@@ -30,6 +30,28 @@ function sanitizePresetName(name: string): string {
 }
 
 export function registerDebuggerIpcHandlers(): void {
+  function getRuntimeTabTarget(wcId: number) {
+    const manager = (global as any).__webviewManager as typeof webviewManager | undefined
+    if (!manager) return null
+
+    for (const tab of listTabs()) {
+      const wc = manager.getWebContents(tab.id)
+      if (!wc || wc.isDestroyed() || wc.id !== wcId) continue
+      const viewInfo = manager.getViewInfo(tab.id)
+      const page = tab.pageId ? getPageById(tab.pageId) : undefined
+      const containerId = viewInfo?.containerId || page?.containerId || ''
+      return {
+        tab,
+        page,
+        containerId,
+        url: viewInfo?.url || wc.getURL() || tab.url || page?.url || '',
+        title: tab.title || wc.getTitle() || tab.url || '未命名',
+        partition: containerId ? `persist:container-${containerId}` : 'default'
+      }
+    }
+
+    return null
+  }
 
   ipcMain.handle('debugger:create-window', async () => {
     if (debuggerWindow && !debuggerWindow.isDestroyed()) {
@@ -82,20 +104,37 @@ export function registerDebuggerIpcHandlers(): void {
 
     for (const tab of tabs) {
       const wc = manager.getWebContents(tab.id)
-      const page = getPageById(tab.pageId)
-      const containerId = page?.containerId || ''
+      const viewInfo = manager.getViewInfo(tab.id)
+      const page = tab.pageId ? getPageById(tab.pageId) : undefined
+      const containerId = viewInfo?.containerId || page?.containerId || ''
       const partition = containerId ? `persist:container-${containerId}` : 'default'
       if (wc && !wc.isDestroyed()) {
         result.push({
           tabId: tab.id,
-          title: tab.title || tab.url || '未命名',
-          url: tab.url || '',
+          title: tab.title || wc.getTitle() || tab.url || '未命名',
+          url: viewInfo?.url || wc.getURL() || tab.url || '',
           webContentsId: wc.id,
           partition
         })
       }
     }
     return result
+  })
+
+  ipcMain.handle('debugger:get-target-info', (_e, wcId: number) => {
+    const wc = webContents.fromId(wcId)
+    if (!wc || wc.isDestroyed()) return { success: false, error: '目标 WebContents 不存在或已销毁' }
+    const runtimeTarget = getRuntimeTabTarget(wcId)
+
+    return {
+      success: true,
+      target: {
+        webContentsId: wc.id,
+        url: runtimeTarget?.url || wc.getURL() || '',
+        title: runtimeTarget?.title || wc.getTitle() || '',
+        partition: runtimeTarget?.partition || String((wc.session as any)?.partition || 'default')
+      }
+    }
   })
 
   ipcMain.handle('debugger:inject-action-recorder', async (_e, wcId: number) => {

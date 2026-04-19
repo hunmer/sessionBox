@@ -44,6 +44,10 @@
       text-align: left; padding: 8px 10px; font-size: 11px; cursor: pointer;
     }
     .step-menu button:hover { background: rgba(51, 65, 85, 0.85); color: #f8fafc; }
+    .step-name-input {
+      width: 100%; min-width: 0; border: 1px solid rgba(56, 189, 248, 0.7); border-radius: 6px;
+      background: rgba(15, 23, 42, 0.95); color: #f8fafc; padding: 2px 6px; outline: none;
+    }
     .modal-mask { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.72); display: flex; align-items: center; justify-content: center; padding: 24px; }
     .modal-panel { width: min(480px, calc(100vw - 48px)); max-height: min(560px, calc(100vh - 48px)); overflow: hidden; border: 1px solid rgba(71, 85, 105, 0.8); border-radius: 16px; background: #111827; box-shadow: 0 24px 80px rgba(2, 6, 23, 0.55); }
     .replay-progress {
@@ -77,7 +81,7 @@
   </div>
 
   <div class="px-4 py-2 bg-[#172033] border-b border-slate-800 flex flex-wrap items-center gap-2">
-    <select v-model="targetId"
+    <select v-model="targetId" @mousedown="refreshTabs"
       class="bg-slate-800 text-slate-100 border border-slate-700 rounded px-2 py-1 text-xs outline-none focus:border-sky-400 min-w-[220px]">
       <option value="">-- 选择录制页面 --</option>
       <option value="__embedded__">内嵌 WebView</option>
@@ -124,7 +128,7 @@
       </div>
       <div class="flex-1 min-h-0 overflow-hidden">
         <div v-show="activeView === 'record'" class="h-full flex flex-col min-h-0">
-          <webview ref="recordWebviewEl" :partition="recordPartition" src="about:blank"></webview>
+          <webview :key="recordWebviewKey" ref="recordWebviewEl" :partition="recordPartition" :src="recordInitialSrc"></webview>
         </div>
         <div v-if="playWebviewMounted" v-show="activeView === 'play'" class="h-full flex flex-col min-h-0">
           <webview ref="playWebviewEl" :partition="playPartition" :src="playInitialSrc"></webview>
@@ -144,17 +148,23 @@
           <button
             class="px-2 py-0.5 rounded text-[10px] bg-slate-700 text-slate-100 border-none cursor-pointer hover:opacity-85"
             @click="openLoadDialog">读取</button>
-          <button v-if="steps.length > 0"
-            class="px-2 py-0.5 rounded text-[10px] bg-slate-700 text-slate-100 border-none cursor-pointer hover:opacity-85"
-            @click="toggleAllVisible">{{ allSelected ? '取消全选' : '全选' }}</button>
+          <button v-if="steps.length > 0 && activeView === 'play'"
+            class="px-2 py-0.5 rounded text-[10px] border-none cursor-pointer hover:opacity-85"
+            :class="isCheckingSelectors ? 'bg-slate-700/50 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 text-white'"
+            :disabled="isCheckingSelectors"
+            @click="checkCurrentStepSelectors">{{ isCheckingSelectors ? '检查中' : '检查' }}</button>
         </div>
       </div>
       <div v-if="availableStepTypes.length > 1" class="px-3 py-2 border-b border-slate-800 flex flex-wrap gap-1.5">
         <button v-for="type in availableStepTypes" :key="type"
-          class="px-2 py-1 rounded-full border-none text-[10px] cursor-pointer hover:opacity-85"
+          class="px-2 py-1 rounded-full border-none text-[10px] cursor-pointer hover:opacity-85 inline-flex items-center gap-1"
           :class="isTypeFilterActive(type) ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-400'"
           @click="toggleTypeFilter(type, $event)">
           {{ type === '__all__' ? '全部' : type }}
+          <span v-if="type !== '__all__'"
+            class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[11px] leading-none hover:bg-white/15"
+            title="移除此类型步骤"
+            @click.stop="confirmRemoveTypeSteps(type)">×</span>
         </button>
       </div>
 
@@ -174,6 +184,9 @@
             <div class="flex items-center gap-1.5 min-w-0">
               <span class="text-slate-500 min-w-[26px] text-right">{{ item.index + 1 }}</span>
               <span class="inline-block px-[6px] py-[1px] rounded text-[10px] font-medium" :class="typeBadgeClass(item.step.type)">{{ item.step.type }}</span>
+              <span v-if="activeView === 'play' && isStepSelectorRunnable(item.step, item.index)"
+                class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.85)]"
+                title="当前页面可运行"></span>
               <div class="step-card-actions ml-auto flex items-center gap-1">
                 <button class="icon-btn" title="查看信息" @click.stop="showStepDetail(item.index)">i</button>
                 <button class="icon-btn" title="重播此动作" :disabled="!canPlaySingle" @click.stop="replaySingle(item.index)">↺</button>
@@ -185,6 +198,27 @@
               <button @click="setReplayPointA(item.index)">设置重播 A 点</button>
               <button @click="setReplayPointB(item.index)">设置重播 B 点</button>
               <button class="!text-rose-300" @click="deleteStep(item.index)">删除</button>
+            </div>
+            <div class="mt-1 flex items-center gap-2 min-w-0">
+              <template v-if="editingStepIndex === item.index">
+                <input
+                  ref="editingStepInputEl"
+                  v-model="editingStepName"
+                  type="text"
+                  class="step-name-input text-[11px]"
+                  placeholder="输入步骤名称"
+                  @click.stop
+                  @keydown.enter.prevent="commitStepNameEdit(item.index)"
+                  @keydown.esc.prevent="cancelStepNameEdit"
+                  @blur="commitStepNameEdit(item.index)" />
+              </template>
+              <div
+                v-else
+                class="min-w-0 flex-1 text-slate-200 truncate cursor-text"
+                :title="stepDisplayTitle(item.step)"
+                @dblclick.stop="startStepNameEdit(item.index)">
+                {{ stepDisplayTitle(item.step) }}
+              </div>
             </div>
             <div class="mt-1 flex items-start gap-2">
               <div class="min-w-0 flex-1 text-slate-300 truncate">{{ locatorSummary(item.step) }}</div>
@@ -231,15 +265,15 @@
   </div>
 
   <div v-if="detailStepIndex >= 0" class="modal-mask" @click.self="closeStepDetail">
-    <div class="modal-panel">
-      <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+    <div class="modal-panel flex flex-col">
+      <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0">
         <div>
           <div class="text-sm font-semibold text-slate-100">动作详情</div>
           <div class="text-[11px] text-slate-500 mt-1">第 {{ detailStepIndex + 1 }} 步</div>
         </div>
         <button class="icon-btn" @click="closeStepDetail">×</button>
       </div>
-      <div class="p-4 overflow-auto max-h-[70vh]">
+      <div class="p-4 overflow-y-auto min-h-0 step-list">
         <pre class="text-[11px] leading-5 whitespace-pre-wrap break-all text-slate-300">{{ detailStepJson }}</pre>
       </div>
     </div>
@@ -363,9 +397,12 @@ createApp({
     const rightWidth = ref(360)
     const isResizing = ref(false)
     const recordPartition = ref(EMBEDDED_PARTITION)
+    const recordInitialSrc = ref('about:blank')
+    const recordWebviewKey = ref('record:' + EMBEDDED_PARTITION + ':about:blank')
     const playPartition = ref('persist:debugger-embedded')
     const playWebviewMounted = ref(false)
     const playInitialSrc = ref('about:blank')
+    const selectedTargetInfo = ref(null)
     const selectedSteps = reactive(new Set())
     const currentPlayIndexMap = ref([])
     const currentPlayTotal = ref(0)
@@ -376,9 +413,14 @@ createApp({
     const saveIndices = ref([])
     const presetItems = ref([])
     const saveNameInputEl = ref(null)
+    const editingStepInputEl = ref(null)
     const openStepMenuIndex = ref(-1)
     const replayPointA = ref(-1)
     const replayPointB = ref(-1)
+    const editingStepIndex = ref(-1)
+    const editingStepName = ref('')
+    const isCheckingSelectors = ref(false)
+    const runnableSelectorKeys = ref(new Set())
 
     const recordWebviewEl = ref(null)
     const playWebviewEl = ref(null)
@@ -399,7 +441,6 @@ createApp({
       return steps.value.map((_, index) => index).filter(index => index >= start && index <= end)
     })
     const canPlayRange = computed(() => !isRecording.value && !isPlaying.value && replayRangeIndices.value.length > 0)
-    const allSelected = computed(() => steps.value.length > 0 && steps.value.every((_, i) => selectedSteps.has(i)))
     const uniqueStepTypes = computed(() => Array.from(new Set(steps.value.map(step => step.type))).sort())
     const availableStepTypes = computed(() => steps.value.length > 0 ? ['__all__', ...uniqueStepTypes.value] : [])
     const activeTypeFilters = ref(new Set())
@@ -450,12 +491,51 @@ createApp({
       tabs.value = await api.getTabs()
     }
 
-    watch(targetId, async (val) => {
+    function unwrapWebviewRef(view) {
+      const candidate = Array.isArray(view) ? view[0] : view
+      if (!candidate) return null
+      if (typeof candidate.getWebContentsId === 'function') return candidate
+      if (candidate.$el && typeof candidate.$el.getWebContentsId === 'function') return candidate.$el
+      return null
+    }
+
+    function syncRecordWebviewKey() {
+      recordWebviewKey.value = 'record:' + String(recordPartition.value || 'default') + ':' + String(recordInitialSrc.value || 'about:blank')
+    }
+
+    async function rebuildRecordWebview(partition, url) {
+      const normalizedPartition = partition || EMBEDDED_PARTITION
+      const normalizedUrl = url || 'about:blank'
+      recordWcId.value = null
+      currentWcId.value = null
+      recordPartition.value = normalizedPartition
+      recordInitialSrc.value = normalizedUrl
+      syncRecordWebviewKey()
+      await nextTick()
+    }
+
+    async function applySelectedTarget(val) {
       if (val === EMBEDDED || val === '') {
-        currentWcId.value = recordWcId.value || await api.getEmbeddedWcId()
-      } else {
-        currentWcId.value = parseInt(val, 10)
+        selectedTargetInfo.value = null
+        await rebuildRecordWebview(EMBEDDED_PARTITION, urlInput.value.trim() || 'about:blank')
+        return
       }
+
+      const targetWcId = parseInt(val, 10)
+      if (!targetWcId) return
+      const result = await api.getTargetInfo(targetWcId)
+      if (!result?.success || !result.target) {
+        statusText.value = '读取目标页面失败: ' + (result?.error || '未知错误')
+        return
+      }
+
+      selectedTargetInfo.value = result.target
+      if (result.target.url) urlInput.value = result.target.url
+      await rebuildRecordWebview(result.target.partition || EMBEDDED_PARTITION, result.target.url || 'about:blank')
+    }
+
+    watch(targetId, async (val) => {
+      await applySelectedTarget(val)
     })
 
     async function startRecording() {
@@ -512,6 +592,10 @@ createApp({
       return Array.from(selectedSteps).sort((a, b) => a - b)
     }
 
+    function stepSelectorKey(step, index) {
+      return String(step?.id || 'step-index-' + index)
+    }
+
     function runForPlay(stepSubset = steps.value) {
       const run = targetRun.value || {}
       return toPlainJson({
@@ -535,9 +619,10 @@ createApp({
         playWebviewMounted.value = true
       }
       nextTick(() => {
-        if (!playWebviewEl.value) return
+        const playView = unwrapWebviewRef(playWebviewEl.value)
+        if (!playView) return
         try {
-          playWcId.value = playWebviewEl.value.getWebContentsId()
+          playWcId.value = playView.getWebContentsId()
         } catch (error) {
           console.warn('[debugger] failed to read play wcId:', error)
         }
@@ -555,7 +640,8 @@ createApp({
             return
           }
           try {
-            if (playWebviewEl.value) playWcId.value = playWebviewEl.value.getWebContentsId()
+            const playView = unwrapWebviewRef(playWebviewEl.value)
+            if (playView) playWcId.value = playView.getWebContentsId()
           } catch {}
           if (playWcId.value || attempts > 50) {
             resolve(!!playWcId.value)
@@ -569,7 +655,7 @@ createApp({
 
     function loadPlayStartUrl(url, options = {}) {
       return new Promise((resolve) => {
-        const view = playWebviewEl.value
+        const view = unwrapWebviewRef(playWebviewEl.value)
         if (!view || !url || url === 'about:blank') {
           resolve(true)
           return
@@ -593,6 +679,15 @@ createApp({
       })
     }
 
+    async function shouldLoadForReplay(url, options = {}) {
+      if (options.loadStartUrl === false) {
+        const playView = unwrapWebviewRef(playWebviewEl.value)
+        const currentUrl = typeof playView?.getURL === 'function' ? playView.getURL() : ''
+        return !currentUrl || currentUrl === 'about:blank'
+      }
+      return true
+    }
+
     async function playSteps(stepSubset, statusLabel, indexMap, options = {}) {
       if (!Array.isArray(stepSubset) || stepSubset.length === 0) return
       const ready = await waitForPlayWebviewReady()
@@ -605,7 +700,7 @@ createApp({
       results.value = []
       playStatus.value = 'running'
       activeStepIndex.value = currentPlayIndexMap.value[0] ?? 0
-      const shouldLoadStartUrl = options.loadStartUrl !== false
+      const shouldLoadStartUrl = await shouldLoadForReplay(stepSubset[0]?.url || playStartUrl(), options)
       if (shouldLoadStartUrl) {
         const startUrl = stepSubset[0]?.url || playStartUrl()
         statusText.value = '加载复原页...'
@@ -641,19 +736,15 @@ createApp({
 
     function loadUrl() {
       const url = urlInput.value.trim()
-      if (url && recordWebviewEl.value) recordWebviewEl.value.loadURL(url)
+      if (!url) return
+      recordInitialSrc.value = url
+      syncRecordWebviewKey()
+      const recordView = unwrapWebviewRef(recordWebviewEl.value)
+      if (recordView) recordView.loadURL(url)
     }
 
     function toggleStep(index) {
       selectedSteps.has(index) ? selectedSteps.delete(index) : selectedSteps.add(index)
-    }
-
-    function toggleAllVisible() {
-      if (allSelected.value) {
-        selectedSteps.clear()
-      } else {
-        steps.value.forEach((_, i) => selectedSteps.add(i))
-      }
     }
 
     function isTypeFilterActive(type) {
@@ -673,6 +764,133 @@ createApp({
       } else {
         activeTypeFilters.value = new Set([type])
       }
+    }
+
+    function buildSelectorChecks() {
+      return filteredSteps.value
+        .map(item => ({
+          key: stepSelectorKey(item.step, item.index),
+          index: item.index,
+          locator: toPlainJson(item.step.locator || null)
+        }))
+        .filter(item => item.locator)
+    }
+
+    function selectorCheckScript(checks) {
+      return `
+(() => {
+  const checks = ${JSON.stringify(checks)};
+
+  function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
+    return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\\\$&');
+  }
+
+  function visible(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    return style.visibility !== 'hidden' && style.display !== 'none' && rect.width >= 0 && rect.height >= 0;
+  }
+
+  function byText(locator) {
+    if (!locator.text) return null;
+    const tag = locator.tag || '*';
+    const wanted = String(locator.text).trim();
+    const nodes = Array.from(document.querySelectorAll(tag));
+    return nodes.find(el => visible(el) && String(el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim().includes(wanted)) || null;
+  }
+
+  function byXPath(locator) {
+    if (!locator.xpath) return null;
+    try {
+      return document.evaluate(locator.xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+    } catch {
+      return null;
+    }
+  }
+
+  function findElement(locator) {
+    if (!locator) return null;
+    const attempts = [
+      () => locator.testId ? document.querySelector('[data-testid="' + cssEscape(locator.testId) + '"], [data-test="' + cssEscape(locator.testId) + '"], [data-cy="' + cssEscape(locator.testId) + '"]') : null,
+      () => locator.id ? document.getElementById(locator.id) : null,
+      () => locator.name ? document.querySelector((locator.tag || '*') + '[name="' + cssEscape(locator.name) + '"]') : null,
+      () => locator.css ? document.querySelector(locator.css) : null,
+      () => byText(locator),
+      () => byXPath(locator)
+    ];
+    for (const find of attempts) {
+      try {
+        const el = find();
+        if (el && visible(el)) return el;
+      } catch {}
+    }
+    return null;
+  }
+
+  return checks.filter(item => !!findElement(item.locator)).map(item => item.key);
+})();
+`
+    }
+
+    async function checkCurrentStepSelectors() {
+      if (isCheckingSelectors.value) return
+      const checks = buildSelectorChecks()
+      if (checks.length === 0) {
+        runnableSelectorKeys.value = new Set()
+        statusText.value = '当前步骤没有可检查的选择器'
+        return
+      }
+
+      const playView = unwrapWebviewRef(playWebviewEl.value)
+      if (!playView || typeof playView.executeJavaScript !== 'function') {
+        statusText.value = '检查失败: 复原 WebView 未就绪'
+        return
+      }
+
+      isCheckingSelectors.value = true
+      statusText.value = '正在检查复原页当前选择器...'
+      try {
+        const foundKeys = await playView.executeJavaScript(selectorCheckScript(checks))
+        runnableSelectorKeys.value = new Set(Array.isArray(foundKeys) ? foundKeys.map(String) : [])
+        statusText.value = '检查完成: ' + runnableSelectorKeys.value.size + ' / ' + checks.length + ' 个选择器可运行'
+      } catch (error) {
+        runnableSelectorKeys.value = new Set()
+        statusText.value = '检查失败: ' + (error instanceof Error ? error.message : String(error))
+      } finally {
+        isCheckingSelectors.value = false
+      }
+    }
+
+    function isStepSelectorRunnable(step, index) {
+      return runnableSelectorKeys.value.has(stepSelectorKey(step, index))
+    }
+
+    async function confirmRemoveTypeSteps(type) {
+      const count = steps.value.filter(step => step.type === type).length
+      if (count === 0) return
+      const confirmed = window.confirm('确认移除当前步骤列表中类型为「' + type + '」的 ' + count + ' 个步骤吗？')
+      if (!confirmed) return
+
+      if (isPlaying.value) await stopPlay()
+      const removeIndices = new Set(steps.value.map((step, index) => step.type === type ? index : -1).filter(index => index >= 0))
+      steps.value = steps.value.filter((_, index) => !removeIndices.has(index))
+      if (targetRun.value) targetRun.value.steps = steps.value
+      results.value = []
+      selectedSteps.clear()
+      currentPlayIndexMap.value = []
+      currentPlayTotal.value = 0
+      runnableSelectorKeys.value = new Set()
+      activeStepIndex.value = -1
+      replayPointA.value = -1
+      replayPointB.value = -1
+      openStepMenuIndex.value = -1
+      cancelStepNameEdit()
+      const nextFilters = new Set(activeTypeFilters.value)
+      nextFilters.delete(type)
+      activeTypeFilters.value = nextFilters
+      statusText.value = '已移除 ' + count + ' 个「' + type + '」步骤'
     }
 
     function copySelected() {
@@ -695,6 +913,45 @@ createApp({
 
     function toggleStepMenu(index) {
       openStepMenuIndex.value = openStepMenuIndex.value === index ? -1 : index
+    }
+
+    function stepDisplayTitle(step) {
+      return String(step?.name || step?.id || '')
+    }
+
+    function startStepNameEdit(index) {
+      const step = steps.value[index]
+      if (!step) return
+      editingStepIndex.value = index
+      editingStepName.value = String(step.name || '')
+      nextTick(() => {
+        const input = Array.isArray(editingStepInputEl.value) ? editingStepInputEl.value[0] : editingStepInputEl.value
+        if (!input) return
+        input.focus()
+        input.select()
+      })
+    }
+
+    function cancelStepNameEdit() {
+      editingStepIndex.value = -1
+      editingStepName.value = ''
+    }
+
+    function commitStepNameEdit(index) {
+      if (editingStepIndex.value !== index) return
+      const step = steps.value[index]
+      if (!step) {
+        cancelStepNameEdit()
+        return
+      }
+      const nextName = editingStepName.value.trim()
+      if (nextName) {
+        step.name = nextName
+      } else {
+        delete step.name
+      }
+      if (targetRun.value) targetRun.value.steps = steps.value
+      cancelStepNameEdit()
     }
 
     async function replaySingle(index) {
@@ -766,6 +1023,19 @@ createApp({
       return point
     }
 
+    function remapResultsAfterDelete(deletedIndex) {
+      results.value = results.value
+        .filter(result => result.index !== deletedIndex)
+        .map(result => ({
+          ...result,
+          index: result.index > deletedIndex ? result.index - 1 : result.index
+        }))
+      currentPlayIndexMap.value = currentPlayIndexMap.value
+        .filter(index => index !== deletedIndex)
+        .map(index => index > deletedIndex ? index - 1 : index)
+      currentPlayTotal.value = Math.max(0, currentPlayTotal.value - 1)
+    }
+
     async function deleteStep(index) {
       if (index < 0 || index >= steps.value.length) return
       if (isPlaying.value && activeStepIndex.value === index) {
@@ -773,9 +1043,9 @@ createApp({
       }
       steps.value = steps.value.filter((_, i) => i !== index)
       if (targetRun.value) targetRun.value.steps = steps.value
-      results.value = []
-      currentPlayIndexMap.value = []
-      currentPlayTotal.value = 0
+      if (editingStepIndex.value === index) cancelStepNameEdit()
+      if (editingStepIndex.value > index) editingStepIndex.value--
+      remapResultsAfterDelete(index)
       remapSelectedAfterDelete(index)
       replayPointA.value = remapPointAfterDelete(replayPointA.value, index)
       replayPointB.value = remapPointAfterDelete(replayPointB.value, index)
@@ -838,6 +1108,7 @@ createApp({
       results.value = []
       selectedSteps.clear()
       openStepMenuIndex.value = -1
+      cancelStepNameEdit()
       replayPointA.value = -1
       replayPointB.value = -1
       activeStepIndex.value = -1
@@ -980,44 +1251,55 @@ createApp({
 
     api.on('debugger:embedded-wcid', (wcId) => {
       recordWcId.value = wcId
-      if (targetId.value === EMBEDDED || !targetId.value) currentWcId.value = wcId
+      currentWcId.value = wcId
     })
 
     api.on('debugger:load-url', (url) => {
-      if (recordWebviewEl.value) recordWebviewEl.value.loadURL(url)
+      recordInitialSrc.value = url || 'about:blank'
+      syncRecordWebviewKey()
+      const recordView = unwrapWebviewRef(recordWebviewEl.value)
+      if (recordView) recordView.loadURL(url)
     })
 
     onMounted(async () => {
       await refreshTabs()
       targetId.value = EMBEDDED
-      recordWcId.value = await api.getEmbeddedWcId()
-      currentWcId.value = recordWcId.value
+      await rebuildRecordWebview(EMBEDDED_PARTITION, urlInput.value.trim() || 'about:blank')
 
       nextTick(() => {
-        if (recordWebviewEl.value) {
-          recordWebviewEl.value.addEventListener('dom-ready', async () => {
+        watch(recordWebviewEl, (view) => {
+          const webview = unwrapWebviewRef(view)
+          if (!webview) return
+          webview.addEventListener('dom-ready', async () => {
             try {
-              const wcId = recordWebviewEl.value.getWebContentsId()
+              const wcId = webview.getWebContentsId()
               recordWcId.value = wcId
+              currentWcId.value = wcId
               await api.setEmbeddedWcId(wcId)
-              if (targetId.value === EMBEDDED || !targetId.value) currentWcId.value = wcId
             } catch (error) {
               console.warn('[debugger] failed to set record wcId:', error)
             }
           })
-        }
+          try {
+            recordWcId.value = webview.getWebContentsId()
+            currentWcId.value = recordWcId.value
+          } catch (error) {
+            console.warn('[debugger] failed to read record wcId:', error)
+          }
+        }, { immediate: true })
 
         watch(playWebviewEl, (view) => {
-          if (!view) return
-          view.addEventListener('dom-ready', () => {
+          const webview = unwrapWebviewRef(view)
+          if (!webview) return
+          webview.addEventListener('dom-ready', () => {
             try {
-              playWcId.value = view.getWebContentsId()
+              playWcId.value = webview.getWebContentsId()
             } catch (error) {
               console.warn('[debugger] failed to set play wcId:', error)
             }
           })
           try {
-            playWcId.value = view.getWebContentsId()
+            playWcId.value = webview.getWebContentsId()
           } catch (error) {
             console.warn('[debugger] failed to read play wcId:', error)
           }
@@ -1030,18 +1312,21 @@ createApp({
       activeView, playWebviewMounted, playInitialSrc,
       isRecording, isPlaying, isStoppingPlay, pauseOnError, retryCount, retryDelayMs, settingsDialogVisible,
       statusText, statusClass, urlInput, rightWidth, isResizing,
-      recordPartition, playPartition, selectedSteps, allSelected, recordWebviewEl, playWebviewEl, leftPanel, stepListEl,
+      recordPartition, recordInitialSrc, recordWebviewKey, playPartition, selectedSteps, recordWebviewEl, playWebviewEl, leftPanel, stepListEl,
       openStepMenuIndex, replayPointA, replayPointB, hasReplayRange,
       availableStepTypes, filteredSteps,
       detailStepIndex, detailStepJson, saveDialogVisible, loadDialogVisible, saveNameInput, saveIndices, presetItems, saveNameInputEl,
+      editingStepInputEl, editingStepIndex, editingStepName, isCheckingSelectors,
       canStart, canExport, canPlay, canPlaySingle, canPlaySelection, canPlayRange, replayProgressPercent, replayProgressText, saveScopeText,
       doMinimize, doMaximize, doClose, openSettingsDialog, closeSettingsDialog,
-      startRecording, stopRecording, startPlay, stopPlay,
+      startRecording, stopRecording, startPlay, stopPlay, refreshTabs,
       exportRun, copySelected, replaySelected, replaySingle, replayFromIndex, replayRange,
       showStepDetail, closeStepDetail, toggleStepMenu, setReplayPointA, setReplayPointB, clearReplayRange, replayPointLabel,
-      deleteStep, loadUrl, ensurePlayWebview, toggleStep, toggleAllVisible, isTypeFilterActive, toggleTypeFilter, startResize,
+      deleteStep, loadUrl, ensurePlayWebview, toggleStep, isTypeFilterActive, toggleTypeFilter, confirmRemoveTypeSteps,
+      checkCurrentStepSelectors, isStepSelectorRunnable, startResize,
       saveCurrentSelection, openLoadDialog, closeLoadDialog, closeSaveDialog, confirmSaveSelection, loadPreset, formatTime,
-      locatorSummary, payloadSummary, typeBadgeClass, resultLabel, resultTextClass, stepRowClass
+      locatorSummary, payloadSummary, typeBadgeClass, resultLabel, resultTextClass, stepRowClass,
+      stepDisplayTitle, startStepNameEdit, cancelStepNameEdit, commitStepNameEdit
     }
   }
 }).mount('#app')

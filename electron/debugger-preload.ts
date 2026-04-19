@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 const api = {
   getTabs: (): Promise<any[]> => ipcRenderer.invoke('debugger:get-tabs'),
+  getTargetInfo: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:get-target-info', wcId),
   injectActionRecorder: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:inject-action-recorder', wcId),
   startActionRecord: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:start-action-record', wcId),
   stopActionRecord: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:stop-action-record', wcId),
