@@ -238,17 +238,17 @@
     // ===== 事件列表 =====
     const typeLabels = {
       0: 'domcontentloaded',
-      1: 'domcontentloaded',
-      2: 'incrementalsnapshot',
-      3: 'fullsnapshot',
+      1: 'load',
+      2: 'fullsnapshot',
+      3: 'incrementalsnapshot',
       4: 'meta',
-      5: 'load',
-      6: 'custom'
+      5: 'custom',
+      6: 'plugin'
     }
 
     function getEventTypeLabel(event) {
       const t = event.type
-      if (t === 2 && event.data) {
+      if (t === 3 && event.data) {
         const source = event.data.source
         const sourceMap = { 0:'mutation', 1:'mousemove', 2:'mouseinteraction', 3:'scroll', 4:'viewportresize', 5:'input', 6:'touchmove', 7:'mediainteraction', 8:'stylesheetrule', 9:'canvasmutation', 10:'font', 11:'log', 12:'drag', 13:'styledeclaration', 14:'selection', 15:'adoptedstylesheet', 16:'custom' }
         const label = sourceMap[source] || 'Incremental'
@@ -267,8 +267,8 @@
         return label
       }
       if (t === 4) return 'meta'
-      if (t === 1) return 'domcontentloaded'
-      if (t === 5) return 'load'
+      if (t === 0) return 'domcontentloaded'
+      if (t === 1) return 'load'
       return typeLabels[t] || 'Type' + t
     }
 
@@ -311,10 +311,10 @@
     }
 
     function getEventTypeGroup(event) {
-      if (event.type === 3) return 'FullSnapshot'
+      if (event.type === 2) return 'FullSnapshot'
       if (event.type === 4) return 'Meta'
-      if (event.type === 6) return 'Custom'
-      if (event.type === 2 && event.data) {
+      if (event.type === 5) return 'Custom'
+      if (event.type === 3 && event.data) {
         const source = event.data.source
         // 交互类事件高亮
         if (source === 2 || source === 3 || source === 5 || source === 6) return 'Interaction'
