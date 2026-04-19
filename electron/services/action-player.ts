@@ -20,6 +20,9 @@ export interface ActionPlayState {
   total: number
   results: ActionStepResult[]
   error?: string
+  retryAttempt?: number
+  retryMax?: number
+  retryReason?: string
 }
 
 export interface ActionPlayOptions {
@@ -30,15 +33,32 @@ export interface ActionPlayOptions {
   onStepResult?: (result: ActionStepResult, state: ActionPlayState) => void
 }
 
+interface ActionPlayerRuntimeOptions {
+  timeoutMs: number
+  pollIntervalMs: number
+  settleMs: number
+  fileSelectionCache: Map<string, string[]>
+}
+
 interface ActivePlay {
   state: ActionPlayState
   stopped: boolean
 }
 
 const activePlays = new Map<string, ActivePlay>()
+const STEP_RETRY_COUNT = 10
+const STEP_RETRY_DELAY_MS = 1000
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function delayWithStop(ms: number, active: ActivePlay): Promise<void> {
+  const started = Date.now()
+  while (Date.now() - started < ms) {
+    if (active.stopped) throw new Error('复原已停止')
+    await delay(Math.min(100, ms - (Date.now() - started)))
+  }
 }
 
 function emitState(active: ActivePlay, options?: ActionPlayOptions): void {
@@ -164,6 +184,18 @@ async function chooseFilesForStep(step: ActionStep): Promise<string[]> {
   return result.filePaths
 }
 
+function fileStepCacheKey(step: ActionStep): string {
+  return JSON.stringify({
+    url: step.url || '',
+    locator: step.locator || null,
+    payload: {
+      files: Array.isArray(step.payload?.files) ? step.payload.files : [],
+      multiple: !!step.payload?.multiple,
+      accept: step.payload?.accept || ''
+    }
+  })
+}
+
 function buildElementExpression(step: ActionStep): string {
   const locator = step.locator ?? null
   return `
@@ -235,6 +267,10 @@ async function waitForElement(targetWc: WebContents, step: ActionStep, timeoutMs
   throw new Error(`元素未找到: ${step.locator?.primary || 'unknown'}`)
 }
 
+async function hasTargetElement(targetWc: WebContents, step: ActionStep): Promise<boolean> {
+  return !!(await targetWc.executeJavaScript(buildElementExpression(step)).catch(() => false))
+}
+
 async function waitForLoad(targetWc: WebContents, timeoutMs: number): Promise<void> {
   if (targetWc.isDestroyed()) throw new Error('目标 WebContents 已销毁')
 
@@ -292,7 +328,7 @@ async function waitForNavigationOrSettled(targetWc: WebContents, previousUrl: st
   })
 }
 
-async function executeStep(targetWc: WebContents, step: ActionStep, options: Required<Pick<ActionPlayOptions, 'timeoutMs' | 'pollIntervalMs' | 'settleMs'>>): Promise<void> {
+async function executeStep(targetWc: WebContents, step: ActionStep, options: ActionPlayerRuntimeOptions): Promise<void> {
   if (targetWc.isDestroyed()) throw new Error('目标 WebContents 已销毁')
 
   if (step.type === 'navigate') {
@@ -303,7 +339,9 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
     return
   }
 
-  await waitForSourceUrl(targetWc, step.url, options.timeoutMs, options.pollIntervalMs)
+  if (!(await hasTargetElement(targetWc, step))) {
+    await waitForSourceUrl(targetWc, step.url, options.timeoutMs, options.pollIntervalMs)
+  }
 
   if (step.type === 'scroll' && step.payload?.page !== false) {
     const x = Number(step.payload?.x || 0)
@@ -438,7 +476,9 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
   }
 
   if (step.type === 'file') {
-    const files = await chooseFilesForStep(step)
+    const cacheKey = fileStepCacheKey(step)
+    const files = options.fileSelectionCache.get(cacheKey) || await chooseFilesForStep(step)
+    options.fileSelectionCache.set(cacheKey, files)
 
     await attachDebugger(targetWc)
 
@@ -506,6 +546,41 @@ async function executeStep(targetWc: WebContents, step: ActionStep, options: Req
   }
 }
 
+async function executeStepWithRetry(
+  targetWc: WebContents,
+  step: ActionStep,
+  options: ActionPlayerRuntimeOptions,
+  active: ActivePlay
+): Promise<void> {
+  let lastError: unknown = null
+
+  for (let attempt = 1; attempt <= STEP_RETRY_COUNT; attempt++) {
+    if (active.stopped) throw new Error('复原已停止')
+
+    try {
+      await executeStep(targetWc, step, options)
+      active.state.retryAttempt = undefined
+      active.state.retryMax = undefined
+      active.state.retryReason = undefined
+      return
+    } catch (error) {
+      lastError = error
+      if (attempt >= STEP_RETRY_COUNT) break
+      active.state.retryAttempt = attempt
+      active.state.retryMax = STEP_RETRY_COUNT
+      active.state.retryReason = error instanceof Error ? error.message : String(error || '未知错误')
+      emitState(active, options)
+      await delayWithStop(STEP_RETRY_DELAY_MS, active)
+    }
+  }
+
+  active.state.retryAttempt = undefined
+  active.state.retryMax = undefined
+  active.state.retryReason = undefined
+  const message = lastError instanceof Error ? lastError.message : String(lastError || '未知错误')
+  throw new Error(`动作执行失败，已重试 ${STEP_RETRY_COUNT} 次: ${message}`)
+}
+
 export async function playActionRun(
   targetWc: WebContents,
   run: ActionRun,
@@ -515,7 +590,8 @@ export async function playActionRun(
   const resolvedOptions = {
     timeoutMs: options.timeoutMs ?? 5000,
     pollIntervalMs: options.pollIntervalMs ?? 100,
-    settleMs: options.settleMs ?? 300
+    settleMs: options.settleMs ?? 300,
+    fileSelectionCache: new Map<string, string[]>()
   }
 
   const active: ActivePlay = {
@@ -554,7 +630,7 @@ export async function playActionRun(
       }
 
       try {
-        await executeStep(targetWc, step, resolvedOptions)
+        await executeStepWithRetry(targetWc, step, resolvedOptions, active)
       } catch (error) {
         result.status = 'failed'
         result.error = error instanceof Error ? error.message : String(error)

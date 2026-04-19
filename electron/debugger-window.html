@@ -484,7 +484,7 @@ createApp({
       })
     }
 
-    async function playSteps(stepSubset, statusLabel, indexMap) {
+    async function playSteps(stepSubset, statusLabel, indexMap, options = {}) {
       if (!Array.isArray(stepSubset) || stepSubset.length === 0) return
       const ready = await waitForPlayWebviewReady()
       if (!ready || !playWcId.value) {
@@ -496,9 +496,12 @@ createApp({
       results.value = []
       playStatus.value = 'running'
       activeStepIndex.value = currentPlayIndexMap.value[0] ?? 0
-      const startUrl = stepSubset[0]?.url || playStartUrl()
-      statusText.value = '加载复原页...'
-      await loadPlayStartUrl(startUrl)
+      const shouldLoadStartUrl = options.loadStartUrl !== false
+      if (shouldLoadStartUrl) {
+        const startUrl = stepSubset[0]?.url || playStartUrl()
+        statusText.value = '加载复原页...'
+        await loadPlayStartUrl(startUrl)
+      }
       statusText.value = statusLabel || '复原执行中...'
       const result = await api.playActionRun(playWcId.value, runForPlay(stepSubset))
       if (!result.success) {
@@ -508,7 +511,7 @@ createApp({
     }
 
     async function startPlay() {
-      return playSteps(steps.value, '复原执行中...', steps.value.map((_, index) => index))
+      return playSteps(steps.value, '复原执行中...', steps.value.map((_, index) => index), { loadStartUrl: true })
     }
 
     async function stopPlay() {
@@ -554,14 +557,14 @@ createApp({
     async function replaySingle(index) {
       const step = steps.value[index]
       if (!step || !canPlaySingle.value) return
-      await playSteps([step], '单步重播中...', [index])
+      await playSteps([step], '单步重播中...', [index], { loadStartUrl: false })
     }
 
     async function replaySelected() {
       if (!canPlaySelection.value) return
       const indices = selectedIndicesSorted()
       const selected = indices.map(i => steps.value[i]).filter(Boolean)
-      await playSteps(selected, '选中动作重播中...', indices)
+      await playSteps(selected, '选中动作重播中...', indices, { loadStartUrl: false })
     }
 
     function openSaveDialog(indices) {
@@ -738,7 +741,13 @@ createApp({
         ? (currentPlayIndexMap.value[state.currentIndex] ?? activeStepIndex.value)
         : activeStepIndex.value
       results.value = state.results || []
-      if (state.status === 'running') statusText.value = '复原执行中 ' + Math.max(0, state.currentIndex + 1) + '/' + state.total
+      if (state.status === 'running') {
+        if (state.retryAttempt && state.retryMax) {
+          statusText.value = '第 ' + state.retryAttempt + '/' + state.retryMax + ' 次重试: ' + (state.retryReason || '执行失败') + ' · ' + Math.max(0, state.currentIndex + 1) + '/' + state.total
+        } else {
+          statusText.value = '复原执行中 ' + Math.max(0, state.currentIndex + 1) + '/' + state.total
+        }
+      }
       if (state.status === 'completed') statusText.value = '复原完成 (' + state.total + ' 步)'
       if (state.status === 'failed') statusText.value = '复原失败: ' + (state.error || '未知错误')
       if (state.status === 'stopped') statusText.value = '复原已停止'

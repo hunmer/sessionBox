@@ -240,6 +240,29 @@ export function buildRecorderScript(): string {
     } catch {}
   }
 
+  let lastFileEmitSignature = '';
+  let lastFileEmitAt = 0;
+
+  function emitFile(target) {
+    const payload = {
+      files: valueFor(target),
+      multiple: !!target.multiple,
+      accept: target.accept || ''
+    };
+    const locator = locatorFor(target);
+    const signature = JSON.stringify({
+      type: 'file',
+      url: location.href,
+      locator,
+      payload
+    });
+    const now = Date.now();
+    if (signature === lastFileEmitSignature && now - lastFileEmitAt < 1000) return;
+    lastFileEmitSignature = signature;
+    lastFileEmitAt = now;
+    emit('file', target, payload, { sensitive: true });
+  }
+
   function onClick(event) {
     if (event.button !== 0) return;
     const fileInput = findRelatedFileInput(event.target);
@@ -254,11 +277,7 @@ export function buildRecorderScript(): string {
   function onInput(event) {
     const target = event.target;
     if (target && target.type === 'file') {
-      emit('file', target, {
-        files: valueFor(target),
-        multiple: !!target.multiple,
-        accept: target.accept || ''
-      }, { sensitive: true });
+      emitFile(target);
       return;
     }
     emit('input', target, { value: valueFor(target) }, { sensitive: false });
@@ -267,11 +286,7 @@ export function buildRecorderScript(): string {
   function onChange(event) {
     const target = event.target;
     if (target && target.type === 'file') {
-      emit('file', target, {
-        files: valueFor(target),
-        multiple: !!target.multiple,
-        accept: target.accept || ''
-      }, { sensitive: true });
+      emitFile(target);
       return;
     }
     emit('change', target, { value: valueFor(target) }, { sensitive: false });
