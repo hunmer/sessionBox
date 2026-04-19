@@ -241,14 +241,18 @@ createApp({
       }))
     })
 
-    // 新分类出现时自动选中
+    // 初始化时自动选中所有分类，之后不再自动添加新分类
+    let categoriesInitialized = false
     watch(eventCategories, (cats) => {
-      cats.forEach(c => { if (!selectedCategories.has(c.key)) selectedCategories.add(c.key) })
+      if (!categoriesInitialized && cats.length > 0) {
+        cats.forEach(c => selectedCategories.add(c.key))
+        categoriesInitialized = true
+      }
     }, { immediate: true })
 
-    // events 重置时清空选中
+    // events 重置时清空选中并重置分类初始化标记
     watch(allEvents, (val) => {
-      if (val.length === 0) { selectedCategories.clear(); selectedEvents.clear() }
+      if (val.length === 0) { selectedCategories.clear(); selectedEvents.clear(); categoriesInitialized = false }
     })
 
     const filteredIndices = computed(() => {
@@ -364,7 +368,10 @@ createApp({
     }
 
     function describeEventForLLM(ev) {
-      if (ev.type === 2 || ev.type === 4 || ev.type === 0 || ev.type === 1) return null
+      if (ev.type === 2) return '[DOM 快照]'
+      if (ev.type === 4) return '[元信息]'
+      if (ev.type === 0) return '[DOMContentLoaded]'
+      if (ev.type === 1) return '[页面加载完成]'
       if (ev.type === 3 && ev.data) {
         const src = ev.data.source
         if (src === 2) {
@@ -386,8 +393,18 @@ createApp({
           const payload = ev.data.payload ? String(ev.data.payload[0] || '').slice(0, 60) : ''
           return (lm[ev.data.level] || '日志') + (payload ? ': ' + payload : '')
         }
+        if (src === 0) return '[DOM 变更]'
+        if (src === 1) return '[鼠标移动]'
+        if (src === 4) return '[视口大小变更]'
+        if (src === 6) return '[触摸移动]'
+        if (src === 8) return '[样式规则变更]'
+        if (src === 9) return '[Canvas 变更]'
+        if (src === 12) return '[拖拽]'
+        if (src === 13) return '[样式声明变更]'
+        if (src === 15) return '[Adopted 样式表变更]'
+        return '[增量更新 source=' + src + ']'
       }
-      return null
+      return '[事件 type=' + ev.type + ']'
     }
 
     function loadUrl() {

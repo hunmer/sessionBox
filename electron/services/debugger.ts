@@ -71,7 +71,10 @@ export function startRecording(wcId: number, onEvent?: (event: any) => void): { 
   wc.executeJavaScript(`
     if (window.__rrwebStopFn) { window.__rrwebStopFn(); window.__rrwebStopFn = null }
     window.__rrwebStopFn = rrweb.record({
-      emit: event => console.debug('${EVENT_PREFIX}' + JSON.stringify(event))
+      emit: event => {
+        if (event.type === 3 && event.data && event.data.source === 0) return
+        console.debug('${EVENT_PREFIX}' + JSON.stringify(event))
+      }
     })
   `).catch(() => {})
 
