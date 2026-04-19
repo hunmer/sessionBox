@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="./debugger-assets/rrweb-replay.css">
   <script src="./debugger-assets/tailwind.browser.js"></script>
   <style>
-    body { margin: 0; padding: 0; background: #1a1a2e; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    body { margin: 0; padding: 0; background: #1a1a2e; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+    #app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
     #replayer { width: 100%; height: 100%; min-height: 0; overflow: hidden; }
     #replayer .rr-player { width: 100% !important; height: 100% !important; display: flex !important; flex-direction: column !important; }
@@ -81,7 +82,7 @@
   </div>
 
   <!-- 主内容区 -->
-  <div class="flex flex-1 overflow-hidden" style="height: calc(100vh - 36px - 44px);">
+  <div class="flex flex-1 min-h-0 overflow-hidden">
     <!-- 左侧面板 -->
     <div class="flex-1 flex flex-col min-w-[300px] overflow-hidden" ref="leftPanel">
       <div class="flex bg-[#1e1e3a] border-b border-[#2a2a4a]">
@@ -122,6 +123,9 @@
 
       <!-- 类型过滤 -->
       <div v-if="allEvents.length > 0" class="px-2 py-1.5 border-b border-[#2a2a4a] flex flex-wrap gap-1">
+        <button class="px-2 py-0.5 rounded text-[10px] cursor-pointer border-none transition-opacity"
+          :class="isAllCategoriesSelected ? 'bg-indigo-500/20 text-indigo-400' : 'bg-[#2a2a4a] text-slate-500 opacity-40'"
+          @click="selectAllCategories">全部 <span class="opacity-70">{{ allEvents.length }}</span></button>
         <button v-for="cat in eventCategories" :key="cat.key"
           class="px-2 py-0.5 rounded text-[10px] cursor-pointer border-none transition-opacity"
           :class="selectedCategories.has(cat.key) ? cat.activeClass : 'bg-[#2a2a4a] text-slate-500 opacity-40'"
@@ -268,6 +272,16 @@ createApp({
       selectedCategories.add(key)
     }
 
+    const isAllCategoriesSelected = computed(() => {
+      const cats = eventCategories.value
+      return cats.length > 0 && cats.every(c => selectedCategories.has(c.key))
+    })
+
+    function selectAllCategories() {
+      selectedCategories.clear()
+      eventCategories.value.forEach(c => selectedCategories.add(c.key))
+    }
+
     function toggleEventSelect(i) {
       selectedEvents.has(i) ? selectedEvents.delete(i) : selectedEvents.add(i)
     }
@@ -344,67 +358,55 @@ createApp({
       statusText.value = r.success ? '已导出: ' + r.path : '导出失败: ' + (r.error || '未知错误')
     }
 
-    // ---- 导出选中事件为 LLM 可读操作步骤 ----
+    // ---- 导出选中事件为 JSON ----
     function exportSelected() {
       const indices = Array.from(selectedEvents).sort((a, b) => a - b)
       if (indices.length === 0) return
-      const baseTs = allEvents.value[0]?.timestamp || 0
-      const lines = []
-      let step = 1
-      indices.forEach(i => {
-        const ev = allEvents.value[i]
-        const desc = describeEventForLLM(ev)
-        if (!desc) return
-        const relTime = ((ev.timestamp - baseTs) / 1000).toFixed(1)
-        lines.push(step + '. [' + relTime + 's] ' + desc)
-        step++
-      })
-      const text = lines.join('\n')
+      const items = indices.map(i => buildActionItem(allEvents.value[i])).filter(Boolean)
+      const text = JSON.stringify(items, null, 2)
       navigator.clipboard.writeText(text).then(() => {
-        statusText.value = '已复制 ' + lines.length + ' 步操作到剪贴板'
+        statusText.value = '已复制 ' + items.length + ' 步操作到剪贴板 (JSON)'
       }).catch(() => {
         statusText.value = '复制失败，请重试'
       })
     }
 
-    function describeEventForLLM(ev) {
-      if (ev.type === 2) return '[DOM 快照]'
-      if (ev.type === 4) return '[元信息]'
-      if (ev.type === 0) return '[DOMContentLoaded]'
-      if (ev.type === 1) return '[页面加载完成]'
+    function buildSelector(ev) {
+      if (!ev.data) return ''
+      const tag = (ev.data.tagName || '').toLowerCase()
+      const id = ev.data.id
+      const classes = ev.data.attributes?.class
+      let sel = tag || ''
+      if (id) sel += '#' + id
+      else if (classes) sel += '.' + classes.trim().split(/\s+/).join('.')
+      return sel || ''
+    }
+
+    function buildActionItem(ev) {
       if (ev.type === 3 && ev.data) {
         const src = ev.data.source
         if (src === 2) {
-          const im = { 0:'鼠标抬起', 1:'鼠标按下', 2:'点击', 3:'右键点击', 4:'双击', 5:'聚焦', 6:'失焦', 7:'触摸开始', 8:'触摸移动', 9:'触摸结束' }
-          const action = im[ev.data.type] || '鼠标交互'
-          const tag = ev.data.tagName || ''
-          const id = ev.data.id || ''
-          let target = id ? '#' + id : tag ? '<' + tag.toLowerCase() + '>' : ''
-          return action + (target ? ' ' + target : '')
+          const im = { 0:'mouseup', 1:'mousedown', 2:'click', 3:'contextmenu', 4:'dblclick', 5:'focus', 6:'blur', 7:'touchstart', 8:'touchmove', 9:'touchend' }
+          return { action: im[ev.data.type] || 'mouseInteraction', selector: buildSelector(ev) }
         }
         if (src === 5) {
-          const tag = ev.data.tagName || 'input'
-          const text = ev.data.text || ''
-          return '在 <' + tag.toLowerCase() + '> 中输入 "' + text.slice(0, 50) + '"'
+          return { action: 'input', selector: buildSelector(ev), value: (ev.data.text || '').slice(0, 100) }
         }
-        if (src === 3) return '滚动页面'
+        if (src === 3) {
+          return { action: 'scroll', selector: buildSelector(ev) }
+        }
         if (src === 11) {
-          const lm = { 0:'输出日志', 1:'警告', 2:'错误' }
-          const payload = ev.data.payload ? String(ev.data.payload[0] || '').slice(0, 60) : ''
-          return (lm[ev.data.level] || '日志') + (payload ? ': ' + payload : '')
+          const lm = { 0:'log', 1:'warn', 2:'error' }
+          return { action: lm[ev.data.level] || 'log', selector: '', message: ev.data.payload ? String(ev.data.payload[0] || '').slice(0, 100) : '' }
         }
-        if (src === 0) return '[DOM 变更]'
-        if (src === 1) return '[鼠标移动]'
-        if (src === 4) return '[视口大小变更]'
-        if (src === 6) return '[触摸移动]'
-        if (src === 8) return '[样式规则变更]'
-        if (src === 9) return '[Canvas 变更]'
-        if (src === 12) return '[拖拽]'
-        if (src === 13) return '[样式声明变更]'
-        if (src === 15) return '[Adopted 样式表变更]'
-        return '[增量更新 source=' + src + ']'
+        if (src === 1) return { action: 'mousemove', selector: '' }
+        if (src === 6) return { action: 'touchmove', selector: '' }
+        if (src === 12) return { action: 'drag', selector: buildSelector(ev) }
+        return { action: 'source' + src, selector: buildSelector(ev) }
       }
-      return '[事件 type=' + ev.type + ']'
+      if (ev.type === 2) return { action: 'snapshot', selector: '' }
+      if (ev.type === 4) return { action: 'meta', selector: '' }
+      return { action: 'type' + ev.type, selector: '' }
     }
 
     function loadUrl() {
@@ -423,11 +425,6 @@ createApp({
           seekReplayer(ev.timestamp - baseTs)
         }
       }
-      // 滚动到可视区域
-      nextTick(() => {
-        const el = eventListEl.value?.querySelector('[data-ev-index="' + index + '"]')
-        if (el) el.scrollIntoView({ block: 'nearest', behavior: 'auto' })
-      })
     }
 
     function seekReplayer(timeMs) {
@@ -537,10 +534,6 @@ createApp({
       const updateActive = (idx) => {
         if (idx < 0 || idx === activeEventIndex.value) return
         activeEventIndex.value = idx
-        nextTick(() => {
-          const el = eventListEl.value?.querySelector('[data-ev-index="' + idx + '"]')
-          if (el) el.scrollIntoView({ block: 'nearest', behavior: 'auto' })
-        })
       }
       const findById = (castEvent) => {
         if (!castEvent) return -1
@@ -557,7 +550,10 @@ createApp({
         }
         return 0
       }
-      const castHandler = (ev) => updateActive(findById(ev))
+      const castHandler = (ev) => {
+        const idx = findById(ev)
+        updateActive(idx >= 0 ? idx : findByTime(ev?.timestamp || 0))
+      }
       const replayer = typeof player.getReplayer === 'function' ? player.getReplayer() : player.replayer
       if (replayer && typeof replayer.on === 'function') replayer.on('event-cast', castHandler)
       if (typeof player.on === 'function') {
@@ -609,11 +605,12 @@ createApp({
       activeTab, urlInput, rightWidth, isResizing, replayHint,
       webviewEl, replayerEl, eventListEl, leftPanel, rightPanel,
       showUrlBar, canStart, canExport,
-      selectedCategories, selectedEvents, eventCategories, filteredIndices,
+      selectedCategories, selectedEvents, eventCategories, filteredIndices, isAllCategoriesSelected,
       doMinimize, doMaximize, doClose, startRecording, stopRecording,
       exportEvents, exportSelected, loadUrl, goToEvent, startResize,
       eventLabel, eventBadgeClass, formatTs,
-      toggleCategory, selectOnlyCategory, toggleEventSelect, selectAllVisible, clearSelection
+      toggleCategory, selectOnlyCategory, toggleEventSelect, selectAllVisible, clearSelection,
+      selectAllCategories
     }
   }
 }).mount('#app')
