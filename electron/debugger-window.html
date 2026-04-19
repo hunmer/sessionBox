@@ -316,15 +316,21 @@ createApp({
     async function stopRecording() {
       if (!currentWcId.value) return
       const r = await api.stopRecord(currentWcId.value)
+      isRecording.value = false
       if (r.success) {
-        isRecording.value = false
         const events = await api.getEvents(currentWcId.value)
         allEvents.value = events
         statusText.value = '已停止 (' + events.length + ' 事件)'
         if (events.length > 0) { playEvents(events); activeTab.value = 'replay' }
         else { replayHint.value = '无录制事件' }
       } else {
-        statusText.value = '停止失败: ' + (r.error || '未知错误')
+        // 即使主进程报错也尝试获取已录制的事件
+        const events = await api.getEvents(currentWcId.value)
+        allEvents.value = events
+        statusText.value = events.length > 0
+          ? '已停止 (' + events.length + ' 事件, ' + (r.error || '') + ')'
+          : '停止失败: ' + (r.error || '未知错误')
+        if (events.length > 0) { playEvents(events); activeTab.value = 'replay' }
       }
     }
 
@@ -551,6 +557,14 @@ createApp({
     api.on('debugger:event', (event) => {
       if (!isRecording.value) return
       allEvents.value.push(event)
+    })
+
+    // 主进程通知录制被自动停止（如页面导航）
+    api.on('debugger:recording-stopped', () => {
+      if (isRecording.value) {
+        isRecording.value = false
+        statusText.value = '录制已自动停止（页面导航）'
+      }
     })
 
     // 主进程推送内嵌 webview 的 webContentsId
