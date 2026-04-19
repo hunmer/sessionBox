@@ -497,9 +497,7 @@ useIpcEvent('shortcut', (actionId) => {
   const tab = tabStore.activeTab
   switch (action) {
     case 'new-tab': {
-      // 新建标签页：用当前活动页面的 pageId 或第一个 page
-      const currentPageId = tab?.pageId || pageStore.pages[0]?.id
-      if (currentPageId) tabStore.createTab(currentPageId)
+      newTabDialogOpen.value = true
       break
     }
     case 'close-tab':
