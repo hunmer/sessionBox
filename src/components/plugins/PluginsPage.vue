@@ -205,31 +205,57 @@ async function handleUninstall(pluginId: string) {
   <div class="h-full flex flex-col bg-background text-foreground">
     <!-- 标题栏 -->
     <div class="flex items-center gap-2 px-4 py-2 border-b border-border flex-shrink-0">
-      <h2 class="text-sm font-semibold flex-shrink-0">{{ isStoreMode ? '插件商店' : '插件管理' }}</h2>
+      <h2 class="text-sm font-semibold flex-shrink-0">
+        {{ isStoreMode ? '插件商店' : '插件管理' }}
+      </h2>
       <div class="flex-1" />
       <div class="flex items-center gap-1.5 mr-2">
         <Store class="w-3.5 h-3.5 text-muted-foreground" />
         <span class="text-xs text-muted-foreground">商店</span>
-        <Switch :model-value="storeMode" @update:model-value="handleStoreModeToggle" />
+        <Switch
+          :model-value="storeMode"
+          @update:model-value="handleStoreModeToggle"
+        />
       </div>
       <template v-if="!isStoreMode">
-        <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleImportPlugin">
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-7 text-xs gap-1"
+          @click="handleImportPlugin"
+        >
           <PackagePlus class="w-3.5 h-3.5" />
           导入插件
         </Button>
-        <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleOpenFolder">
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-7 text-xs gap-1"
+          @click="handleOpenFolder"
+        >
           <FolderOpen class="w-3.5 h-3.5" />
           打开文件夹
         </Button>
       </template>
-      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleRefresh">
-        <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': remoteLoading }" />
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        @click="handleRefresh"
+      >
+        <RefreshCw
+          class="w-3.5 h-3.5"
+          :class="{ 'animate-spin': remoteLoading }"
+        />
         刷新
       </Button>
     </div>
 
     <!-- 过滤栏 -->
-    <div v-if="hasPlugins" class="px-4 py-2 border-b border-border space-y-2 flex-shrink-0">
+    <div
+      v-if="hasPlugins"
+      class="px-4 py-2 border-b border-border space-y-2 flex-shrink-0"
+    >
       <div class="flex items-center gap-2">
         <div class="relative flex-1">
           <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -239,14 +265,23 @@ async function handleUninstall(pluginId: string) {
             class="h-7 pl-8 text-xs"
           />
         </div>
-        <Select v-if="!isStoreMode" v-model="filterEnabled">
+        <Select
+          v-if="!isStoreMode"
+          v-model="filterEnabled"
+        >
           <SelectTrigger class="w-[120px] !h-7 text-xs py-0 px-2">
             <SelectValue placeholder="全部状态" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">全部状态</SelectItem>
-            <SelectItem value="enabled">已启用</SelectItem>
-            <SelectItem value="disabled">已禁用</SelectItem>
+            <SelectItem value="all">
+              全部状态
+            </SelectItem>
+            <SelectItem value="enabled">
+              已启用
+            </SelectItem>
+            <SelectItem value="disabled">
+              已禁用
+            </SelectItem>
           </SelectContent>
         </Select>
         <Button
@@ -260,7 +295,10 @@ async function handleUninstall(pluginId: string) {
         </Button>
       </div>
 
-      <div v-if="allTags.length" class="flex flex-wrap gap-1">
+      <div
+        v-if="allTags.length"
+        class="flex flex-wrap gap-1"
+      >
         <Badge
           v-for="tag in allTags"
           :key="tag"
@@ -280,12 +318,20 @@ async function handleUninstall(pluginId: string) {
     <div class="flex-1 min-h-0 overflow-auto">
       <div class="w-full p-6">
         <!-- 加载中 -->
-        <div v-if="isStoreMode && remoteLoading" class="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <div
+          v-if="isStoreMode && remoteLoading"
+          class="flex flex-col items-center justify-center py-20 text-muted-foreground"
+        >
           <RefreshCw class="w-6 h-6 animate-spin mb-2" />
-          <p class="text-sm">加载在线插件...</p>
+          <p class="text-sm">
+            加载在线插件...
+          </p>
         </div>
         <!-- 正常列表 -->
-        <div v-else-if="hasPlugins && hasFilteredResults" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div
+          v-else-if="hasPlugins && hasFilteredResults"
+          class="grid grid-cols-2 md:grid-cols-3 gap-4"
+        >
           <PluginCard
             v-for="plugin in filteredPlugins"
             :key="plugin.id"
@@ -299,12 +345,24 @@ async function handleUninstall(pluginId: string) {
             @uninstall="handleUninstall"
           />
         </div>
-        <div v-else-if="hasPlugins && !hasFilteredResults" class="flex flex-col items-center justify-center py-20 text-muted-foreground">
-          <p class="text-sm">没有匹配的插件</p>
-          <p class="text-xs mt-1">尝试调整搜索条件或过滤选项</p>
+        <div
+          v-else-if="hasPlugins && !hasFilteredResults"
+          class="flex flex-col items-center justify-center py-20 text-muted-foreground"
+        >
+          <p class="text-sm">
+            没有匹配的插件
+          </p>
+          <p class="text-xs mt-1">
+            尝试调整搜索条件或过滤选项
+          </p>
         </div>
-        <div v-else class="flex flex-col items-center justify-center py-20 text-muted-foreground">
-          <p class="text-sm">{{ isStoreMode ? '商店暂无插件' : '暂无插件' }}</p>
+        <div
+          v-else
+          class="flex flex-col items-center justify-center py-20 text-muted-foreground"
+        >
+          <p class="text-sm">
+            {{ isStoreMode ? '商店暂无插件' : '暂无插件' }}
+          </p>
           <p class="text-xs mt-1">
             {{ isStoreMode ? '请稍后再试或检查网络连接' : '将插件放置在用户数据目录的 plugins 文件夹中' }}
           </p>

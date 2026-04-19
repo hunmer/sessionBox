@@ -106,10 +106,16 @@ async function handleRerun() {
     <div class="flex items-center justify-between px-3 py-1.5">
       <div class="flex items-center gap-2">
         <span class="font-mono font-medium text-foreground">{{ toolCall.name }}</span>
-        <span v-if="duration" class="text-[10px] text-muted-foreground">{{ duration }}</span>
+        <span
+          v-if="duration"
+          class="text-[10px] text-muted-foreground"
+        >{{ duration }}</span>
       </div>
       <div class="flex items-center gap-1">
-        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" :class="config.class">
+        <span
+          class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+          :class="config.class"
+        >
           {{ config.icon }} {{ config.label }}
         </span>
         <button
@@ -119,7 +125,15 @@ async function handleRerun() {
           title="重新运行"
           @click="handleRerun"
         >
-          <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg
+            class="h-3 w-3"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <polyline points="23 4 23 10 17 10" />
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
           </svg>
@@ -128,9 +142,20 @@ async function handleRerun() {
     </div>
 
     <!-- 输入参数 -->
-    <Collapsible v-if="hasArgs" v-model:open="showArgs" class="border-t">
+    <Collapsible
+      v-if="hasArgs"
+      v-model:open="showArgs"
+      class="border-t"
+    >
       <CollapsibleTrigger class="w-full flex items-center gap-1 px-3 py-1 text-muted-foreground hover:text-foreground cursor-pointer text-[11px]">
-        <svg class="h-3 w-3 transition-transform" :class="showArgs ? 'rotate-90' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          class="h-3 w-3 transition-transform"
+          :class="showArgs ? 'rotate-90' : ''"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <path d="M9 18l6-6-6-6" />
         </svg>
         <span>输入参数</span>
@@ -138,7 +163,11 @@ async function handleRerun() {
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div class="px-3 pb-2 space-y-1">
-          <div v-for="entry in argEntries" :key="entry.key" class="flex gap-2">
+          <div
+            v-for="entry in argEntries"
+            :key="entry.key"
+            class="flex gap-2"
+          >
             <span class="font-mono text-blue-600 dark:text-blue-400 shrink-0">{{ entry.key }}:</span>
             <span class="font-mono text-muted-foreground break-all">{{ entry.value }}</span>
           </div>
@@ -147,16 +176,30 @@ async function handleRerun() {
     </Collapsible>
 
     <!-- 无参数时的提示（仅 running 状态显示） -->
-    <div v-else-if="toolCall.status === 'running'" class="px-3 py-1 border-t text-[11px] text-muted-foreground flex items-center gap-1">
+    <div
+      v-else-if="toolCall.status === 'running'"
+      class="px-3 py-1 border-t text-[11px] text-muted-foreground flex items-center gap-1"
+    >
       <span class="inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
       <span>接收参数中...</span>
     </div>
 
     <!-- 输出结果 -->
-    <Collapsible v-if="toolCall.result != null || toolCall.error" v-model:open="showResult" class="border-t">
+    <Collapsible
+      v-if="toolCall.result != null || toolCall.error"
+      v-model:open="showResult"
+      class="border-t"
+    >
       <div class="w-full flex items-center justify-between px-3 py-1 text-muted-foreground text-[11px]">
         <CollapsibleTrigger class="flex items-center gap-1 hover:text-foreground cursor-pointer">
-          <svg class="h-3 w-3 transition-transform" :class="showResult ? 'rotate-90' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            class="h-3 w-3 transition-transform"
+            :class="showResult ? 'rotate-90' : ''"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <path d="M9 18l6-6-6-6" />
           </svg>
           <span>{{ showResult ? '收起结果' : '查看结果' }}</span>
@@ -166,26 +209,62 @@ async function handleRerun() {
           title="复制输出"
           @click.stop="copyResult"
         >
-          <svg v-if="!copied" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <svg
+            v-if="!copied"
+            class="h-3 w-3"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect
+              x="9"
+              y="9"
+              width="13"
+              height="13"
+              rx="2"
+              ry="2"
+            />
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
-          <svg v-else class="h-3 w-3 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg
+            v-else
+            class="h-3 w-3 text-green-500"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </button>
       </div>
       <CollapsibleContent>
-        <div v-if="toolCall.error" class="px-3 pb-2 text-red-500 font-mono text-[11px]">{{ toolCall.error }}</div>
-        <div v-else-if="isImageResult" class="px-3 pb-2">
+        <div
+          v-if="toolCall.error"
+          class="px-3 pb-2 text-red-500 font-mono text-[11px]"
+        >
+          {{ toolCall.error }}
+        </div>
+        <div
+          v-else-if="isImageResult"
+          class="px-3 pb-2"
+        >
           <img
             :src="imageUrl"
             alt="Screenshot"
             class="rounded border max-w-full max-h-64 object-contain"
             loading="lazy"
-          />
+          >
         </div>
-        <pre v-else class="font-mono text-[11px] bg-muted/50 rounded px-3 pb-2 mx-3 mb-2 px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all max-h-60 m-0">{{ formattedResult }}</pre>
+        <pre
+          v-else
+          class="font-mono text-[11px] bg-muted/50 rounded px-3 pb-2 mx-3 mb-2 px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all max-h-60 m-0"
+        >{{ formattedResult }}</pre>
       </CollapsibleContent>
     </Collapsible>
   </div>

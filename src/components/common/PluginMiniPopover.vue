@@ -47,7 +47,11 @@ function handleOpenFull() {
       <div class="flex items-center gap-2 text-sm font-medium">
         <Puzzle class="h-3.5 w-3.5 text-muted-foreground" />
         已启用插件
-        <Badge v-if="pluginStore.enabledPlugins.length" variant="secondary" class="text-[10px] h-4">
+        <Badge
+          v-if="pluginStore.enabledPlugins.length"
+          variant="secondary"
+          class="text-[10px] h-4"
+        >
           {{ pluginStore.enabledPlugins.length }}
         </Badge>
       </div>
@@ -65,10 +69,18 @@ function handleOpenFull() {
 
     <!-- 插件列表 -->
     <ScrollArea class="h-[240px]">
-      <div v-if="pluginStore.enabledPlugins.length === 0" class="flex items-center justify-center py-8">
-        <p class="text-xs text-muted-foreground">暂无已启用插件</p>
+      <div
+        v-if="pluginStore.enabledPlugins.length === 0"
+        class="flex items-center justify-center py-8"
+      >
+        <p class="text-xs text-muted-foreground">
+          暂无已启用插件
+        </p>
       </div>
-      <div v-else class="py-1">
+      <div
+        v-else
+        class="py-1"
+      >
         <div
           v-for="plugin in pluginStore.enabledPlugins"
           :key="plugin.id"
@@ -81,8 +93,11 @@ function handleOpenFull() {
               :src="iconMap[plugin.id]!"
               class="w-5 h-5 object-contain"
               alt=""
+            >
+            <Puzzle
+              v-else
+              class="h-3.5 w-3.5 text-muted-foreground"
             />
-            <Puzzle v-else class="h-3.5 w-3.5 text-muted-foreground" />
           </div>
 
           <!-- 插件名称 -->

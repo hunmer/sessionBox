@@ -39,35 +39,71 @@ function setGroupMode(mode: TabGroupMode) {
         class="h-7 w-7 rounded-full"
         :class="{ 'flex-shrink-0': direction === 'horizontal' }"
       >
-        <MoreHorizontal v-if="direction === 'horizontal'" class="w-3.5 h-3.5" />
-        <MoreVertical v-else class="w-3.5 h-3.5" />
+        <MoreHorizontal
+          v-if="direction === 'horizontal'"
+          class="w-3.5 h-3.5"
+        />
+        <MoreVertical
+          v-else
+          class="w-3.5 h-3.5"
+        />
       </Button>
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" class="w-48">
-      <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleLayout()">
-        <PanelTop v-if="direction === 'vertical'" class="size-4 mr-2" />
-        <PanelLeft v-else class="size-4 mr-2" />
+    <DropdownMenuContent
+      align="end"
+      class="w-48"
+    >
+      <DropdownMenuItem
+        class="cursor-pointer"
+        @click="tabStore.toggleLayout()"
+      >
+        <PanelTop
+          v-if="direction === 'vertical'"
+          class="size-4 mr-2"
+        />
+        <PanelLeft
+          v-else
+          class="size-4 mr-2"
+        />
         <span class="flex-1">{{ direction === 'vertical' ? '水平布局' : '侧边栏布局' }}</span>
         <Check
           v-if="(direction === 'vertical' && tabStore.tabLayout === 'horizontal') || (direction === 'horizontal' && tabStore.tabLayout === 'vertical')"
           class="size-4 text-primary"
         />
       </DropdownMenuItem>
-      <DropdownMenuItem class="cursor-pointer" @click="setGroupMode('group')">
+      <DropdownMenuItem
+        class="cursor-pointer"
+        @click="setGroupMode('group')"
+      >
         <FolderOpen class="size-4 mr-2" />
         <span class="flex-1">按分组名称分组</span>
-        <Check v-if="tabStore.tabGroupMode === 'group'" class="size-4 text-primary" />
+        <Check
+          v-if="tabStore.tabGroupMode === 'group'"
+          class="size-4 text-primary"
+        />
       </DropdownMenuItem>
-      <DropdownMenuItem class="cursor-pointer" @click="setGroupMode('account')">
+      <DropdownMenuItem
+        class="cursor-pointer"
+        @click="setGroupMode('account')"
+      >
         <User class="size-4 mr-2" />
         <span class="flex-1">按容器名称分组</span>
-        <Check v-if="tabStore.tabGroupMode === 'account'" class="size-4 text-primary" />
+        <Check
+          v-if="tabStore.tabGroupMode === 'account'"
+          class="size-4 text-primary"
+        />
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem class="cursor-pointer" @click="tabStore.toggleBookmarkBar()">
+      <DropdownMenuItem
+        class="cursor-pointer"
+        @click="tabStore.toggleBookmarkBar()"
+      >
         <Bookmark class="size-4 mr-2" />
         <span class="flex-1">快捷网站栏</span>
-        <Check v-if="tabStore.bookmarkBarVisible" class="size-4 text-primary" />
+        <Check
+          v-if="tabStore.bookmarkBarVisible"
+          class="size-4 text-primary"
+        />
       </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>

@@ -139,8 +139,15 @@ onBeforeUnmount(() => {
     <div class="w-px h-4 bg-border flex-shrink-0" />
 
     <!-- 书签栏：书签 + 文件夹混合排列 -->
-    <div ref="itemsContainer" class="flex items-center gap-0.5 overflow-hidden min-w-0 flex-shrink" style="flex: 1 1 0%">
-      <template v-for="item in bookmarkStore.toolbarItems" :key="item.data.id">
+    <div
+      ref="itemsContainer"
+      class="flex items-center gap-0.5 overflow-hidden min-w-0 flex-shrink"
+      style="flex: 1 1 0%"
+    >
+      <template
+        v-for="item in bookmarkStore.toolbarItems"
+        :key="item.data.id"
+      >
         <!-- 书签项 -->
         <ContextMenu v-if="item.type === 'bookmark'">
           <ContextMenuTrigger as-child>
@@ -150,12 +157,20 @@ onBeforeUnmount(() => {
               @click="openSite(item.data)"
               @dblclick.prevent="handleEdit(item.data)"
             >
-              <img :src="getFaviconUrl(item.data.url)" alt="" class="w-4 h-4 rounded-sm object-cover flex-shrink-0" @error="($event.target as HTMLImageElement).style.display = 'none'" />
+              <img
+                :src="getFaviconUrl(item.data.url)"
+                alt=""
+                class="w-4 h-4 rounded-sm object-cover flex-shrink-0"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              >
               <span class="ml-1 truncate max-w-[60px]">{{ item.data.title }}</span>
             </button>
           </ContextMenuTrigger>
           <ContextMenuContent class="min-w-[140px]">
-            <ContextMenuItem class="text-xs" @click="handleEdit(item.data)">
+            <ContextMenuItem
+              class="text-xs"
+              @click="handleEdit(item.data)"
+            >
               <Pencil class="w-3.5 h-3.5 mr-2" />
               编辑
             </ContextMenuItem>
@@ -177,7 +192,10 @@ onBeforeUnmount(() => {
               </ContextMenuSubContent>
             </ContextMenuSub>
             <ContextMenuSeparator />
-            <ContextMenuItem class="text-xs text-destructive focus:text-destructive" @click="handleDelete(item.data)">
+            <ContextMenuItem
+              class="text-xs text-destructive focus:text-destructive"
+              @click="handleDelete(item.data)"
+            >
               <Trash2 class="w-3.5 h-3.5 mr-2" />
               删除
             </ContextMenuItem>
@@ -196,7 +214,10 @@ onBeforeUnmount(() => {
               <ChevronDown class="w-3 h-3 ml-0.5 text-muted-foreground flex-shrink-0" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" class="min-w-[160px]">
+          <DropdownMenuContent
+            align="start"
+            class="min-w-[160px]"
+          >
             <BookmarkFolderMenu :folder-id="item.data.id" />
           </DropdownMenuContent>
         </DropdownMenu>
@@ -214,8 +235,14 @@ onBeforeUnmount(() => {
           <MoreHorizontal class="w-3.5 h-3.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" class="min-w-[180px]">
-        <template v-for="item in overflowItems" :key="item.data.id">
+      <DropdownMenuContent
+        align="end"
+        class="min-w-[180px]"
+      >
+        <template
+          v-for="item in overflowItems"
+          :key="item.data.id"
+        >
           <DropdownMenuSub v-if="item.type === 'folder'">
             <DropdownMenuSubTrigger class="text-xs">
               <Folder class="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
@@ -235,7 +262,7 @@ onBeforeUnmount(() => {
               alt=""
               class="w-3.5 h-3.5 rounded-sm mr-1.5"
               @error="($event.target as HTMLImageElement).style.display = 'none'"
-            />
+            >
             <span class="truncate">{{ item.data.title }}</span>
           </DropdownMenuItem>
         </template>

@@ -82,7 +82,7 @@ function handleIconConfirm(val: string) {
           :src="`account-icon://${modelValue.slice(4)}`"
           alt="图标"
           class="w-full h-full object-cover"
-        />
+        >
         <EmojiRenderer
           v-else
           :emoji="modelValue"
@@ -122,12 +122,21 @@ function handleIconConfirm(val: string) {
             <Camera :style="{ width: `${actionIconSize}px`, height: `${actionIconSize}px` }" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" class="min-w-[160px]">
-          <DropdownMenuItem class="gap-2 cursor-pointer" @click="handleUploadLocal">
+        <DropdownMenuContent
+          align="end"
+          class="min-w-[160px]"
+        >
+          <DropdownMenuItem
+            class="gap-2 cursor-pointer"
+            @click="handleUploadLocal"
+          >
             <Upload class="w-4 h-4" />
             <span>上传本地文件</span>
           </DropdownMenuItem>
-          <DropdownMenuItem class="gap-2 cursor-pointer" @click="handleOpenUrlInput">
+          <DropdownMenuItem
+            class="gap-2 cursor-pointer"
+            @click="handleOpenUrlInput"
+          >
             <Link class="w-4 h-4" />
             <span>输入在线URL</span>
           </DropdownMenuItem>
@@ -146,7 +155,7 @@ function handleIconConfirm(val: string) {
         placeholder="输入图片URL地址"
         class="flex-1 h-8 px-3 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
         @keydown.enter="handleConfirmUrl"
-      />
+      >
       <button
         class="h-8 px-3 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         @click="handleConfirmUrl"

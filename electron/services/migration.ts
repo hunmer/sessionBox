@@ -58,7 +58,7 @@ function legacyMigrateBookmarks(store: Store<LegacyStoreSchema>): void {
   const needsMigration = sites.some((s) => !('folderId' in s) || s.folderId === undefined)
   if (!needsMigration) return
 
-  let folders = store.get('bookmarkFolders', [])
+  const folders = store.get('bookmarkFolders', [])
   if (folders.length === 0) {
     const defaultFolder: BookmarkFolder = { id: randomUUID(), name: '默认文件夹', parentId: null, order: 0 }
     folders.push(defaultFolder)

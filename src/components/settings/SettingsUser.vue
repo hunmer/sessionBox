@@ -21,13 +21,21 @@ function handleNameChange(e: Event) {
 </script>
 
 <template>
-  <h3 class="text-sm font-medium mb-4">用户信息</h3>
+  <h3 class="text-sm font-medium mb-4">
+    用户信息
+  </h3>
 
   <!-- 头像 -->
   <div class="flex items-center gap-4 mb-6">
-    <div class="relative group cursor-pointer" @click="handleUploadAvatar">
+    <div
+      class="relative group cursor-pointer"
+      @click="handleUploadAvatar"
+    >
       <Avatar class="h-16 w-16 rounded-full">
-        <AvatarImage v-if="userStore.avatarSrc" :src="userStore.avatarSrc" />
+        <AvatarImage
+          v-if="userStore.avatarSrc"
+          :src="userStore.avatarSrc"
+        />
         <AvatarFallback class="rounded-full text-xl">
           {{ userStore.isEmojiAvatar ? userStore.profile.avatar : userStore.avatarFallback }}
         </AvatarFallback>
@@ -38,7 +46,9 @@ function handleNameChange(e: Event) {
         <Camera class="w-5 h-5 text-white" />
       </div>
     </div>
-    <div class="text-xs text-muted-foreground">点击头像上传自定义图片</div>
+    <div class="text-xs text-muted-foreground">
+      点击头像上传自定义图片
+    </div>
   </div>
 
   <!-- 名称 -->

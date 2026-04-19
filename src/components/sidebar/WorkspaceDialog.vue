@@ -40,7 +40,10 @@ function handleSave() {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
     <DialogContent class="sm:max-w-sm">
       <DialogHeader>
         <DialogTitle>{{ workspace ? '编辑工作区' : '新建工作区' }}</DialogTitle>
@@ -48,7 +51,12 @@ function handleSave() {
       <div class="py-2 flex flex-col gap-3">
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">工作区名称</label>
-          <Input v-model="title" placeholder="请输入工作区名称" autofocus @keydown.enter="handleSave" />
+          <Input
+            v-model="title"
+            placeholder="请输入工作区名称"
+            autofocus
+            @keydown.enter="handleSave"
+          />
         </div>
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">颜色</label>
@@ -65,8 +73,18 @@ function handleSave() {
         </div>
       </div>
       <DialogFooter>
-        <Button variant="ghost" @click="emit('update:open', false)">取消</Button>
-        <Button :disabled="!title.trim()" @click="handleSave">保存</Button>
+        <Button
+          variant="ghost"
+          @click="emit('update:open', false)"
+        >
+          取消
+        </Button>
+        <Button
+          :disabled="!title.trim()"
+          @click="handleSave"
+        >
+          保存
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

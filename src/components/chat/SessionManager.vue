@@ -41,11 +41,18 @@ async function handleDeleteSession(id: string) {
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
-      <Button variant="ghost" size="icon" class="h-7 w-7">
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7"
+      >
         <History class="h-4 w-4" />
       </Button>
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" class="w-[260px]">
+    <DropdownMenuContent
+      align="end"
+      class="w-[260px]"
+    >
       <DropdownMenuItem @click="handleNewSession">
         <MessageSquarePlus class="h-4 w-4 mr-2" />
         新建对话
@@ -59,8 +66,12 @@ async function handleDeleteSession(id: string) {
         @click="chat.switchSession(session.id)"
       >
         <div class="flex-1 min-w-0">
-          <div class="text-sm truncate">{{ session.title }}</div>
-          <div class="text-[10px] text-muted-foreground">{{ formatTime(session.updatedAt) }}</div>
+          <div class="text-sm truncate">
+            {{ session.title }}
+          </div>
+          <div class="text-[10px] text-muted-foreground">
+            {{ formatTime(session.updatedAt) }}
+          </div>
         </div>
         <Button
           variant="ghost"

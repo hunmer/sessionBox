@@ -21,13 +21,28 @@ defineProps<{
 
 <template>
   <SidebarMenu :class="collapsed ? 'w-full justify-center' : ''">
-    <SidebarMenuItem v-for="item in items" :key="item.title">
-      <SidebarMenuButton as-child :is-active="item.isActive" :tooltip="collapsed ? item.title : undefined" :class="collapsed ? '!w-full justify-center' : ''">
-        <a v-if="!item.onClick" :href="item.url">
+    <SidebarMenuItem
+      v-for="item in items"
+      :key="item.title"
+    >
+      <SidebarMenuButton
+        as-child
+        :is-active="item.isActive"
+        :tooltip="collapsed ? item.title : undefined"
+        :class="collapsed ? '!w-full justify-center' : ''"
+      >
+        <a
+          v-if="!item.onClick"
+          :href="item.url"
+        >
           <component :is="item.icon" />
           <span v-if="!collapsed">{{ item.title }}</span>
         </a>
-        <button v-else type="button" @click="item.onClick">
+        <button
+          v-else
+          type="button"
+          @click="item.onClick"
+        >
           <component :is="item.icon" />
           <span v-if="!collapsed">{{ item.title }}</span>
         </button>

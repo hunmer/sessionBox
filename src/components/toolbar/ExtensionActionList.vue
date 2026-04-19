@@ -64,8 +64,11 @@ async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
         v-if="ext.icon"
         :src="`extension-icon://${ext.id}`"
         class="w-5 h-5 object-contain"
-      />
-      <span v-else class="text-xs font-medium text-muted-foreground">
+      >
+      <span
+        v-else
+        class="text-xs font-medium text-muted-foreground"
+      >
         {{ ext.name.charAt(0).toUpperCase() }}
       </span>
     </Button>
@@ -77,8 +80,14 @@ async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
       :disabled="!tabStore.activeTabId"
       @click="emit('open-manager')"
     >
-      <Loader2 v-if="isLoading" class="w-4 h-4 animate-spin" />
-      <Puzzle v-else class="w-4 h-4" />
+      <Loader2
+        v-if="isLoading"
+        class="w-4 h-4 animate-spin"
+      />
+      <Puzzle
+        v-else
+        class="w-4 h-4"
+      />
     </Button>
   </div>
 </template>

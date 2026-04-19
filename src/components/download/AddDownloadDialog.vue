@@ -86,7 +86,10 @@ async function pickDirectory() {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="onOpenChange">
+  <Dialog
+    :open="open"
+    @update:open="onOpenChange"
+  >
     <DialogContent class="sm:max-w-[420px]">
       <DialogHeader>
         <DialogTitle>添加下载任务</DialogTitle>
@@ -135,8 +138,18 @@ async function pickDirectory() {
       </div>
 
       <DialogFooter>
-        <Button variant="outline" size="sm" @click="emit('update:open', false)">取消</Button>
-        <Button size="sm" :disabled="!isValid() || submitting" @click="handleSubmit">
+        <Button
+          variant="outline"
+          size="sm"
+          @click="emit('update:open', false)"
+        >
+          取消
+        </Button>
+        <Button
+          size="sm"
+          :disabled="!isValid() || submitting"
+          @click="handleSubmit"
+        >
           {{ submitting ? '添加中...' : '立即下载' }}
         </Button>
       </DialogFooter>

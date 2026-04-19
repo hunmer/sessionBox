@@ -40,10 +40,19 @@ const { isMobile } = useSidebar()
   <SidebarGroup class="group-data-[collapsible=icon]:hidden">
     <SidebarGroupLabel>Bookmarks</SidebarGroupLabel>
     <SidebarMenu>
-      <SidebarMenuItem v-for="item in bookmarks" :key="item.name">
+      <SidebarMenuItem
+        v-for="item in bookmarks"
+        :key="item.name"
+      >
         <SidebarMenuButton as-child>
-          <a :href="item.url" :title="item.name">
-            <EmojiRenderer :emoji="item.emoji" :url="item.url" />
+          <a
+            :href="item.url"
+            :title="item.name"
+          >
+            <EmojiRenderer
+              :emoji="item.emoji"
+              :url="item.url"
+            />
             <span>{{ item.name }}</span>
           </a>
         </SidebarMenuButton>

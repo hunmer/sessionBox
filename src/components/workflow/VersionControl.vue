@@ -31,7 +31,9 @@ async function handleDeleteVersion(versionId: string) {
           class="group flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors"
         >
           <div class="flex-1 min-w-0">
-            <div class="text-xs font-medium truncate">{{ version.name }}</div>
+            <div class="text-xs font-medium truncate">
+              {{ version.name }}
+            </div>
             <div class="text-[10px] text-muted-foreground">
               {{ formatTime(version.createdAt) }}
             </div>
@@ -61,7 +63,10 @@ async function handleDeleteVersion(versionId: string) {
           </div>
         </div>
 
-        <div v-if="store.versions.length === 0" class="text-xs text-muted-foreground text-center py-6">
+        <div
+          v-if="store.versions.length === 0"
+          class="text-xs text-muted-foreground text-center py-6"
+        >
           暂无保存的版本
         </div>
       </div>

@@ -24,7 +24,10 @@ function buildPath(key: string): string {
 </script>
 
 <template>
-  <template v-for="field in fields" :key="field.key">
+  <template
+    v-for="field in fields"
+    :key="field.key"
+  >
     <!-- object 类型 → 递归子菜单 -->
     <DropdownMenuSub v-if="field.type === 'object' && field.children?.length">
       <DropdownMenuSubTrigger class="text-xs">

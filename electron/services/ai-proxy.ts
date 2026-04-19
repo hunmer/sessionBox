@@ -114,8 +114,8 @@ export async function proxyChatCompletions(
     const MAX_TOOL_ROUNDS = 100
 
     // 多轮对话循环：LLM 可能多次请求 tool_use
-    let currentMessages = [...messages]
-    let cumulativeUsage = { inputTokens: 0, outputTokens: 0 }
+    const currentMessages = [...messages]
+    const cumulativeUsage = { inputTokens: 0, outputTokens: 0 }
     let contentBlockOffset = 0
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {

@@ -56,17 +56,37 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
     <DialogContent class="sm:max-w-[360px]">
       <DialogHeader>
         <DialogTitle>{{ dialogTitle }}</DialogTitle>
       </DialogHeader>
       <div class="py-2">
-        <Input v-model="name" placeholder="文件夹名称" class="h-8 text-sm" @keydown.enter="handleSubmit" />
+        <Input
+          v-model="name"
+          placeholder="文件夹名称"
+          class="h-8 text-sm"
+          @keydown.enter="handleSubmit"
+        />
       </div>
       <DialogFooter>
-        <Button variant="ghost" size="sm" @click="emit('update:open', false)">取消</Button>
-        <Button size="sm" :disabled="!isValid()" @click="handleSubmit">确定</Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          @click="emit('update:open', false)"
+        >
+          取消
+        </Button>
+        <Button
+          size="sm"
+          :disabled="!isValid()"
+          @click="handleSubmit"
+        >
+          确定
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

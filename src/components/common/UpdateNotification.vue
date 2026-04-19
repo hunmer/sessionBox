@@ -234,17 +234,29 @@ onUnmounted(() => {
 
       <div class="space-y-4 py-4">
         <!-- 更新信息 -->
-        <div v-if="updateInfo && !isDownloading && !isDownloaded" class="space-y-2">
+        <div
+          v-if="updateInfo && !isDownloading && !isDownloaded"
+          class="space-y-2"
+        >
           <p class="text-sm text-muted-foreground">
             有新版本可用，建议更新以获取最新功能和修复。
           </p>
-          <div v-if="updateInfo.releaseNotes" class="max-h-60 overflow-y-auto rounded-md bg-muted p-3">
-            <div class="prose prose-sm dark:prose-invert max-w-none text-sm" v-html="renderedReleaseNotes"></div>
+          <div
+            v-if="updateInfo.releaseNotes"
+            class="max-h-60 overflow-y-auto rounded-md bg-muted p-3"
+          >
+            <div
+              class="prose prose-sm dark:prose-invert max-w-none text-sm"
+              v-html="renderedReleaseNotes"
+            />
           </div>
         </div>
 
         <!-- 下载进度 -->
-        <div v-if="isDownloading && downloadProgress" class="space-y-2">
+        <div
+          v-if="isDownloading && downloadProgress"
+          class="space-y-2"
+        >
           <div class="flex justify-between text-sm text-muted-foreground">
             <span>正在下载...</span>
             <span>{{ progressPercent.toFixed(1) }}%</span>
@@ -263,14 +275,20 @@ onUnmounted(() => {
         </div>
 
         <!-- 下载完成 -->
-        <div v-if="isDownloaded" class="rounded-md bg-green-50 p-3 dark:bg-green-950">
+        <div
+          v-if="isDownloaded"
+          class="rounded-md bg-green-50 p-3 dark:bg-green-950"
+        >
           <p class="text-sm text-green-700 dark:text-green-300">
             更新已下载完成，点击"立即安装"重启应用并安装更新。
           </p>
         </div>
 
         <!-- 错误提示 -->
-        <div v-if="errorMessage" class="rounded-md bg-red-50 p-3 dark:bg-red-950">
+        <div
+          v-if="errorMessage"
+          class="rounded-md bg-red-50 p-3 dark:bg-red-950"
+        >
           <p class="text-sm text-red-700 dark:text-red-300">
             {{ errorMessage }}
           </p>
@@ -280,24 +298,36 @@ onUnmounted(() => {
       <DialogFooter class="flex gap-2 sm:gap-0">
         <!-- 初始状态：下载或稍后提醒 -->
         <template v-if="!isDownloading && !isDownloaded">
-          <Button variant="outline" @click="remindLater">
+          <Button
+            variant="outline"
+            @click="remindLater"
+          >
             稍后提醒
           </Button>
-          <Button @click="downloadUpdate" :disabled="isChecking">
+          <Button
+            :disabled="isChecking"
+            @click="downloadUpdate"
+          >
             {{ isChecking ? '检查中...' : '立即下载' }}
           </Button>
         </template>
 
         <!-- 下载中 -->
         <template v-else-if="isDownloading">
-          <Button variant="outline" disabled>
+          <Button
+            variant="outline"
+            disabled
+          >
             下载中...
           </Button>
         </template>
 
         <!-- 下载完成：安装或稍后 -->
         <template v-else-if="isDownloaded">
-          <Button variant="outline" @click="remindLater">
+          <Button
+            variant="outline"
+            @click="remindLater"
+          >
             稍后安装
           </Button>
           <Button @click="installUpdate">

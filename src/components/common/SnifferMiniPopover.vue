@@ -235,7 +235,11 @@ onUnmounted(() => stopAudio())
       <div class="flex items-center gap-2 text-sm font-medium">
         <Radar class="h-3.5 w-3.5 text-muted-foreground" />
         网络嗅探
-        <Badge v-if="resourceCount > 0" variant="secondary" class="text-[10px] h-4">
+        <Badge
+          v-if="resourceCount > 0"
+          variant="secondary"
+          class="text-[10px] h-4"
+        >
           {{ resourceCount }}
         </Badge>
       </div>
@@ -254,7 +258,10 @@ onUnmounted(() => stopAudio())
           @update:model-value="handleToggleSniffing"
         />
       </div>
-      <div v-if="currentDomain" class="flex items-center justify-between">
+      <div
+        v-if="currentDomain"
+        class="flex items-center justify-between"
+      >
         <div class="flex items-center gap-2 text-xs">
           <Globe class="h-3 w-3 text-muted-foreground" />
           <span class="truncate max-w-[160px]">自动启用 *.{{ currentDomain }}</span>
@@ -288,13 +295,19 @@ onUnmounted(() => stopAudio())
     <!-- 资源展示区 -->
     <ScrollArea class="h-[320px]">
       <!-- 空状态 -->
-      <div v-if="filteredResources.length === 0" class="flex items-center justify-center py-8">
+      <div
+        v-if="filteredResources.length === 0"
+        class="flex items-center justify-center py-8"
+      >
         <p class="text-xs text-muted-foreground">
           {{ isSniffing ? '等待捕获资源...' : '开启嗅探以捕获资源' }}
         </p>
       </div>
 
-      <div v-else class="p-1">
+      <div
+        v-else
+        class="p-1"
+      >
         <!-- 双列瀑布流：视频 + 图片 -->
         <Waterfall
           v-if="waterfallList.length > 0"
@@ -319,7 +332,7 @@ onUnmounted(() => stopAudio())
                 class="w-full block rounded-md min-h-[60px]"
                 loading="lazy"
                 @load="handleImgLoad"
-              />
+              >
               <!-- 视频：hover 播放，leave 暂停 -->
               <video
                 v-else
@@ -336,7 +349,10 @@ onUnmounted(() => stopAudio())
                 class="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity"
               >
                 <div class="bg-black/40 rounded-full p-1.5">
-                  <Play class="h-3 w-3 text-white" fill="white" />
+                  <Play
+                    class="h-3 w-3 text-white"
+                    fill="white"
+                  />
                 </div>
               </div>
 
@@ -374,7 +390,10 @@ onUnmounted(() => stopAudio())
         </Waterfall>
 
         <!-- 音频：带播放控制的列表 -->
-        <div v-if="audioResources.length > 0" class="mt-1 space-y-0.5">
+        <div
+          v-if="audioResources.length > 0"
+          class="mt-1 space-y-0.5"
+        >
           <div
             v-for="res in audioResources"
             :key="res.id"
@@ -386,16 +405,28 @@ onUnmounted(() => stopAudio())
                 class="shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-green-500/10 hover:bg-green-500/20 transition-colors"
                 @click="handleAudioToggle(res)"
               >
-                <Play v-if="audioState.playingId !== res.id" class="h-2.5 w-2.5 text-green-500 ml-px" />
-                <Pause v-else class="h-2.5 w-2.5 text-green-500" />
+                <Play
+                  v-if="audioState.playingId !== res.id"
+                  class="h-2.5 w-2.5 text-green-500 ml-px"
+                />
+                <Pause
+                  v-else
+                  class="h-2.5 w-2.5 text-green-500"
+                />
               </button>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1">
                   <span class="text-[10px] text-muted-foreground">{{ res.mimeType }}</span>
-                  <span v-if="res.size" class="text-[10px] text-muted-foreground">{{ formatSize(res.size) }}</span>
+                  <span
+                    v-if="res.size"
+                    class="text-[10px] text-muted-foreground"
+                  >{{ formatSize(res.size) }}</span>
                 </div>
                 <!-- 进度条（仅当前播放时展示） -->
-                <div v-if="audioState.playingId === res.id" class="mt-1">
+                <div
+                  v-if="audioState.playingId === res.id"
+                  class="mt-1"
+                >
                   <div class="flex items-center gap-1">
                     <span class="text-[8px] text-muted-foreground w-6 text-right tabular-nums">{{ formatTime(audioState.currentTime) }}</span>
                     <div
@@ -413,10 +444,20 @@ onUnmounted(() => stopAudio())
               </div>
               <!-- 操作按钮：hover 才展示 -->
               <div class="shrink-0 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" class="h-5 px-1" @click="handleCopy(res.url)">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-5 px-1"
+                  @click="handleCopy(res.url)"
+                >
                   <Copy class="h-2.5 w-2.5" />
                 </Button>
-                <Button variant="ghost" size="sm" class="h-5 px-1" @click="handleDownload(res.url)">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-5 px-1"
+                  @click="handleDownload(res.url)"
+                >
                   <Download class="h-2.5 w-2.5" />
                 </Button>
               </div>

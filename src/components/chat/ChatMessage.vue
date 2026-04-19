@@ -298,9 +298,35 @@ const segments = computed<ContentSegment[]>(() => {
 
 <template>
   <!-- 系统消息：居中显示 -->
-  <div v-if="isSystem" class="flex justify-center py-2">
+  <div
+    v-if="isSystem"
+    class="flex justify-center py-2"
+  >
     <span class="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-muted/50 px-3 py-1.5 rounded-full">
-      <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <svg
+        class="w-3 h-3"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      ><circle
+        cx="12"
+        cy="12"
+        r="10"
+      /><line
+        x1="12"
+        y1="8"
+        x2="12"
+        y2="12"
+      /><line
+        x1="12"
+        y1="16"
+        x2="12.01"
+        y2="16"
+      /></svg>
       {{ message.content }}
     </span>
   </div>
@@ -315,22 +341,35 @@ const segments = computed<ContentSegment[]>(() => {
   >
     <!-- Avatar -->
     <Avatar class="h-7 w-7 shrink-0 mt-0.5">
-      <AvatarImage v-if="isUser && userProfile.avatarSrc" :src="userProfile.avatarSrc" />
-      <AvatarFallback class="text-xs" :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'">
+      <AvatarImage
+        v-if="isUser && userProfile.avatarSrc"
+        :src="userProfile.avatarSrc"
+      />
+      <AvatarFallback
+        class="text-xs"
+        :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
+      >
         {{ isUser ? (userProfile.isEmojiAvatar ? userProfile.profile.avatar : userProfile.avatarFallback) : 'AI' }}
       </AvatarFallback>
     </Avatar>
 
     <!-- 消息体 -->
-    <div class="flex-1 min-w-0 space-y-1" :class="isUser ? 'text-right' : ''">
+    <div
+      class="flex-1 min-w-0 space-y-1"
+      :class="isUser ? 'text-right' : ''"
+    >
       <!-- 图片展示 -->
-      <div v-if="message.images?.length" class="flex gap-2 flex-wrap" :class="isUser ? 'justify-end' : ''">
+      <div
+        v-if="message.images?.length"
+        class="flex gap-2 flex-wrap"
+        :class="isUser ? 'justify-end' : ''"
+      >
         <img
           v-for="(img, i) in message.images"
           :key="i"
           :src="`data:image/png;base64,${img}`"
           class="max-w-[200px] max-h-[200px] rounded-md border"
-        />
+        >
       </div>
 
       <!-- 正在思考占位 -->
@@ -342,7 +381,11 @@ const segments = computed<ContentSegment[]>(() => {
       </div>
 
       <!-- 编辑模式 -->
-      <div v-if="isEditing" class="max-w-[85%]" :class="isUser ? 'ml-auto' : ''">
+      <div
+        v-if="isEditing"
+        class="max-w-[85%]"
+        :class="isUser ? 'ml-auto' : ''"
+      >
         <textarea
           v-model="editContent"
           class="w-full rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-ring"
@@ -350,19 +393,35 @@ const segments = computed<ContentSegment[]>(() => {
           @keydown.enter.ctrl="confirmEdit"
           @keydown.escape="cancelEdit"
         />
-        <div class="flex gap-2 mt-1" :class="isUser ? 'justify-end' : ''">
-          <button class="text-xs px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 transition-colors" @click="cancelEdit">
+        <div
+          class="flex gap-2 mt-1"
+          :class="isUser ? 'justify-end' : ''"
+        >
+          <button
+            class="text-xs px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 transition-colors"
+            @click="cancelEdit"
+          >
             取消
           </button>
-          <button class="text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" @click="confirmEdit">
+          <button
+            class="text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            @click="confirmEdit"
+          >
             保存并发送
           </button>
         </div>
       </div>
 
       <!-- 按顺序穿插渲染思考、文本和工具调用 -->
-      <template v-if="!isEditing" v-for="(seg, i) in segments" :key="i">
-        <ThinkingBlock v-if="seg.type === 'thinking'" :content="seg.content" />
+      <template
+        v-for="(seg, i) in segments"
+        v-if="!isEditing"
+        :key="i"
+      >
+        <ThinkingBlock
+          v-if="seg.type === 'thinking'"
+          :content="seg.content"
+        />
         <div
           v-else-if="seg.type === 'text' && seg.content"
           class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden text-left"
@@ -380,18 +439,33 @@ const segments = computed<ContentSegment[]>(() => {
             class="flex items-center justify-end gap-2 mt-1 pt-1 border-t border-border/10 text-[11px] text-muted-foreground/50 cursor-pointer hover:text-muted-foreground/80 transition-colors"
             @click="showRawDialog = true"
           >
-            <span v-if="durationMs !== null" class="inline-flex items-center gap-1">
-              <span v-if="isStreaming" class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span
+              v-if="durationMs !== null"
+              class="inline-flex items-center gap-1"
+            >
+              <span
+                v-if="isStreaming"
+                class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"
+              />
               {{ formatDuration(durationMs) }}
             </span>
-            <span v-if="displayUsage" class="inline-flex items-center gap-1.5">
+            <span
+              v-if="displayUsage"
+              class="inline-flex items-center gap-1.5"
+            >
               <span title="输入 tokens">↑ {{ formatTokenCount(displayUsage.inputTokens) }}</span>
               <span title="输出 tokens">↓ {{ formatTokenCount(displayUsage.outputTokens) }}</span>
             </span>
           </div>
         </div>
-        <div v-else-if="seg.type === 'tool-call'" class="max-w-[85%]">
-          <ToolCallCard :tool-call="seg.toolCall" @rerun="handleRerunTool" />
+        <div
+          v-else-if="seg.type === 'tool-call'"
+          class="max-w-[85%]"
+        >
+          <ToolCallCard
+            :tool-call="seg.toolCall"
+            @rerun="handleRerunTool"
+          />
         </div>
       </template>
 
@@ -419,7 +493,12 @@ const segments = computed<ContentSegment[]>(() => {
                   <Pencil class="h-3 w-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" :side-offset="4">编辑</TooltipContent>
+              <TooltipContent
+                side="bottom"
+                :side-offset="4"
+              >
+                编辑
+              </TooltipContent>
             </Tooltip>
 
             <!-- 复制 -->
@@ -429,11 +508,22 @@ const segments = computed<ContentSegment[]>(() => {
                   class="inline-flex items-center justify-center h-5 w-5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   @click="copyContent"
                 >
-                  <Check v-if="copied" class="h-3 w-3 text-green-500" />
-                  <Copy v-else class="h-3 w-3" />
+                  <Check
+                    v-if="copied"
+                    class="h-3 w-3 text-green-500"
+                  />
+                  <Copy
+                    v-else
+                    class="h-3 w-3"
+                  />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" :side-offset="4">{{ copied ? '已复制' : '复制' }}</TooltipContent>
+              <TooltipContent
+                side="bottom"
+                :side-offset="4"
+              >
+                {{ copied ? '已复制' : '复制' }}
+              </TooltipContent>
             </Tooltip>
 
             <!-- AI 消息：重试 -->
@@ -446,7 +536,12 @@ const segments = computed<ContentSegment[]>(() => {
                   <RefreshCw class="h-3 w-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" :side-offset="4">重新生成</TooltipContent>
+              <TooltipContent
+                side="bottom"
+                :side-offset="4"
+              >
+                重新生成
+              </TooltipContent>
             </Tooltip>
 
             <!-- 删除 -->
@@ -459,7 +554,12 @@ const segments = computed<ContentSegment[]>(() => {
                   <Trash2 class="h-3 w-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" :side-offset="4">删除</TooltipContent>
+              <TooltipContent
+                side="bottom"
+                :side-offset="4"
+              >
+                删除
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -478,9 +578,21 @@ const segments = computed<ContentSegment[]>(() => {
         <!-- 左栏：输入侧 -->
         <div class="space-y-3 max-h-[70vh] overflow-y-auto">
           <!-- Prompt 卡片 -->
-          <div v-if="inputPromptText" class="rounded-lg border bg-card p-3 space-y-1.5">
+          <div
+            v-if="inputPromptText"
+            class="rounded-lg border bg-card p-3 space-y-1.5"
+          >
             <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+              <svg
+                class="w-3.5 h-3.5"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" /><path d="M7 7h.01" /></svg>
               System Prompt
             </div>
             <pre class="bg-muted/50 rounded-md p-2.5 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono max-h-40 overflow-y-auto">{{ inputPromptText }}</pre>
@@ -489,19 +601,43 @@ const segments = computed<ContentSegment[]>(() => {
           <div class="rounded-lg border bg-card p-3 space-y-1.5">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg
+                  class="w-3.5 h-3.5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                 输入
               </div>
-              <span v-if="displayUsage" class="text-[11px] text-muted-foreground/50">
+              <span
+                v-if="displayUsage"
+                class="text-[11px] text-muted-foreground/50"
+              >
                 ↑ {{ formatTokenCount(displayUsage.inputTokens) }}
               </span>
             </div>
             <pre class="bg-muted/50 rounded-md p-2.5 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono max-h-60 overflow-y-auto">{{ inputRawText }}</pre>
           </div>
           <!-- 思考卡片 -->
-          <div v-if="displayThinking" class="rounded-lg border bg-card p-3 space-y-1.5">
+          <div
+            v-if="displayThinking"
+            class="rounded-lg border bg-card p-3 space-y-1.5"
+          >
             <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              <svg
+                class="w-3.5 h-3.5"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
               思考过程
             </div>
             <pre class="bg-muted/50 rounded-md p-2.5 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono max-h-40 overflow-y-auto">{{ displayThinking }}</pre>
@@ -511,7 +647,10 @@ const segments = computed<ContentSegment[]>(() => {
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-muted-foreground">输出</span>
-            <span v-if="displayUsage" class="text-xs text-muted-foreground/60">
+            <span
+              v-if="displayUsage"
+              class="text-xs text-muted-foreground/60"
+            >
               ↓ {{ formatTokenCount(displayUsage.outputTokens) }} tokens
             </span>
           </div>

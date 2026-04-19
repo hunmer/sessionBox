@@ -108,7 +108,10 @@ function isValid() {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="onOpenChange">
+  <Dialog
+    :open="open"
+    @update:open="onOpenChange"
+  >
     <DialogContent class="sm:max-w-[400px]">
       <DialogHeader>
         <DialogTitle>{{ dialogTitle }}</DialogTitle>
@@ -118,13 +121,21 @@ function isValid() {
         <!-- 标题 -->
         <div class="flex flex-col gap-1.5">
           <label class="text-xs text-muted-foreground">标题（可选）</label>
-          <Input v-model="title" placeholder="网站名称" class="h-8 text-sm" />
+          <Input
+            v-model="title"
+            placeholder="网站名称"
+            class="h-8 text-sm"
+          />
         </div>
 
         <!-- 网址 -->
         <div class="flex flex-col gap-1.5">
           <label class="text-xs text-muted-foreground">网址</label>
-          <Input v-model="url" placeholder="https://example.com" class="h-8 text-sm" />
+          <Input
+            v-model="url"
+            placeholder="https://example.com"
+            class="h-8 text-sm"
+          />
         </div>
 
         <!-- 文件夹选择 -->
@@ -154,7 +165,9 @@ function isValid() {
               <SelectValue placeholder="不关联页面（默认会话）" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">不关联页面（默认会话）</SelectItem>
+              <SelectItem value="__none__">
+                不关联页面（默认会话）
+              </SelectItem>
               <SelectItem
                 v-for="page in allPages"
                 :key="page.id"
@@ -168,8 +181,18 @@ function isValid() {
       </div>
 
       <DialogFooter>
-        <Button variant="outline" size="sm" @click="emit('update:open', false)">取消</Button>
-        <Button size="sm" :disabled="!isValid()" @click="handleSubmit">
+        <Button
+          variant="outline"
+          size="sm"
+          @click="emit('update:open', false)"
+        >
+          取消
+        </Button>
+        <Button
+          size="sm"
+          :disabled="!isValid()"
+          @click="handleSubmit"
+        >
           {{ isEdit ? '保存' : '添加' }}
         </Button>
       </DialogFooter>

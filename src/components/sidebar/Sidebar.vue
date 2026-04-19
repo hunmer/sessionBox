@@ -174,8 +174,14 @@ const workspaceSwitcherItems = computed(() => {
 <template>
   <div class="flex h-full w-full flex-col border-r-0 bg-sidebar text-sidebar-foreground overflow-hidden">
     <SidebarHeader class="shrink-0">
-      <WorkspaceSwitcher :workspaces="workspaceSwitcherItems" :collapsed="collapsed" />
-      <NavMain :items="navMain" :collapsed="collapsed" />
+      <WorkspaceSwitcher
+        :workspaces="workspaceSwitcherItems"
+        :collapsed="collapsed"
+      />
+      <NavMain
+        :items="navMain"
+        :collapsed="collapsed"
+      />
     </SidebarHeader>
     <SidebarContent class="flex-1 min-h-0">
       <SidebarGroups

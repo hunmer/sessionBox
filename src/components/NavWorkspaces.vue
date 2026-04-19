@@ -38,7 +38,10 @@ defineProps<{
     <SidebarGroupLabel>Workspaces</SidebarGroupLabel>
     <SidebarGroupContent>
       <SidebarMenu>
-        <Collapsible v-for="workspace in workspaces" :key="workspace.name">
+        <Collapsible
+          v-for="workspace in workspaces"
+          :key="workspace.name"
+        >
           <SidebarMenuItem>
             <SidebarMenuButton as-child>
               <a href="#">
@@ -59,10 +62,16 @@ defineProps<{
             </SidebarMenuAction>
             <CollapsibleContent>
               <SidebarMenuSub>
-                <SidebarMenuSubItem v-for="page in workspace.pages" :key="page.name">
+                <SidebarMenuSubItem
+                  v-for="page in workspace.pages"
+                  :key="page.name"
+                >
                   <SidebarMenuSubButton as-child>
                     <a href="#">
-                      <EmojiRenderer :emoji="page.emoji" :url="page.url" />
+                      <EmojiRenderer
+                        :emoji="page.emoji"
+                        :url="page.url"
+                      />
                       <span>{{ page.name }}</span>
                     </a>
                   </SidebarMenuSubButton>

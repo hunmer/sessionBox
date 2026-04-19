@@ -58,10 +58,18 @@ onMounted(loadRecent)
 
     <!-- 列表 -->
     <ScrollArea class="h-[360px]">
-      <div v-if="entries.length === 0" class="flex items-center justify-center py-8">
-        <p class="text-xs text-muted-foreground">暂无浏览历史</p>
+      <div
+        v-if="entries.length === 0"
+        class="flex items-center justify-center py-8"
+      >
+        <p class="text-xs text-muted-foreground">
+          暂无浏览历史
+        </p>
       </div>
-      <div v-else class="py-1">
+      <div
+        v-else
+        class="py-1"
+      >
         <div
           v-for="entry in entries"
           :key="entry.id"
@@ -69,7 +77,9 @@ onMounted(loadRecent)
           @click="handleOpenUrl(entry.url)"
         >
           <div class="flex-1 min-w-0">
-            <p class="text-xs truncate">{{ entry.title || entry.url }}</p>
+            <p class="text-xs truncate">
+              {{ entry.title || entry.url }}
+            </p>
             <div class="flex items-center gap-2 text-[10px] text-muted-foreground">
               <span class="truncate">{{ getDomain(entry.url) }}</span>
               <span class="flex-shrink-0">{{ formatTime(entry.time) }}</span>

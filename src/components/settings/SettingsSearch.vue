@@ -54,7 +54,9 @@ onMounted(loadEngines)
 </script>
 
 <template>
-  <h3 class="text-sm font-medium mb-3">搜索引擎管理</h3>
+  <h3 class="text-sm font-medium mb-3">
+    搜索引擎管理
+  </h3>
   <p class="text-xs text-muted-foreground mb-4">
     管理命令面板和地址栏中可用的搜索引擎。URL 中的 <code class="bg-muted px-1 rounded text-xs">%s</code> 会被替换为用户输入的搜索词。
   </p>
@@ -73,7 +75,11 @@ onMounted(loadEngines)
       class="flex-1"
       @keydown.enter="addEngine"
     />
-    <Button size="sm" :disabled="!newName.trim() || !newUrl.trim()" @click="addEngine">
+    <Button
+      size="sm"
+      :disabled="!newName.trim() || !newUrl.trim()"
+      @click="addEngine"
+    >
       <Plus class="w-4 h-4" />
     </Button>
   </div>
@@ -91,23 +97,36 @@ onMounted(loadEngines)
         :alt="engine.name"
         class="w-4 h-4 shrink-0 rounded-sm object-contain"
         @error="($event.target as HTMLImageElement).style.display = 'none'"
-      />
+      >
       <span class="font-medium truncate">{{ engine.name }}</span>
-      <span v-if="defaultId === engine.id" class="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">默认</span>
+      <span
+        v-if="defaultId === engine.id"
+        class="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded"
+      >默认</span>
       <span class="truncate flex-1 text-muted-foreground text-xs">{{ engine.url }}</span>
       <Button
         v-if="defaultId !== engine.id"
-        variant="ghost" size="icon" class="h-7 w-7 shrink-0"
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7 shrink-0"
         title="设为默认"
         @click="setDefault(engine.id)"
       >
         <Star class="w-3.5 h-3.5 text-muted-foreground" />
       </Button>
-      <Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" @click="removeEngine(engine.id)">
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7 shrink-0"
+        @click="removeEngine(engine.id)"
+      >
         <Trash2 class="w-3.5 h-3.5 text-muted-foreground" />
       </Button>
     </div>
-    <p v-if="!engines.length" class="text-xs text-muted-foreground text-center py-4">
+    <p
+      v-if="!engines.length"
+      class="text-xs text-muted-foreground text-center py-4"
+    >
       暂无搜索引擎，请添加
     </p>
   </div>

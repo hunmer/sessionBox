@@ -481,7 +481,7 @@ function testHttpConnectProxy(proxy: Proxy): Promise<{ ok: boolean; ip?: string;
 
 function readExact(socket: net.Socket, size: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    let chunks: Buffer[] = []
+    const chunks: Buffer[] = []
     let total = 0
 
     const cleanup = (): void => {

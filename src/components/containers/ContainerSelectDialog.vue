@@ -46,11 +46,17 @@ async function useDefault() {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="open = $event">
+  <Dialog
+    :open="open"
+    @update:open="open = $event"
+  >
     <DialogContent class="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>选择容器打开链接</DialogTitle>
-        <DialogDescription class="max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground" :title="pendingUrl ?? ''">
+        <DialogDescription
+          class="max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground"
+          :title="pendingUrl ?? ''"
+        >
           {{ pendingUrl }}
         </DialogDescription>
       </DialogHeader>
@@ -63,8 +69,14 @@ async function useDefault() {
             <SelectValue placeholder="选择工作区" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__active__">当前激活工作区</SelectItem>
-            <SelectItem v-for="w in workspaceStore.sortedWorkspaces" :key="w.id" :value="w.id">
+            <SelectItem value="__active__">
+              当前激活工作区
+            </SelectItem>
+            <SelectItem
+              v-for="w in workspaceStore.sortedWorkspaces"
+              :key="w.id"
+              :value="w.id"
+            >
               {{ w.title }}
             </SelectItem>
           </SelectContent>
@@ -92,15 +104,28 @@ async function useDefault() {
             </span>
           </button>
 
-          <div v-if="containerStore.containers.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+          <div
+            v-if="containerStore.containers.length === 0"
+            class="py-6 text-center text-sm text-muted-foreground"
+          >
             暂无容器
           </div>
         </div>
       </ScrollArea>
 
       <div class="flex justify-end gap-2 pt-2 border-t">
-        <Button variant="ghost" size="sm" @click="open = false">取消</Button>
-        <Button variant="secondary" size="sm" @click="useDefault">
+        <Button
+          variant="ghost"
+          size="sm"
+          @click="open = false"
+        >
+          取消
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          @click="useDefault"
+        >
           确定
         </Button>
       </div>

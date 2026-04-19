@@ -29,8 +29,20 @@ const lucideComponent = computed(() => {
 </script>
 
 <template>
-  <img v-if="isImage" :src="imgSrc" class="w-5 h-5 rounded object-contain" />
-  <component v-else-if="isLucide && lucideComponent" :is="lucideComponent" class="w-5 h-5" />
-  <img v-else-if="faviconSrc" :src="faviconSrc" class="w-5 h-5 rounded object-contain" />
+  <img
+    v-if="isImage"
+    :src="imgSrc"
+    class="w-5 h-5 rounded object-contain"
+  >
+  <component
+    :is="lucideComponent"
+    v-else-if="isLucide && lucideComponent"
+    class="w-5 h-5"
+  />
+  <img
+    v-else-if="faviconSrc"
+    :src="faviconSrc"
+    class="w-5 h-5 rounded object-contain"
+  >
   <span v-else>{{ emoji }}</span>
 </template>

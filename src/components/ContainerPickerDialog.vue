@@ -55,16 +55,25 @@ function handleSelect(container: Container) {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
     <DialogContent class="sm:max-w-[360px]">
       <DialogHeader>
         <DialogTitle>{{ title ?? '选择容器' }}</DialogTitle>
       </DialogHeader>
       <ScrollArea class="max-h-[300px]">
-        <div v-if="containers.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+        <div
+          v-if="containers.length === 0"
+          class="py-6 text-center text-sm text-muted-foreground"
+        >
           暂无容器，请先创建
         </div>
-        <div v-else class="flex flex-col gap-1">
+        <div
+          v-else
+          class="flex flex-col gap-1"
+        >
           <button
             v-for="container in containers"
             :key="container.id"
@@ -78,11 +87,17 @@ function handleSelect(container: Container) {
                 :src="`account-icon://${container.icon!.slice(4)}`"
                 alt=""
                 class="w-full h-full rounded-sm object-cover"
-              />
-              <span v-else class="text-base leading-none">{{ container.icon }}</span>
+              >
+              <span
+                v-else
+                class="text-base leading-none"
+              >{{ container.icon }}</span>
             </span>
             <span class="flex-1 truncate">{{ container.name }}</span>
-            <span v-if="container.proxyId" class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary" />
+            <span
+              v-if="container.proxyId"
+              class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary"
+            />
           </button>
         </div>
       </ScrollArea>

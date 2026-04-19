@@ -179,7 +179,10 @@ function handleDelete() {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
     <DialogContent class="sm:max-w-[420px] max-h-[85vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>{{ page ? '编辑页面' : '新建页面' }}</DialogTitle>
@@ -187,18 +190,30 @@ function handleDelete() {
 
       <div class="flex flex-col gap-5 py-2 min-w-0">
         <!-- 图标 -->
-        <IconSelector v-model="icon" :size="80" default-emoji="" />
+        <IconSelector
+          v-model="icon"
+          :size="80"
+          default-emoji=""
+        />
 
         <!-- 名称 -->
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">名称</label>
-          <Input v-model="name" placeholder="输入页面名称" autofocus @keydown.enter="handleSave" />
+          <Input
+            v-model="name"
+            placeholder="输入页面名称"
+            autofocus
+            @keydown.enter="handleSave"
+          />
         </div>
 
         <!-- URL -->
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">URL</label>
-          <Popover v-model:open="comboboxOpen" :modal="false">
+          <Popover
+            v-model:open="comboboxOpen"
+            :modal="false"
+          >
             <PopoverTrigger as-child>
               <Button
                 ref="urlTriggerRef"
@@ -258,32 +273,52 @@ function handleDelete() {
               <Checkbox
                 id="auto-create-container"
                 :checked="autoCreateContainer"
-                @update:checked="autoCreateContainer = $event"
                 class="h-3.5 w-3.5"
+                @update:checked="autoCreateContainer = $event"
               />
-              <label for="auto-create-container" class="text-[11px] text-muted-foreground cursor-pointer">自动创建</label>
+              <label
+                for="auto-create-container"
+                class="text-[11px] text-muted-foreground cursor-pointer"
+              >自动创建</label>
             </div>
           </div>
 
           <!-- 选择已有容器 -->
-          <div v-if="!autoCreateContainer" class="flex gap-2">
-            <Select v-model="containerId" class="min-w-0 flex-1">
+          <div
+            v-if="!autoCreateContainer"
+            class="flex gap-2"
+          >
+            <Select
+              v-model="containerId"
+              class="min-w-0 flex-1"
+            >
               <SelectTrigger class="flex-1 min-w-0">
                 <SelectValue placeholder="默认容器" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem v-for="c in containers" :key="c.id" :value="c.id">
+                <SelectItem
+                  v-for="c in containers"
+                  :key="c.id"
+                  :value="c.id"
+                >
                   {{ c.name }}
                 </SelectItem>
               </SelectContent>
             </Select>
             <Popover v-model:open="containerPopoverOpen">
               <PopoverTrigger as-child>
-                <Button variant="outline" size="icon" title="管理容器">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  title="管理容器"
+                >
                   <Settings class="w-4 h-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="end" class="w-64 p-0">
+              <PopoverContent
+                align="end"
+                class="w-64 p-0"
+              >
                 <div class="px-3 pt-2 pb-1.5 flex items-center justify-between">
                   <span class="text-xs font-medium flex items-center gap-1.5">
                     <Box class="h-3.5 w-3.5 text-muted-foreground" />
@@ -308,7 +343,10 @@ function handleDelete() {
                       @click="clearContainer"
                     >
                       <div class="shrink-0 w-4 h-4 flex items-center justify-center">
-                        <CheckIcon v-if="containerId === DEFAULT_CONTAINER" class="h-3 w-3 text-primary" />
+                        <CheckIcon
+                          v-if="containerId === DEFAULT_CONTAINER"
+                          class="h-3 w-3 text-primary"
+                        />
                       </div>
                       <span class="text-xs">默认容器</span>
                     </div>
@@ -321,16 +359,34 @@ function handleDelete() {
                       @click="selectContainer(c.id)"
                     >
                       <div class="shrink-0 w-4 h-4 flex items-center justify-center">
-                        <CheckIcon v-if="containerId === c.id" class="h-3 w-3 text-primary" />
+                        <CheckIcon
+                          v-if="containerId === c.id"
+                          class="h-3 w-3 text-primary"
+                        />
                       </div>
                       <span class="shrink-0 w-5 h-5 flex items-center justify-center overflow-hidden">
-                        <img v-if="isCustomImageIcon(c.icon)" :src="`account-icon://${c.icon.slice(4)}`" alt="" class="w-full h-full rounded-sm object-cover" />
-                        <EmojiRenderer v-else-if="c.icon" :emoji="c.icon" class="text-sm" />
-                        <Box v-else class="h-3.5 w-3.5 text-muted-foreground" />
+                        <img
+                          v-if="isCustomImageIcon(c.icon)"
+                          :src="`account-icon://${c.icon.slice(4)}`"
+                          alt=""
+                          class="w-full h-full rounded-sm object-cover"
+                        >
+                        <EmojiRenderer
+                          v-else-if="c.icon"
+                          :emoji="c.icon"
+                          class="text-sm"
+                        />
+                        <Box
+                          v-else
+                          class="h-3.5 w-3.5 text-muted-foreground"
+                        />
                       </span>
                       <span class="text-xs truncate">{{ c.name }}</span>
                     </div>
-                    <div v-if="containers.length === 0" class="py-4 text-center text-xs text-muted-foreground">
+                    <div
+                      v-if="containers.length === 0"
+                      class="py-4 text-center text-xs text-muted-foreground"
+                    >
                       暂无容器
                     </div>
                   </div>
@@ -340,7 +396,10 @@ function handleDelete() {
           </div>
 
           <!-- 自动创建新容器编辑区 -->
-          <div v-else class="flex flex-col gap-2 p-3 rounded-md border bg-muted/20">
+          <div
+            v-else
+            class="flex flex-col gap-2 p-3 rounded-md border bg-muted/20"
+          >
             <div class="flex flex-col gap-1.5">
               <label class="text-[11px] text-muted-foreground">容器名称</label>
               <Input
@@ -357,8 +416,14 @@ function handleDelete() {
                   <SelectValue placeholder="不绑定代理" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem :value="NO_PROXY">不绑定代理</SelectItem>
-                  <SelectItem v-for="p in proxyOptions" :key="p.id" :value="p.id">
+                  <SelectItem :value="NO_PROXY">
+                    不绑定代理
+                  </SelectItem>
+                  <SelectItem
+                    v-for="p in proxyOptions"
+                    :key="p.id"
+                    :value="p.id"
+                  >
                     {{ p.name }} ({{ p.type }}://{{ p.host }}:{{ p.port }})
                   </SelectItem>
                 </SelectContent>
@@ -375,8 +440,14 @@ function handleDelete() {
               <SelectValue placeholder="不绑定代理" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem :value="NO_PROXY">不绑定代理</SelectItem>
-              <SelectItem v-for="p in proxyOptions" :key="p.id" :value="p.id">
+              <SelectItem :value="NO_PROXY">
+                不绑定代理
+              </SelectItem>
+              <SelectItem
+                v-for="p in proxyOptions"
+                :key="p.id"
+                :value="p.id"
+              >
                 {{ p.name }} ({{ p.type }}://{{ p.host }}:{{ p.port }})
               </SelectItem>
             </SelectContent>
@@ -386,15 +457,34 @@ function handleDelete() {
         <!-- UA -->
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">User-Agent</label>
-          <Input v-model="userAgent" placeholder="留空使用默认 UA" />
+          <Input
+            v-model="userAgent"
+            placeholder="留空使用默认 UA"
+          />
         </div>
       </div>
 
       <DialogFooter class="gap-2">
-        <Button v-if="page" variant="destructive" @click="handleDelete">删除</Button>
+        <Button
+          v-if="page"
+          variant="destructive"
+          @click="handleDelete"
+        >
+          删除
+        </Button>
         <div class="flex-1" />
-        <Button variant="secondary" @click="emit('update:open', false)">取消</Button>
-        <Button :disabled="!name.trim()" @click="handleSave">保存</Button>
+        <Button
+          variant="secondary"
+          @click="emit('update:open', false)"
+        >
+          取消
+        </Button>
+        <Button
+          :disabled="!name.trim()"
+          @click="handleSave"
+        >
+          保存
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

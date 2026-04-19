@@ -226,9 +226,20 @@ async function confirmDelete() {
   <div class="p-3">
     <InputGroup>
       <!-- 图片预览 -->
-      <InputGroupAddon v-if="images.length" align="block-start" class="flex-wrap gap-2">
-        <div v-for="(img, i) in images" :key="i" class="relative group">
-          <img :src="`data:image/png;base64,${img}`" class="w-12 h-12 rounded border object-cover" />
+      <InputGroupAddon
+        v-if="images.length"
+        align="block-start"
+        class="flex-wrap gap-2"
+      >
+        <div
+          v-for="(img, i) in images"
+          :key="i"
+          class="relative group"
+        >
+          <img
+            :src="`data:image/png;base64,${img}`"
+            class="w-12 h-12 rounded border object-cover"
+          >
           <button
             class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
             @click="removeImage(i)"
@@ -272,7 +283,12 @@ async function confirmDelete() {
         <!-- 工具选择 -->
         <DropdownMenu v-if="toolList.length">
           <DropdownMenuTrigger as-child>
-            <InputGroupButton variant="ghost" size="xs" :disabled="isStreaming" class="relative gap-1">
+            <InputGroupButton
+              variant="ghost"
+              size="xs"
+              :disabled="isStreaming"
+              class="relative gap-1"
+            >
               <Wrench class="size-3.5" />
               <span
                 v-if="enabledCount < toolList.length"
@@ -282,7 +298,11 @@ async function confirmDelete() {
               </span>
             </InputGroupButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" class="w-64 max-h-80 overflow-y-auto">
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            class="w-64 max-h-80 overflow-y-auto"
+          >
             <DropdownMenuLabel class="flex items-center justify-between">
               <span>工具列表</span>
               <span class="text-xs font-normal text-muted-foreground">
@@ -290,8 +310,14 @@ async function confirmDelete() {
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <template v-for="([category, tools], gi) in groupedTools" :key="category">
-              <DropdownMenuLabel v-if="gi > 0" class="text-xs text-muted-foreground pt-1">
+            <template
+              v-for="([category, tools], gi) in groupedTools"
+              :key="category"
+            >
+              <DropdownMenuLabel
+                v-if="gi > 0"
+                class="text-xs text-muted-foreground pt-1"
+              >
                 {{ category }}
               </DropdownMenuLabel>
               <DropdownMenuItem
@@ -306,8 +332,8 @@ async function confirmDelete() {
                 </div>
                 <Switch
                   :model-value="enabledTools?.[tool.name] !== false"
-                  @update:model-value="emit('toggleTool', tool.name)"
                   class="shrink-0"
+                  @update:model-value="emit('toggleTool', tool.name)"
                 />
               </DropdownMenuItem>
               <DropdownMenuSeparator v-if="gi < groupedTools.length - 1" />
@@ -318,11 +344,19 @@ async function confirmDelete() {
         <!-- Skill 列表 -->
         <DropdownMenu @update:open="onSkillDropdownOpen">
           <DropdownMenuTrigger as-child>
-            <InputGroupButton variant="ghost" size="icon-xs" :disabled="isStreaming">
+            <InputGroupButton
+              variant="ghost"
+              size="icon-xs"
+              :disabled="isStreaming"
+            >
               <ScrollText class="size-4" />
             </InputGroupButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" class="w-72 max-h-80 overflow-y-auto">
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            class="w-72 max-h-80 overflow-y-auto"
+          >
             <DropdownMenuLabel class="flex items-center justify-between">
               <span>Skill 列表</span>
               <span class="text-xs font-normal text-muted-foreground">{{ skills.length }}</span>
@@ -335,7 +369,10 @@ async function confirmDelete() {
                 class="flex items-center justify-between gap-2"
                 @select.prevent="copySkillName(skill.name)"
               >
-                <div class="flex flex-col gap-0.5 min-w-0 flex-1" @click="copySkillName(skill.name)">
+                <div
+                  class="flex flex-col gap-0.5 min-w-0 flex-1"
+                  @click="copySkillName(skill.name)"
+                >
                   <span class="font-mono text-xs">{{ skill.name }}</span>
                   <span class="text-[11px] text-muted-foreground leading-tight truncate">{{ skill.description }}</span>
                 </div>
@@ -368,7 +405,11 @@ async function confirmDelete() {
                 </div>
               </DropdownMenuItem>
             </template>
-            <DropdownMenuItem v-else disabled class="text-muted-foreground text-xs justify-center">
+            <DropdownMenuItem
+              v-else
+              disabled
+              class="text-muted-foreground text-xs justify-center"
+            >
               暂无 Skill，对 AI 说"保存 skill"即可创建
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -378,7 +419,10 @@ async function confirmDelete() {
           {{ inputText.length }}
         </InputGroupText>
 
-        <Separator orientation="vertical" class="!h-4" />
+        <Separator
+          orientation="vertical"
+          class="!h-4"
+        />
 
         <!-- 发送/停止 -->
         <InputGroupButton
@@ -417,14 +461,14 @@ async function confirmDelete() {
               v-model="editForm.name"
               class="w-full rounded-md border bg-transparent px-3 py-1.5 text-sm font-mono"
               disabled
-            />
+            >
           </div>
           <div class="space-y-1">
             <label class="text-xs font-medium text-muted-foreground">描述</label>
             <input
               v-model="editForm.description"
               class="w-full rounded-md border bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-            />
+            >
           </div>
           <div class="space-y-1">
             <label class="text-xs font-medium text-muted-foreground">内容 (Markdown)</label>
@@ -435,9 +479,20 @@ async function confirmDelete() {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="editDialogOpen = false">取消</Button>
-          <Button :disabled="editSaving" @click="saveEdit">
-            <Loader2 v-if="editSaving" class="size-4 mr-1 animate-spin" />
+          <Button
+            variant="outline"
+            @click="editDialogOpen = false"
+          >
+            取消
+          </Button>
+          <Button
+            :disabled="editSaving"
+            @click="saveEdit"
+          >
+            <Loader2
+              v-if="editSaving"
+              class="size-4 mr-1 animate-spin"
+            />
             保存
           </Button>
         </DialogFooter>
@@ -455,7 +510,10 @@ async function confirmDelete() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>取消</AlertDialogCancel>
-          <AlertDialogAction class="bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmDelete">
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            @click="confirmDelete"
+          >
             删除
           </AlertDialogAction>
         </AlertDialogFooter>

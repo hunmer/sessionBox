@@ -82,20 +82,36 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
 </script>
 
 <template>
-  <SidebarMenu v-if="activeWorkspaceInfo" :class="collapsed ? 'w-full justify-center' : ''">
+  <SidebarMenu
+    v-if="activeWorkspaceInfo"
+    :class="collapsed ? 'w-full justify-center' : ''"
+  >
     <SidebarMenuItem :class="collapsed ? 'flex justify-center' : ''">
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <SidebarMenuButton class="w-fit px-1.5 flex items-center justify-center" :class="collapsed ? '!p-1.5' : ''">
+          <SidebarMenuButton
+            class="w-fit px-1.5 flex items-center justify-center"
+            :class="collapsed ? '!p-1.5' : ''"
+          >
             <div
               class="flex aspect-square items-center justify-center rounded-md"
               :class="collapsed ? 'size-6' : 'size-5'"
               :style="{ backgroundColor: activeWorkspaceInfo.color || '#3b82f6' }"
             >
-              <component :is="activeWorkspaceInfo.logo" :class="collapsed ? 'size-4' : 'size-3'" class="text-white" />
+              <component
+                :is="activeWorkspaceInfo.logo"
+                :class="collapsed ? 'size-4' : 'size-3'"
+                class="text-white"
+              />
             </div>
-            <span v-if="!collapsed" class="truncate font-semibold">{{ activeWorkspaceInfo.name }}</span>
-            <ChevronDown v-if="!collapsed" class="opacity-50" />
+            <span
+              v-if="!collapsed"
+              class="truncate font-semibold"
+            >{{ activeWorkspaceInfo.name }}</span>
+            <ChevronDown
+              v-if="!collapsed"
+              class="opacity-50"
+            />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -117,7 +133,10 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
               class="flex size-6 items-center justify-center rounded-md"
               :style="{ backgroundColor: workspace.color || '#6b7280' }"
             >
-              <component :is="workspace.logo" class="size-4 shrink-0 text-white" />
+              <component
+                :is="workspace.logo"
+                class="size-4 shrink-0 text-white"
+              />
             </div>
             <span class="truncate flex-1">{{ workspace.name }}</span>
             <Badge
@@ -129,7 +148,10 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
             </Badge>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem class="gap-2 p-2" @click="handleAddWorkspace">
+          <DropdownMenuItem
+            class="gap-2 p-2"
+            @click="handleAddWorkspace"
+          >
             <div class="flex size-6 items-center justify-center rounded-md border bg-gray-100 dark:bg-gray-800">
               <Plus class="size-4 text-muted-foreground" />
             </div>
@@ -142,5 +164,8 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
     </SidebarMenuItem>
   </SidebarMenu>
 
-  <WorkspaceDialog v-model:open="dialogOpen" @save="handleSave" />
+  <WorkspaceDialog
+    v-model:open="dialogOpen"
+    @save="handleSave"
+  />
 </template>

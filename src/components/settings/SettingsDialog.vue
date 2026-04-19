@@ -44,7 +44,10 @@ watch(() => props.open, (open) => {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
     <DialogContent class="sm:max-w-2xl max-h-[70vh] flex flex-col p-0 gap-0">
       <DialogHeader class="px-6 pt-6 pb-4 border-b">
         <DialogTitle class="flex items-center gap-2">
@@ -64,7 +67,10 @@ watch(() => props.open, (open) => {
               : 'text-muted-foreground hover:bg-muted/50'"
             @click="activeTab = tab.key"
           >
-            <component :is="tab.icon" class="w-4 h-4 shrink-0" />
+            <component
+              :is="tab.icon"
+              class="w-4 h-4 shrink-0"
+            />
             {{ tab.label }}
           </button>
         </nav>

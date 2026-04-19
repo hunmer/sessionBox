@@ -65,7 +65,10 @@ async function handleDelete(ws: Workspace) {
 <template>
   <div class="border-b border-sidebar-border p-1">
     <!-- 折叠态：垂直图标排列 -->
-    <div v-if="collapsed" class="flex flex-col items-center gap-1 py-3 px-0">
+    <div
+      v-if="collapsed"
+      class="flex flex-col items-center gap-1 py-3 px-0"
+    >
       <div
         v-for="ws in workspaceStore.sortedWorkspaces"
         :key="ws.id"
@@ -107,7 +110,10 @@ async function handleDelete(ws: Workspace) {
     <!-- 展开态：根据视图模式 -->
     <template v-else>
       <!-- 网格模式 -->
-      <div v-if="workspaceStore.viewMode === 'grid'" class="p-1">
+      <div
+        v-if="workspaceStore.viewMode === 'grid'"
+        class="p-1"
+      >
         <div
           class="grid gap-1.5 max-h-[162px]"
           style="grid-template-columns: repeat(auto-fill, minmax(80px, 1fr))"
@@ -121,7 +127,10 @@ async function handleDelete(ws: Workspace) {
               : 'hover:bg-sidebar-hover opacity-70 hover:opacity-100'"
             @click="workspaceStore.activate(ws.id)"
           >
-            <div class="relative w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-white mb-1" :style="{ backgroundColor: ws.color }">
+            <div
+              class="relative w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-white mb-1"
+              :style="{ backgroundColor: ws.color }"
+            >
               {{ ws.title.charAt(0) }}
               <!-- 标签数量 badge -->
               <span
@@ -152,8 +161,13 @@ async function handleDelete(ws: Workspace) {
                   <MoreHorizontal class="w-3 h-3" />
                 </span>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" class="w-28">
-                <DropdownMenuItem @click="openEdit(ws)">编辑</DropdownMenuItem>
+              <DropdownMenuContent
+                align="end"
+                class="w-28"
+              >
+                <DropdownMenuItem @click="openEdit(ws)">
+                  编辑
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   v-if="!workspaceStore.isDefaultWorkspace(ws.id)"
                   class="text-destructive"
@@ -176,7 +190,10 @@ async function handleDelete(ws: Workspace) {
       </div>
 
       <!-- 图标模式 -->
-      <div v-else class="flex items-center gap-1 px-2 py-2 overflow-x-auto">
+      <div
+        v-else
+        class="flex items-center gap-1 px-2 py-2 overflow-x-auto"
+      >
         <button
           v-for="ws in workspaceStore.sortedWorkspaces"
           :key="ws.id"
@@ -206,8 +223,13 @@ async function handleDelete(ws: Workspace) {
             <ContextMenuTrigger as-child>
               <span class="absolute inset-0 cursor-default" />
             </ContextMenuTrigger>
-            <ContextMenuContent align="start" class="w-28">
-              <ContextMenuItem @click="openEdit(ws)">编辑</ContextMenuItem>
+            <ContextMenuContent
+              align="start"
+              class="w-28"
+            >
+              <ContextMenuItem @click="openEdit(ws)">
+                编辑
+              </ContextMenuItem>
               <ContextMenuItem
                 v-if="!workspaceStore.isDefaultWorkspace(ws.id)"
                 class="text-destructive"

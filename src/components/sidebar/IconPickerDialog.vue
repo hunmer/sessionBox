@@ -91,7 +91,10 @@ const emojiTheme = computed(() => themeStore.theme === 'dark' ? 'dark' : 'light'
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
     <DialogContent class="sm:max-w-[560px]">
       <DialogHeader>
         <DialogTitle>选择图标</DialogTitle>
@@ -105,7 +108,10 @@ const emojiTheme = computed(() => themeStore.theme === 'dark' ? 'dark' : 'light'
           @click="activeTab = 'icon'"
         >
           图标
-          <span v-if="activeTab === 'icon'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+          <span
+            v-if="activeTab === 'icon'"
+            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+          />
         </button>
         <button
           class="flex-1 py-2 text-sm font-medium transition-colors relative"
@@ -113,12 +119,18 @@ const emojiTheme = computed(() => themeStore.theme === 'dark' ? 'dark' : 'light'
           @click="activeTab = 'emoji'"
         >
           Emoji
-          <span v-if="activeTab === 'emoji'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+          <span
+            v-if="activeTab === 'emoji'"
+            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+          />
         </button>
       </div>
 
       <!-- 图标 Tab -->
-      <div v-if="activeTab === 'icon'" class="flex flex-col gap-3">
+      <div
+        v-if="activeTab === 'icon'"
+        class="flex flex-col gap-3"
+      >
         <!-- 搜索栏 -->
         <Input
           v-model="search"
@@ -137,11 +149,17 @@ const emojiTheme = computed(() => themeStore.theme === 'dark' ? 'dark' : 'light'
               :title="name"
               @click="selectIcon(name)"
             >
-              <component :is="getIconComponent(name)" class="w-5 h-5" />
+              <component
+                :is="getIconComponent(name)"
+                class="w-5 h-5"
+              />
             </button>
           </div>
 
-          <div v-if="pageIcons.length === 0" class="flex items-center justify-center h-32 text-muted-foreground text-sm">
+          <div
+            v-if="pageIcons.length === 0"
+            class="flex items-center justify-center h-32 text-muted-foreground text-sm"
+          >
             没有找到匹配的图标
           </div>
         </ScrollArea>
@@ -191,9 +209,22 @@ const emojiTheme = computed(() => themeStore.theme === 'dark' ? 'dark' : 'light'
         />
       </div>
 
-      <DialogFooter v-if="activeTab === 'icon'" class="gap-2">
-        <Button variant="secondary" @click="emit('update:open', false)">取消</Button>
-        <Button :disabled="!selected" @click="handleConfirm">确定</Button>
+      <DialogFooter
+        v-if="activeTab === 'icon'"
+        class="gap-2"
+      >
+        <Button
+          variant="secondary"
+          @click="emit('update:open', false)"
+        >
+          取消
+        </Button>
+        <Button
+          :disabled="!selected"
+          @click="handleConfirm"
+        >
+          确定
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

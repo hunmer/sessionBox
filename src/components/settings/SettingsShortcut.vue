@@ -191,7 +191,9 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col gap-3">
-    <div class="text-sm font-medium">快捷键</div>
+    <div class="text-sm font-medium">
+      快捷键
+    </div>
 
     <Tabs v-model="activeTab">
       <TabsList class="w-full justify-start h-8 p-0.5 bg-muted/50">
@@ -216,7 +218,10 @@ onUnmounted(() => {
             v-for="(item, i) in store.getShortcutsByGroup(group.key)"
             :key="item.id"
           >
-            <Separator v-if="i > 0" class="my-0.5" />
+            <Separator
+              v-if="i > 0"
+              class="my-0.5"
+            />
             <div
               class="flex items-center gap-3 py-1.5 px-1 rounded transition-opacity"
               :class="item.enabled ? 'opacity-100' : 'opacity-50'"
@@ -224,8 +229,8 @@ onUnmounted(() => {
               <!-- 启用/禁用开关（最左侧） -->
               <Switch
                 :model-value="item.enabled"
-                @update:model-value="onEnabledChange(item.id, $event)"
                 class="scale-75 shrink-0"
+                @update:model-value="onEnabledChange(item.id, $event)"
               />
 
               <span class="text-sm text-muted-foreground min-w-0">{{ item.label }}</span>
@@ -240,8 +245,8 @@ onUnmounted(() => {
                   <Checkbox
                     :model-value="item.global"
                     :disabled="!item.enabled"
-                    @update:model-value="onGlobalChange(item.id, $event)"
                     class="scale-90"
+                    @update:model-value="onGlobalChange(item.id, $event)"
                   />
                   <span>全局</span>
                 </label>
@@ -258,14 +263,27 @@ onUnmounted(() => {
                 >
                   <template v-if="recordingId === item.id">
                     <template v-if="recordedKeys.length > 0">
-                      <Kbd v-for="key in recordedKeys" :key="key" class="text-primary">{{ key }}</Kbd>
+                      <Kbd
+                        v-for="key in recordedKeys"
+                        :key="key"
+                        class="text-primary"
+                      >{{ key }}</Kbd>
                     </template>
-                    <span v-else class="text-xs text-muted-foreground">按下快捷键...</span>
+                    <span
+                      v-else
+                      class="text-xs text-muted-foreground"
+                    >按下快捷键...</span>
                   </template>
                   <template v-else-if="item.accelerator">
-                    <Kbd v-for="key in acceleratorToParts(item.accelerator)" :key="key">{{ key }}</Kbd>
+                    <Kbd
+                      v-for="key in acceleratorToParts(item.accelerator)"
+                      :key="key"
+                    >{{ key }}</Kbd>
                   </template>
-                  <span v-else class="text-xs text-muted-foreground/50">未设置</span>
+                  <span
+                    v-else
+                    class="text-xs text-muted-foreground/50"
+                  >未设置</span>
                 </button>
               </div>
             </div>
@@ -287,7 +305,9 @@ onUnmounted(() => {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>取消</AlertDialogCancel>
-          <AlertDialogAction @click="confirmOverride">覆盖</AlertDialogAction>
+          <AlertDialogAction @click="confirmOverride">
+            覆盖
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

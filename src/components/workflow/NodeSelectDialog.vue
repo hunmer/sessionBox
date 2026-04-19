@@ -65,10 +65,15 @@ function handleOpenChange(value: boolean) {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="handleOpenChange">
+  <Dialog
+    :open="open"
+    @update:open="handleOpenChange"
+  >
     <DialogContent class="sm:max-w-[640px] p-0 gap-0 overflow-hidden">
       <DialogHeader class="p-4 pb-3">
-        <DialogTitle class="text-sm">选择节点</DialogTitle>
+        <DialogTitle class="text-sm">
+          选择节点
+        </DialogTitle>
         <div class="relative mt-2">
           <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -111,7 +116,10 @@ function handleOpenChange(value: boolean) {
         <!-- 右侧：节点网格 -->
         <div class="flex-1 min-w-0">
           <ScrollArea class="h-full">
-            <div v-if="filteredNodes.length > 0" class="grid grid-cols-3 gap-2 p-3">
+            <div
+              v-if="filteredNodes.length > 0"
+              class="grid grid-cols-3 gap-2 p-3"
+            >
               <button
                 v-for="node in filteredNodes"
                 :key="node.type"

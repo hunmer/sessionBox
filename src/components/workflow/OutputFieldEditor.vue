@@ -87,11 +87,15 @@ function addChildField(index: number) {
       <span>名称</span>
       <span>类型</span>
       <span>值</span>
-      <span></span>
+      <span />
     </div>
 
     <!-- 字段行 -->
-    <div v-for="(field, index) in fields" :key="index" class="space-y-0.5">
+    <div
+      v-for="(field, index) in fields"
+      :key="index"
+      class="space-y-0.5"
+    >
       <div
         class="grid gap-1 items-center"
         style="grid-template-columns: 1fr 80px 1fr 52px"
@@ -133,7 +137,10 @@ function addChildField(index: number) {
           class="h-6 text-[11px]"
           @update:model-value="updateField(index, { value: $event })"
         />
-        <span v-else class="h-6" />
+        <span
+          v-else
+          class="h-6"
+        />
 
         <!-- 操作 -->
         <div class="flex items-center gap-0.5">

@@ -75,7 +75,10 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
     <DialogContent class="sm:max-w-[400px]">
       <DialogHeader>
         <DialogTitle>{{ dialogTitle }}</DialogTitle>
@@ -83,11 +86,20 @@ async function handleSubmit() {
       <div class="space-y-3 py-2">
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">标题</label>
-          <Input v-model="title" placeholder="网站标题（可选）" class="h-8 text-sm" />
+          <Input
+            v-model="title"
+            placeholder="网站标题（可选）"
+            class="h-8 text-sm"
+          />
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">网址</label>
-          <Input v-model="url" placeholder="https://" class="h-8 text-sm" @keydown.enter="handleSubmit" />
+          <Input
+            v-model="url"
+            placeholder="https://"
+            class="h-8 text-sm"
+            @keydown.enter="handleSubmit"
+          />
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">文件夹</label>
@@ -113,7 +125,9 @@ async function handleSubmit() {
               <SelectValue placeholder="不绑定" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">不绑定</SelectItem>
+              <SelectItem value="__none__">
+                不绑定
+              </SelectItem>
               <SelectItem
                 v-for="page in pageStore.pages"
                 :key="page.id"
@@ -126,8 +140,20 @@ async function handleSubmit() {
         </div>
       </div>
       <DialogFooter>
-        <Button variant="ghost" size="sm" @click="emit('update:open', false)">取消</Button>
-        <Button size="sm" :disabled="!isValid()" @click="handleSubmit">确定</Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          @click="emit('update:open', false)"
+        >
+          取消
+        </Button>
+        <Button
+          size="sm"
+          :disabled="!isValid()"
+          @click="handleSubmit"
+        >
+          确定
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

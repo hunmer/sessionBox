@@ -30,7 +30,9 @@ function formatDate(ts: number): string {
       >
         <Workflow class="w-4 h-4 text-muted-foreground shrink-0" />
         <div class="min-w-0 flex-1">
-          <div class="truncate font-medium">{{ wf.name }}</div>
+          <div class="truncate font-medium">
+            {{ wf.name }}
+          </div>
           <div class="text-[10px] text-muted-foreground">
             {{ wf.nodes.length }} 个节点 · {{ formatDate(wf.updatedAt) }}
           </div>
@@ -45,7 +47,10 @@ function formatDate(ts: number): string {
         </Button>
       </div>
 
-      <div v-if="filteredWorkflows.length === 0" class="text-xs text-muted-foreground text-center py-8">
+      <div
+        v-if="filteredWorkflows.length === 0"
+        class="text-xs text-muted-foreground text-center py-8"
+      >
         暂无工作流
       </div>
     </div>

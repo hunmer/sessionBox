@@ -83,7 +83,10 @@ defineExpose({ open, close })
 </script>
 
 <template>
-  <Dialog :open="isOpen" @update:open="isOpen = $event">
+  <Dialog
+    :open="isOpen"
+    @update:open="isOpen = $event"
+  >
     <DialogContent class="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
@@ -96,17 +99,34 @@ defineExpose({ open, close })
       </DialogHeader>
 
       <div class="flex-1 overflow-auto space-y-4">
-        <div v-if="error" class="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-2 rounded">
+        <div
+          v-if="error"
+          class="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-2 rounded"
+        >
           {{ error }}
         </div>
 
-        <Button variant="outline" class="w-full" @click="addExtension" :disabled="isLoading">
-          <Loader2 v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
-          <Plus v-else class="w-4 h-4 mr-2" />
+        <Button
+          variant="outline"
+          class="w-full"
+          :disabled="isLoading"
+          @click="addExtension"
+        >
+          <Loader2
+            v-if="isLoading"
+            class="w-4 h-4 mr-2 animate-spin"
+          />
+          <Plus
+            v-else
+            class="w-4 h-4 mr-2"
+          />
           添加扩展
         </Button>
 
-        <div v-if="extensionStore.extensions.length > 0" class="space-y-2">
+        <div
+          v-if="extensionStore.extensions.length > 0"
+          class="space-y-2"
+        >
           <label class="text-sm font-medium">已添加的扩展</label>
           <div class="border rounded-md divide-y">
             <div
@@ -119,13 +139,20 @@ defineExpose({ open, close })
                   v-if="ext.icon"
                   :src="`extension-icon://${ext.id}`"
                   class="w-8 h-8 rounded object-contain"
-                />
-                <div v-else class="w-8 h-8 bg-secondary rounded flex items-center justify-center">
+                >
+                <div
+                  v-else
+                  class="w-8 h-8 bg-secondary rounded flex items-center justify-center"
+                >
                   <Puzzle class="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div class="min-w-0">
-                  <div class="text-sm font-medium">{{ ext.name }}</div>
-                  <div class="text-xs text-muted-foreground">{{ ext.enabled ? '已启用' : '已禁用' }}</div>
+                  <div class="text-sm font-medium">
+                    {{ ext.name }}
+                  </div>
+                  <div class="text-xs text-muted-foreground">
+                    {{ ext.enabled ? '已启用' : '已禁用' }}
+                  </div>
                   <div class="text-xs text-muted-foreground truncate max-w-[260px]">
                     {{ ext.path }}
                   </div>
@@ -135,15 +162,15 @@ defineExpose({ open, close })
               <div class="flex items-center gap-2">
                 <Switch
                   :model-value="ext.enabled"
-                  @update:model-value="toggleExtension(ext.id, $event)"
                   :disabled="isLoading"
+                  @update:model-value="toggleExtension(ext.id, $event)"
                 />
                 <Button
                   variant="ghost"
                   size="icon"
                   class="h-8 w-8 text-muted-foreground hover:text-red-500"
-                  @click="deleteExtensionItem(ext.id)"
                   :disabled="isLoading"
+                  @click="deleteExtensionItem(ext.id)"
                 >
                   <Trash2 class="w-4 h-4" />
                 </Button>
@@ -152,15 +179,27 @@ defineExpose({ open, close })
           </div>
         </div>
 
-        <div v-else class="text-center py-8 text-muted-foreground">
+        <div
+          v-else
+          class="text-center py-8 text-muted-foreground"
+        >
           <Puzzle class="w-12 h-12 mx-auto mb-3 opacity-20" />
-          <p class="text-sm">暂无已添加的扩展</p>
-          <p class="text-xs mt-1">点击上方按钮添加 Chrome 扩展</p>
+          <p class="text-sm">
+            暂无已添加的扩展
+          </p>
+          <p class="text-xs mt-1">
+            点击上方按钮添加 Chrome 扩展
+          </p>
         </div>
       </div>
 
       <div class="flex justify-end gap-2 pt-4 border-t">
-        <Button variant="outline" @click="close">关闭</Button>
+        <Button
+          variant="outline"
+          @click="close"
+        >
+          关闭
+        </Button>
       </div>
     </DialogContent>
   </Dialog>

@@ -105,7 +105,11 @@ const isOpen = ref(false)
     <div class="hidden font-medium text-muted-foreground md:inline-block">
       Edit Oct 08
     </div>
-    <Button variant="ghost" size="icon" class="h-7 w-7">
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-7 w-7"
+    >
       <Star />
     </Button>
     <Popover v-model:open="isOpen">
@@ -122,12 +126,22 @@ const isOpen = ref(false)
         class="w-56 overflow-hidden rounded-lg p-0"
         align="end"
       >
-        <Sidebar collapsible="none" class="bg-transparent">
+        <Sidebar
+          collapsible="none"
+          class="bg-transparent"
+        >
           <SidebarContent>
-            <SidebarGroup v-for="(group, index) in data" :key="index" class="border-b last:border-none">
+            <SidebarGroup
+              v-for="(group, index) in data"
+              :key="index"
+              class="border-b last:border-none"
+            >
               <SidebarGroupContent class="gap-0">
                 <SidebarMenu>
-                  <SidebarMenuItem v-for="(item, index) in group" :key="index">
+                  <SidebarMenuItem
+                    v-for="(item, index) in group"
+                    :key="index"
+                  >
                     <SidebarMenuButton>
                       <component :is="item.icon" /> <span>{{ item.label }}</span>
                     </SidebarMenuButton>

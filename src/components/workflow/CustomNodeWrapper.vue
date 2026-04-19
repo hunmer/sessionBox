@@ -127,7 +127,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <NodeResizer :is-visible="props.selected" min-width="140" min-height="60" />
+  <NodeResizer
+    :is-visible="props.selected"
+    min-width="140"
+    min-height="60"
+  />
 
   <ContextMenu>
     <ContextMenuTrigger as-child>
@@ -167,7 +171,11 @@ onMounted(() => {
         </span>
 
         <div class="flex items-center gap-2 px-3 py-2 border-b border-border/50">
-          <component :is="IconComponent" v-if="IconComponent" class="w-4 h-4 text-muted-foreground shrink-0" />
+          <component
+            :is="IconComponent"
+            v-if="IconComponent"
+            class="w-4 h-4 text-muted-foreground shrink-0"
+          />
           <span class="text-xs text-muted-foreground truncate">{{ definition?.label || type }}</span>
         </div>
 
@@ -180,7 +188,7 @@ onMounted(() => {
             @blur="finishEdit"
             @keyup.enter="finishEdit"
             @click.stop
-          />
+          >
           <div
             v-else
             class="text-xs truncate hover:bg-muted/50 rounded px-1 py-0.5"
@@ -221,7 +229,10 @@ onMounted(() => {
         <ContextMenuItem @click="handleClone">
           复制节点
         </ContextMenuItem>
-        <ContextMenuItem class="text-destructive" @click="handleDelete">
+        <ContextMenuItem
+          class="text-destructive"
+          @click="handleDelete"
+        >
           删除节点
         </ContextMenuItem>
       </template>

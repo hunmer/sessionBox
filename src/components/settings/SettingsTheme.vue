@@ -147,7 +147,9 @@ const previewForeground = computed(() => extractVar('--foreground') || (editMode
   <div class="space-y-6">
     <!-- 亮色/暗色切换 -->
     <div>
-      <h3 class="text-sm font-medium mb-3">外观模式</h3>
+      <h3 class="text-sm font-medium mb-3">
+        外观模式
+      </h3>
       <div class="flex gap-2">
         <button
           class="flex items-center gap-2 px-4 py-2 rounded-md text-sm border transition-colors"
@@ -197,7 +199,10 @@ const previewForeground = computed(() => extractVar('--foreground') || (editMode
       </div>
 
       <!-- 预设主题 -->
-      <div v-if="activeView === 'presets'" class="grid grid-cols-3 gap-3">
+      <div
+        v-if="activeView === 'presets'"
+        class="grid grid-cols-3 gap-3"
+      >
         <button
           v-for="p in themePresets"
           :key="p.key"
@@ -255,20 +260,27 @@ const previewForeground = computed(() => extractVar('--foreground') || (editMode
                 const vars = themeStore.theme === 'dark' ? p.dark : p.light
                 return vars['--foreground'] || (themeStore.theme === 'dark' ? '#e8eaed' : '#222222')
               })() }"
-            >{{ p.label }}</div>
+            >
+              {{ p.label }}
+            </div>
             <div
               class="text-[10px] mt-0.5 opacity-60"
               :style="{ color: (() => {
                 const vars = themeStore.theme === 'dark' ? p.dark : p.light
                 return vars['--foreground'] || (themeStore.theme === 'dark' ? '#e8eaed' : '#222222')
               })() }"
-            >{{ p.desc }}</div>
+            >
+              {{ p.desc }}
+            </div>
           </div>
         </button>
       </div>
 
       <!-- 自定义主题 -->
-      <div v-else class="space-y-4">
+      <div
+        v-else
+        class="space-y-4"
+      >
         <!-- 预览色块 -->
         <div class="rounded-lg border overflow-hidden">
           <div class="h-12 flex overflow-hidden">
@@ -356,7 +368,9 @@ const previewForeground = computed(() => extractVar('--foreground') || (editMode
 
         <!-- 导入/导出 -->
         <div class="pt-2 border-t">
-          <h4 class="text-xs font-medium text-muted-foreground mb-2">导入 / 导出</h4>
+          <h4 class="text-xs font-medium text-muted-foreground mb-2">
+            导入 / 导出
+          </h4>
           <div class="flex gap-2">
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs border border-border hover:bg-muted/50 transition-colors"

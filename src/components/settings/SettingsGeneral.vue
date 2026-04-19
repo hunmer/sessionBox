@@ -88,7 +88,9 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
 </script>
 
 <template>
-  <h3 class="text-sm font-medium mb-3">主页设置</h3>
+  <h3 class="text-sm font-medium mb-3">
+    主页设置
+  </h3>
   <div class="space-y-3">
     <div>
       <label class="text-xs text-muted-foreground mb-1 block">主页地址</label>
@@ -131,7 +133,9 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
     </div>
   </div>
 
-  <h3 class="text-sm font-medium mb-3 mt-6">默认浏览器</h3>
+  <h3 class="text-sm font-medium mb-3 mt-6">
+    默认浏览器
+  </h3>
   <div class="flex items-center justify-between">
     <div>
       <label class="text-xs text-muted-foreground">将 SessionBox 设为默认浏览器</label>
@@ -152,15 +156,22 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
       />
     </button>
   </div>
-  <p v-if="isWindows && !isDefaultBrowser" class="text-xs text-muted-foreground/60 mt-2">
+  <p
+    v-if="isWindows && !isDefaultBrowser"
+    class="text-xs text-muted-foreground/60 mt-2"
+  >
     如果系统“默认应用”的 Web 浏览器列表里没有 SessionBox，重新安装此版本后会自动补齐浏览器注册信息。
   </p>
 
-  <h3 class="text-sm font-medium mb-3 mt-6">窗口行为</h3>
+  <h3 class="text-sm font-medium mb-3 mt-6">
+    窗口行为
+  </h3>
   <div class="flex items-center justify-between">
     <div>
       <label class="text-xs text-muted-foreground">关闭时最小化到托盘</label>
-      <p class="text-xs text-muted-foreground/60 mt-0.5">关闭后应用将继续在后台运行</p>
+      <p class="text-xs text-muted-foreground/60 mt-0.5">
+        关闭后应用将继续在后台运行
+      </p>
     </div>
     <button
       role="switch"

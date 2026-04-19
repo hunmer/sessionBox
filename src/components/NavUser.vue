@@ -42,7 +42,11 @@ const emit = defineEmits<{
         @click="emit('openSettings', 'user')"
       >
         <Avatar class="h-8 w-8 rounded-lg">
-          <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
+          <AvatarImage
+            v-if="user.avatar"
+            :src="user.avatar"
+            :alt="user.name"
+          />
           <AvatarFallback class="rounded-lg">
             {{ user.emoji || user.name?.[0]?.toUpperCase() || 'U' }}
           </AvatarFallback>
@@ -53,14 +57,20 @@ const emit = defineEmits<{
             <span class="truncate text-xs">{{ user.email }}</span>
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger as-child @click.stop>
+            <DropdownMenuTrigger
+              as-child
+              @click.stop
+            >
               <button
                 class="inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               >
                 <MoreVertical class="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" class="w-48">
+            <DropdownMenuContent
+              align="end"
+              class="w-48"
+            >
               <DropdownMenuItem @click="emit('openSettings', 'general')">
                 <Settings class="mr-2 h-4 w-4" />
                 设置

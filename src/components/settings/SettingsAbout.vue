@@ -209,15 +209,25 @@ onUnmounted(() => {
     <div class="absolute top-4 right-4">
       <Popover>
         <PopoverTrigger as-child>
-          <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8 text-muted-foreground hover:text-foreground"
+          >
             <Settings2 class="w-4 h-4" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent class="w-80 p-4" align="end">
+        <PopoverContent
+          class="w-80 p-4"
+          align="end"
+        >
           <div class="flex flex-col gap-3">
             <label class="text-sm font-medium">更新源</label>
 
-            <Select :model-value="activeSourceId" @update:model-value="switchSource">
+            <Select
+              :model-value="activeSourceId"
+              @update:model-value="switchSource"
+            >
               <SelectTrigger class="w-full">
                 <SelectValue placeholder="选择更新源" />
               </SelectTrigger>
@@ -233,7 +243,10 @@ onUnmounted(() => {
             </Select>
 
             <!-- 当前源信息 -->
-            <p v-if="activeSource" class="text-xs text-muted-foreground">
+            <p
+              v-if="activeSource"
+              class="text-xs text-muted-foreground"
+            >
               <template v-if="activeSource.type === 'github'">
                 GitHub: {{ activeSource.owner }}/{{ activeSource.repo }}
               </template>
@@ -243,7 +256,10 @@ onUnmounted(() => {
             </p>
 
             <!-- 已添加的自定义源列表 -->
-            <div v-if="customSources.length > 0" class="flex flex-col gap-1.5">
+            <div
+              v-if="customSources.length > 0"
+              class="flex flex-col gap-1.5"
+            >
               <div
                 v-for="source in customSources"
                 :key="source.id"
@@ -276,7 +292,10 @@ onUnmounted(() => {
               添加自定义源
             </Button>
 
-            <div v-if="showAddForm" class="flex flex-col gap-2 rounded-md border p-3">
+            <div
+              v-if="showAddForm"
+              class="flex flex-col gap-2 rounded-md border p-3"
+            >
               <Input
                 v-model="newSourceName"
                 placeholder="名称（如：镜像站）"
@@ -312,9 +331,15 @@ onUnmounted(() => {
     </div>
 
     <!-- 应用图标与版本 -->
-    <img :src="appIcon" alt="SessionBox" class="w-20 h-20 rounded-xl" />
+    <img
+      :src="appIcon"
+      alt="SessionBox"
+      class="w-20 h-20 rounded-xl"
+    >
     <div class="text-center">
-      <h3 class="text-lg font-semibold">SessionBox</h3>
+      <h3 class="text-lg font-semibold">
+        SessionBox
+      </h3>
       <p class="text-xs text-muted-foreground mt-1">
         版本 v{{ currentVersion || '...' }}
       </p>
@@ -340,18 +365,30 @@ onUnmounted(() => {
         :disabled="isChecking"
         @click="checkForUpdates"
       >
-        <Loader2 v-if="isChecking" class="w-4 h-4 animate-spin" />
-        <RefreshCw v-else class="w-4 h-4" />
+        <Loader2
+          v-if="isChecking"
+          class="w-4 h-4 animate-spin"
+        />
+        <RefreshCw
+          v-else
+          class="w-4 h-4"
+        />
         {{ isChecking ? '正在检查...' : '检查更新' }}
       </Button>
 
       <!-- 检查结果 -->
-      <div v-if="checkResult" class="w-full text-center">
+      <div
+        v-if="checkResult"
+        class="w-full text-center"
+      >
         <Badge
           :variant="checkResult.type === 'error' ? 'destructive' : 'default'"
           class="gap-1"
         >
-          <Check v-if="checkResult.type === 'success'" class="w-3 h-3" />
+          <Check
+            v-if="checkResult.type === 'success'"
+            class="w-3 h-3"
+          />
           {{ checkResult.message }}
         </Badge>
       </div>

@@ -231,8 +231,14 @@ watch(() => props.open, (val) => {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="handleClose">
-    <DialogContent class="sm:max-w-[560px] max-h-[80vh] flex flex-col" :hide-close="phase === 'checking'">
+  <Dialog
+    :open="open"
+    @update:open="handleClose"
+  >
+    <DialogContent
+      class="sm:max-w-[560px] max-h-[80vh] flex flex-col"
+      :hide-close="phase === 'checking'"
+    >
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
           <ShieldCheck class="w-4 h-4" />
@@ -241,32 +247,63 @@ watch(() => props.open, (val) => {
       </DialogHeader>
 
       <!-- ====== 设置阶段 ====== -->
-      <div v-if="phase === 'setup'" class="space-y-4 py-2">
+      <div
+        v-if="phase === 'setup'"
+        class="space-y-4 py-2"
+      >
         <p class="text-xs text-muted-foreground">
           将检查 <span class="font-medium text-foreground">{{ bookmarkStore.bookmarks.length }}</span> 个书签的可用性
         </p>
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-muted-foreground mb-1 block">最大重试次数</label>
-            <Input v-model.number="maxRetries" type="number" min="1" max="10" class="h-8 text-sm" />
+            <Input
+              v-model.number="maxRetries"
+              type="number"
+              min="1"
+              max="10"
+              class="h-8 text-sm"
+            />
           </div>
           <div>
             <label class="text-xs text-muted-foreground mb-1 block">并行数</label>
-            <Input v-model.number="concurrency" type="number" min="1" max="20" class="h-8 text-sm" />
+            <Input
+              v-model.number="concurrency"
+              type="number"
+              min="1"
+              max="20"
+              class="h-8 text-sm"
+            />
           </div>
           <div>
             <label class="text-xs text-muted-foreground mb-1 block">超时时间 (ms)</label>
-            <Input v-model.number="timeout" type="number" min="3000" max="60000" step="1000" class="h-8 text-sm" />
+            <Input
+              v-model.number="timeout"
+              type="number"
+              min="3000"
+              max="60000"
+              step="1000"
+              class="h-8 text-sm"
+            />
           </div>
           <div class="flex items-end gap-2 pb-0.5">
-            <Checkbox v-model="useProxy" id="useProxy" />
-            <label for="useProxy" class="text-xs text-muted-foreground cursor-pointer">使用系统代理</label>
+            <Checkbox
+              id="useProxy"
+              v-model="useProxy"
+            />
+            <label
+              for="useProxy"
+              class="text-xs text-muted-foreground cursor-pointer"
+            >使用系统代理</label>
           </div>
         </div>
       </div>
 
       <!-- ====== 检查阶段 ====== -->
-      <div v-else-if="phase === 'checking'" class="space-y-3 py-2 flex-1 min-h-0">
+      <div
+        v-else-if="phase === 'checking'"
+        class="space-y-3 py-2 flex-1 min-h-0"
+      >
         <div class="flex items-center justify-between text-xs">
           <span class="text-muted-foreground">
             已检查 {{ progress }} / {{ totalCount }}
@@ -276,7 +313,10 @@ watch(() => props.open, (val) => {
             <span class="text-red-500">失效 {{ invalidCount }}</span>
           </span>
         </div>
-        <Progress :model-value="(progress / totalCount) * 100" class="h-2" />
+        <Progress
+          :model-value="(progress / totalCount) * 100"
+          class="h-2"
+        />
 
         <ScrollArea class="h-[300px] border rounded-md">
           <div class="p-2 space-y-1">
@@ -285,12 +325,25 @@ watch(() => props.open, (val) => {
               :key="idx"
               class="flex items-start gap-2 px-2 py-1.5 rounded text-xs hover:bg-muted/50"
             >
-              <CheckCircle2 v-if="item.status === 'valid'" class="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0" />
-              <XCircle v-else class="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+              <CheckCircle2
+                v-if="item.status === 'valid'"
+                class="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0"
+              />
+              <XCircle
+                v-else
+                class="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0"
+              />
               <div class="min-w-0 flex-1">
-                <div class="truncate font-medium">{{ item.title }}</div>
-                <div class="truncate text-muted-foreground">{{ item.url }}</div>
-                <div v-if="item.error" class="text-red-400 mt-0.5">
+                <div class="truncate font-medium">
+                  {{ item.title }}
+                </div>
+                <div class="truncate text-muted-foreground">
+                  {{ item.url }}
+                </div>
+                <div
+                  v-if="item.error"
+                  class="text-red-400 mt-0.5"
+                >
                   {{ item.error }}{{ item.retries > 0 ? ` (重试 ${item.retries} 次)` : '' }}
                 </div>
               </div>
@@ -300,26 +353,47 @@ watch(() => props.open, (val) => {
       </div>
 
       <!-- ====== 结果阶段 ====== -->
-      <div v-else-if="phase === 'result'" class="space-y-3 py-2 flex-1 min-h-0">
+      <div
+        v-else-if="phase === 'result'"
+        class="space-y-3 py-2 flex-1 min-h-0"
+      >
         <div class="flex items-center justify-center gap-6 py-3 text-sm border rounded-md">
           <div class="text-center">
-            <div class="font-semibold text-lg">{{ totalCount }}</div>
-            <div class="text-xs text-muted-foreground">总数</div>
+            <div class="font-semibold text-lg">
+              {{ totalCount }}
+            </div>
+            <div class="text-xs text-muted-foreground">
+              总数
+            </div>
           </div>
           <div class="text-center">
-            <div class="font-semibold text-lg text-green-600">{{ validCount }}</div>
-            <div class="text-xs text-muted-foreground">有效</div>
+            <div class="font-semibold text-lg text-green-600">
+              {{ validCount }}
+            </div>
+            <div class="text-xs text-muted-foreground">
+              有效
+            </div>
           </div>
           <div class="text-center">
-            <div class="font-semibold text-lg text-red-500">{{ invalidCount }}</div>
-            <div class="text-xs text-muted-foreground">失效</div>
+            <div class="font-semibold text-lg text-red-500">
+              {{ invalidCount }}
+            </div>
+            <div class="text-xs text-muted-foreground">
+              失效
+            </div>
           </div>
         </div>
 
         <div v-if="invalidResults.length > 0">
           <div class="flex items-center gap-2 mb-2">
-            <Checkbox v-model="allInvalidSelected" id="selectAll" />
-            <label for="selectAll" class="text-xs text-muted-foreground cursor-pointer">全选</label>
+            <Checkbox
+              id="selectAll"
+              v-model="allInvalidSelected"
+            />
+            <label
+              for="selectAll"
+              class="text-xs text-muted-foreground cursor-pointer"
+            >全选</label>
             <span class="text-xs text-muted-foreground ml-auto">
               已选 {{ selectedInvalidIds.size }} / {{ invalidResults.length }}
             </span>
@@ -334,12 +408,16 @@ watch(() => props.open, (val) => {
               >
                 <Checkbox
                   :model-value="selectedInvalidIds.has(item.bookmarkId)"
-                  @update:model-value="toggleInvalidItem(item.bookmarkId)"
                   class="mt-0.5"
+                  @update:model-value="toggleInvalidItem(item.bookmarkId)"
                 />
                 <div class="min-w-0 flex-1">
-                  <div class="truncate font-medium">{{ item.title }}</div>
-                  <div class="truncate text-muted-foreground">{{ item.url }}</div>
+                  <div class="truncate font-medium">
+                    {{ item.title }}
+                  </div>
+                  <div class="truncate text-muted-foreground">
+                    {{ item.url }}
+                  </div>
                   <div class="text-red-400 mt-0.5">
                     {{ item.error }}{{ item.retries > 0 ? ` (重试 ${item.retries} 次)` : '' }}
                   </div>
@@ -349,7 +427,10 @@ watch(() => props.open, (val) => {
           </ScrollArea>
         </div>
 
-        <div v-else class="text-center py-6 text-sm text-muted-foreground">
+        <div
+          v-else
+          class="text-center py-6 text-sm text-muted-foreground"
+        >
           <CheckCircle2 class="w-8 h-8 text-green-600 mx-auto mb-2" />
           所有书签均有效
         </div>
@@ -364,24 +445,54 @@ watch(() => props.open, (val) => {
             :disabled="isCleaningEmptyFolders"
             @click="cleanEmptyFolders"
           >
-            <Loader2 v-if="isCleaningEmptyFolders" class="w-3.5 h-3.5 mr-1 animate-spin" />
-            <FolderX v-else class="w-3.5 h-3.5 mr-1" />
+            <Loader2
+              v-if="isCleaningEmptyFolders"
+              class="w-3.5 h-3.5 mr-1 animate-spin"
+            />
+            <FolderX
+              v-else
+              class="w-3.5 h-3.5 mr-1"
+            />
             清空空文件夹
           </Button>
           <div class="flex-1" />
-          <Button variant="ghost" size="sm" @click="handleClose">取消</Button>
-          <Button size="sm" :disabled="bookmarkStore.bookmarks.length === 0" @click="startCheck">
+          <Button
+            variant="ghost"
+            size="sm"
+            @click="handleClose"
+          >
+            取消
+          </Button>
+          <Button
+            size="sm"
+            :disabled="bookmarkStore.bookmarks.length === 0"
+            @click="startCheck"
+          >
             开始检查
           </Button>
         </template>
         <template v-else-if="phase === 'checking'">
-          <Button size="sm" variant="ghost" :disabled="isCancelling" @click="cancelCheck">
-            <Loader2 v-if="isCancelling" class="w-3.5 h-3.5 mr-1 animate-spin" />
+          <Button
+            size="sm"
+            variant="ghost"
+            :disabled="isCancelling"
+            @click="cancelCheck"
+          >
+            <Loader2
+              v-if="isCancelling"
+              class="w-3.5 h-3.5 mr-1 animate-spin"
+            />
             {{ isCancelling ? '正在取消...' : '取消检查' }}
           </Button>
         </template>
         <template v-else-if="phase === 'result'">
-          <Button variant="ghost" size="sm" @click="handleClose">关闭</Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            @click="handleClose"
+          >
+            关闭
+          </Button>
           <Button
             v-if="invalidResults.length > 0"
             size="sm"
@@ -389,7 +500,10 @@ watch(() => props.open, (val) => {
             :disabled="selectedInvalidIds.size === 0 || isDeleting"
             @click="deleteSelected"
           >
-            <Loader2 v-if="isDeleting" class="w-3.5 h-3.5 mr-1 animate-spin" />
+            <Loader2
+              v-if="isDeleting"
+              class="w-3.5 h-3.5 mr-1 animate-spin"
+            />
             {{ isDeleting ? '删除中...' : `批量删除选中 (${selectedInvalidIds.size})` }}
           </Button>
         </template>

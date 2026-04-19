@@ -85,7 +85,11 @@ function handleOpenFull() {
       <div class="flex items-center gap-2 text-sm font-medium">
         <Shield class="h-3.5 w-3.5 text-muted-foreground" />
         代理切换
-        <Badge v-if="enabledProxies.length" variant="secondary" class="text-[10px] h-4">
+        <Badge
+          v-if="enabledProxies.length"
+          variant="secondary"
+          class="text-[10px] h-4"
+        >
           {{ enabledProxies.length }}
         </Badge>
       </div>
@@ -102,14 +106,23 @@ function handleOpenFull() {
     <Separator />
 
     <!-- 当前状态 -->
-    <div v-if="activeProxyInfo && activeProxyInfo.enabled" class="px-3 py-2">
+    <div
+      v-if="activeProxyInfo && activeProxyInfo.enabled"
+      class="px-3 py-2"
+    >
       <div class="flex items-center gap-2">
-        <Badge :variant="isOverride ? 'default' : 'secondary'" class="text-[10px] h-4 shrink-0">
+        <Badge
+          :variant="isOverride ? 'default' : 'secondary'"
+          class="text-[10px] h-4 shrink-0"
+        >
           {{ isOverride ? '临时' : '绑定' }}
         </Badge>
         <span class="text-xs text-muted-foreground truncate">
           {{ activeProxyInfo.name }}
-          <span v-if="activeProxyInfo.ip" class="text-[10px]">({{ activeProxyInfo.ip }})</span>
+          <span
+            v-if="activeProxyInfo.ip"
+            class="text-[10px]"
+          >({{ activeProxyInfo.ip }})</span>
         </span>
       </div>
     </div>
@@ -117,10 +130,18 @@ function handleOpenFull() {
 
     <!-- 代理列表 -->
     <ScrollArea class="h-[320px]">
-      <div v-if="enabledProxies.length === 0" class="flex items-center justify-center py-8">
-        <p class="text-xs text-muted-foreground">暂无可用代理</p>
+      <div
+        v-if="enabledProxies.length === 0"
+        class="flex items-center justify-center py-8"
+      >
+        <p class="text-xs text-muted-foreground">
+          暂无可用代理
+        </p>
       </div>
-      <div v-else class="py-1">
+      <div
+        v-else
+        class="py-1"
+      >
         <div
           v-for="proxy in enabledProxies"
           :key="proxy.id"
@@ -130,14 +151,23 @@ function handleOpenFull() {
         >
           <!-- 选中标记 -->
           <div class="shrink-0 w-5 h-5 flex items-center justify-center">
-            <Loader2 v-if="applyingProxyId === proxy.id" class="h-3.5 w-3.5 animate-spin text-primary" />
-            <Check v-else-if="proxy.id === currentProxyId" class="h-3.5 w-3.5 text-primary" />
+            <Loader2
+              v-if="applyingProxyId === proxy.id"
+              class="h-3.5 w-3.5 animate-spin text-primary"
+            />
+            <Check
+              v-else-if="proxy.id === currentProxyId"
+              class="h-3.5 w-3.5 text-primary"
+            />
           </div>
 
           <!-- 代理信息 -->
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1.5">
-              <component :is="getModeIcon(proxy.proxyMode)" class="h-3 w-3 text-muted-foreground shrink-0" />
+              <component
+                :is="getModeIcon(proxy.proxyMode)"
+                class="h-3 w-3 text-muted-foreground shrink-0"
+              />
               <span class="text-xs truncate">{{ proxy.name }}</span>
             </div>
             <div class="text-[10px] text-muted-foreground truncate mt-0.5">
@@ -146,7 +176,10 @@ function handleOpenFull() {
           </div>
 
           <!-- 模式标签 -->
-          <Badge variant="outline" class="text-[10px] h-4 shrink-0">
+          <Badge
+            variant="outline"
+            class="text-[10px] h-4 shrink-0"
+          >
             {{ getModeLabel(proxy.proxyMode) }}
           </Badge>
         </div>

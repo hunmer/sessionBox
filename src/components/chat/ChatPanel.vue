@@ -88,17 +88,35 @@ function handleEdit(messageId: string, newContent: string) {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-background" :class="{ 'border-l border-border': !embedded }">
+  <div
+    class="flex flex-col h-full bg-background"
+    :class="{ 'border-l border-border': !embedded }"
+  >
     <!-- 头部工具栏 -->
     <div class="flex items-center gap-1.5 px-3 py-2 border-b shrink-0">
       <BrowserViewPicker v-if="!embedded" />
       <ModelSelector />
-      <SessionManager v-if="!embedded" :chat="chat" />
-      <Button v-if="!embedded" variant="ghost" size="icon" class="h-7 w-7" @click="showProviderManager = true">
+      <SessionManager
+        v-if="!embedded"
+        :chat="chat"
+      />
+      <Button
+        v-if="!embedded"
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7"
+        @click="showProviderManager = true"
+      >
         <Settings class="h-4 w-4" />
       </Button>
       <div class="flex-1" />
-      <Button v-if="!embedded" variant="ghost" size="icon" class="h-7 w-7" @click="handleClose">
+      <Button
+        v-if="!embedded"
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7"
+        @click="handleClose"
+      >
         <X class="h-4 w-4" />
       </Button>
     </div>
@@ -130,6 +148,9 @@ function handleEdit(messageId: string, newContent: string) {
     />
 
     <!-- 供应商管理对话框 -->
-    <ProviderManager v-if="!embedded" v-model:open="showProviderManager" />
+    <ProviderManager
+      v-if="!embedded"
+      v-model:open="showProviderManager"
+    />
   </div>
 </template>

@@ -179,17 +179,26 @@ function handleBookmarkDrop(bookmarkId: string, position: 'before' | 'after' | '
           >
             <ChevronRight class="w-3 h-3" />
           </button>
-          <span v-else class="w-4 flex-shrink-0" />
+          <span
+            v-else
+            class="w-4 flex-shrink-0"
+          />
         </CollapsibleTrigger>
 
         <!-- 文件夹图标 -->
-        <component :is="open ? FolderOpen : Folder" class="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+        <component
+          :is="open ? FolderOpen : Folder"
+          class="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground"
+        />
 
         <!-- 文件夹名 -->
         <span class="flex-1 truncate text-xs">{{ folder.name }}</span>
 
         <!-- 书签数量 -->
-        <span v-if="bookmarkCount > 0" class="text-[10px] text-muted-foreground flex-shrink-0">
+        <span
+          v-if="bookmarkCount > 0"
+          class="text-[10px] text-muted-foreground flex-shrink-0"
+        >
           {{ bookmarkCount }}
         </span>
 
@@ -203,11 +212,20 @@ function handleBookmarkDrop(bookmarkId: string, position: 'before' | 'after' | '
               <MoreHorizontal class="w-3 h-3" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" class="w-32">
-            <DropdownMenuItem class="text-xs" @click="emit('addFolder', folder.id)">
+          <DropdownMenuContent
+            align="end"
+            class="w-32"
+          >
+            <DropdownMenuItem
+              class="text-xs"
+              @click="emit('addFolder', folder.id)"
+            >
               <FolderPlus class="w-3 h-3 mr-1.5" /> 新建子文件夹
             </DropdownMenuItem>
-            <DropdownMenuItem class="text-xs" @click="emit('editFolder', folder.id)">
+            <DropdownMenuItem
+              class="text-xs"
+              @click="emit('editFolder', folder.id)"
+            >
               <Pencil class="w-3 h-3 mr-1.5" /> 重命名
             </DropdownMenuItem>
             <DropdownMenuItem

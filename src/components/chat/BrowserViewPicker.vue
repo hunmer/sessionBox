@@ -66,10 +66,16 @@ function handleChange(value: string): void {
   >
     <SelectTrigger class="h-7 text-xs w-[160px]">
       <span class="truncate">{{ displayLabel }}</span>
-      <span v-if="!chatUIStore.targetTabId" class="shrink-0 text-[10px] text-muted-foreground/60 ml-1">(跟随)</span>
+      <span
+        v-if="!chatUIStore.targetTabId"
+        class="shrink-0 text-[10px] text-muted-foreground/60 ml-1"
+      >(跟随)</span>
     </SelectTrigger>
     <SelectContent>
-      <SelectItem :value="CURRENT_VALUE" class="text-xs">
+      <SelectItem
+        :value="CURRENT_VALUE"
+        class="text-xs"
+      >
         {{ currentTabLabel }}
       </SelectItem>
       <SelectItem

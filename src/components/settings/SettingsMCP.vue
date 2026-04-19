@@ -45,24 +45,38 @@ function copyConfig() {
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
         <Server class="w-5 h-5" />
-        <h3 class="text-lg font-semibold">MCP Server</h3>
+        <h3 class="text-lg font-semibold">
+          MCP Server
+        </h3>
       </div>
-      <Switch :model-value="mcpStore.enabled" @update:model-value="toggleEnabled" />
+      <Switch
+        :model-value="mcpStore.enabled"
+        @update:model-value="toggleEnabled"
+      />
     </div>
 
     <div class="space-y-3 text-sm">
       <div class="flex items-center gap-2">
         <span class="text-muted-foreground">状态：</span>
-        <span v-if="mcpStore.running" class="flex items-center gap-1.5 text-green-600">
+        <span
+          v-if="mcpStore.running"
+          class="flex items-center gap-1.5 text-green-600"
+        >
           <span class="w-2 h-2 rounded-full bg-green-500" />
           运行中
         </span>
-        <span v-else class="flex items-center gap-1.5 text-muted-foreground">
+        <span
+          v-else
+          class="flex items-center gap-1.5 text-muted-foreground"
+        >
           <span class="w-2 h-2 rounded-full bg-muted-foreground/50" />
           已停止
         </span>
       </div>
-      <div v-if="mcpStore.running" class="text-muted-foreground">
+      <div
+        v-if="mcpStore.running"
+        class="text-muted-foreground"
+      >
         已注册工具：{{ mcpStore.toolCount }} 个 | 端口：{{ mcpStore.port }}
       </div>
     </div>

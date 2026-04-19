@@ -93,7 +93,11 @@ function handleOpenFull() {
       <div class="flex items-center gap-2 text-sm font-medium">
         <Download class="h-3.5 w-3.5 text-muted-foreground" />
         下载管理
-        <Badge v-if="downloadStore.connected" variant="default" class="text-[10px] h-4">
+        <Badge
+          v-if="downloadStore.connected"
+          variant="default"
+          class="text-[10px] h-4"
+        >
           {{ activeCount }} 进行中
         </Badge>
       </div>
@@ -110,18 +114,31 @@ function handleOpenFull() {
     <Separator />
 
     <!-- 未连接状态 -->
-    <div v-if="!downloadStore.connected" class="flex flex-col items-center justify-center py-8 gap-2">
+    <div
+      v-if="!downloadStore.connected"
+      class="flex flex-col items-center justify-center py-8 gap-2"
+    >
       <Server class="h-8 w-8 text-muted-foreground" />
-      <p class="text-xs text-muted-foreground">Aria2 服务未连接</p>
+      <p class="text-xs text-muted-foreground">
+        Aria2 服务未连接
+      </p>
     </div>
 
     <!-- 列表 -->
     <template v-else>
       <ScrollArea class="h-[360px]">
-        <div v-if="recentTasks.length === 0" class="flex items-center justify-center py-8">
-          <p class="text-xs text-muted-foreground">暂无下载任务</p>
+        <div
+          v-if="recentTasks.length === 0"
+          class="flex items-center justify-center py-8"
+        >
+          <p class="text-xs text-muted-foreground">
+            暂无下载任务
+          </p>
         </div>
-        <div v-else class="py-1">
+        <div
+          v-else
+          class="py-1"
+        >
           <div
             v-for="task in recentTasks"
             :key="task.gid"
@@ -129,26 +146,41 @@ function handleOpenFull() {
           >
             <!-- 状态图标 -->
             <div class="shrink-0 w-5 h-5 rounded bg-muted/50 flex items-center justify-center">
-              <component :is="statusIcon(task.status)" :class="['h-3 w-3', statusIconClass(task.status)]" />
+              <component
+                :is="statusIcon(task.status)"
+                :class="['h-3 w-3', statusIconClass(task.status)]"
+              />
             </div>
 
             <!-- 信息 -->
             <div class="flex-1 min-w-0 space-y-0.5">
               <div class="flex items-center gap-1">
                 <span class="text-xs truncate flex-1">{{ task.filename || task.url }}</span>
-                <Badge :variant="statusVariant(task.status)" class="text-[10px] shrink-0 h-4">
+                <Badge
+                  :variant="statusVariant(task.status)"
+                  class="text-[10px] shrink-0 h-4"
+                >
                   {{ statusLabel(task.status) }}
                 </Badge>
               </div>
               <!-- 进度（活跃/暂停/等待） -->
-              <div v-if="['active', 'paused', 'waiting'].includes(task.status)" class="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <div
+                v-if="['active', 'paused', 'waiting'].includes(task.status)"
+                class="flex items-center gap-2 text-[10px] text-muted-foreground"
+              >
                 <span>{{ task.progress.toFixed(0) }}%</span>
                 <span>{{ formatSize(task.completedLength) }} / {{ formatSize(task.totalLength) }}</span>
               </div>
               <!-- 已完成/出错 -->
-              <div v-else class="text-[10px] text-muted-foreground">
+              <div
+                v-else
+                class="text-[10px] text-muted-foreground"
+              >
                 <span v-if="task.status === 'complete'">{{ formatSize(task.totalLength) }}</span>
-                <span v-else-if="task.status === 'error'" class="text-red-500">{{ task.errorMessage || '下载失败' }}</span>
+                <span
+                  v-else-if="task.status === 'error'"
+                  class="text-red-500"
+                >{{ task.errorMessage || '下载失败' }}</span>
               </div>
             </div>
           </div>

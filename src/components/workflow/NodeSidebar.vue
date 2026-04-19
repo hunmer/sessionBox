@@ -80,8 +80,13 @@ function getIcon(name: string) {
                     class="w-3.5 h-3.5 text-muted-foreground shrink-0"
                   />
                   <div class="min-w-0">
-                    <div class="truncate">{{ node.label }}</div>
-                    <div v-if="node.description" class="text-[10px] text-muted-foreground truncate">
+                    <div class="truncate">
+                      {{ node.label }}
+                    </div>
+                    <div
+                      v-if="node.description"
+                      class="text-[10px] text-muted-foreground truncate"
+                    >
                       {{ node.description }}
                     </div>
                   </div>

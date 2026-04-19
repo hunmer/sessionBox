@@ -35,8 +35,12 @@ onMounted(loadMutedSites)
 
 <template>
   <!-- 默认静音的网站 -->
-  <h3 class="text-sm font-medium mb-3">默认静音的网站</h3>
-  <p class="text-xs text-muted-foreground mb-4">添加网站域名后，打开该网站的标签页将自动静音。支持精确匹配和子域名匹配（如添加 <code class="bg-muted px-1 rounded text-xs">example.com</code> 也会匹配 <code class="bg-muted px-1 rounded text-xs">sub.example.com</code>）。</p>
+  <h3 class="text-sm font-medium mb-3">
+    默认静音的网站
+  </h3>
+  <p class="text-xs text-muted-foreground mb-4">
+    添加网站域名后，打开该网站的标签页将自动静音。支持精确匹配和子域名匹配（如添加 <code class="bg-muted px-1 rounded text-xs">example.com</code> 也会匹配 <code class="bg-muted px-1 rounded text-xs">sub.example.com</code>）。
+  </p>
 
   <div class="flex gap-2 mb-4">
     <Input
@@ -45,7 +49,11 @@ onMounted(loadMutedSites)
       class="flex-1"
       @keydown.enter="addMutedSite"
     />
-    <Button size="sm" :disabled="!newHostname.trim()" @click="addMutedSite">
+    <Button
+      size="sm"
+      :disabled="!newHostname.trim()"
+      @click="addMutedSite"
+    >
       <Plus class="w-4 h-4" />
     </Button>
   </div>
@@ -58,11 +66,19 @@ onMounted(loadMutedSites)
     >
       <VolumeX class="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
       <span class="font-medium truncate flex-1">{{ hostname }}</span>
-      <Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" @click="removeMutedSite(hostname)">
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7 shrink-0"
+        @click="removeMutedSite(hostname)"
+      >
         <Trash2 class="w-3.5 h-3.5 text-muted-foreground" />
       </Button>
     </div>
-    <p v-if="!mutedSites.length" class="text-xs text-muted-foreground text-center py-4">
+    <p
+      v-if="!mutedSites.length"
+      class="text-xs text-muted-foreground text-center py-4"
+    >
       暂无静音网站，请添加
     </p>
   </div>

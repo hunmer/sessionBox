@@ -105,7 +105,12 @@ function handleNavigateUrl(url: string) {
               {{ groupTabCounts.get(getGroupKey(tab)) ?? 0 }}
             </span>
           </div>
-          <TabItem v-if="!isGroupCollapsed(tab)" :tab="tab" vertical :group-color="tab.groupColor" />
+          <TabItem
+            v-if="!isGroupCollapsed(tab)"
+            :tab="tab"
+            vertical
+            :group-color="tab.groupColor"
+          />
         </div>
       </template>
     </draggable>
@@ -121,8 +126,14 @@ function handleNavigateUrl(url: string) {
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <div class="w-full" :class="{ 'tab-pinned': tab.pinned }">
-          <TabItem :tab="tab" vertical />
+        <div
+          class="w-full"
+          :class="{ 'tab-pinned': tab.pinned }"
+        >
+          <TabItem
+            :tab="tab"
+            vertical
+          />
         </div>
       </template>
     </draggable>

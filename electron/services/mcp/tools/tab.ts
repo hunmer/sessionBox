@@ -28,7 +28,7 @@ export function registerTabTools(server: McpServer, ctx: ToolContext): number {
     },
     async ({ pageId, url, containerId }) => {
       try {
-        let finalPageId = pageId ?? ''
+        const finalPageId = pageId ?? ''
         let finalUrl = url ?? ''
         let finalContainerId = containerId ?? ''
 

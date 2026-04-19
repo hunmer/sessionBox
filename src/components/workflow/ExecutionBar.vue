@@ -132,16 +132,32 @@ const displayLog = computed(() => store.selectedExecutionLog)
         class="h-5 w-5 p-0"
         @click="expanded = !expanded"
       >
-        <ChevronDown v-if="!expanded" class="w-3 h-3" />
-        <ChevronUp v-else class="w-3 h-3" />
+        <ChevronDown
+          v-if="!expanded"
+          class="w-3 h-3"
+        />
+        <ChevronUp
+          v-else
+          class="w-3 h-3"
+        />
       </Button>
     </div>
 
     <!-- 展开区域：左右分栏 -->
-    <div v-if="expanded" class="border-t border-border flex-1 min-h-0">
-      <ResizablePanelGroup direction="horizontal" class="h-full">
+    <div
+      v-if="expanded"
+      class="border-t border-border flex-1 min-h-0"
+    >
+      <ResizablePanelGroup
+        direction="horizontal"
+        class="h-full"
+      >
         <!-- 左侧：历史执行列表 -->
-        <ResizablePanel :default-size="25" :min-size="15" :max-size="40">
+        <ResizablePanel
+          :default-size="25"
+          :min-size="15"
+          :max-size="40"
+        >
           <div class="h-full flex flex-col">
             <div class="flex items-center justify-between px-2 py-1 border-b border-border">
               <span class="text-[10px] text-muted-foreground font-medium">执行历史</span>
@@ -164,12 +180,23 @@ const displayLog = computed(() => store.selectedExecutionLog)
                   :class="store.selectedExecutionLogId === log.id ? 'bg-muted' : ''"
                   @click="selectLog(log)"
                 >
-                  <CheckCircle v-if="log.status === 'completed'" class="w-3 h-3 text-green-500 shrink-0" />
-                  <XCircle v-else-if="log.status === 'error'" class="w-3 h-3 text-red-500 shrink-0" />
-                  <Circle v-else class="w-3 h-3 text-muted-foreground shrink-0" />
+                  <CheckCircle
+                    v-if="log.status === 'completed'"
+                    class="w-3 h-3 text-green-500 shrink-0"
+                  />
+                  <XCircle
+                    v-else-if="log.status === 'error'"
+                    class="w-3 h-3 text-red-500 shrink-0"
+                  />
+                  <Circle
+                    v-else
+                    class="w-3 h-3 text-muted-foreground shrink-0"
+                  />
 
                   <div class="flex-1 min-w-0">
-                    <div class="truncate">{{ formatTime(log.startedAt) }}</div>
+                    <div class="truncate">
+                      {{ formatTime(log.startedAt) }}
+                    </div>
                     <div class="text-muted-foreground">
                       {{ log.steps.length }} 节点 · {{ formatDuration(log.startedAt, log.finishedAt) }}
                     </div>
@@ -185,7 +212,10 @@ const displayLog = computed(() => store.selectedExecutionLog)
                   </Button>
                 </div>
 
-                <div v-if="store.executionLogs.length === 0" class="text-center text-[10px] text-muted-foreground py-4">
+                <div
+                  v-if="store.executionLogs.length === 0"
+                  class="text-center text-[10px] text-muted-foreground py-4"
+                >
                   暂无执行记录
                 </div>
               </div>
@@ -196,14 +226,20 @@ const displayLog = computed(() => store.selectedExecutionLog)
         <ResizableHandle with-handle />
 
         <!-- 右侧：节点执行详情 -->
-        <ResizablePanel :default-size="75" :min-size="40">
+        <ResizablePanel
+          :default-size="75"
+          :min-size="40"
+        >
           <div class="h-full flex flex-col">
             <div class="px-2 py-1 border-b border-border">
               <span class="text-[10px] text-muted-foreground font-medium">
                 {{ displayLog ? `${formatTime(displayLog.startedAt)} · ${displayLog.steps.length} 节点` : '执行详情' }}
               </span>
             </div>
-            <ScrollArea class="flex-1 min-h-0" v-if="displayLog">
+            <ScrollArea
+              v-if="displayLog"
+              class="flex-1 min-h-0"
+            >
               <div class="p-2 space-y-1">
                 <div
                   v-for="step in displayLog.steps"
@@ -212,10 +248,22 @@ const displayLog = computed(() => store.selectedExecutionLog)
                 >
                   <!-- 节点头部：状态 + 名称 + 相对时间 + 时长 -->
                   <div class="flex items-center gap-1.5">
-                    <CheckCircle v-if="step.status === 'completed'" class="w-3 h-3 text-green-500 shrink-0" />
-                    <XCircle v-else-if="step.status === 'error'" class="w-3 h-3 text-red-500 shrink-0" />
-                    <Loader2 v-else-if="step.status === 'running'" class="w-3 h-3 text-blue-500 animate-spin shrink-0" />
-                    <Circle v-else class="w-3 h-3 text-muted-foreground shrink-0" />
+                    <CheckCircle
+                      v-if="step.status === 'completed'"
+                      class="w-3 h-3 text-green-500 shrink-0"
+                    />
+                    <XCircle
+                      v-else-if="step.status === 'error'"
+                      class="w-3 h-3 text-red-500 shrink-0"
+                    />
+                    <Loader2
+                      v-else-if="step.status === 'running'"
+                      class="w-3 h-3 text-blue-500 animate-spin shrink-0"
+                    />
+                    <Circle
+                      v-else
+                      class="w-3 h-3 text-muted-foreground shrink-0"
+                    />
 
                     <span class="text-xs font-medium truncate flex-1">{{ step.nodeLabel }}</span>
                     <span class="text-[10px] text-muted-foreground shrink-0">
@@ -227,12 +275,19 @@ const displayLog = computed(() => store.selectedExecutionLog)
                   </div>
 
                   <!-- 错误信息 -->
-                  <div v-if="step.error" class="mt-1 text-[10px] text-red-500 bg-red-500/10 rounded px-1.5 py-0.5">
+                  <div
+                    v-if="step.error"
+                    class="mt-1 text-[10px] text-red-500 bg-red-500/10 rounded px-1.5 py-0.5"
+                  >
                     {{ step.error }}
                   </div>
 
                   <!-- 输入信息（可折叠，默认展开） -->
-                  <Collapsible :default-open="true" class="mt-1" v-if="step.input !== undefined && step.input !== null">
+                  <Collapsible
+                    v-if="step.input !== undefined && step.input !== null"
+                    :default-open="true"
+                    class="mt-1"
+                  >
                     <CollapsibleTrigger class="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full">
                       <ChevronRight class="w-2.5 h-2.5 transition-transform [[data-state=open]>&]:rotate-90" />
                       输入
@@ -243,7 +298,11 @@ const displayLog = computed(() => store.selectedExecutionLog)
                   </Collapsible>
 
                   <!-- 输出信息（可折叠，默认展开） -->
-                  <Collapsible :default-open="true" class="mt-1" v-if="step.output !== undefined && step.output !== null">
+                  <Collapsible
+                    v-if="step.output !== undefined && step.output !== null"
+                    :default-open="true"
+                    class="mt-1"
+                  >
                     <CollapsibleTrigger class="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full">
                       <ChevronRight class="w-2.5 h-2.5 transition-transform [[data-state=open]>&]:rotate-90" />
                       输出
@@ -255,7 +314,10 @@ const displayLog = computed(() => store.selectedExecutionLog)
                 </div>
               </div>
             </ScrollArea>
-            <div v-else class="flex-1 flex items-center justify-center text-[10px] text-muted-foreground">
+            <div
+              v-else
+              class="flex-1 flex items-center justify-center text-[10px] text-muted-foreground"
+            >
               选择一条执行记录查看详情
             </div>
           </div>

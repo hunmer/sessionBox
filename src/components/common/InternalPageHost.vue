@@ -51,8 +51,8 @@ const hasActiveInternalComponent = computed(() =>
   >
     <div
       v-for="tab in internalTabViews"
-      :key="tab.id"
       v-show="tab.id === tabStore.activeTabId"
+      :key="tab.id"
       class="h-full"
     >
       <component
@@ -65,7 +65,9 @@ const hasActiveInternalComponent = computed(() =>
       v-if="!hasActiveInternalComponent && tabStore.isInternalPage"
       class="flex h-full items-center justify-center"
     >
-      <p class="text-sm text-muted-foreground">未知页面</p>
+      <p class="text-sm text-muted-foreground">
+        未知页面
+      </p>
     </div>
   </div>
 </template>

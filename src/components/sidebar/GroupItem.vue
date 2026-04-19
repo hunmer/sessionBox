@@ -244,13 +244,16 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                   class="w-4 h-4 transition-transform group-data-[collapsible=icon]:hidden shrink-0"
                   :class="openStates[workspace.group.id] ? 'rotate-90' : ''"
                 />
-                <EmojiRenderer v-if="workspace.emoji" :emoji="workspace.emoji" />
+                <EmojiRenderer
+                  v-if="workspace.emoji"
+                  :emoji="workspace.emoji"
+                />
                 <span class="flex-1">{{ workspace.name }}</span>
                 <span
                   v-if="workspace.color"
                   class="w-2 h-2 rounded-full flex-shrink-0"
                   :style="{ backgroundColor: workspace.color }"
-                ></span>
+                />
               </a>
             </SidebarMenuButton>
             <DropdownMenu>
@@ -272,7 +275,10 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                   编辑
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem @click="emit('deleteGroup', workspace.group)" class="text-destructive">
+                <DropdownMenuItem
+                  class="text-destructive"
+                  @click="emit('deleteGroup', workspace.group)"
+                >
                   <Trash2 class="w-4 h-4 mr-2" />
                   删除
                 </DropdownMenuItem>
@@ -297,7 +303,10 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                   class="group/menu-sub-item"
                 >
                   <div class="flex items-center gap-1 w-full">
-                    <SidebarMenuSubButton as-child class="flex-1">
+                    <SidebarMenuSubButton
+                      as-child
+                      class="flex-1"
+                    >
                       <a
                         href="#"
                         class="flex items-center gap-2 w-full text-left rounded-md transition-colors"
@@ -307,7 +316,10 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                         @dragleave.stop="handlePageDragLeave($event, pageItem.id)"
                         @drop.stop="handlePageDrop($event, pageItem.id)"
                       >
-                        <EmojiRenderer :emoji="pageItem.emoji" :url="pageItem.url" />
+                        <EmojiRenderer
+                          :emoji="pageItem.emoji"
+                          :url="pageItem.url"
+                        />
                         <span>{{ pageItem.name }}</span>
                       </a>
                     </SidebarMenuSubButton>
@@ -332,7 +344,11 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                             <X class="w-3 h-3" />
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent align="end" class="p-2 w-56" @click.stop>
+                        <PopoverContent
+                          align="end"
+                          class="p-2 w-56"
+                          @click.stop
+                        >
                           <div class="flex items-center justify-between mb-1.5 px-1">
                             <span class="text-xs font-medium text-muted-foreground">打开的标签页</span>
                             <button
@@ -348,7 +364,10 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                               :key="tab.id"
                               class="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted group/tab-item"
                             >
-                              <span class="flex-1 text-xs truncate" :title="tab.title || tab.url">{{ tab.title || tab.url }}</span>
+                              <span
+                                class="flex-1 text-xs truncate"
+                                :title="tab.title || tab.url"
+                              >{{ tab.title || tab.url }}</span>
                               <button
                                 class="opacity-0 group-hover/tab-item:opacity-100 p-0.5 rounded hover:bg-destructive/10 text-destructive transition-opacity shrink-0"
                                 @click="closePageTab(tab.id)"
@@ -375,7 +394,10 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                           编辑
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem @click="emit('deletePage', pageItem.page)" class="text-destructive">
+                        <DropdownMenuItem
+                          class="text-destructive"
+                          @click="emit('deletePage', pageItem.page)"
+                        >
                           <Trash2 class="w-4 h-4 mr-2" />
                           删除
                         </DropdownMenuItem>

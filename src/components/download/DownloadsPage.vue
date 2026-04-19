@@ -195,23 +195,39 @@ function onDragStart(event: DragEvent) {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <Download class="w-5 h-5" />
-          <h1 class="text-lg font-semibold">下载管理</h1>
+          <h1 class="text-lg font-semibold">
+            下载管理
+          </h1>
         </div>
         <div class="flex items-center gap-2">
-          <Badge :variant="store.connected ? 'default' : 'outline'" class="text-xs">
+          <Badge
+            :variant="store.connected ? 'default' : 'outline'"
+            class="text-xs"
+          >
             {{ store.connected ? '已连接' : '未连接' }}
           </Badge>
-          <Button v-if="store.connected" size="sm" @click="showAddDialog = true">
+          <Button
+            v-if="store.connected"
+            size="sm"
+            @click="showAddDialog = true"
+          >
             <Plus class="w-4 h-4 mr-1" /> 添加下载
           </Button>
-          <Button size="sm" variant="outline" @click="emit('open-download-settings')">
+          <Button
+            size="sm"
+            variant="outline"
+            @click="emit('open-download-settings')"
+          >
             <Settings class="w-4 h-4" />
           </Button>
         </div>
       </div>
 
       <!-- 全局统计 -->
-      <div v-if="store.connected && store.globalStat" class="flex items-center gap-4 text-sm text-muted-foreground">
+      <div
+        v-if="store.connected && store.globalStat"
+        class="flex items-center gap-4 text-sm text-muted-foreground"
+      >
         <span class="flex items-center gap-1">
           <ArrowDownToLine class="w-3.5 h-3.5 text-green-500" />
           {{ formatSpeed(store.globalStat.downloadSpeed) }}
@@ -223,9 +239,18 @@ function onDragStart(event: DragEvent) {
     </div>
 
     <!-- 主内容区：左右分栏 -->
-    <ResizablePanelGroup direction="horizontal" class="flex-1 min-h-0">
+    <ResizablePanelGroup
+      direction="horizontal"
+      class="flex-1 min-h-0"
+    >
       <!-- 左侧过滤器面板 -->
-      <ResizablePanel :default-size="20" :min-size="15" :max-size="35" :collapsible="true" :collapsed-size="0">
+      <ResizablePanel
+        :default-size="20"
+        :min-size="15"
+        :max-size="35"
+        :collapsible="true"
+        :collapsed-size="0"
+      >
         <DownloadFilterPanel
           :tasks="store.allTasks"
           :selected-site="selectedSite"
@@ -258,7 +283,13 @@ function onDragStart(event: DragEvent) {
               {{ opt[1] }}
             </Button>
             <div class="flex-1" />
-            <Button v-if="store.connected" size="sm" variant="ghost" class="h-7 text-xs" @click="store.purge()">
+            <Button
+              v-if="store.connected"
+              size="sm"
+              variant="ghost"
+              class="h-7 text-xs"
+              @click="store.purge()"
+            >
               <Trash2 class="w-3.5 h-3.5 mr-1" /> 清除记录
             </Button>
           </div>
@@ -266,21 +297,35 @@ function onDragStart(event: DragEvent) {
           <!-- 任务列表 -->
           <div class="flex-1 min-h-0 overflow-auto px-4 pb-2">
             <!-- 未连接状态 -->
-            <div v-if="!store.connected" class="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+            <div
+              v-if="!store.connected"
+              class="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground"
+            >
               <Server class="w-10 h-10" />
-              <p class="text-sm">Aria2 服务未连接</p>
-              <Button size="sm" @click="emit('open-download-settings')">
+              <p class="text-sm">
+                Aria2 服务未连接
+              </p>
+              <Button
+                size="sm"
+                @click="emit('open-download-settings')"
+              >
                 <Settings class="w-3.5 h-3.5 mr-1" /> 配置连接
               </Button>
             </div>
 
             <!-- 空列表 -->
-            <div v-else-if="filteredTasks.length === 0" class="flex items-center justify-center h-full text-sm text-muted-foreground">
+            <div
+              v-else-if="filteredTasks.length === 0"
+              class="flex items-center justify-center h-full text-sm text-muted-foreground"
+            >
               暂无下载任务
             </div>
 
             <!-- 任务列表 -->
-            <div v-else class="space-y-1">
+            <div
+              v-else
+              class="space-y-1"
+            >
               <div
                 v-for="task in filteredTasks"
                 :key="task.gid"
@@ -293,24 +338,45 @@ function onDragStart(event: DragEvent) {
               >
                 <!-- 文件图标 -->
                 <div class="shrink-0 w-8 h-8 rounded bg-muted flex items-center justify-center">
-                  <Download v-if="task.status === 'active'" class="w-4 h-4 text-green-500" />
-                  <Pause v-else-if="task.status === 'paused'" class="w-4 h-4 text-yellow-500" />
-                  <Loader2 v-else-if="task.status === 'waiting'" class="w-4 h-4 text-muted-foreground animate-spin" />
-                  <CircleCheck v-else-if="task.status === 'complete'" class="w-4 h-4 text-green-500" />
-                  <X v-else-if="task.status === 'error'" class="w-4 h-4 text-red-500" />
+                  <Download
+                    v-if="task.status === 'active'"
+                    class="w-4 h-4 text-green-500"
+                  />
+                  <Pause
+                    v-else-if="task.status === 'paused'"
+                    class="w-4 h-4 text-yellow-500"
+                  />
+                  <Loader2
+                    v-else-if="task.status === 'waiting'"
+                    class="w-4 h-4 text-muted-foreground animate-spin"
+                  />
+                  <CircleCheck
+                    v-else-if="task.status === 'complete'"
+                    class="w-4 h-4 text-green-500"
+                  />
+                  <X
+                    v-else-if="task.status === 'error'"
+                    class="w-4 h-4 text-red-500"
+                  />
                 </div>
 
                 <!-- 信息 -->
                 <div class="flex-1 min-w-0 space-y-1">
                   <div class="flex items-center gap-2">
                     <span class="text-sm truncate">{{ task.filename || task.url }}</span>
-                    <Badge :variant="statusVariant(task.status)" class="text-[10px] shrink-0">
+                    <Badge
+                      :variant="statusVariant(task.status)"
+                      class="text-[10px] shrink-0"
+                    >
                       {{ statusLabel(task.status) }}
                     </Badge>
                   </div>
 
                   <!-- 进度条（活跃/暂停/等待） -->
-                  <div v-if="['active', 'paused', 'waiting'].includes(task.status)" class="space-y-0.5">
+                  <div
+                    v-if="['active', 'paused', 'waiting'].includes(task.status)"
+                    class="space-y-0.5"
+                  >
                     <div class="h-1 bg-muted rounded-full overflow-hidden">
                       <div
                         class="h-full bg-primary rounded-full transition-all"
@@ -320,28 +386,58 @@ function onDragStart(event: DragEvent) {
                     <div class="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <span>{{ task.progress.toFixed(1) }}%</span>
                       <span>{{ formatSize(task.completedLength) }} / {{ formatSize(task.totalLength) }}</span>
-                      <span v-if="task.downloadSpeed > 0" class="text-green-600">
+                      <span
+                        v-if="task.downloadSpeed > 0"
+                        class="text-green-600"
+                      >
                         {{ formatSpeed(task.downloadSpeed) }}
                       </span>
                     </div>
                   </div>
 
                   <!-- 已完成/出错 -->
-                  <div v-else class="text-[11px] text-muted-foreground">
+                  <div
+                    v-else
+                    class="text-[11px] text-muted-foreground"
+                  >
                     <span v-if="task.status === 'complete'">{{ formatSize(task.totalLength) }}</span>
-                    <span v-else-if="task.status === 'error'" class="text-red-500">{{ task.errorMessage || '下载失败' }}</span>
+                    <span
+                      v-else-if="task.status === 'error'"
+                      class="text-red-500"
+                    >{{ task.errorMessage || '下载失败' }}</span>
                   </div>
                 </div>
 
                 <!-- 操作按钮 -->
                 <div class="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button v-if="task.status === 'active'" size="icon" variant="ghost" class="h-7 w-7" title="暂停" @click="store.pause(task.gid)">
+                  <Button
+                    v-if="task.status === 'active'"
+                    size="icon"
+                    variant="ghost"
+                    class="h-7 w-7"
+                    title="暂停"
+                    @click="store.pause(task.gid)"
+                  >
                     <Pause class="w-3.5 h-3.5" />
                   </Button>
-                  <Button v-if="task.status === 'paused' || task.status === 'waiting'" size="icon" variant="ghost" class="h-7 w-7" title="继续" @click="store.resume(task.gid)">
+                  <Button
+                    v-if="task.status === 'paused' || task.status === 'waiting'"
+                    size="icon"
+                    variant="ghost"
+                    class="h-7 w-7"
+                    title="继续"
+                    @click="store.resume(task.gid)"
+                  >
                     <Play class="w-3.5 h-3.5" />
                   </Button>
-                  <Button v-if="task.status === 'error'" size="icon" variant="ghost" class="h-7 w-7" title="重试" @click="store.retry(task)">
+                  <Button
+                    v-if="task.status === 'error'"
+                    size="icon"
+                    variant="ghost"
+                    class="h-7 w-7"
+                    title="重试"
+                    @click="store.retry(task)"
+                  >
                     <RotateCw class="w-3.5 h-3.5" />
                   </Button>
                   <Button
@@ -354,7 +450,13 @@ function onDragStart(event: DragEvent) {
                   >
                     <FolderOpen class="w-3.5 h-3.5" />
                   </Button>
-                  <Button size="icon" variant="ghost" class="h-7 w-7" title="移除" @click="store.remove(task.gid)">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    class="h-7 w-7"
+                    title="移除"
+                    @click="store.remove(task.gid)"
+                  >
                     <X class="w-3.5 h-3.5" />
                   </Button>
                 </div>

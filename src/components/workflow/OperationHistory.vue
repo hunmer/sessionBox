@@ -28,11 +28,17 @@ function formatTime(ts: number): string {
           </span>
         </div>
 
-        <div v-if="store.operationLog.length === 0" class="text-xs text-muted-foreground text-center py-6">
+        <div
+          v-if="store.operationLog.length === 0"
+          class="text-xs text-muted-foreground text-center py-6"
+        >
           暂无操作记录
         </div>
 
-        <div v-if="store.operationLog.length > 0" class="text-[10px] text-muted-foreground text-center pt-2">
+        <div
+          v-if="store.operationLog.length > 0"
+          class="text-[10px] text-muted-foreground text-center pt-2"
+        >
           共 {{ store.operationLog.length }} 条操作记录（最多 1000 条）
         </div>
       </div>

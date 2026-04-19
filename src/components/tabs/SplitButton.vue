@@ -63,18 +63,29 @@ function toggleManualAdjust() {
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
-      <Button variant="ghost" size="icon-sm" class="h-7 w-7 rounded-full" title="分屏">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="h-7 w-7 rounded-full"
+        title="分屏"
+      >
         <Columns2 class="w-3.5 h-3.5" />
       </Button>
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" class="w-48">
+    <DropdownMenuContent
+      align="end"
+      class="w-48"
+    >
       <DropdownMenuItem
         v-for="preset in presets"
         :key="preset.type"
         class="cursor-pointer"
         @click="handlePresetClick(preset.type)"
       >
-        <component :is="preset.icon" class="size-4 mr-2" />
+        <component
+          :is="preset.icon"
+          class="size-4 mr-2"
+        />
         <span class="flex-1">{{ preset.label }}</span>
       </DropdownMenuItem>
 
@@ -87,17 +98,26 @@ function toggleManualAdjust() {
       >
         <GripVertical class="size-4 mr-2" />
         <span class="flex-1">切换分屏控制栏</span>
-        <Check v-if="splitStore.manualAdjustEnabled" class="size-4 text-primary" />
+        <Check
+          v-if="splitStore.manualAdjustEnabled"
+          class="size-4 text-primary"
+        />
       </DropdownMenuItem>
 
       <DropdownMenuSeparator />
 
-      <DropdownMenuItem class="cursor-pointer" @click="showSaveInput = true">
+      <DropdownMenuItem
+        class="cursor-pointer"
+        @click="showSaveInput = true"
+      >
         <Save class="size-4 mr-2" />
         <span class="flex-1">保存当前方案</span>
       </DropdownMenuItem>
 
-      <div v-if="showSaveInput" class="flex items-center gap-1 px-2 py-1">
+      <div
+        v-if="showSaveInput"
+        class="flex items-center gap-1 px-2 py-1"
+      >
         <Input
           v-model="schemeName"
           placeholder="方案名称"
@@ -105,7 +125,12 @@ function toggleManualAdjust() {
           @keydown.enter="handleSave"
           @keydown.escape="showSaveInput = false"
         />
-        <Button size="sm" variant="ghost" class="h-7 px-2" @click="handleSave">
+        <Button
+          size="sm"
+          variant="ghost"
+          class="h-7 px-2"
+          @click="handleSave"
+        >
           <Save class="size-3" />
         </Button>
       </div>

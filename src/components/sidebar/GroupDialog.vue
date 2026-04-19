@@ -83,7 +83,10 @@ function handleSave() {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
     <DialogContent class="sm:max-w-sm">
       <DialogHeader>
         <DialogTitle>{{ group ? '编辑分组' : '新建分组' }}</DialogTitle>
@@ -93,8 +96,17 @@ function handleSave() {
         <div class="flex flex-col items-center gap-3">
           <div class="relative group/icon">
             <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-border flex items-center justify-center bg-muted">
-              <img v-if="isImageIcon" :src="`account-icon://${icon.slice(4)}`" alt="图标" class="w-full h-full object-cover" />
-              <EmojiRenderer v-else :emoji="icon" class="text-3xl [&_img]:w-8 [&_img]:h-8 [&_*:not(img)]:text-3xl" />
+              <img
+                v-if="isImageIcon"
+                :src="`account-icon://${icon.slice(4)}`"
+                alt="图标"
+                class="w-full h-full object-cover"
+              >
+              <EmojiRenderer
+                v-else
+                :emoji="icon"
+                class="text-3xl [&_img]:w-8 [&_img]:h-8 [&_*:not(img)]:text-3xl"
+              />
             </div>
             <button
               v-if="isImageIcon"
@@ -122,7 +134,12 @@ function handleSave() {
 
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">分组名称</label>
-          <Input v-model="name" placeholder="请输入分组名称" autofocus @keydown.enter="handleSave" />
+          <Input
+            v-model="name"
+            placeholder="请输入分组名称"
+            autofocus
+            @keydown.enter="handleSave"
+          />
         </div>
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">所属工作区</label>
@@ -131,7 +148,11 @@ function handleSave() {
               <SelectValue placeholder="选择工作区" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem v-for="ws in workspaceOptions" :key="ws.id" :value="ws.id">
+              <SelectItem
+                v-for="ws in workspaceOptions"
+                :key="ws.id"
+                :value="ws.id"
+              >
                 {{ ws.title }}
               </SelectItem>
             </SelectContent>
@@ -144,8 +165,14 @@ function handleSave() {
               <SelectValue placeholder="不绑定代理" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem :value="NO_PROXY">不绑定代理</SelectItem>
-              <SelectItem v-for="p in proxyOptions" :key="p.id" :value="p.id">
+              <SelectItem :value="NO_PROXY">
+                不绑定代理
+              </SelectItem>
+              <SelectItem
+                v-for="p in proxyOptions"
+                :key="p.id"
+                :value="p.id"
+              >
                 {{ p.name }} ({{ p.type }}://{{ p.host }}:{{ p.port }})
               </SelectItem>
             </SelectContent>
@@ -167,8 +194,18 @@ function handleSave() {
         </div>
       </div>
       <DialogFooter>
-        <Button variant="ghost" @click="emit('update:open', false)">取消</Button>
-        <Button :disabled="!name.trim()" @click="handleSave">保存</Button>
+        <Button
+          variant="ghost"
+          @click="emit('update:open', false)"
+        >
+          取消
+        </Button>
+        <Button
+          :disabled="!name.trim()"
+          @click="handleSave"
+        >
+          保存
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

@@ -57,13 +57,17 @@ function onDragStart(event: DragEvent) {
         class="w-4 h-4 rounded-sm"
         alt=""
         @error="($event.target as HTMLImageElement).style.display = 'none'"
-      />
+      >
     </div>
 
     <!-- 标题 + URL -->
     <div class="flex-1 min-w-0">
-      <p class="text-xs font-medium truncate">{{ bookmark.title || bookmark.url }}</p>
-      <p class="text-[10px] text-muted-foreground truncate">{{ bookmark.url }}</p>
+      <p class="text-xs font-medium truncate">
+        {{ bookmark.title || bookmark.url }}
+      </p>
+      <p class="text-[10px] text-muted-foreground truncate">
+        {{ bookmark.url }}
+      </p>
     </div>
 
     <!-- 操作按钮 -->
@@ -76,14 +80,26 @@ function onDragStart(event: DragEvent) {
           <MoreHorizontal class="w-3 h-3" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" class="w-32">
-        <DropdownMenuItem class="text-xs" @click="handleOpen">
+      <DropdownMenuContent
+        align="end"
+        class="w-32"
+      >
+        <DropdownMenuItem
+          class="text-xs"
+          @click="handleOpen"
+        >
           <ExternalLink class="w-3 h-3 mr-1.5" /> 打开
         </DropdownMenuItem>
-        <DropdownMenuItem class="text-xs" @click="emit('edit', bookmark.id)">
+        <DropdownMenuItem
+          class="text-xs"
+          @click="emit('edit', bookmark.id)"
+        >
           <Pencil class="w-3 h-3 mr-1.5" /> 编辑
         </DropdownMenuItem>
-        <DropdownMenuItem class="text-xs text-destructive" @click="handleDelete">
+        <DropdownMenuItem
+          class="text-xs text-destructive"
+          @click="handleDelete"
+        >
           <Trash2 class="w-3 h-3 mr-1.5" /> 删除
         </DropdownMenuItem>
       </DropdownMenuContent>

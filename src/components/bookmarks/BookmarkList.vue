@@ -108,7 +108,9 @@ function onItemDrop(event: DragEvent, targetIndex: number) {
     <div class="p-4">
       <!-- 文件夹标题 -->
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-medium">{{ currentFolder?.name ?? '所有书签' }}</h3>
+        <h3 class="text-sm font-medium">
+          {{ currentFolder?.name ?? '所有书签' }}
+        </h3>
         <Button
           v-if="!searchQuery"
           variant="ghost"
@@ -126,11 +128,16 @@ function onItemDrop(event: DragEvent, targetIndex: number) {
         v-if="childFolders.length === 0 && bookmarks.length === 0"
         class="flex flex-col items-center justify-center py-12 text-muted-foreground"
       >
-        <p class="text-xs">{{ searchQuery ? '未找到匹配的书签' : '此文件夹暂无书签' }}</p>
+        <p class="text-xs">
+          {{ searchQuery ? '未找到匹配的书签' : '此文件夹暂无书签' }}
+        </p>
       </div>
 
       <!-- 子文件夹列表 -->
-      <div v-if="childFolders.length > 0" class="grid grid-cols-2 gap-2 mb-3">
+      <div
+        v-if="childFolders.length > 0"
+        class="grid grid-cols-2 gap-2 mb-3"
+      >
         <button
           v-for="folder in childFolders"
           :key="folder.id"
@@ -143,8 +150,14 @@ function onItemDrop(event: DragEvent, targetIndex: number) {
       </div>
 
       <!-- 书签列表 -->
-      <div v-if="bookmarks.length > 0" class="space-y-0.5">
-        <template v-for="(bookmark, index) in bookmarks" :key="bookmark.id">
+      <div
+        v-if="bookmarks.length > 0"
+        class="space-y-0.5"
+      >
+        <template
+          v-for="(bookmark, index) in bookmarks"
+          :key="bookmark.id"
+        >
           <!-- 顶部指示线 -->
           <div
             v-if="dragOverIndex === index && dragOverPosition === 'before'"

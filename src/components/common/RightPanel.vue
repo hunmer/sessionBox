@@ -78,11 +78,20 @@ function openFullPage(site: string) {
           <!-- 书签 -->
           <Popover v-model:open="bookmarkOpen">
             <PopoverTrigger as-child>
-              <Button variant="ghost" size="icon" class="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+              >
                 <Bookmark class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+            <PopoverContent
+              side="left"
+              :side-offset="4"
+              :collision-padding="30"
+              class="p-0 w-auto overflow-hidden"
+            >
               <BookmarkMiniPopover @open-full="openFullPage('sessionbox://bookmarks')" />
             </PopoverContent>
           </Popover>
@@ -90,11 +99,20 @@ function openFullPage(site: string) {
           <!-- 历史记录 -->
           <Popover v-model:open="historyOpen">
             <PopoverTrigger as-child>
-              <Button variant="ghost" size="icon" class="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+              >
                 <History class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+            <PopoverContent
+              side="left"
+              :side-offset="4"
+              :collision-padding="30"
+              class="p-0 w-auto overflow-hidden"
+            >
               <HistoryMiniPopover @open-full="openFullPage('sessionbox://history')" />
             </PopoverContent>
           </Popover>
@@ -102,11 +120,20 @@ function openFullPage(site: string) {
           <!-- 下载管理 -->
           <Popover v-model:open="downloadOpen">
             <PopoverTrigger as-child>
-              <Button variant="ghost" size="icon" class="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+              >
                 <Download class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+            <PopoverContent
+              side="left"
+              :side-offset="4"
+              :collision-padding="30"
+              class="p-0 w-auto overflow-hidden"
+            >
               <DownloadMiniPopover @open-full="openFullPage('sessionbox://downloads')" />
             </PopoverContent>
           </Popover>
@@ -114,11 +141,20 @@ function openFullPage(site: string) {
           <!-- 代理切换 -->
           <Popover v-model:open="proxyOpen">
             <PopoverTrigger as-child>
-              <Button variant="ghost" size="icon" class="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+              >
                 <Shield class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+            <PopoverContent
+              side="left"
+              :side-offset="4"
+              :collision-padding="30"
+              class="p-0 w-auto overflow-hidden"
+            >
               <ProxyMiniPopover @open-full="proxyOpen = false; proxyDialogOpen = true" />
             </PopoverContent>
           </Popover>
@@ -126,11 +162,20 @@ function openFullPage(site: string) {
           <!-- 容器切换 -->
           <Popover v-model:open="containerOpen">
             <PopoverTrigger as-child>
-              <Button variant="ghost" size="icon" class="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+              >
                 <Box class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+            <PopoverContent
+              side="left"
+              :side-offset="4"
+              :collision-padding="30"
+              class="p-0 w-auto overflow-hidden"
+            >
               <ContainerMiniPopover @open-full="emit('openSettings', 'containers')" />
             </PopoverContent>
           </Popover>
@@ -138,11 +183,20 @@ function openFullPage(site: string) {
           <!-- 网络嗅探 -->
           <Popover v-model:open="snifferOpen">
             <PopoverTrigger as-child>
-              <Button variant="ghost" size="icon" class="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+              >
                 <Radar class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+            <PopoverContent
+              side="left"
+              :side-offset="4"
+              :collision-padding="30"
+              class="p-0 w-auto overflow-hidden"
+            >
               <SnifferMiniPopover />
             </PopoverContent>
           </Popover>
@@ -150,11 +204,20 @@ function openFullPage(site: string) {
           <!-- 插件 -->
           <Popover v-model:open="pluginOpen">
             <PopoverTrigger as-child>
-              <Button variant="ghost" size="icon" class="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+              >
                 <Puzzle class="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="p-0 w-auto overflow-hidden">
+            <PopoverContent
+              side="left"
+              :side-offset="4"
+              :collision-padding="30"
+              class="p-0 w-auto overflow-hidden"
+            >
               <PluginMiniPopover @open-full="openFullPage('sessionbox://plugins')" />
             </PopoverContent>
           </Popover>
@@ -176,7 +239,10 @@ function openFullPage(site: string) {
       <!-- 区域二：扩展列表（垂直模式） -->
       <ResizablePanel :default-size="33">
         <div class="flex flex-col items-center justify-center py-2 h-full overflow-y-auto">
-          <ExtensionActionList vertical @open-manager="extensionManagerRef?.open()" />
+          <ExtensionActionList
+            vertical
+            @open-manager="extensionManagerRef?.open()"
+          />
         </div>
       </ResizablePanel>
 
@@ -185,7 +251,12 @@ function openFullPage(site: string) {
       <!-- 区域三：设置 / 代理入口 -->
       <ResizablePanel :default-size="34">
         <div class="flex flex-col items-center justify-end gap-1 py-2 h-full">
-          <Button variant="ghost" size="icon" class="h-8 w-8" @click="emit('openProxy')">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            @click="emit('openProxy')"
+          >
             <Network class="h-4 w-4" />
           </Button>
         </div>

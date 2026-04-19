@@ -199,7 +199,10 @@ watch(selectedWorkspaceId, () => {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
     <DialogScrollContent
       class="w-[85vw] sm:max-w-[960px] max-h-[85vh] p-4 gap-3"
       show-close-button
@@ -222,7 +225,7 @@ watch(selectedWorkspaceId, () => {
           placeholder="搜索标签页..."
           class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-transparent text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           @keydown="handleKeydown"
-        />
+        >
       </div>
 
       <!-- 工作区选择器 -->
@@ -249,7 +252,10 @@ watch(selectedWorkspaceId, () => {
       </div>
 
       <!-- 截图网格 -->
-      <div v-if="loading" class="flex items-center justify-center py-12 text-sm text-muted-foreground">
+      <div
+        v-if="loading"
+        class="flex items-center justify-center py-12 text-sm text-muted-foreground"
+      >
         <div
           class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2"
         />
@@ -283,7 +289,7 @@ watch(selectedWorkspaceId, () => {
               :src="screenshots.get(tab.id)!"
               alt=""
               class="w-full h-full object-cover object-top"
-            />
+            >
             <!-- 冻结标签占位 -->
             <div
               v-else-if="tabStore.frozenTabIds.has(tab.id)"
@@ -297,11 +303,17 @@ watch(selectedWorkspaceId, () => {
               v-else-if="tab.url.startsWith('sessionbox://')"
               class="w-full h-full flex flex-col items-center justify-center gap-1"
             >
-              <component :is="getInternalPageIcon(tab.url)" class="w-5 h-5 text-muted-foreground/40" />
+              <component
+                :is="getInternalPageIcon(tab.url)"
+                class="w-5 h-5 text-muted-foreground/40"
+              />
               <span class="text-[10px] text-muted-foreground/50">{{ tab.title }}</span>
             </div>
             <!-- 其他不可用占位 -->
-            <div v-else class="w-full h-full flex items-center justify-center">
+            <div
+              v-else
+              class="w-full h-full flex items-center justify-center"
+            >
               <Globe class="w-5 h-5 text-muted-foreground/30" />
             </div>
           </div>
@@ -315,15 +327,17 @@ watch(selectedWorkspaceId, () => {
                 alt=""
                 class="w-3.5 h-3.5 rounded-sm flex-shrink-0 object-cover"
                 @error="($event.target as HTMLImageElement).style.display = 'none'"
-              />
+              >
               <img
                 v-else-if="!tab.url.startsWith('sessionbox://')"
                 :src="getFaviconUrl(tab.url)"
                 alt=""
                 class="w-3.5 h-3.5 rounded-sm flex-shrink-0 object-cover"
                 @error="($event.target as HTMLImageElement).style.display = 'none'"
-              />
-              <p class="text-[11px] font-medium truncate leading-tight">{{ tab.title || '未命名' }}</p>
+              >
+              <p class="text-[11px] font-medium truncate leading-tight">
+                {{ tab.title || '未命名' }}
+              </p>
             </div>
             <p class="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
               {{ getDomain(tab.url) }}

@@ -20,8 +20,15 @@ const forwarded = useForwardPropsEmits(props, emits)
 </script>
 
 <template>
-  <Dialog v-slot="slotProps" v-bind="forwarded">
-    <DialogContent class="overflow-hidden p-0" :show-close-button="false" @open-auto-focus="emits('openAutoFocus', $event)">
+  <Dialog
+    v-slot="slotProps"
+    v-bind="forwarded"
+  >
+    <DialogContent
+      class="overflow-hidden p-0"
+      :show-close-button="false"
+      @open-auto-focus="emits('openAutoFocus', $event)"
+    >
       <DialogHeader class="sr-only">
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription>{{ description }}</DialogDescription>

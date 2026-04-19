@@ -76,7 +76,11 @@ function handleOpenFull() {
       <div class="flex items-center gap-2 text-sm font-medium">
         <Box class="h-3.5 w-3.5 text-muted-foreground" />
         查看容器
-        <Badge v-if="containers.length" variant="secondary" class="text-[10px] h-4">
+        <Badge
+          v-if="containers.length"
+          variant="secondary"
+          class="text-[10px] h-4"
+        >
           {{ containers.length }}
         </Badge>
       </div>
@@ -93,9 +97,15 @@ function handleOpenFull() {
     <Separator />
 
     <!-- 当前容器状态 -->
-    <div v-if="currentPage" class="px-3 py-2">
+    <div
+      v-if="currentPage"
+      class="px-3 py-2"
+    >
       <div class="flex items-center gap-2">
-        <Badge variant="secondary" class="text-[10px] h-4 shrink-0">
+        <Badge
+          variant="secondary"
+          class="text-[10px] h-4 shrink-0"
+        >
           当前
         </Badge>
         <span class="text-xs text-muted-foreground truncate">
@@ -107,10 +117,18 @@ function handleOpenFull() {
 
     <!-- 容器列表 -->
     <ScrollArea class="h-[320px]">
-      <div v-if="containers.length === 0" class="flex items-center justify-center py-8">
-        <p class="text-xs text-muted-foreground">暂无容器</p>
+      <div
+        v-if="containers.length === 0"
+        class="flex items-center justify-center py-8"
+      >
+        <p class="text-xs text-muted-foreground">
+          暂无容器
+        </p>
       </div>
-      <div v-else class="py-1">
+      <div
+        v-else
+        class="py-1"
+      >
         <!-- 默认容器（无容器绑定） -->
         <div
           class="flex items-center gap-2 px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors"
@@ -118,11 +136,16 @@ function handleOpenFull() {
           @click="handleClearContainer"
         >
           <div class="shrink-0 w-5 h-5 flex items-center justify-center">
-            <Check v-if="!currentContainerId" class="h-3.5 w-3.5 text-primary" />
+            <Check
+              v-if="!currentContainerId"
+              class="h-3.5 w-3.5 text-primary"
+            />
           </div>
           <div class="flex-1 min-w-0">
             <span class="text-xs">默认容器</span>
-            <div class="text-[10px] text-muted-foreground">不使用容器隔离</div>
+            <div class="text-[10px] text-muted-foreground">
+              不使用容器隔离
+            </div>
           </div>
         </div>
 
@@ -136,7 +159,10 @@ function handleOpenFull() {
         >
           <!-- 选中标记 -->
           <div class="shrink-0 w-5 h-5 flex items-center justify-center">
-            <Check v-if="container.id === currentContainerId" class="h-3.5 w-3.5 text-primary" />
+            <Check
+              v-if="container.id === currentContainerId"
+              class="h-3.5 w-3.5 text-primary"
+            />
           </div>
 
           <!-- 容器图标 -->
@@ -146,9 +172,16 @@ function handleOpenFull() {
               :src="`account-icon://${container.icon.slice(4)}`"
               alt=""
               class="w-full h-full rounded-sm object-cover"
+            >
+            <EmojiRenderer
+              v-else-if="container.icon"
+              :emoji="container.icon"
+              class="text-sm"
             />
-            <EmojiRenderer v-else-if="container.icon" :emoji="container.icon" class="text-sm" />
-            <Box v-else class="h-3.5 w-3.5 text-muted-foreground" />
+            <Box
+              v-else
+              class="h-3.5 w-3.5 text-muted-foreground"
+            />
           </span>
 
           <!-- 容器名称 -->

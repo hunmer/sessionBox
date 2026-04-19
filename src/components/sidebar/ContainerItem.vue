@@ -85,13 +85,24 @@ function handleClick() {
   >
     <!-- 图标 -->
     <span class="flex-shrink-0 w-5 h-5 flex items-center justify-center text-sm overflow-hidden">
-      <img v-if="isImageIcon" :src="imageIconSrc" alt="" class="w-full h-full object-cover rounded-sm" />
-      <EmojiRenderer v-else-if="container.icon?.startsWith('lucide:')" :emoji="container.icon" />
+      <img
+        v-if="isImageIcon"
+        :src="imageIconSrc"
+        alt=""
+        class="w-full h-full object-cover rounded-sm"
+      >
+      <EmojiRenderer
+        v-else-if="container.icon?.startsWith('lucide:')"
+        :emoji="container.icon"
+      />
       <template v-else>{{ textIcon }}</template>
     </span>
 
     <!-- 名称（折叠时隐藏） -->
-    <span v-if="!collapsed" class="flex-1 truncate text-sm">{{ container.name }}</span>
+    <span
+      v-if="!collapsed"
+      class="flex-1 truncate text-sm"
+    >{{ container.name }}</span>
 
     <!-- 代理标记 -->
     <span
@@ -110,14 +121,20 @@ function handleClick() {
           <MoreHorizontal class="w-3.5 h-3.5" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" class="w-44">
+      <DropdownMenuContent
+        align="end"
+        class="w-44"
+      >
         <DropdownMenuItem @click="createDesktopShortcut">
           <ExternalLink class="w-3.5 h-3.5 mr-2" />创建桌面快捷方式
         </DropdownMenuItem>
         <DropdownMenuItem @click="emit('edit', container)">
           <Pencil class="w-3.5 h-3.5 mr-2" />编辑
         </DropdownMenuItem>
-        <DropdownMenuItem class="text-destructive" @click="emit('delete', container)">
+        <DropdownMenuItem
+          class="text-destructive"
+          @click="emit('delete', container)"
+        >
           <Trash2 class="w-3.5 h-3.5 mr-2" />删除
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -94,7 +94,9 @@ async function handleExport() {
   <div class="h-full flex flex-col bg-background text-foreground">
     <!-- 顶部工具栏 -->
     <div class="flex items-center gap-2 px-4 py-2 border-b border-border flex-shrink-0">
-      <h2 class="text-sm font-semibold flex-shrink-0">书签管理</h2>
+      <h2 class="text-sm font-semibold flex-shrink-0">
+        书签管理
+      </h2>
       <div class="flex-1" />
       <div class="relative w-48">
         <Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -104,32 +106,66 @@ async function handleExport() {
           placeholder="搜索书签..."
         />
       </div>
-      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleAddFolder()">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        @click="handleAddFolder()"
+      >
         <FolderPlus class="w-3.5 h-3.5" />
         新建文件夹
       </Button>
-      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleAddBookmark()">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        @click="handleAddBookmark()"
+      >
         <Plus class="w-3.5 h-3.5" />
         添加书签
       </Button>
-      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" :disabled="isImporting" @click="handleImport">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        :disabled="isImporting"
+        @click="handleImport"
+      >
         <Import class="w-3.5 h-3.5" />
         导入
       </Button>
-      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" :disabled="isExporting" @click="handleExport">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        :disabled="isExporting"
+        @click="handleExport"
+      >
         <Download class="w-3.5 h-3.5" />
         导出
       </Button>
-      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="checkDialogOpen = true">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        @click="checkDialogOpen = true"
+      >
         <ShieldCheck class="w-3.5 h-3.5" />
         检查失效
       </Button>
     </div>
 
     <!-- 左右分栏 -->
-    <ResizablePanelGroup direction="horizontal" class="flex-1 min-h-0">
+    <ResizablePanelGroup
+      direction="horizontal"
+      class="flex-1 min-h-0"
+    >
       <!-- 左侧文件夹树 -->
-      <ResizablePanel :default-size="20" :min-size="15" :max-size="40">
+      <ResizablePanel
+        :default-size="20"
+        :min-size="15"
+        :max-size="40"
+      >
         <ScrollArea class="h-full">
           <FolderTree
             v-model:selected-folder-id="selectedFolderId"

@@ -51,10 +51,18 @@ function handleOpenFull() {
 
     <!-- 列表 -->
     <ScrollArea class="h-[360px]">
-      <div v-if="recentBookmarks.length === 0" class="flex items-center justify-center py-8">
-        <p class="text-xs text-muted-foreground">暂无书签</p>
+      <div
+        v-if="recentBookmarks.length === 0"
+        class="flex items-center justify-center py-8"
+      >
+        <p class="text-xs text-muted-foreground">
+          暂无书签
+        </p>
       </div>
-      <div v-else class="py-1">
+      <div
+        v-else
+        class="py-1"
+      >
         <div
           v-for="bookmark in recentBookmarks"
           :key="bookmark.id"
@@ -66,10 +74,14 @@ function handleOpenFull() {
             alt=""
             class="h-4 w-4 rounded-sm flex-shrink-0"
             @error="($event.target as HTMLImageElement).style.display = 'none'"
-          />
+          >
           <div class="flex-1 min-w-0">
-            <p class="text-xs truncate">{{ bookmark.title || bookmark.url }}</p>
-            <p class="text-[10px] text-muted-foreground truncate">{{ getDomain(bookmark.url) }}</p>
+            <p class="text-xs truncate">
+              {{ bookmark.title || bookmark.url }}
+            </p>
+            <p class="text-[10px] text-muted-foreground truncate">
+              {{ getDomain(bookmark.url) }}
+            </p>
           </div>
           <ExternalLink class="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
         </div>

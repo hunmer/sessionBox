@@ -634,33 +634,49 @@ useIpcEvent('shortcut', (actionId) => {
       :class="isMaximized ? '' : 'rounded-lg border border-border/60 shadow-2xl dark:shadow-black/50'"
     >
       <!-- 全宽窗口悬浮拖拽条 -->
-      <div class="absolute top-0 inset-x-0 h-[12px] z-50" style="-webkit-app-region: drag" />
-      <ResizablePanelGroup v-if="!immersiveMode" :key="tabStore.tabLayout" direction="horizontal" @layout="handleLayout">
+      <div
+        class="absolute top-0 inset-x-0 h-[12px] z-50"
+        style="-webkit-app-region: drag"
+      />
+      <ResizablePanelGroup
+        v-if="!immersiveMode"
+        :key="tabStore.tabLayout"
+        direction="horizontal"
+        @layout="handleLayout"
+      >
         <template v-if="!immersiveMode">
-        <!-- 侧边栏面板 -->
-        <ResizablePanel
-          ref="sidebarPanelRef"
-          size-unit="px"
-          :default-size="sidebarDefaultSize"
-          :min-size="SIDEBAR_MIN_SIZE"
-        >
-          <SidebarProvider :open="!sidebarCollapsed" @update:open="sidebarCollapsed = !$event">
-            <Sidebar
-              :collapsed="sidebarCollapsed"
-              @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'user'"
-            />
-          </SidebarProvider>
-        </ResizablePanel>
-
-        <ResizableHandle />
-
-        <!-- 垂直标签栏面板（仅垂直模式） -->
-        <template v-if="tabStore.tabLayout === 'vertical'">
-          <ResizablePanel size-unit="px" :default-size="verticalTabDefaultSize" :min-size="120" :max-size="320">
-            <TabBarVertical v-model:show-add-dialog="verticalTabAddDialog" />
+          <!-- 侧边栏面板 -->
+          <ResizablePanel
+            ref="sidebarPanelRef"
+            size-unit="px"
+            :default-size="sidebarDefaultSize"
+            :min-size="SIDEBAR_MIN_SIZE"
+          >
+            <SidebarProvider
+              :open="!sidebarCollapsed"
+              @update:open="sidebarCollapsed = !$event"
+            >
+              <Sidebar
+                :collapsed="sidebarCollapsed"
+                @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'user'"
+              />
+            </SidebarProvider>
           </ResizablePanel>
+
           <ResizableHandle />
-        </template>
+
+          <!-- 垂直标签栏面板（仅垂直模式） -->
+          <template v-if="tabStore.tabLayout === 'vertical'">
+            <ResizablePanel
+              size-unit="px"
+              :default-size="verticalTabDefaultSize"
+              :min-size="120"
+              :max-size="320"
+            >
+              <TabBarVertical v-model:show-add-dialog="verticalTabAddDialog" />
+            </ResizablePanel>
+            <ResizableHandle />
+          </template>
 
         <!-- 主内容区面板 -->
         </template>
@@ -677,7 +693,7 @@ useIpcEvent('shortcut', (actionId) => {
                 @update:immersive-mode="handleImmersiveModeChange"
               />
 
-               <!-- 工具栏 -->
+              <!-- 工具栏 -->
               <BrowserToolbar v-if="tabStore.activeTab && !immersiveMode" />
 
               <!-- 快捷网站栏 -->
@@ -695,12 +711,25 @@ useIpcEvent('shortcut', (actionId) => {
                   class="flex flex-col items-center justify-center h-full gap-4"
                 >
                   <div class="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
-                    <svg class="w-8 h-8 text-muted-foreground/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5a17.92 17.92 0 0 1-8.716-2.247m0 0A8.966 8.966 0 0 1 3 12c0-1.264.26-2.466.73-3.555" />
+                    <svg
+                      class="w-8 h-8 text-muted-foreground/60"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5a17.92 17.92 0 0 1-8.716-2.247m0 0A8.966 8.966 0 0 1 3 12c0-1.264.26-2.466.73-3.555"
+                      />
                     </svg>
                   </div>
                   <div class="text-center">
-                    <p class="text-sm text-muted-foreground">点击左侧容器或使用标签栏 + 按钮打开新标签页</p>
+                    <p class="text-sm text-muted-foreground">
+                      点击左侧容器或使用标签栏 + 按钮打开新标签页
+                    </p>
                   </div>
                 </div>
                 <!-- WebContentsView 被覆盖层（dialog/dropdown）隐藏时的兜底 -->
@@ -708,7 +737,9 @@ useIpcEvent('shortcut', (actionId) => {
                   v-else-if="isOverlayActive"
                   class="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center"
                 >
-                  <p class="text-sm text-muted-foreground/60">页面已暂停</p>
+                  <p class="text-sm text-muted-foreground/60">
+                    页面已暂停
+                  </p>
                 </div>
                 <!-- 主进程在此区域叠加 WebContentsView -->
                 <div
@@ -716,15 +747,24 @@ useIpcEvent('shortcut', (actionId) => {
                   :class="immersiveMode ? 'bottom-0' : 'bottom-7'"
                   :style="immersiveContentInsetStyle"
                 >
-                  <SplitView :key="splitStore.layoutRevision" class="absolute inset-0" />
+                  <SplitView
+                    :key="splitStore.layoutRevision"
+                    class="absolute inset-0"
+                  />
                 </div>
                 <!-- 页面加载进度条 -->
-                <div v-if="!immersiveMode" class="absolute bottom-[3px] inset-x-0 z-20">
+                <div
+                  v-if="!immersiveMode"
+                  class="absolute bottom-[3px] inset-x-0 z-20"
+                >
                   <div class="h-6 w-full border-t bg-background/95 backdrop-blur-sm px-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                     <span class="truncate">
                       {{ tabStore.activeTab?.url || '就绪' }}
                     </span>
-                    <div v-if="tabStore.activeProxyInfo" class="flex items-center gap-2 shrink-0 max-w-[45%]">
+                    <div
+                      v-if="tabStore.activeProxyInfo"
+                      class="flex items-center gap-2 shrink-0 max-w-[45%]"
+                    >
                       <Switch
                         :model-value="proxyApplied"
                         :disabled="!tabStore.activeProxyInfo?.enabled"
@@ -747,16 +787,27 @@ useIpcEvent('shortcut', (actionId) => {
                   enter-active-class="transition-opacity duration-200"
                   leave-active-class="transition-opacity duration-300"
                 >
-                  <div v-if="showProgress && !immersiveMode" class="absolute bottom-0 inset-x-0 z-30">
-                    <Progress :model-value="loadingProgress" class="h-[3px] rounded-none" />
+                  <div
+                    v-if="showProgress && !immersiveMode"
+                    class="absolute bottom-0 inset-x-0 z-30"
+                  >
+                    <Progress
+                      :model-value="loadingProgress"
+                      class="h-[3px] rounded-none"
+                    />
                   </div>
                 </Transition>
               </div>
             </template>
 
             <!-- 加载态 -->
-            <div v-else class="flex items-center justify-center flex-1">
-              <p class="text-muted-foreground text-sm">加载中...</p>
+            <div
+              v-else
+              class="flex items-center justify-center flex-1"
+            >
+              <p class="text-muted-foreground text-sm">
+                加载中...
+              </p>
             </div>
           </div>
         </ResizablePanel>
@@ -764,13 +815,21 @@ useIpcEvent('shortcut', (actionId) => {
         <!-- 聊天面板（可调整宽度，默认 380px） -->
         <template v-if="chatUIStore.isPanelVisible">
           <ResizableHandle />
-          <ResizablePanel size-unit="px" :default-size="chatPanelDefaultSize" :min-size="280" :max-size="600">
+          <ResizablePanel
+            size-unit="px"
+            :default-size="chatPanelDefaultSize"
+            :min-size="280"
+            :max-size="600"
+          >
             <ChatPanel :chat="chatStore" />
           </ResizablePanel>
         </template>
 
         <!-- 右侧面板（固定 50px） -->
-        <div v-if="!immersiveMode" class="w-[50px] shrink-0 h-full border-l border-border">
+        <div
+          v-if="!immersiveMode"
+          class="w-[50px] shrink-0 h-full border-l border-border"
+        >
           <RightPanel
             @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
             @open-proxy="proxyDialogOpen = true"
@@ -778,7 +837,10 @@ useIpcEvent('shortcut', (actionId) => {
         </div>
       </ResizablePanelGroup>
 
-      <div v-else class="flex h-full min-w-0 flex-col">
+      <div
+        v-else
+        class="flex h-full min-w-0 flex-col"
+      >
         <template v-if="ready">
           <div class="relative flex-1 bg-background">
             <InternalPageHost
@@ -791,12 +853,25 @@ useIpcEvent('shortcut', (actionId) => {
               class="flex h-full flex-col items-center justify-center gap-4"
             >
               <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
-                <svg class="h-8 w-8 text-muted-foreground/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5a17.92 17.92 0 0 1-8.716-2.247m0 0A8.966 8.966 0 0 1 3 12c0-1.264.26-2.466.73-3.555" />
+                <svg
+                  class="h-8 w-8 text-muted-foreground/60"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5a17.92 17.92 0 0 1-8.716-2.247m0 0A8.966 8.966 0 0 1 3 12c0-1.264.26-2.466.73-3.555"
+                  />
                 </svg>
               </div>
               <div class="text-center">
-                <p class="text-sm text-muted-foreground">点击左侧容器或使用标签栏 + 按钮打开新标签页</p>
+                <p class="text-sm text-muted-foreground">
+                  点击左侧容器或使用标签栏 + 按钮打开新标签页
+                </p>
               </div>
             </div>
 
@@ -804,17 +879,30 @@ useIpcEvent('shortcut', (actionId) => {
               v-else-if="isOverlayActive"
               class="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm"
             >
-              <p class="text-sm text-muted-foreground/60">页面已暂停</p>
+              <p class="text-sm text-muted-foreground/60">
+                页面已暂停
+              </p>
             </div>
 
-            <div class="absolute inset-0" :style="immersiveContentInsetStyle">
-              <SplitView :key="splitStore.layoutRevision" class="absolute inset-0" />
+            <div
+              class="absolute inset-0"
+              :style="immersiveContentInsetStyle"
+            >
+              <SplitView
+                :key="splitStore.layoutRevision"
+                class="absolute inset-0"
+              />
             </div>
           </div>
         </template>
 
-        <div v-else class="flex flex-1 items-center justify-center">
-          <p class="text-sm text-muted-foreground">加载中...</p>
+        <div
+          v-else
+          class="flex flex-1 items-center justify-center"
+        >
+          <p class="text-sm text-muted-foreground">
+            加载中...
+          </p>
         </div>
       </div>
 
@@ -864,7 +952,10 @@ useIpcEvent('shortcut', (actionId) => {
           @mouseenter="showImmersivePanel('left')"
           @mouseleave="scheduleHideImmersivePanel('left')"
         >
-          <div class="h-full border-r border-border bg-background/96 shadow-2xl backdrop-blur-sm" :style="{ width: `${immersiveSidebarSize}px` }">
+          <div
+            class="h-full border-r border-border bg-background/96 shadow-2xl backdrop-blur-sm"
+            :style="{ width: `${immersiveSidebarSize}px` }"
+          >
             <SidebarProvider :open="true">
               <Sidebar
                 :collapsed="false"
@@ -907,7 +998,10 @@ useIpcEvent('shortcut', (actionId) => {
               <span class="truncate">
                 {{ tabStore.activeTab?.url || '就绪' }}
               </span>
-              <div v-if="tabStore.activeProxyInfo" class="flex max-w-[45%] shrink-0 items-center gap-2">
+              <div
+                v-if="tabStore.activeProxyInfo"
+                class="flex max-w-[45%] shrink-0 items-center gap-2"
+              >
                 <Switch
                   :model-value="proxyApplied"
                   :disabled="!tabStore.activeProxyInfo?.enabled"
@@ -930,8 +1024,14 @@ useIpcEvent('shortcut', (actionId) => {
             enter-active-class="transition-opacity duration-200"
             leave-active-class="transition-opacity duration-300"
           >
-            <div v-if="showProgress" class="absolute bottom-0 inset-x-0">
-              <Progress :model-value="loadingProgress" class="h-[3px] rounded-none" />
+            <div
+              v-if="showProgress"
+              class="absolute bottom-0 inset-x-0"
+            >
+              <Progress
+                :model-value="loadingProgress"
+                class="h-[3px] rounded-none"
+              />
             </div>
           </Transition>
         </div>
@@ -939,13 +1039,23 @@ useIpcEvent('shortcut', (actionId) => {
     </div>
 
     <!-- 代理管理弹窗 -->
-    <ProxyDialog :open="proxyDialogOpen" @update:open="proxyDialogOpen = $event" />
+    <ProxyDialog
+      :open="proxyDialogOpen"
+      @update:open="proxyDialogOpen = $event"
+    />
 
     <!-- 设置弹窗 -->
-    <SettingsDialog :open="settingsDialogOpen" :initial-tab="settingsInitialTab" @update:open="settingsDialogOpen = $event" />
+    <SettingsDialog
+      :open="settingsDialogOpen"
+      :initial-tab="settingsInitialTab"
+      @update:open="settingsDialogOpen = $event"
+    />
 
     <!-- 标签页概览弹窗 -->
-    <TabOverviewDialog :open="tabOverviewOpen" @update:open="tabOverviewOpen = $event" />
+    <TabOverviewDialog
+      :open="tabOverviewOpen"
+      @update:open="tabOverviewOpen = $event"
+    />
 
     <!-- 命令面板 -->
     <CommandPaletteDialog
@@ -971,6 +1081,9 @@ useIpcEvent('shortcut', (actionId) => {
     <UpdateNotification />
 
     <!-- 全局 Toast 通知 -->
-    <Toaster rich-colors position="top-center" />
+    <Toaster
+      rich-colors
+      position="top-center"
+    />
   </TooltipProvider>
 </template>

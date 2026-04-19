@@ -92,7 +92,9 @@ onMounted(loadEntries)
     <!-- 顶部工具栏 -->
     <div class="flex items-center gap-2 px-4 py-2 border-b border-border">
       <Clock class="w-4 h-4 text-muted-foreground flex-shrink-0" />
-      <h2 class="text-sm font-semibold flex-shrink-0">历史记录</h2>
+      <h2 class="text-sm font-semibold flex-shrink-0">
+        历史记录
+      </h2>
       <div class="flex-1" />
       <div class="relative w-48">
         <Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -105,7 +107,11 @@ onMounted(loadEntries)
       </div>
       <AlertDialog>
         <AlertDialogTrigger as-child>
-          <Button variant="ghost" size="sm" class="h-7 text-xs gap-1 text-destructive hover:text-destructive">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="h-7 text-xs gap-1 text-destructive hover:text-destructive"
+          >
             <Trash2 class="w-3.5 h-3.5" />
             清空
           </Button>
@@ -117,7 +123,9 @@ onMounted(loadEntries)
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction @click="handleClear">确认清空</AlertDialogAction>
+            <AlertDialogAction @click="handleClear">
+              确认清空
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -125,11 +133,23 @@ onMounted(loadEntries)
 
     <!-- 历史记录列表 -->
     <ScrollArea class="h-[calc(100%-40px)]">
-      <div v-if="entries.length === 0" class="flex items-center justify-center h-64">
-        <p class="text-sm text-muted-foreground">{{ isSearch ? '未找到匹配的记录' : '暂无浏览历史' }}</p>
+      <div
+        v-if="entries.length === 0"
+        class="flex items-center justify-center h-64"
+      >
+        <p class="text-sm text-muted-foreground">
+          {{ isSearch ? '未找到匹配的记录' : '暂无浏览历史' }}
+        </p>
       </div>
-      <div v-else class="px-4 py-2">
-        <div v-for="group in grouped" :key="group.label" class="mb-4">
+      <div
+        v-else
+        class="px-4 py-2"
+      >
+        <div
+          v-for="group in grouped"
+          :key="group.label"
+          class="mb-4"
+        >
           <h3 class="text-xs font-medium text-muted-foreground mb-2 sticky top-0 bg-background py-1">
             {{ group.label }}
           </h3>
@@ -154,10 +174,20 @@ onMounted(loadEntries)
               </div>
               <!-- 操作按钮 -->
               <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                <Button variant="ghost" size="icon" class="h-6 w-6" @click="handleOpen(entry.url)">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-6 w-6"
+                  @click="handleOpen(entry.url)"
+                >
                   <ExternalLink class="w-3 h-3" />
                 </Button>
-                <Button variant="ghost" size="icon" class="h-6 w-6 text-destructive hover:text-destructive" @click="handleDelete(entry.id!)">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-6 w-6 text-destructive hover:text-destructive"
+                  @click="handleDelete(entry.id!)"
+                >
                   <Trash2 class="w-3 h-3" />
                 </Button>
               </div>

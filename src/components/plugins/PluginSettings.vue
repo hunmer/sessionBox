@@ -79,14 +79,20 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Dialog :open="pluginStore.activeViewPluginId !== null" @update:open="(val) => { if (!val) pluginStore.closeView() }">
+  <Dialog
+    :open="pluginStore.activeViewPluginId !== null"
+    @update:open="(val) => { if (!val) pluginStore.closeView() }"
+  >
     <DialogContent class="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>
           {{ pluginStore.plugins.find(p => p.id === pluginStore.activeViewPluginId)?.name }} - 设置
         </DialogTitle>
       </DialogHeader>
-      <div ref="containerRef" class="min-h-[120px]" />
+      <div
+        ref="containerRef"
+        class="min-h-[120px]"
+      />
     </DialogContent>
   </Dialog>
 </template>

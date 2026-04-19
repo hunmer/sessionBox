@@ -653,26 +653,49 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full min-h-0 bg-background overflow-hidden" tabindex="0" @keydown="handleKeyDown">
+  <div
+    class="flex flex-col h-full min-h-0 bg-background overflow-hidden"
+    tabindex="0"
+    @keydown="handleKeyDown"
+  >
     <!-- 顶部菜单栏：始终显示 -->
     <div class="flex items-center border-b border-border px-2 py-1">
       <Menubar class="border-0 bg-transparent h-7">
         <MenubarMenu>
-          <MenubarTrigger class="text-xs h-6 px-2">文件</MenubarTrigger>
+          <MenubarTrigger class="text-xs h-6 px-2">
+            文件
+          </MenubarTrigger>
           <MenubarContent>
-            <MenubarItem class="text-xs" @click="store.newWorkflow()">
+            <MenubarItem
+              class="text-xs"
+              @click="store.newWorkflow()"
+            >
               新建
             </MenubarItem>
-            <MenubarItem class="text-xs" @click="openWorkflow">
+            <MenubarItem
+              class="text-xs"
+              @click="openWorkflow"
+            >
               打开...
             </MenubarItem>
-            <MenubarItem v-if="store.currentWorkflow" class="text-xs" @click="saveWorkflow">
+            <MenubarItem
+              v-if="store.currentWorkflow"
+              class="text-xs"
+              @click="saveWorkflow"
+            >
               保存
             </MenubarItem>
-            <MenubarItem v-if="store.currentWorkflow" class="text-xs" @click="exportWorkflow">
+            <MenubarItem
+              v-if="store.currentWorkflow"
+              class="text-xs"
+              @click="exportWorkflow"
+            >
               导出...
             </MenubarItem>
-            <MenubarItem class="text-xs" @click="importWorkflow">
+            <MenubarItem
+              class="text-xs"
+              @click="importWorkflow"
+            >
               导入...
             </MenubarItem>
           </MenubarContent>
@@ -686,7 +709,7 @@ onUnmounted(() => {
         @blur="finishEditName"
         @keydown.enter="finishEditName"
         @keydown.escape="cancelEditName"
-      />
+      >
       <span
         v-else
         class="ml-3 text-xs text-muted-foreground truncate cursor-pointer hover:text-foreground"
@@ -697,7 +720,10 @@ onUnmounted(() => {
     </div>
 
     <!-- 欢迎页：无工作流时展示 -->
-    <div v-if="!store.currentWorkflow" class="flex-1 flex items-center justify-center">
+    <div
+      v-if="!store.currentWorkflow"
+      class="flex-1 flex items-center justify-center"
+    >
       <div class="flex gap-8">
         <button
           class="group flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50 transition-all cursor-pointer w-52"
@@ -736,20 +762,34 @@ onUnmounted(() => {
 
     <!-- 编辑器：有工作流时展示 -->
     <template v-else>
-      <ResizablePanelGroup direction="vertical" @layout="onExecBarResize">
-        <ResizablePanel :default-size="82" :min-size="40">
+      <ResizablePanelGroup
+        direction="vertical"
+        @layout="onExecBarResize"
+      >
+        <ResizablePanel
+          :default-size="82"
+          :min-size="40"
+        >
           <ResizablePanelGroup
             direction="horizontal"
             class="h-full overflow-hidden"
             @layout="handlePanelResize"
           >
-            <ResizablePanel :default-size="panelSizes[0]" :min-size="10" :max-size="35">
+            <ResizablePanel
+              :default-size="panelSizes[0]"
+              :min-size="10"
+              :max-size="35"
+            >
               <NodeSidebar />
             </ResizablePanel>
 
             <ResizableHandle with-handle />
 
-            <ResizablePanel :default-size="panelSizes[1]" :min-size="30" class="relative">
+            <ResizablePanel
+              :default-size="panelSizes[1]"
+              :min-size="30"
+              class="relative"
+            >
               <VueFlow
                 :id="FLOW_ID"
                 :nodes="nodes"
@@ -759,6 +799,7 @@ onUnmounted(() => {
                 :min-zoom="0.2"
                 :max-zoom="4"
                 :connection-mode="ConnectionMode.Loose"
+                class="h-full"
                 @connect="handleConnect"
                 @connect-start="onConnectStart"
                 @connect-end="onConnectEnd"
@@ -767,12 +808,14 @@ onUnmounted(() => {
                 @node-click="onNodeClick"
                 @nodes-initialized="handleNodesInitialized"
                 @pane-click="onPaneClick"
-                class="h-full"
               >
                 <Background />
                 <MiniMap />
                 <template #edge-custom="edgeProps">
-                  <CustomEdge v-bind="edgeProps" @insert-node="onEdgeInsertNode" />
+                  <CustomEdge
+                    v-bind="edgeProps"
+                    @insert-node="onEdgeInsertNode"
+                  />
                 </template>
                 <Controls />
               </VueFlow>
@@ -792,7 +835,10 @@ onUnmounted(() => {
                         <RotateCcw class="w-3.5 h-3.5" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" class="text-xs">
+                    <TooltipContent
+                      side="top"
+                      class="text-xs"
+                    >
                       撤销 (Ctrl+Z)
                     </TooltipContent>
                   </Tooltip>
@@ -808,7 +854,10 @@ onUnmounted(() => {
                         <RotateCw class="w-3.5 h-3.5" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" class="text-xs">
+                    <TooltipContent
+                      side="top"
+                      class="text-xs"
+                    >
                       重做 (Ctrl+Shift+Z)
                     </TooltipContent>
                   </Tooltip>
@@ -821,7 +870,11 @@ onUnmounted(() => {
 
             <ResizableHandle with-handle />
 
-            <ResizablePanel :default-size="panelSizes[2]" :min-size="15" :max-size="50">
+            <ResizablePanel
+              :default-size="panelSizes[2]"
+              :min-size="15"
+              :max-size="50"
+            >
               <RightPanel />
             </ResizablePanel>
           </ResizablePanelGroup>

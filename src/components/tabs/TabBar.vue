@@ -96,8 +96,14 @@ function handleNavigateUrl(url: string) {
       class="h-7 w-7 flex-shrink-0 rounded-full"
       @click="$emit('toggle-sidebar')"
     >
-      <PanelLeftOpen v-if="sidebarCollapsed" class="w-3.5 h-3.5" />
-      <PanelLeftClose v-else class="w-3.5 h-3.5" />
+      <PanelLeftOpen
+        v-if="sidebarCollapsed"
+        class="w-3.5 h-3.5"
+      />
+      <PanelLeftClose
+        v-else
+        class="w-3.5 h-3.5"
+      />
     </Button>
 
     <!-- 标签列表 - 分组模式（每个 tab 独立可拖拽） -->
@@ -138,7 +144,11 @@ function handleNavigateUrl(url: string) {
               {{ groupTabCounts.get(getGroupKey(tab)) ?? 0 }}
             </span>
           </span>
-          <TabItem v-if="!isGroupCollapsed(tab)" :tab="tab" :group-color="tab.groupColor" />
+          <TabItem
+            v-if="!isGroupCollapsed(tab)"
+            :tab="tab"
+            :group-color="tab.groupColor"
+          />
         </div>
       </template>
     </draggable>
@@ -154,18 +164,29 @@ function handleNavigateUrl(url: string) {
       @update:model-value="onListUpdate"
     >
       <template #item="{ element: tab }">
-        <div class="flex-shrink-0" :class="{ 'tab-pinned': tab.pinned }">
+        <div
+          class="flex-shrink-0"
+          :class="{ 'tab-pinned': tab.pinned }"
+        >
           <TabItem :tab="tab" />
         </div>
       </template>
     </draggable>
 
     <!-- 弹性占位（垂直布局下撑开宽度，使控制按钮靠右） -->
-    <div v-if="tabStore.tabLayout === 'vertical'" class="flex-1" />
+    <div
+      v-if="tabStore.tabLayout === 'vertical'"
+      class="flex-1"
+    />
 
     <template v-if="tabStore.tabLayout === 'horizontal'">
       <!-- 新建标签按钮 -->
-      <Button variant="ghost" size="icon-sm" class="h-7 w-7 flex-shrink-0 rounded-full" @click="showAddDialog = true">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="h-7 w-7 flex-shrink-0 rounded-full"
+        @click="showAddDialog = true"
+      >
         <Plus class="w-3.5 h-3.5" />
       </Button>
       <NewTabDialog
@@ -184,11 +205,17 @@ function handleNavigateUrl(url: string) {
       <Toggle
         class="ml-1 h-7 w-7 rounded-full bg-background/70 text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
         :model-value="immersiveMode"
-        @update:model-value="$emit('update:immersive-mode', $event)"
         aria-label="Toggle immersive mode"
+        @update:model-value="$emit('update:immersive-mode', $event)"
       >
-        <Eye v-if="!immersiveMode" class="w-3.5 h-3.5" />
-        <EyeOff v-else class="w-3.5 h-3.5" />
+        <Eye
+          v-if="!immersiveMode"
+          class="w-3.5 h-3.5"
+        />
+        <EyeOff
+          v-else
+          class="w-3.5 h-3.5"
+        />
       </Toggle>
     </template>
 
@@ -208,8 +235,14 @@ function handleNavigateUrl(url: string) {
         class="h-7 w-7 rounded-full hover:bg-secondary"
         @click="maximizeWindow()"
       >
-        <Copy v-if="isMaximized" class="w-3 h-3" />
-        <Square v-else class="w-2.5 h-2.5" />
+        <Copy
+          v-if="isMaximized"
+          class="w-3 h-3"
+        />
+        <Square
+          v-else
+          class="w-2.5 h-2.5"
+        />
       </Button>
       <Button
         variant="ghost"

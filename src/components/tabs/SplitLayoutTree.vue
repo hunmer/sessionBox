@@ -77,7 +77,10 @@ function hotspotClass(position: SplitDropPosition): string {
       class="h-full w-full"
       @layout="emitBranchLayout"
     >
-      <template v-for="(child, index) in node.children" :key="`${branchPath.join('-') || 'root'}-${index}`">
+      <template
+        v-for="(child, index) in node.children"
+        :key="`${branchPath.join('-') || 'root'}-${index}`"
+      >
         <ResizablePanel :default-size="node.sizes[index] ?? 50">
           <SplitLayoutTree
             :node="child"
@@ -144,8 +147,14 @@ function hotspotClass(position: SplitDropPosition): string {
           :disabled="!hasActiveTab"
           @click.stop="emit('pane-fullscreen', node.paneId)"
         >
-          <Minimize2 v-if="isFullscreenPane" class="size-3.5" />
-          <Maximize2 v-else class="size-3.5" />
+          <Minimize2
+            v-if="isFullscreenPane"
+            class="size-3.5"
+          />
+          <Maximize2
+            v-else
+            class="size-3.5"
+          />
         </Button>
         <Button
           variant="ghost"
@@ -203,19 +212,34 @@ function hotspotClass(position: SplitDropPosition): string {
         :class="isDragSource ? 'opacity-55' : 'opacity-100'"
       />
 
-      <div class="absolute left-[25%] right-[25%] top-3 flex h-[22%] items-center justify-center rounded-lg border text-[11px] transition-all" :class="hotspotClass('top')">
+      <div
+        class="absolute left-[25%] right-[25%] top-3 flex h-[22%] items-center justify-center rounded-lg border text-[11px] transition-all"
+        :class="hotspotClass('top')"
+      >
         上
       </div>
-      <div class="absolute bottom-3 left-[25%] right-[25%] flex h-[22%] items-center justify-center rounded-lg border text-[11px] transition-all" :class="hotspotClass('bottom')">
+      <div
+        class="absolute bottom-3 left-[25%] right-[25%] flex h-[22%] items-center justify-center rounded-lg border text-[11px] transition-all"
+        :class="hotspotClass('bottom')"
+      >
         下
       </div>
-      <div class="absolute bottom-[25%] left-3 top-[25%] flex w-[22%] items-center justify-center rounded-lg border text-[11px] transition-all" :class="hotspotClass('left')">
+      <div
+        class="absolute bottom-[25%] left-3 top-[25%] flex w-[22%] items-center justify-center rounded-lg border text-[11px] transition-all"
+        :class="hotspotClass('left')"
+      >
         左
       </div>
-      <div class="absolute bottom-[25%] right-3 top-[25%] flex w-[22%] items-center justify-center rounded-lg border text-[11px] transition-all" :class="hotspotClass('right')">
+      <div
+        class="absolute bottom-[25%] right-3 top-[25%] flex w-[22%] items-center justify-center rounded-lg border text-[11px] transition-all"
+        :class="hotspotClass('right')"
+      >
         右
       </div>
-      <div class="absolute inset-[31%] flex items-center justify-center rounded-lg border text-[11px] transition-all" :class="hotspotClass('center')">
+      <div
+        class="absolute inset-[31%] flex items-center justify-center rounded-lg border text-[11px] transition-all"
+        :class="hotspotClass('center')"
+      >
         中
       </div>
     </div>

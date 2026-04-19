@@ -110,8 +110,15 @@ async function confirmDelete() {
   <div class="flex flex-col gap-4">
     <!-- 标题与操作 -->
     <div class="flex items-center justify-between">
-      <h3 class="text-sm font-medium">容器管理</h3>
-      <Button variant="outline" size="sm" class="h-7 text-xs gap-1" @click="startCreate">
+      <h3 class="text-sm font-medium">
+        容器管理
+      </h3>
+      <Button
+        variant="outline"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        @click="startCreate"
+      >
         <Plus class="w-3.5 h-3.5" />
         新建容器
       </Button>
@@ -126,12 +133,21 @@ async function confirmDelete() {
           class="flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-colors hover:bg-accent/50"
           :class="editingContainerId === container.id ? 'border-primary bg-primary/5' : 'border-transparent'"
         >
-          <EmojiRenderer :emoji="container.icon" class="text-lg [&_img]:w-5 [&_img]:h-5 [&_*:not(img)]:text-lg shrink-0" />
+          <EmojiRenderer
+            :emoji="container.icon"
+            class="text-lg [&_img]:w-5 [&_img]:h-5 [&_*:not(img)]:text-lg shrink-0"
+          />
 
           <span class="flex-1 text-sm truncate">{{ container.name }}</span>
 
           <div class="flex items-center gap-1 shrink-0">
-            <Button variant="ghost" size="icon" class="h-7 w-7" title="编辑" @click="startEdit(container)">
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              title="编辑"
+              @click="startEdit(container)"
+            >
               <Pencil class="w-3.5 h-3.5" />
             </Button>
             <Button
@@ -147,7 +163,10 @@ async function confirmDelete() {
           </div>
         </div>
 
-        <div v-if="containers.length === 0" class="flex items-center justify-center py-8 text-muted-foreground text-sm">
+        <div
+          v-if="containers.length === 0"
+          class="flex items-center justify-center py-8 text-muted-foreground text-sm"
+        >
           暂无容器，点击上方按钮新建
         </div>
       </div>
@@ -158,17 +177,29 @@ async function confirmDelete() {
       v-if="editingContainer || isCreating"
       class="border border-border rounded-lg p-4 flex flex-col gap-4 bg-muted/30"
     >
-      <div class="text-sm font-medium">{{ isCreating ? '新建容器' : '编辑容器' }}</div>
+      <div class="text-sm font-medium">
+        {{ isCreating ? '新建容器' : '编辑容器' }}
+      </div>
 
       <!-- 图标 + 名称 -->
       <div class="flex items-center gap-4">
         <div class="shrink-0">
-          <IconSelector v-model="editIcon" :size="48" default-emoji="📦" emoji-class="text-2xl [&_img]:w-7 [&_img]:h-7 [&_*:not(img)]:text-2xl" />
+          <IconSelector
+            v-model="editIcon"
+            :size="48"
+            default-emoji="📦"
+            emoji-class="text-2xl [&_img]:w-7 [&_img]:h-7 [&_*:not(img)]:text-2xl"
+          />
         </div>
 
         <div class="flex-1 flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">名称</label>
-          <Input v-model="editName" placeholder="输入容器名称" autofocus @keydown.enter="saveEdit" />
+          <Input
+            v-model="editName"
+            placeholder="输入容器名称"
+            autofocus
+            @keydown.enter="saveEdit"
+          />
         </div>
       </div>
 
@@ -180,8 +211,14 @@ async function confirmDelete() {
             <SelectValue placeholder="不绑定代理" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem :value="NO_PROXY">不设置</SelectItem>
-            <SelectItem v-for="p in proxyOptions" :key="p.id" :value="p.id">
+            <SelectItem :value="NO_PROXY">
+              不设置
+            </SelectItem>
+            <SelectItem
+              v-for="p in proxyOptions"
+              :key="p.id"
+              :value="p.id"
+            >
               {{ p.name }} ({{ p.type }}://{{ p.host }}:{{ p.port }})
             </SelectItem>
           </SelectContent>
@@ -190,13 +227,28 @@ async function confirmDelete() {
 
       <!-- 操作按钮 -->
       <div class="flex justify-end gap-2">
-        <Button variant="secondary" size="sm" @click="cancelEdit">取消</Button>
-        <Button size="sm" :disabled="!editName.trim()" @click="saveEdit">保存</Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          @click="cancelEdit"
+        >
+          取消
+        </Button>
+        <Button
+          size="sm"
+          :disabled="!editName.trim()"
+          @click="saveEdit"
+        >
+          保存
+        </Button>
       </div>
     </div>
 
     <!-- 删除确认 -->
-    <AlertDialog :open="deleteAlertOpen" @update:open="deleteAlertOpen = $event">
+    <AlertDialog
+      :open="deleteAlertOpen"
+      @update:open="deleteAlertOpen = $event"
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>确认删除</AlertDialogTitle>
@@ -205,8 +257,12 @@ async function confirmDelete() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel @click="deleteTarget = null">取消</AlertDialogCancel>
-          <AlertDialogAction @click="confirmDelete">删除</AlertDialogAction>
+          <AlertDialogCancel @click="deleteTarget = null">
+            取消
+          </AlertDialogCancel>
+          <AlertDialogAction @click="confirmDelete">
+            删除
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -238,26 +238,47 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <CommandDialog :open="open" @update:open="emit('update:open', $event)" title="命令面板" description="搜索书签、页面、标签页或输入命令..." @open-auto-focus="handleOpenAutoFocus">
+  <CommandDialog
+    :open="open"
+    title="命令面板"
+    description="搜索书签、页面、标签页或输入命令..."
+    @update:open="emit('update:open', $event)"
+    @open-auto-focus="handleOpenAutoFocus"
+  >
     <!-- 自定义搜索输入区域 -->
     <div class="flex h-9 items-center gap-2 border-b px-3">
-      <div v-if="activeProvider" class="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs text-primary whitespace-nowrap">
-        <component :is="activeProvider.icon" class="size-3.5 shrink-0" />
+      <div
+        v-if="activeProvider"
+        class="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs text-primary whitespace-nowrap"
+      >
+        <component
+          :is="activeProvider.icon"
+          class="size-3.5 shrink-0"
+        />
         <span>{{ activeProvider.label }}</span>
-        <button class="ml-0.5 rounded-sm hover:bg-primary/20 hover:text-destructive" @click="clearProvider">
+        <button
+          class="ml-0.5 rounded-sm hover:bg-primary/20 hover:text-destructive"
+          @click="clearProvider"
+        >
           <X class="size-3" />
         </button>
       </div>
-      <Search v-else class="size-4 shrink-0 opacity-50" />
+      <Search
+        v-else
+        class="size-4 shrink-0 opacity-50"
+      />
       <input
         ref="inputRef"
         v-model="localInput"
         :placeholder="placeholder"
         class="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
         @keydown="handleKeydown"
-      />
+      >
     </div>
-    <CommandList ref="listRef" @keydown="handleKeydown">
+    <CommandList
+      ref="listRef"
+      @keydown="handleKeydown"
+    >
       <CommandEmpty v-if="!loading && localInput.trim() && visibleGroups.length === 0 && providerItems.length === 0">
         未找到结果
       </CommandEmpty>
@@ -271,10 +292,16 @@ onBeforeUnmount(() => {
           :value="item.label + ' ' + (item.description || '') + ' ' + (item.keywords?.join(' ') || '')"
           @select="handleProviderSelect(item)"
         >
-          <component :is="item.icon" class="mr-2 h-4 w-4 shrink-0" />
+          <component
+            :is="item.icon"
+            class="mr-2 h-4 w-4 shrink-0"
+          />
           <div class="flex flex-1 flex-col overflow-hidden">
             <span class="truncate text-sm">{{ item.label }}</span>
-            <span v-if="item.description" class="truncate text-xs text-muted-foreground">
+            <span
+              v-if="item.description"
+              class="truncate text-xs text-muted-foreground"
+            >
               {{ item.description }}
             </span>
           </div>
@@ -291,14 +318,23 @@ onBeforeUnmount(() => {
           :value="item.label + ' ' + (item.description || '') + ' ' + (item.keywords?.join(' ') || '')"
           @select="handleSelect(item)"
         >
-          <component :is="item.icon" class="mr-2 h-4 w-4 shrink-0" />
+          <component
+            :is="item.icon"
+            class="mr-2 h-4 w-4 shrink-0"
+          />
           <div class="flex flex-1 flex-col overflow-hidden">
             <span class="truncate text-sm">{{ item.label }}</span>
-            <span v-if="item.description" class="truncate text-xs text-muted-foreground">
+            <span
+              v-if="item.description"
+              class="truncate text-xs text-muted-foreground"
+            >
               {{ item.description }}
             </span>
           </div>
-          <span v-if="item.shortcut" class="ml-2 text-xs text-muted-foreground">
+          <span
+            v-if="item.shortcut"
+            class="ml-2 text-xs text-muted-foreground"
+          >
             {{ item.shortcut }}
           </span>
         </CommandItem>

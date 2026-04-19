@@ -145,7 +145,10 @@ const categoryCounts = computed(() => {
                 @click="emit('update:selectedSite', selectedSite === site ? null : site)"
               >
                 <div class="flex items-center gap-2 min-w-0 flex-1">
-                  <img :src="getFaviconUrl(`https://${origin}`)" class="w-3.5 h-3.5 shrink-0 rounded-sm" />
+                  <img
+                    :src="getFaviconUrl(`https://${origin}`)"
+                    class="w-3.5 h-3.5 shrink-0 rounded-sm"
+                  >
                   <span class="truncate">{{ site }}</span>
                 </div>
                 <span class="text-muted-foreground shrink-0">{{ count }}</span>
@@ -178,7 +181,10 @@ const categoryCounts = computed(() => {
                 :class="selectedCategory === key ? 'bg-accent text-accent-foreground' : 'hover:bg-muted/50'"
                 @click="emit('update:selectedCategory', selectedCategory === key ? null : key)"
               >
-                <component :is="config.icon" class="w-3.5 h-3.5 shrink-0" />
+                <component
+                  :is="config.icon"
+                  class="w-3.5 h-3.5 shrink-0"
+                />
                 <span class="flex-1 text-left">{{ config.label }}</span>
                 <span class="text-muted-foreground shrink-0">{{ categoryCounts[key] }}</span>
               </button>

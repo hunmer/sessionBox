@@ -75,14 +75,20 @@ function handleSelectField(nodeId: string, fieldPath: string) {
       </Button>
     </DropdownMenuTrigger>
 
-    <DropdownMenuContent align="end" class="w-56">
+    <DropdownMenuContent
+      align="end"
+      class="w-56"
+    >
       <template v-if="otherNodes.length === 0">
         <DropdownMenuLabel class="text-xs text-muted-foreground">
           画布上没有其他节点
         </DropdownMenuLabel>
       </template>
 
-      <template v-for="node in otherNodes" :key="node.id">
+      <template
+        v-for="node in otherNodes"
+        :key="node.id"
+      >
         <DropdownMenuSub>
           <DropdownMenuSubTrigger class="text-xs">
             <component
@@ -101,7 +107,10 @@ function handleSelectField(nodeId: string, fieldPath: string) {
                 @select="handleSelectField"
               />
             </template>
-            <div v-else class="px-2 py-1.5 text-xs text-muted-foreground">
+            <div
+              v-else
+              class="px-2 py-1.5 text-xs text-muted-foreground"
+            >
               无输出字段
             </div>
           </DropdownMenuSubContent>

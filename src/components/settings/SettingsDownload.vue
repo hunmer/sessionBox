@@ -35,10 +35,15 @@ async function handleToggleConnection() {
 </script>
 
 <template>
-  <div v-if="editConfig" class="space-y-6">
+  <div
+    v-if="editConfig"
+    class="space-y-6"
+  >
     <!-- Aria2 连接 -->
     <section>
-      <h3 class="text-sm font-medium mb-3">Aria2 连接</h3>
+      <h3 class="text-sm font-medium mb-3">
+        Aria2 连接
+      </h3>
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1">
@@ -76,7 +81,11 @@ async function handleToggleConnection() {
         </div>
 
         <div class="flex items-center gap-2">
-          <Button size="sm" @click="handleToggleConnection" :disabled="store.loading">
+          <Button
+            size="sm"
+            :disabled="store.loading"
+            @click="handleToggleConnection"
+          >
             <template v-if="store.connected">
               <Server class="w-3.5 h-3.5 mr-1" /> 停止
             </template>
@@ -84,7 +93,11 @@ async function handleToggleConnection() {
               <Server class="w-3.5 h-3.5 mr-1" /> 启动
             </template>
           </Button>
-          <Button size="sm" variant="outline" @click="store.checkConnection()">
+          <Button
+            size="sm"
+            variant="outline"
+            @click="store.checkConnection()"
+          >
             <RefreshCw class="w-3.5 h-3.5 mr-1" /> 检测连接
           </Button>
           <span class="flex-1" />
@@ -110,7 +123,9 @@ async function handleToggleConnection() {
 
     <!-- 下载路径 -->
     <section>
-      <h3 class="text-sm font-medium mb-3">下载路径</h3>
+      <h3 class="text-sm font-medium mb-3">
+        下载路径
+      </h3>
       <div class="space-y-3">
         <div class="flex items-center justify-between">
           <label class="text-xs text-muted-foreground">总是询问下载位置</label>
@@ -135,7 +150,9 @@ async function handleToggleConnection() {
 
     <!-- 下载通知 -->
     <section>
-      <h3 class="text-sm font-medium mb-3">下载通知</h3>
+      <h3 class="text-sm font-medium mb-3">
+        下载通知
+      </h3>
       <div class="space-y-3">
         <div class="flex items-center justify-between">
           <label class="text-xs text-muted-foreground">开始下载时通知</label>

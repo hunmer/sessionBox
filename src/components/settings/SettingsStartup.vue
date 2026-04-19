@@ -11,13 +11,17 @@ const workspaceStore = useWorkspaceStore()
 </script>
 
 <template>
-  <h3 class="text-sm font-medium mb-3">外部链接</h3>
+  <h3 class="text-sm font-medium mb-3">
+    外部链接
+  </h3>
   <div class="space-y-4">
     <!-- 每次打开都询问 -->
     <div class="flex items-center justify-between">
       <div>
         <label class="text-xs text-muted-foreground">每次打开都询问</label>
-        <p class="text-xs text-muted-foreground/60 mt-0.5">从外部打开链接时弹出容器选择对话框</p>
+        <p class="text-xs text-muted-foreground/60 mt-0.5">
+          从外部打开链接时弹出容器选择对话框
+        </p>
       </div>
       <Switch
         :model-value="containerStore.askContainerOnOpen"
@@ -36,7 +40,11 @@ const workspaceStore = useWorkspaceStore()
           <SelectValue placeholder="选择容器" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem v-for="c in containerStore.containers" :key="c.id" :value="c.id">
+          <SelectItem
+            v-for="c in containerStore.containers"
+            :key="c.id"
+            :value="c.id"
+          >
             {{ c.icon }} {{ c.name }}
           </SelectItem>
         </SelectContent>
@@ -54,8 +62,14 @@ const workspaceStore = useWorkspaceStore()
           <SelectValue placeholder="选择工作区" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__active__">当前激活工作区</SelectItem>
-          <SelectItem v-for="w in workspaceStore.sortedWorkspaces" :key="w.id" :value="w.id">
+          <SelectItem value="__active__">
+            当前激活工作区
+          </SelectItem>
+          <SelectItem
+            v-for="w in workspaceStore.sortedWorkspaces"
+            :key="w.id"
+            :value="w.id"
+          >
             {{ w.title }}
           </SelectItem>
         </SelectContent>

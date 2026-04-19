@@ -158,12 +158,20 @@ function handleOpenFull() {
     <!-- 条目列表 / 添加表单 -->
     <ScrollArea class="max-h-[400px]">
       <!-- 无站点 -->
-      <div v-if="!siteOrigin" class="flex items-center justify-center py-8">
-        <p class="text-xs text-muted-foreground">请先打开一个网站</p>
+      <div
+        v-if="!siteOrigin"
+        class="flex items-center justify-center py-8"
+      >
+        <p class="text-xs text-muted-foreground">
+          请先打开一个网站
+        </p>
       </div>
 
       <!-- 添加表单 -->
-      <div v-else-if="isAdding" class="p-3 flex flex-col gap-2.5">
+      <div
+        v-else-if="isAdding"
+        class="p-3 flex flex-col gap-2.5"
+      >
         <!-- 名称 -->
         <div class="flex flex-col gap-1">
           <label class="text-[10px] text-muted-foreground">备注名称</label>
@@ -194,9 +202,15 @@ function handleOpenFull() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="text">文本</SelectItem>
-                  <SelectItem value="textarea">长文本</SelectItem>
-                  <SelectItem value="checkbox">复选框</SelectItem>
+                  <SelectItem value="text">
+                    文本
+                  </SelectItem>
+                  <SelectItem value="textarea">
+                    长文本
+                  </SelectItem>
+                  <SelectItem value="checkbox">
+                    复选框
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <Button
@@ -250,15 +264,30 @@ function handleOpenFull() {
 
         <!-- 添加自定义字段 -->
         <div class="flex items-center gap-1">
-          <Button variant="ghost" size="sm" class="h-6 text-[10px] gap-1" @click="addField('text')">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="h-6 text-[10px] gap-1"
+            @click="addField('text')"
+          >
             <TextCursorInput class="h-3 w-3" />
             文本
           </Button>
-          <Button variant="ghost" size="sm" class="h-6 text-[10px] gap-1" @click="addField('textarea')">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="h-6 text-[10px] gap-1"
+            @click="addField('textarea')"
+          >
             <AlignLeft class="h-3 w-3" />
             长文本
           </Button>
-          <Button variant="ghost" size="sm" class="h-6 text-[10px] gap-1" @click="addField('checkbox')">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="h-6 text-[10px] gap-1"
+            @click="addField('checkbox')"
+          >
             <CheckSquare class="h-3 w-3" />
             复选框
           </Button>
@@ -266,19 +295,40 @@ function handleOpenFull() {
 
         <!-- 确认 / 取消 -->
         <div class="flex items-center gap-2 pt-1">
-          <Button variant="outline" size="sm" class="flex-1 h-7 text-xs" @click="cancelAdd">取消</Button>
-          <Button size="sm" class="flex-1 h-7 text-xs" @click="confirmAdd">保存</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="flex-1 h-7 text-xs"
+            @click="cancelAdd"
+          >
+            取消
+          </Button>
+          <Button
+            size="sm"
+            class="flex-1 h-7 text-xs"
+            @click="confirmAdd"
+          >
+            保存
+          </Button>
         </div>
       </div>
 
       <!-- 空状态 -->
-      <div v-else-if="siteEntries.length === 0" class="flex flex-col items-center justify-center py-8 gap-2">
+      <div
+        v-else-if="siteEntries.length === 0"
+        class="flex flex-col items-center justify-center py-8 gap-2"
+      >
         <KeyRound class="h-8 w-8 text-muted-foreground/40" />
-        <p class="text-xs text-muted-foreground">暂无备注信息</p>
+        <p class="text-xs text-muted-foreground">
+          暂无备注信息
+        </p>
       </div>
 
       <!-- 条目列表 -->
-      <div v-else class="py-1">
+      <div
+        v-else
+        class="py-1"
+      >
         <div
           v-for="entry in siteEntries"
           :key="entry.id"
@@ -302,7 +352,10 @@ function handleOpenFull() {
               :key="field.id"
               class="flex items-center gap-1.5 text-xs"
             >
-              <span class="text-muted-foreground w-14 shrink-0 truncate text-right" :title="field.name">
+              <span
+                class="text-muted-foreground w-14 shrink-0 truncate text-right"
+                :title="field.name"
+              >
                 {{ field.name }}
               </span>
 
@@ -328,8 +381,14 @@ function handleOpenFull() {
                     class="h-5 w-5"
                     @click="toggleFieldVisibility(field.id)"
                   >
-                    <Eye v-if="!visibleFields.has(field.id)" class="h-3 w-3" />
-                    <EyeOff v-else class="h-3 w-3" />
+                    <Eye
+                      v-if="!visibleFields.has(field.id)"
+                      class="h-3 w-3"
+                    />
+                    <EyeOff
+                      v-else
+                      class="h-3 w-3"
+                    />
                   </Button>
                   <Button
                     v-if="field.value"
@@ -363,7 +422,10 @@ function handleOpenFull() {
         <Plus class="h-3 w-3" />
         添加备注
       </Button>
-      <div v-else-if="!isAdding" class="text-[10px] text-muted-foreground text-center">
+      <div
+        v-else-if="!isAdding"
+        class="text-[10px] text-muted-foreground text-center"
+      >
         共 {{ siteEntries.length }} 条备注
       </div>
     </div>

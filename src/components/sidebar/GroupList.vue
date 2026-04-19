@@ -75,7 +75,10 @@ const ungroupedOpen = ref(true)
   <!-- 折叠状态：显示图标列表，点击弹出下拉菜单 -->
   <template v-if="collapsed">
     <SidebarMenu>
-      <SidebarMenuItem v-for="workspace in workspaces" :key="workspace.name">
+      <SidebarMenuItem
+        v-for="workspace in workspaces"
+        :key="workspace.name"
+      >
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
             <SidebarMenuButton
@@ -85,13 +88,21 @@ const ungroupedOpen = ref(true)
               <EmojiRenderer :emoji="workspace.emoji" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start" class="w-48">
+          <DropdownMenuContent
+            side="right"
+            align="start"
+            class="w-48"
+          >
             <DropdownMenuItem
               v-for="pageItem in workspace.pages"
               :key="pageItem.id"
               @click="emit('selectPage', pageItem.id)"
             >
-              <EmojiRenderer :emoji="pageItem.emoji" :url="pageItem.url" class="mr-2" />
+              <EmojiRenderer
+                :emoji="pageItem.emoji"
+                :url="pageItem.url"
+                class="mr-2"
+              />
               {{ pageItem.name }}
             </DropdownMenuItem>
             <template v-if="workspace.pages.length > 0">
@@ -108,8 +119,8 @@ const ungroupedOpen = ref(true)
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              @click.stop="emit('deleteGroup', workspace.group)"
               class="text-destructive"
+              @click.stop="emit('deleteGroup', workspace.group)"
             >
               <Trash2 class="w-4 h-4 mr-2" />
               删除分组
@@ -134,7 +145,10 @@ const ungroupedOpen = ref(true)
     />
 
     <!-- 未分组标签页 -->
-    <Collapsible v-if="ungroupedTabs.length > 0" v-model:open="ungroupedOpen">
+    <Collapsible
+      v-if="ungroupedTabs.length > 0"
+      v-model:open="ungroupedOpen"
+    >
       <SidebarMenuItem>
         <SidebarMenuButton as-child>
           <a
@@ -155,15 +169,24 @@ const ungroupedOpen = ref(true)
           <ul
             class="border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5"
           >
-            <SidebarMenuSubItem v-for="tab in ungroupedTabs" :key="tab.id">
+            <SidebarMenuSubItem
+              v-for="tab in ungroupedTabs"
+              :key="tab.id"
+            >
               <div class="flex items-center gap-1 w-full">
-                <SidebarMenuSubButton as-child class="flex-1">
+                <SidebarMenuSubButton
+                  as-child
+                  class="flex-1"
+                >
                   <a
                     href="#"
                     class="flex items-center gap-2 w-full text-left"
                     @click.prevent="tabStore.switchTab(tab.id)"
                   >
-                    <EmojiRenderer emoji="🌐" :url="tab.url" />
+                    <EmojiRenderer
+                      emoji="🌐"
+                      :url="tab.url"
+                    />
                     <span class="truncate">{{ tab.title || tab.url }}</span>
                   </a>
                 </SidebarMenuSubButton>
@@ -180,9 +203,16 @@ const ungroupedOpen = ref(true)
       </SidebarMenuItem>
     </Collapsible>
 
-    <div v-if="containerStore.workspaceGroups.length === 0 && ungroupedTabs.length === 0" class="flex flex-col items-center justify-center py-8 text-muted-foreground">
-      <p class="text-sm">暂无分组</p>
-      <p class="text-xs mt-1">点击下方「新建分组」开始</p>
+    <div
+      v-if="containerStore.workspaceGroups.length === 0 && ungroupedTabs.length === 0"
+      class="flex flex-col items-center justify-center py-8 text-muted-foreground"
+    >
+      <p class="text-sm">
+        暂无分组
+      </p>
+      <p class="text-xs mt-1">
+        点击下方「新建分组」开始
+      </p>
     </div>
   </template>
 </template>

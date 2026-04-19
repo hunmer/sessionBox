@@ -327,6 +327,10 @@ onUnmounted(() => {
         @navigate="handleNavigateUrl"
       />
     </template>
-    <div v-else id="webview-container" class="absolute inset-0" />
+    <div
+      v-else
+      id="webview-container"
+      class="absolute inset-0"
+    />
   </template>
 </template>

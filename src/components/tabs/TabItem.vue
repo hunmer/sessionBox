@@ -264,14 +264,41 @@ onBeforeUnmount(clearTimers)
             @dragleave.stop="handleDropDragLeave"
             @drop.stop="handleExternalDrop"
           >
-            <Loader2 v-if="isLoading" class="w-3.5 h-3.5 flex-shrink-0 animate-spin" :class="isActive && groupColor ? '' : 'text-primary/50'" :style="isActive && groupColor ? { color: groupColor + '80' } : {}" />
-            <Snowflake v-else-if="isFrozen" class="w-3.5 h-3.5 flex-shrink-0 text-blue-400" />
-            <img v-else-if="faviconUrl" :src="faviconUrl" class="w-3.5 h-3.5 flex-shrink-0 rounded-sm" />
-            <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
-            <span class="truncate text-xs" :class="vertical ? 'flex-1 min-w-0' : isPinned ? 'max-w-[100px]' : 'max-w-[120px]'">{{ pageTitle || pageLabel || '新标签页' }}</span>
-            <span v-if="pageTitle && pageLabel" class="truncate text-[10px] text-muted-foreground/60 max-w-[60px] flex-shrink-0">{{ pageLabel }}</span>
-            <VolumeX v-if="isMuted" class="w-3 h-3 flex-shrink-0 text-muted-foreground" />
-            <Pin v-if="isPinned" class="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+            <Loader2
+              v-if="isLoading"
+              class="w-3.5 h-3.5 flex-shrink-0 animate-spin"
+              :class="isActive && groupColor ? '' : 'text-primary/50'"
+              :style="isActive && groupColor ? { color: groupColor + '80' } : {}"
+            />
+            <Snowflake
+              v-else-if="isFrozen"
+              class="w-3.5 h-3.5 flex-shrink-0 text-blue-400"
+            />
+            <img
+              v-else-if="faviconUrl"
+              :src="faviconUrl"
+              class="w-3.5 h-3.5 flex-shrink-0 rounded-sm"
+            >
+            <Globe
+              v-else
+              class="w-3.5 h-3.5 flex-shrink-0 opacity-50"
+            />
+            <span
+              class="truncate text-xs"
+              :class="vertical ? 'flex-1 min-w-0' : isPinned ? 'max-w-[100px]' : 'max-w-[120px]'"
+            >{{ pageTitle || pageLabel || '新标签页' }}</span>
+            <span
+              v-if="pageTitle && pageLabel"
+              class="truncate text-[10px] text-muted-foreground/60 max-w-[60px] flex-shrink-0"
+            >{{ pageLabel }}</span>
+            <VolumeX
+              v-if="isMuted"
+              class="w-3 h-3 flex-shrink-0 text-muted-foreground"
+            />
+            <Pin
+              v-if="isPinned"
+              class="w-3 h-3 flex-shrink-0 text-muted-foreground"
+            />
             <button
               v-if="!isPinned"
               class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-secondary transition-opacity"
@@ -284,17 +311,32 @@ onBeforeUnmount(clearTimers)
         </ContextMenuTrigger>
         <ContextMenuContent class="w-48">
           <ContextMenuItem @click="tabStore.toggleMute(tab.id)">
-            <VolumeX v-if="isMuted" class="w-3.5 h-3.5 mr-2" />
-            <Volume2 v-else class="w-3.5 h-3.5 mr-2" />
+            <VolumeX
+              v-if="isMuted"
+              class="w-3.5 h-3.5 mr-2"
+            />
+            <Volume2
+              v-else
+              class="w-3.5 h-3.5 mr-2"
+            />
             {{ isMuted ? '取消静音' : '静音标签' }}
           </ContextMenuItem>
-          <ContextMenuItem v-if="isWebPage" @click="handleToggleSiteMute">
+          <ContextMenuItem
+            v-if="isWebPage"
+            @click="handleToggleSiteMute"
+          >
             <GlobeLock class="w-3.5 h-3.5 mr-2" />
             {{ isSiteMuted ? '取消静音此网站' : '静音此网站' }}
           </ContextMenuItem>
           <ContextMenuItem @click="tabStore.togglePin(tab.id)">
-            <PinOff v-if="isPinned" class="w-3.5 h-3.5 mr-2" />
-            <Pin v-else class="w-3.5 h-3.5 mr-2" />
+            <PinOff
+              v-if="isPinned"
+              class="w-3.5 h-3.5 mr-2"
+            />
+            <Pin
+              v-else
+              class="w-3.5 h-3.5 mr-2"
+            />
             {{ isPinned ? '取消固定' : '固定标签' }}
           </ContextMenuItem>
           <ContextMenuItem @click="tabStore.openInNewWindow(tab.id)">
@@ -311,7 +353,10 @@ onBeforeUnmount(clearTimers)
       :side-offset="4"
       class="w-[280px] p-0 overflow-hidden pointer-events-auto"
     >
-      <div @mouseenter="handleContentEnter" @mouseleave="handleContentLeave">
+      <div
+        @mouseenter="handleContentEnter"
+        @mouseleave="handleContentLeave"
+      >
         <!-- 截图区域 -->
         <div class="aspect-video bg-muted relative overflow-hidden">
           <img
@@ -319,20 +364,36 @@ onBeforeUnmount(clearTimers)
             :src="screenshotUrl"
             alt=""
             class="w-full h-full object-cover object-top"
-          />
-          <div v-else-if="screenshotLoading" class="w-full h-full flex items-center justify-center">
+          >
+          <div
+            v-else-if="screenshotLoading"
+            class="w-full h-full flex items-center justify-center"
+          >
             <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
-          <div v-else class="w-full h-full flex items-center justify-center">
+          <div
+            v-else
+            class="w-full h-full flex items-center justify-center"
+          >
             <Globe class="w-5 h-5 text-muted-foreground/30" />
           </div>
         </div>
         <!-- 标签信息 -->
         <div class="px-2.5 py-1.5 bg-background">
           <div class="flex items-center gap-1.5">
-            <img v-if="faviconUrl" :src="faviconUrl" alt="" class="w-3.5 h-3.5 rounded-sm flex-shrink-0" />
-            <Globe v-else class="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
-            <p class="text-[11px] font-medium truncate">{{ pageTitle || '新标签页' }}</p>
+            <img
+              v-if="faviconUrl"
+              :src="faviconUrl"
+              alt=""
+              class="w-3.5 h-3.5 rounded-sm flex-shrink-0"
+            >
+            <Globe
+              v-else
+              class="w-3.5 h-3.5 flex-shrink-0 opacity-50"
+            />
+            <p class="text-[11px] font-medium truncate">
+              {{ pageTitle || '新标签页' }}
+            </p>
           </div>
           <p class="text-[10px] text-muted-foreground truncate mt-0.5">
             {{ getDomain(tab.url || '') }}

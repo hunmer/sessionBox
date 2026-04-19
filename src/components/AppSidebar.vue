@@ -262,7 +262,10 @@ const data = {
 </script>
 
 <template>
-  <Sidebar class="border-r-0" v-bind="props">
+  <Sidebar
+    class="border-r-0"
+    v-bind="props"
+  >
     <SidebarHeader>
       <TeamSwitcher :teams="data.teams" />
       <NavMain :items="data.navMain" />
@@ -270,7 +273,10 @@ const data = {
     <SidebarContent>
       <NavBookmarks :bookmarks="data.bookmarks" />
       <NavWorkspaces :workspaces="data.workspaces" />
-      <NavSecondary :items="data.navSecondary" class="mt-auto" />
+      <NavSecondary
+        :items="data.navSecondary"
+        class="mt-auto"
+      />
     </SidebarContent>
     <SidebarRail />
   </Sidebar>

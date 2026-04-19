@@ -233,23 +233,44 @@ async function handleClearAll() {
     <!-- 顶部工具栏 -->
     <div class="flex items-center gap-2 px-4 py-2 border-b border-border flex-shrink-0">
       <KeyRound class="h-4 w-4 text-muted-foreground" />
-      <h2 class="text-sm font-semibold flex-shrink-0">密码管理</h2>
+      <h2 class="text-sm font-semibold flex-shrink-0">
+        密码管理
+      </h2>
       <div class="flex-1" />
-      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleImport">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        @click="handleImport"
+      >
         <Upload class="w-3.5 h-3.5" />
         导入
       </Button>
-      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="handleExport">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        @click="handleExport"
+      >
         <Download class="w-3.5 h-3.5" />
         导出
       </Button>
-      <Button variant="ghost" size="sm" class="h-7 text-xs gap-1" @click="openCreateDialog">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        @click="openCreateDialog"
+      >
         <Plus class="w-3.5 h-3.5" />
         添加备注
       </Button>
       <AlertDialog v-if="passwordStore.entries.length > 0">
         <AlertDialogTrigger as-child>
-          <Button variant="ghost" size="sm" class="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive"
+          >
             <Trash2 class="w-3.5 h-3.5" />
             清空
           </Button>
@@ -263,7 +284,10 @@ async function handleClearAll() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction class="bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="handleClearAll">
+            <AlertDialogAction
+              class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              @click="handleClearAll"
+            >
               确认清空
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -272,9 +296,16 @@ async function handleClearAll() {
     </div>
 
     <!-- 左右分栏 -->
-    <ResizablePanelGroup direction="horizontal" class="flex-1 min-h-0">
+    <ResizablePanelGroup
+      direction="horizontal"
+      class="flex-1 min-h-0"
+    >
       <!-- 左侧站点列表 -->
-      <ResizablePanel :default-size="25" :min-size="15" :max-size="40">
+      <ResizablePanel
+        :default-size="25"
+        :min-size="15"
+        :max-size="40"
+      >
         <div class="h-full flex flex-col min-h-0">
           <div class="px-3 py-2 border-b border-border flex-shrink-0">
             <div class="relative">
@@ -287,10 +318,18 @@ async function handleClearAll() {
             </div>
           </div>
           <ScrollArea class="flex-1 min-h-0">
-            <div v-if="sites.length === 0" class="flex items-center justify-center py-8">
-              <p class="text-xs text-muted-foreground">暂无保存的站点</p>
+            <div
+              v-if="sites.length === 0"
+              class="flex items-center justify-center py-8"
+            >
+              <p class="text-xs text-muted-foreground">
+                暂无保存的站点
+              </p>
             </div>
-            <div v-else class="py-1">
+            <div
+              v-else
+              class="py-1"
+            >
               <div
                 v-for="site in sites"
                 :key="site"
@@ -303,7 +342,7 @@ async function handleClearAll() {
                   alt=""
                   class="h-4 w-4 rounded-sm shrink-0"
                   @error="($event.target as HTMLImageElement).style.display = 'none'"
-                />
+                >
                 <span class="truncate flex-1">{{ hostname(site) }}</span>
                 <span class="text-muted-foreground text-[10px] shrink-0">{{ siteCount(site) }}</span>
               </div>
@@ -317,8 +356,13 @@ async function handleClearAll() {
       <!-- 右侧条目列表 -->
       <ResizablePanel>
         <div class="h-full flex flex-col min-h-0">
-          <div v-if="!selectedSite" class="flex items-center justify-center flex-1">
-            <p class="text-xs text-muted-foreground">选择左侧站点查看备注</p>
+          <div
+            v-if="!selectedSite"
+            class="flex items-center justify-center flex-1"
+          >
+            <p class="text-xs text-muted-foreground">
+              选择左侧站点查看备注
+            </p>
           </div>
 
           <template v-else>
@@ -328,16 +372,28 @@ async function handleClearAll() {
             </div>
 
             <ScrollArea class="flex-1 min-h-0">
-              <div v-if="siteEntries.length === 0" class="flex flex-col items-center justify-center py-16 gap-3">
+              <div
+                v-if="siteEntries.length === 0"
+                class="flex flex-col items-center justify-center py-16 gap-3"
+              >
                 <KeyRound class="h-12 w-12 text-muted-foreground/30" />
-                <p class="text-sm text-muted-foreground">暂无备注信息</p>
-                <Button size="sm" class="gap-1" @click="openCreateDialog">
+                <p class="text-sm text-muted-foreground">
+                  暂无备注信息
+                </p>
+                <Button
+                  size="sm"
+                  class="gap-1"
+                  @click="openCreateDialog"
+                >
                   <Plus class="h-3.5 w-3.5" />
                   添加第一条
                 </Button>
               </div>
 
-              <div v-else class="p-4 flex flex-col gap-3">
+              <div
+                v-else
+                class="p-4 flex flex-col gap-3"
+              >
                 <div
                   v-for="entry in siteEntries"
                   :key="entry.id"
@@ -372,7 +428,10 @@ async function handleClearAll() {
                       :key="field.id"
                       class="flex items-center gap-2 text-xs"
                     >
-                      <span class="text-muted-foreground w-20 shrink-0 truncate text-right" :title="field.name">
+                      <span
+                        class="text-muted-foreground w-20 shrink-0 truncate text-right"
+                        :title="field.name"
+                      >
                         {{ field.name }}
                       </span>
 
@@ -401,8 +460,14 @@ async function handleClearAll() {
                             class="h-5 w-5"
                             @click="toggleVisibility(field.id)"
                           >
-                            <Eye v-if="!visibleFields.has(field.id)" class="h-3 w-3" />
-                            <EyeOff v-else class="h-3 w-3" />
+                            <Eye
+                              v-if="!visibleFields.has(field.id)"
+                              class="h-3 w-3"
+                            />
+                            <EyeOff
+                              v-else
+                              class="h-3 w-3"
+                            />
                           </Button>
                           <Button
                             v-if="field.value"
@@ -430,7 +495,10 @@ async function handleClearAll() {
     </ResizablePanelGroup>
 
     <!-- 编辑对话框 -->
-    <Dialog :open="dialogOpen" @update:open="dialogOpen = $event">
+    <Dialog
+      :open="dialogOpen"
+      @update:open="dialogOpen = $event"
+    >
       <DialogContent class="sm:max-w-[520px] max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{{ editingEntry ? '编辑备注' : '添加备注' }}</DialogTitle>
@@ -451,7 +519,11 @@ async function handleClearAll() {
           <!-- 名称 -->
           <div class="flex flex-col gap-1.5">
             <label class="text-xs text-muted-foreground">备注名称</label>
-            <Input v-model="formName" placeholder="如：个人账号" class="h-8 text-sm" />
+            <Input
+              v-model="formName"
+              placeholder="如：个人账号"
+              class="h-8 text-sm"
+            />
           </div>
 
           <Separator />
@@ -461,15 +533,30 @@ async function handleClearAll() {
             <div class="flex items-center justify-between">
               <label class="text-xs font-medium text-muted-foreground">字段</label>
               <div class="flex items-center gap-1">
-                <Button variant="ghost" size="sm" class="h-6 text-[10px] gap-1" @click="addField('text')">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-6 text-[10px] gap-1"
+                  @click="addField('text')"
+                >
                   <TextCursorInput class="h-3 w-3" />
                   文本
                 </Button>
-                <Button variant="ghost" size="sm" class="h-6 text-[10px] gap-1" @click="addField('textarea')">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-6 text-[10px] gap-1"
+                  @click="addField('textarea')"
+                >
                   <AlignLeft class="h-3 w-3" />
                   长文本
                 </Button>
-                <Button variant="ghost" size="sm" class="h-6 text-[10px] gap-1" @click="addField('checkbox')">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-6 text-[10px] gap-1"
+                  @click="addField('checkbox')"
+                >
                   <CheckSquare class="h-3 w-3" />
                   复选框
                 </Button>
@@ -492,9 +579,15 @@ async function handleClearAll() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="text">文本</SelectItem>
-                    <SelectItem value="textarea">长文本</SelectItem>
-                    <SelectItem value="checkbox">复选框</SelectItem>
+                    <SelectItem value="text">
+                      文本
+                    </SelectItem>
+                    <SelectItem value="textarea">
+                      长文本
+                    </SelectItem>
+                    <SelectItem value="checkbox">
+                      复选框
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
@@ -550,8 +643,17 @@ async function handleClearAll() {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" @click="dialogOpen = false">取消</Button>
-          <Button size="sm" @click="handleSave">
+          <Button
+            variant="outline"
+            size="sm"
+            @click="dialogOpen = false"
+          >
+            取消
+          </Button>
+          <Button
+            size="sm"
+            @click="handleSave"
+          >
             {{ editingEntry ? '保存' : '添加' }}
           </Button>
         </DialogFooter>

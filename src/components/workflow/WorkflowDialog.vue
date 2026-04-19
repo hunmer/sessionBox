@@ -24,8 +24,14 @@ watch(open, (val) => {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="open = $event">
-    <DialogContent class="sm:max-w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden" :show-close-button="true">
+  <Dialog
+    :open="open"
+    @update:open="open = $event"
+  >
+    <DialogContent
+      class="sm:max-w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden"
+      :show-close-button="true"
+    >
       <WorkflowEditor />
     </DialogContent>
   </Dialog>

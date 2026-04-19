@@ -253,7 +253,9 @@ function handleZoomReset() {
   <div class="flex items-center gap-2 h-[42px] px-2.5 border-b border-border bg-card/50">
     <!-- 后退 -->
     <Button
-      variant="ghost" size="icon" class="h-7 w-7"
+      variant="ghost"
+      size="icon"
+      class="h-7 w-7"
       :disabled="!navState.canGoBack"
       @click="goBack"
     >
@@ -262,7 +264,9 @@ function handleZoomReset() {
 
     <!-- 前进 -->
     <Button
-      variant="ghost" size="icon" class="h-7 w-7"
+      variant="ghost"
+      size="icon"
+      class="h-7 w-7"
       :disabled="!navState.canGoForward"
       @click="goForward"
     >
@@ -270,15 +274,29 @@ function handleZoomReset() {
     </Button>
 
     <!-- 刷新/加载中 -->
-    <Button variant="ghost" size="icon" class="h-7 w-7" @click="reload">
-      <Loader2 v-if="navState.isLoading" class="w-4 h-4 animate-spin" />
-      <RotateCw v-else class="w-4 h-4" />
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-7 w-7"
+      @click="reload"
+    >
+      <Loader2
+        v-if="navState.isLoading"
+        class="w-4 h-4 animate-spin"
+      />
+      <RotateCw
+        v-else
+        class="w-4 h-4"
+      />
     </Button>
 
     <!-- 地址栏 + 搜索候选 -->
     <Popover :open="showSearchSuggestion">
       <PopoverTrigger as-child>
-        <div ref="triggerRef" class="relative flex-1 flex items-center">
+        <div
+          ref="triggerRef"
+          class="relative flex-1 flex items-center"
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -287,7 +305,10 @@ function handleZoomReset() {
             :disabled="!tabStore.activeTabId"
             @click="toggleBookmark"
           >
-            <Star class="w-3.5 h-3.5" :fill="isBookmarked ? 'currentColor' : 'none'" />
+            <Star
+              class="w-3.5 h-3.5"
+              :fill="isBookmarked ? 'currentColor' : 'none'"
+            />
           </Button>
           <Input
             v-model="urlInput"
@@ -322,19 +343,24 @@ function handleZoomReset() {
             :alt="engine.name"
             class="w-3.5 h-3.5 shrink-0 rounded-sm object-contain"
             @error="($event.target as HTMLImageElement).style.display = 'none'"
-          />
+          >
           <span class="truncate flex-1 text-left">
             <span class="text-muted-foreground">{{ engine.name }}</span>
             {{ urlInput.trim() }}
           </span>
-          <CornerDownLeft v-if="idx === activeIndex" class="w-3 h-3 shrink-0 text-muted-foreground" />
+          <CornerDownLeft
+            v-if="idx === activeIndex"
+            class="w-3 h-3 shrink-0 text-muted-foreground"
+          />
         </button>
       </PopoverContent>
     </Popover>
 
     <!-- 开发者工具 -->
     <Button
-      variant="ghost" size="icon" class="h-7 w-7"
+      variant="ghost"
+      size="icon"
+      class="h-7 w-7"
       :disabled="!tabStore.activeTabId"
       @click="openDevTools"
     >
@@ -345,25 +371,41 @@ function handleZoomReset() {
     <DropdownMenu>
       <DropdownMenuTrigger as-child>
         <Button
-          variant="ghost" size="icon" class="h-7 w-7"
+          variant="ghost"
+          size="icon"
+          class="h-7 w-7"
           :disabled="!tabStore.activeTabId"
         >
           <ZoomIn class="w-4 h-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="bottom" :side-offset="4" align="end" class="min-w-[140px]">
-        <DropdownMenuItem class="flex items-center gap-2 cursor-pointer" @click="handleZoomIn">
+      <DropdownMenuContent
+        side="bottom"
+        :side-offset="4"
+        align="end"
+        class="min-w-[140px]"
+      >
+        <DropdownMenuItem
+          class="flex items-center gap-2 cursor-pointer"
+          @click="handleZoomIn"
+        >
           <ZoomIn class="w-4 h-4" />
           <span>放大</span>
           <span class="ml-auto text-xs text-muted-foreground">Ctrl++</span>
         </DropdownMenuItem>
-        <DropdownMenuItem class="flex items-center gap-2 cursor-pointer" @click="handleZoomOut">
+        <DropdownMenuItem
+          class="flex items-center gap-2 cursor-pointer"
+          @click="handleZoomOut"
+        >
           <ZoomOut class="w-4 h-4" />
           <span>缩小</span>
           <span class="ml-auto text-xs text-muted-foreground">Ctrl+-</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem class="flex items-center justify-center cursor-pointer font-medium" @click="handleZoomReset">
+        <DropdownMenuItem
+          class="flex items-center justify-center cursor-pointer font-medium"
+          @click="handleZoomReset"
+        >
           <RotateCcw class="w-4 h-4 mr-2" />
           <span>重置 ({{ zoomPercentage }}%)</span>
         </DropdownMenuItem>
@@ -374,13 +416,19 @@ function handleZoomReset() {
     <Popover v-model:open="passwordPopoverOpen">
       <PopoverTrigger as-child>
         <Button
-          variant="ghost" size="icon" class="h-7 w-7"
+          variant="ghost"
+          size="icon"
+          class="h-7 w-7"
           :disabled="!tabStore.activeTabId"
         >
           <KeyRound class="w-4 h-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent side="bottom" :side-offset="4" class="w-80 p-0">
+      <PopoverContent
+        side="bottom"
+        :side-offset="4"
+        class="w-80 p-0"
+      >
         <PasswordPopover @open-full="passwordPopoverOpen = false" />
       </PopoverContent>
     </Popover>

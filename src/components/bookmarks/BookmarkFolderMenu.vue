@@ -38,7 +38,7 @@ function openSite(bookmark: Bookmark) {
       alt=""
       class="w-3.5 h-3.5 rounded-sm mr-1.5"
       @error="($event.target as HTMLImageElement).style.display = 'none'"
-    />
+    >
     <span class="truncate">{{ bookmark.title }}</span>
   </DropdownMenuItem>
 
@@ -60,7 +60,7 @@ function openSite(bookmark: Bookmark) {
   <div
     v-if="
       bookmarkStore.getBookmarksByFolder(folderId).length === 0 &&
-      bookmarkStore.getChildFolders(folderId).length === 0
+        bookmarkStore.getChildFolders(folderId).length === 0
     "
     class="px-2 py-1.5 text-xs text-muted-foreground"
   >

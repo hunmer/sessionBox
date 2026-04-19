@@ -108,8 +108,14 @@ function handleSelectHistory(record: UrlRecord) {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="flex max-h-[80vh] w-[80vw] flex-col gap-3 p-4 sm:max-w-[640px]" show-close-button>
+  <Dialog
+    :open="open"
+    @update:open="emit('update:open', $event)"
+  >
+    <DialogContent
+      class="flex max-h-[80vh] w-[80vw] flex-col gap-3 p-4 sm:max-w-[640px]"
+      show-close-button
+    >
       <DialogHeader>
         <DialogTitle>新建标签页</DialogTitle>
       </DialogHeader>
@@ -122,12 +128,14 @@ function handleSelectHistory(record: UrlRecord) {
           placeholder="输入网址访问..."
           class="h-9 w-full rounded-md border border-input bg-transparent pl-9 pr-3 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           @keydown.enter.prevent="handleUrlSubmit"
-        />
+        >
       </div>
 
       <div class="min-h-0 flex-1 space-y-3 overflow-y-auto">
         <div v-if="pages.length > 0">
-          <div class="mb-1.5 px-1 text-xs text-muted-foreground">页面</div>
+          <div class="mb-1.5 px-1 text-xs text-muted-foreground">
+            页面
+          </div>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="page in pages"
@@ -137,7 +145,10 @@ function handleSelectHistory(record: UrlRecord) {
               @click="handleSelectPage(page)"
             >
               <span class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted text-lg">
-                <EmojiRenderer :emoji="page.icon" :url="page.url" />
+                <EmojiRenderer
+                  :emoji="page.icon"
+                  :url="page.url"
+                />
               </span>
               <span class="w-full truncate text-center text-[11px] leading-tight">{{ page.name }}</span>
             </button>
@@ -145,7 +156,9 @@ function handleSelectHistory(record: UrlRecord) {
         </div>
 
         <div v-if="filteredHistory.length > 0">
-          <div class="mb-1.5 px-1 text-xs text-muted-foreground">历史记录</div>
+          <div class="mb-1.5 px-1 text-xs text-muted-foreground">
+            历史记录
+          </div>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="record in filteredHistory"

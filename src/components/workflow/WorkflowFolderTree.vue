@@ -35,22 +35,35 @@ async function addFolder(parentId: string | null) {
         <span>全部工作流</span>
       </div>
 
-      <template v-for="folder in rootFolders" :key="folder.id">
+      <template
+        v-for="folder in rootFolders"
+        :key="folder.id"
+      >
         <div
           class="flex items-center gap-1.5 px-2 py-1 text-xs rounded cursor-pointer hover:bg-muted/50"
           :class="selectedFolderId === folder.id ? 'bg-muted' : ''"
           @click="selectedFolderId = folder.id"
         >
-          <component :is="selectedFolderId === folder.id ? FolderOpen : Folder" class="w-3.5 h-3.5 text-muted-foreground" />
+          <component
+            :is="selectedFolderId === folder.id ? FolderOpen : Folder"
+            class="w-3.5 h-3.5 text-muted-foreground"
+          />
           <span class="truncate">{{ folder.name }}</span>
         </div>
-        <div v-for="child in getChildren(folder.id)" :key="child.id" class="ml-4">
+        <div
+          v-for="child in getChildren(folder.id)"
+          :key="child.id"
+          class="ml-4"
+        >
           <div
             class="flex items-center gap-1.5 px-2 py-1 text-xs rounded cursor-pointer hover:bg-muted/50"
             :class="selectedFolderId === child.id ? 'bg-muted' : ''"
             @click="selectedFolderId = child.id"
           >
-            <component :is="selectedFolderId === child.id ? FolderOpen : Folder" class="w-3.5 h-3.5 text-muted-foreground" />
+            <component
+              :is="selectedFolderId === child.id ? FolderOpen : Folder"
+              class="w-3.5 h-3.5 text-muted-foreground"
+            />
             <span class="truncate">{{ child.name }}</span>
           </div>
         </div>
