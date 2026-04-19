@@ -83,6 +83,9 @@
     const emptyEl = document.getElementById('empty')
 
     function emit(channel, payload) {
+      try {
+        console.debug('__DEBUGGER_REPLAY__' + JSON.stringify({ channel, payload }))
+      } catch {}
       if (window.debuggerReplayApi?.sendToHost) {
         window.debuggerReplayApi.sendToHost(channel, payload)
       }
@@ -200,6 +203,10 @@
         seek(currentTime)
       }
     }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      emit('debugger:replay-ready', { pageLoaded: true })
+    })
 
     window.addEventListener('sessionbox:replay-command', (event) => {
       const command = event.detail || {}

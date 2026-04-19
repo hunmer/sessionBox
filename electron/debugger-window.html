@@ -3,42 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src * data: blob:;">
-  <title>调试工具</title>
+  <title>动作录制与复原</title>
   <script src="./debugger-assets/tailwind.browser.js"></script>
   <style>
-    body { margin: 0; padding: 0; background: #1a1a2e; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+    body { margin: 0; padding: 0; background: #141827; color: #e5e7eb; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
     #app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-
-    #replayer { width: 100%; height: 100%; min-height: 0; overflow: hidden; }
-    #replayer webview { width: 100%; height: 100%; border: 0; background: #111827; }
-
-    .resizer { width: 4px; background: #2a2a4a; cursor: col-resize; transition: background 0.15s; flex-shrink: 0; }
-    .resizer:hover, .resizer.dragging { background: #6366f1; }
-
-    .event-list::-webkit-scrollbar { width: 4px; }
-    .event-list::-webkit-scrollbar-track { background: transparent; }
-    .event-list::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
-
-    webview { width: 100%; height: 100%; flex: 1; }
-
-    .ev-checkbox {
+    webview { width: 100%; height: 100%; flex: 1; background: #0f172a; }
+    .resizer { width: 4px; background: #27324a; cursor: col-resize; transition: background 0.15s; flex-shrink: 0; }
+    .resizer:hover, .resizer.dragging { background: #38bdf8; }
+    .step-list::-webkit-scrollbar { width: 5px; }
+    .step-list::-webkit-scrollbar-track { background: transparent; }
+    .step-list::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
+    .step-checkbox {
       appearance: none; -webkit-appearance: none;
-      width: 12px; height: 12px; border: 1px solid #555; border-radius: 2px;
+      width: 12px; height: 12px; border: 1px solid #64748b; border-radius: 3px;
       background: transparent; cursor: pointer; flex-shrink: 0; position: relative;
     }
-    .ev-checkbox:checked { background: #6366f1; border-color: #6366f1; }
-    .ev-checkbox:checked::after {
+    .step-checkbox:checked { background: #38bdf8; border-color: #38bdf8; }
+    .step-checkbox:checked::after {
       content: ''; position: absolute; left: 3px; top: 0px;
-      width: 4px; height: 7px; border: solid white; border-width: 0 1.5px 1.5px 0;
+      width: 4px; height: 7px; border: solid #0f172a; border-width: 0 1.5px 1.5px 0;
       transform: rotate(45deg);
     }
   </style>
 </head>
 <body>
 <div id="app">
-  <!-- 标题栏 -->
-  <div class="flex items-center justify-between h-9 px-3 bg-[#16162a]" style="-webkit-app-region: drag; user-select: none;">
-    <span class="text-[13px] font-medium">调试工具</span>
+  <div class="flex items-center justify-between h-9 px-3 bg-[#0f172a] border-b border-slate-800" style="-webkit-app-region: drag; user-select: none;">
+    <span class="text-[13px] font-medium">动作录制与复原</span>
     <div class="flex gap-2" style="-webkit-app-region: no-drag;">
       <button class="w-3 h-3 rounded-full border-none cursor-pointer bg-[#febc2e] hover:opacity-80" @click="doMinimize"></button>
       <button class="w-3 h-3 rounded-full border-none cursor-pointer bg-[#28c840] hover:opacity-80" @click="doMaximize"></button>
@@ -46,123 +38,87 @@
     </div>
   </div>
 
-  <!-- 控制面板 -->
-  <div class="px-4 py-2 bg-[#1e1e3a] border-b border-[#2a2a4a] flex flex-wrap items-center gap-2">
+  <div class="px-4 py-2 bg-[#172033] border-b border-slate-800 flex flex-wrap items-center gap-2">
     <select v-model="targetId"
-      class="bg-[#2a2a4a] text-[#e0e0e0] border border-[#3a3a5a] rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 min-w-[200px]">
-      <option value="">-- 选择目标页面 --</option>
+      class="bg-slate-800 text-slate-100 border border-slate-700 rounded px-2 py-1 text-xs outline-none focus:border-sky-400 min-w-[220px]">
+      <option value="">-- 选择录制页面 --</option>
       <option value="__embedded__">内嵌 WebView</option>
       <option v-for="tab in tabs" :key="tab.webContentsId" :value="String(tab.webContentsId)">
         {{ tab.title }} (ID: {{ tab.webContentsId }})
       </option>
     </select>
+
     <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
-      :class="canStart ? 'bg-green-500 text-white' : 'bg-green-500/40 text-white cursor-not-allowed'"
+      :class="canStart ? 'bg-emerald-500 text-white' : 'bg-emerald-500/35 text-white cursor-not-allowed'"
       :disabled="!canStart" @click="startRecording">注入并录制</button>
     <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
-      :class="isRecording ? 'bg-red-500 text-white' : 'bg-red-500/40 text-white cursor-not-allowed'"
+      :class="isRecording ? 'bg-rose-500 text-white' : 'bg-rose-500/35 text-white cursor-not-allowed'"
       :disabled="!isRecording" @click="stopRecording">停止录制</button>
     <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
-      :class="canExport ? 'bg-blue-500 text-white' : 'bg-blue-500/40 text-white cursor-not-allowed'"
-      :disabled="!canExport" @click="exportEvents">导出</button>
-    <span class="text-[11px] ml-1" :class="isRecording ? 'text-red-400' : 'text-slate-400'">{{ statusText }}</span>
+      :class="canPlay ? 'bg-sky-500 text-white' : 'bg-sky-500/35 text-white cursor-not-allowed'"
+      :disabled="!canPlay" @click="startPlay">开始复原</button>
+    <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
+      :class="isPlaying ? 'bg-amber-500 text-slate-950' : 'bg-amber-500/35 text-white cursor-not-allowed'"
+      :disabled="!isPlaying" @click="stopPlay">停止复原</button>
+    <button class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer transition-opacity hover:opacity-85"
+      :class="canExport ? 'bg-indigo-500 text-white' : 'bg-indigo-500/35 text-white cursor-not-allowed'"
+      :disabled="!canExport" @click="exportRun">导出动作</button>
+    <button v-if="selectedSteps.size > 0"
+      class="px-3 py-[5px] rounded border-none text-xs font-medium cursor-pointer bg-slate-700 text-slate-100 hover:opacity-85"
+      @click="copySelected">复制选中 ({{ selectedSteps.size }})</button>
 
-    <!-- URL 输入 -->
-    <div v-if="showUrlBar" class="w-full flex gap-2 items-center">
-      <input type="text" v-model="urlInput" placeholder="输入 URL..."
-        class="flex-1 min-w-[150px] bg-[#2a2a4a] text-[#e0e0e0] border border-[#3a3a5a] rounded px-2 py-1 text-xs outline-none focus:border-indigo-500"
+    <span class="text-[11px] ml-1" :class="statusClass">{{ statusText }}</span>
+
+    <div class="w-full flex gap-2 items-center">
+      <input type="text" v-model="urlInput" placeholder="输入内嵌 WebView URL..."
+        class="flex-1 min-w-[180px] bg-slate-800 text-slate-100 border border-slate-700 rounded px-2 py-1 text-xs outline-none focus:border-sky-400"
         @keydown.enter="loadUrl">
-      <button class="px-3 py-1 rounded border-none text-xs font-medium cursor-pointer bg-indigo-500 text-white hover:opacity-85" @click="loadUrl">加载</button>
+      <button class="px-3 py-1 rounded border-none text-xs font-medium cursor-pointer bg-sky-500 text-white hover:opacity-85" @click="loadUrl">加载</button>
     </div>
   </div>
 
-  <!-- 主内容区 -->
   <div class="flex flex-1 min-h-0 overflow-hidden">
-    <!-- 左侧面板 -->
-    <div class="flex-1 flex flex-col min-w-[300px] overflow-hidden" ref="leftPanel">
-      <div class="flex bg-[#1e1e3a] border-b border-[#2a2a4a]">
-        <button v-for="t in ['record', 'replay']" :key="t"
-          class="flex-1 py-2 text-center text-xs cursor-pointer border-none transition-all"
-          :class="activeTab === t ? 'text-indigo-400 border-b-2 border-indigo-500 bg-[#2a2a4a]' : 'text-slate-400 bg-transparent hover:text-[#e0e0e0] hover:bg-[#2a2a4a]'"
-          @click="activeTab = t">{{ t === 'record' ? '录制' : '回放' }}</button>
+    <div class="flex-1 flex flex-col min-w-[320px] overflow-hidden" ref="leftPanel">
+      <div class="px-3 py-2 bg-[#172033] border-b border-slate-800 flex items-center justify-between text-xs">
+        <span class="text-slate-300">真实复原 WebView</span>
+        <span class="text-slate-500">录制外部标签页时，复原仍在此 WebView 中执行</span>
       </div>
-
-      <!-- 录制 Tab -->
-      <div v-show="activeTab === 'record'" class="flex-1 flex flex-col overflow-hidden">
-        <div v-if="showUrlBar" class="flex-1 flex min-h-0">
-          <webview ref="webviewEl" :partition="embeddedPartition" src="about:blank"></webview>
-        </div>
-      </div>
-
-      <!-- 回放 Tab -->
-      <div v-show="activeTab === 'replay'" class="flex-1 flex overflow-hidden relative min-h-0">
-        <span v-if="allEvents.length === 0" class="text-slate-500 text-sm absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          {{ replayHint }}
-        </span>
-        <div v-show="allEvents.length > 0" id="replayer" ref="replayerEl">
-          <webview
-            :key="replayPartition"
-            ref="replayWebviewEl"
-            :partition="replayPartition"
-            src="./debugger-replay.html"
-            preload="./debugger-replay-preload.js"></webview>
-        </div>
-      </div>
+      <webview ref="webviewEl" :partition="embeddedPartition" src="about:blank"></webview>
     </div>
 
-    <!-- 拖拽分隔条 -->
-    <div class="resizer" :class="{ dragging: isResizing }"
-      @mousedown.prevent="startResize"></div>
+    <div class="resizer" :class="{ dragging: isResizing }" @mousedown.prevent="startResize"></div>
 
-    <!-- 右侧面板：事件列表 -->
-    <div class="bg-[#1e1e3a] flex flex-col overflow-hidden" :style="{ width: rightWidth + 'px' }" ref="rightPanel">
-      <div class="px-3 py-2 text-xs font-semibold border-b border-[#2a2a4a] flex items-center justify-between">
-        <span>交互记录 <span class="text-indigo-400 font-normal">{{ filteredIndices.length }}</span><span class="text-slate-600 font-normal"> / {{ allEvents.length }}</span></span>
-        <button v-if="activeTab === 'replay' && selectedEvents.size > 0"
-          class="px-2 py-0.5 rounded text-[10px] bg-indigo-500 text-white border-none cursor-pointer hover:opacity-85"
-          @click="exportSelected">导出选中 ({{ selectedEvents.size }})</button>
+    <div class="bg-[#172033] flex flex-col overflow-hidden" :style="{ width: rightWidth + 'px' }" ref="rightPanel">
+      <div class="px-3 py-2 text-xs font-semibold border-b border-slate-800 flex items-center justify-between">
+        <span>动作步骤 <span class="text-sky-400 font-normal">{{ steps.length }}</span></span>
+        <button v-if="steps.length > 0"
+          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 text-slate-100 border-none cursor-pointer hover:opacity-85"
+          @click="toggleAllVisible">{{ allSelected ? '取消全选' : '全选' }}</button>
       </div>
 
-      <!-- 类型过滤 -->
-      <div v-if="allEvents.length > 0" class="px-2 py-1.5 border-b border-[#2a2a4a] flex flex-wrap gap-1">
-        <button class="px-2 py-0.5 rounded text-[10px] cursor-pointer border-none transition-opacity"
-          :class="isAllCategoriesSelected ? 'bg-indigo-500/20 text-indigo-400' : 'bg-[#2a2a4a] text-slate-500 opacity-40'"
-          @click="selectAllCategories">全部 <span class="opacity-70">{{ allEvents.length }}</span></button>
-        <button v-for="cat in eventCategories" :key="cat.key"
-          class="px-2 py-0.5 rounded text-[10px] cursor-pointer border-none transition-opacity"
-          :class="selectedCategories.has(cat.key) ? cat.activeClass : 'bg-[#2a2a4a] text-slate-500 opacity-40'"
-          @click.exact="selectOnlyCategory(cat.key)"
-          @click.ctrl.stop="toggleCategory(cat.key)"
-          @click.meta.stop="toggleCategory(cat.key)">
-          {{ cat.label }} <span class="opacity-70">{{ cat.count }}</span>
-        </button>
-      </div>
-
-      <div class="flex-1 overflow-y-auto py-1 event-list" ref="eventListEl">
-        <div v-if="filteredIndices.length === 0" class="flex items-center justify-center h-full text-slate-600 text-xs">暂无事件</div>
-        <div v-for="i in filteredIndices" :key="i" :data-ev-index="i"
-          class="px-3 py-1 text-[11px] font-mono border-l-2 flex items-center gap-1.5 hover:bg-[#2a2a4a]"
-          :class="activeEventIndex === i ? 'bg-[#2a2a5a] border-l-indigo-500' : 'border-l-transparent'"
-          :style="{ cursor: activeTab === 'replay' ? 'pointer' : 'default' }"
-          @click="goToEvent(i)">
-          <input v-if="activeTab === 'replay'" type="checkbox"
-            class="ev-checkbox"
-            :checked="selectedEvents.has(i)"
-            @click.stop="toggleEventSelect(i)" />
-          <span class="text-slate-500 min-w-[28px] text-right">{{ i + 1 }}</span>
-          <span class="inline-block px-[5px] py-[1px] rounded text-[10px] font-medium"
-            :class="eventBadgeClass(allEvents[i])">{{ eventLabel(allEvents[i]) }}</span>
-          <span class="text-slate-600 ml-auto text-[10px]">{{ formatTs(allEvents[i].timestamp) }}</span>
+      <div class="flex-1 overflow-y-auto py-1 step-list" ref="stepListEl">
+        <div v-if="steps.length === 0" class="flex items-center justify-center h-full text-slate-600 text-xs px-6 text-center">
+          暂无动作。选择页面后点击“注入并录制”，操作网页即可看到高层步骤。
         </div>
-      </div>
 
-      <!-- 回放模式底部选择操作栏 -->
-      <div v-if="activeTab === 'replay' && selectedEvents.size > 0"
-        class="px-3 py-1.5 border-t border-[#2a2a4a] flex items-center justify-between bg-[#16162a]">
-        <button class="text-[10px] text-indigo-400 bg-transparent border-none cursor-pointer hover:underline"
-          @click="selectAllVisible">全选可见</button>
-        <button class="text-[10px] text-slate-400 bg-transparent border-none cursor-pointer hover:underline"
-          @click="clearSelection">取消全选</button>
+        <div v-for="(step, index) in steps" :key="step.id"
+          class="px-3 py-2 text-[11px] border-l-2 flex gap-2 hover:bg-slate-800/70"
+          :class="stepRowClass(step, index)"
+          @click="activeStepIndex = index">
+          <input type="checkbox" class="step-checkbox mt-0.5"
+            :checked="selectedSteps.has(index)"
+            @click.stop="toggleStep(index)" />
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="text-slate-500 min-w-[26px] text-right">{{ index + 1 }}</span>
+              <span class="inline-block px-[6px] py-[1px] rounded text-[10px] font-medium" :class="typeBadgeClass(step.type)">{{ step.type }}</span>
+              <span class="ml-auto text-[10px]" :class="resultTextClass(index)">{{ resultLabel(index) }}</span>
+            </div>
+            <div class="mt-1 text-slate-300 truncate">{{ locatorSummary(step) }}</div>
+            <div v-if="payloadSummary(step)" class="mt-0.5 text-slate-500 truncate">{{ payloadSummary(step) }}</div>
+            <div class="mt-0.5 text-slate-600 truncate">{{ step.url }}</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -177,243 +133,135 @@ createApp({
     const api = window.debuggerApi
     const EMBEDDED = '__embedded__'
     const EMBEDDED_PARTITION = 'persist:debugger-embedded'
-    const DEFAULT_REPLAY_PARTITION = 'persist:debugger-replay-default'
 
     const targetId = ref('')
     const tabs = ref([])
+    const currentWcId = ref(null)
+    const embeddedWcId = ref(null)
+    const targetRun = ref(null)
+    const steps = ref([])
+    const results = ref([])
+    const activeStepIndex = ref(-1)
+    const activePlayId = ref(null)
+    const playStatus = ref('idle')
     const isRecording = ref(false)
     const statusText = ref('就绪')
-    const allEvents = ref([])
-    const activeEventIndex = ref(-1)
-    const activeTab = ref('record')
     const urlInput = ref('https://baidu.com')
-    const rightWidth = ref(280)
+    const rightWidth = ref(360)
     const isResizing = ref(false)
-    const replayHint = ref('停止录制后自动回放')
-    const replayReady = ref(false)
-    const replayPartition = ref(DEFAULT_REPLAY_PARTITION)
     const embeddedPartition = ref(EMBEDDED_PARTITION)
-    const selectedCategories = reactive(new Set())
-    const selectedEvents = reactive(new Set())
+    const selectedSteps = reactive(new Set())
 
     const webviewEl = ref(null)
-    const replayerEl = ref(null)
-    const replayWebviewEl = ref(null)
-    const eventListEl = ref(null)
     const leftPanel = ref(null)
-    const rightPanel = ref(null)
+    const stepListEl = ref(null)
 
-    const currentWcId = ref(null)
-
-    const showUrlBar = computed(() => targetId.value === EMBEDDED || targetId.value === '')
     const canStart = computed(() => currentWcId.value !== null && !isRecording.value)
-    const canExport = computed(() => !isRecording.value && allEvents.value.length > 0)
-
-    // ---- 事件分类 ----
-    function getEventCategory(ev) {
-      if (ev.type === 2) return 'snapshot'
-      if (ev.type === 4) return 'meta'
-      if (ev.type === 5) return 'custom'
-      if (ev.type === 3 && ev.data) {
-        const s = ev.data.source
-        if (s === 2) return 'interaction'
-        if (s === 5) return 'input'
-        if (s === 3) return 'scroll'
-        if (s === 1 || s === 6 || s === 12) return 'mouse'
-        if (s === 11) return 'log'
-        if (s === 0 || s === 8 || s === 9 || s === 13 || s === 15) return 'dom'
-      }
-      return 'other'
-    }
-
-    const categoryMeta = {
-      interaction: { label: '交互', activeClass: 'bg-pink-500/20 text-pink-400' },
-      input:       { label: '输入', activeClass: 'bg-pink-500/20 text-pink-400' },
-      scroll:      { label: '滚动', activeClass: 'bg-pink-500/20 text-pink-400' },
-      mouse:       { label: '鼠标', activeClass: 'bg-pink-500/20 text-pink-400' },
-      dom:         { label: 'DOM', activeClass: 'bg-blue-500/20 text-blue-400' },
-      log:         { label: '日志', activeClass: 'bg-slate-500/20 text-slate-300' },
-      snapshot:    { label: '快照', activeClass: 'bg-green-500/20 text-green-400' },
-      meta:        { label: '元信息', activeClass: 'bg-purple-500/20 text-purple-400' },
-      custom:      { label: '自定义', activeClass: 'bg-amber-500/20 text-amber-400' },
-      other:       { label: '其他', activeClass: 'bg-blue-500/20 text-blue-400' },
-    }
-
-    const eventCategories = computed(() => {
-      const counts = {}
-      allEvents.value.forEach(ev => {
-        const cat = getEventCategory(ev)
-        counts[cat] = (counts[cat] || 0) + 1
-      })
-      const order = ['interaction', 'input', 'scroll', 'mouse', 'dom', 'log', 'snapshot', 'meta', 'custom', 'other']
-      return order.filter(k => counts[k]).map(key => ({
-        key, label: categoryMeta[key].label, activeClass: categoryMeta[key].activeClass, count: counts[key]
-      }))
+    const canExport = computed(() => !isRecording.value && steps.value.length > 0)
+    const isPlaying = computed(() => playStatus.value === 'running')
+    const canPlay = computed(() => !isRecording.value && !isPlaying.value && steps.value.length > 0 && embeddedWcId.value !== null)
+    const allSelected = computed(() => steps.value.length > 0 && steps.value.every((_, i) => selectedSteps.has(i)))
+    const statusClass = computed(() => {
+      if (isRecording.value) return 'text-rose-400'
+      if (isPlaying.value) return 'text-sky-400'
+      if (playStatus.value === 'failed') return 'text-amber-400'
+      return 'text-slate-400'
     })
 
-    // 初始化时自动选中所有分类，之后不再自动添加新分类
-    let categoriesInitialized = false
-    watch(eventCategories, (cats) => {
-      if (!categoriesInitialized && cats.length > 0) {
-        cats.forEach(c => selectedCategories.add(c.key))
-        categoriesInitialized = true
-      }
-    }, { immediate: true })
-
-    // events 重置时清空选中并重置分类初始化标记
-    watch(allEvents, (val) => {
-      if (val.length === 0) { selectedCategories.clear(); selectedEvents.clear(); categoriesInitialized = false }
-    })
-
-    const filteredIndices = computed(() => {
-      return allEvents.value.map((ev, i) => i).filter(i => selectedCategories.has(getEventCategory(allEvents.value[i])))
-    })
-
-    function toggleCategory(key) {
-      selectedCategories.has(key) ? selectedCategories.delete(key) : selectedCategories.add(key)
-    }
-
-    function selectOnlyCategory(key) {
-      selectedCategories.clear()
-      selectedCategories.add(key)
-    }
-
-    const isAllCategoriesSelected = computed(() => {
-      const cats = eventCategories.value
-      return cats.length > 0 && cats.every(c => selectedCategories.has(c.key))
-    })
-
-    function selectAllCategories() {
-      selectedCategories.clear()
-      eventCategories.value.forEach(c => selectedCategories.add(c.key))
-    }
-
-    function toggleEventSelect(i) {
-      selectedEvents.has(i) ? selectedEvents.delete(i) : selectedEvents.add(i)
-    }
-
-    function selectAllVisible() {
-      filteredIndices.value.forEach(i => selectedEvents.add(i))
-    }
-
-    function clearSelection() {
-      selectedEvents.clear()
-    }
-
-    // 窗口控制
     function doMinimize() { api.minimize() }
     function doMaximize() { api.maximize() }
     function doClose() { api.close() }
 
-    // Tabs
     async function refreshTabs() {
-      const list = await api.getTabs()
-      tabs.value = list
+      tabs.value = await api.getTabs()
     }
 
     watch(targetId, async (val) => {
-      console.log('[debugger] targetId changed:', val)
       if (val === EMBEDDED || val === '') {
-        currentWcId.value = await api.getEmbeddedWcId()
-        console.log('[debugger] got embeddedWcId:', currentWcId.value)
+        currentWcId.value = embeddedWcId.value || await api.getEmbeddedWcId()
       } else {
         currentWcId.value = parseInt(val, 10)
-        console.log('[debugger] parsed wcId:', currentWcId.value)
       }
-      syncReplayPartition()
     })
 
-    // 录制控制
     async function startRecording() {
-      console.log('[debugger] startRecording called, currentWcId:', currentWcId.value, 'canStart:', canStart.value)
       if (!currentWcId.value) return
       statusText.value = '注入中...'
-      const injectResult = await api.inject(currentWcId.value)
-      if (!injectResult.success) { statusText.value = '注入失败: ' + (injectResult.error || '未知错误'); return }
-      statusText.value = '开始录制...'
-      allEvents.value = []
-      activeEventIndex.value = -1
-      const r = await api.startRecord(currentWcId.value)
-      if (r.success) { isRecording.value = true; statusText.value = '录制中...'; activeTab.value = 'record' }
-      else { statusText.value = '录制失败: ' + (r.error || '未知错误') }
+      const injectResult = await api.injectActionRecorder(currentWcId.value)
+      if (!injectResult.success) {
+        statusText.value = '注入失败: ' + (injectResult.error || '未知错误')
+        return
+      }
+
+      steps.value = []
+      results.value = []
+      selectedSteps.clear()
+      activeStepIndex.value = -1
+      targetRun.value = null
+      playStatus.value = 'idle'
+
+      const result = await api.startActionRecord(currentWcId.value)
+      if (result.success) {
+        isRecording.value = true
+        targetRun.value = result.run || null
+        statusText.value = '录制中...'
+      } else {
+        statusText.value = '录制失败: ' + (result.error || '未知错误')
+      }
     }
 
     async function stopRecording() {
       if (!currentWcId.value) return
-      const r = await api.stopRecord(currentWcId.value)
+      const result = await api.stopActionRecord(currentWcId.value)
       isRecording.value = false
-      if (r.success) {
-        const events = await api.getEvents(currentWcId.value)
-        allEvents.value = events
-        statusText.value = '已停止 (' + events.length + ' 事件)'
-        if (events.length > 0) { playEvents(events); activeTab.value = 'replay' }
-        else { replayHint.value = '无录制事件' }
+      const run = result.run || await api.getActionRun(currentWcId.value)
+      if (run) {
+        targetRun.value = run
+        steps.value = run.steps || []
+        statusText.value = '已停止 (' + steps.value.length + ' 步动作)'
       } else {
-        // 即使主进程报错也尝试获取已录制的事件
-        const events = await api.getEvents(currentWcId.value)
-        allEvents.value = events
-        statusText.value = events.length > 0
-          ? '已停止 (' + events.length + ' 事件, ' + (r.error || '') + ')'
-          : '停止失败: ' + (r.error || '未知错误')
-        if (events.length > 0) { playEvents(events); activeTab.value = 'replay' }
+        statusText.value = result.success ? '已停止，无动作' : '停止失败: ' + (result.error || '未知错误')
       }
     }
 
-    async function exportEvents() {
+    async function exportRun() {
       if (!currentWcId.value) return
-      const r = await api.exportEvents(currentWcId.value)
-      statusText.value = r.success ? '已导出: ' + r.path : '导出失败: ' + (r.error || '未知错误')
+      const result = await api.exportActionRun(currentWcId.value)
+      statusText.value = result.success ? '已导出: ' + result.path : '导出失败: ' + (result.error || '未知错误')
     }
 
-    // ---- 导出选中事件为 JSON ----
-    function exportSelected() {
-      const indices = Array.from(selectedEvents).sort((a, b) => a - b)
-      if (indices.length === 0) return
-      const items = indices.map(i => buildActionItem(allEvents.value[i])).filter(Boolean)
-      const text = JSON.stringify(items, null, 2)
-      navigator.clipboard.writeText(text).then(() => {
-        statusText.value = '已复制 ' + items.length + ' 步操作到剪贴板 (JSON)'
-      }).catch(() => {
-        statusText.value = '复制失败，请重试'
+    function toPlainJson(value) {
+      return JSON.parse(JSON.stringify(value))
+    }
+
+    function runForPlay() {
+      const run = targetRun.value || {}
+      return toPlainJson({
+        id: run.id || 'run_local_' + Date.now(),
+        partition: run.partition || EMBEDDED_PARTITION,
+        startedAt: run.startedAt || Date.now(),
+        endedAt: run.endedAt || null,
+        initialUrl: run.initialUrl || steps.value[0]?.url || urlInput.value,
+        steps: steps.value
       })
     }
 
-    function buildSelector(ev) {
-      if (!ev.data) return ''
-      const tag = (ev.data.tagName || '').toLowerCase()
-      const id = ev.data.id
-      const classes = ev.data.attributes?.class
-      let sel = tag || ''
-      if (id) sel += '#' + id
-      else if (classes) sel += '.' + classes.trim().split(/\s+/).join('.')
-      return sel || ''
+    async function startPlay() {
+      if (!embeddedWcId.value || steps.value.length === 0) return
+      results.value = []
+      playStatus.value = 'running'
+      activeStepIndex.value = 0
+      statusText.value = '复原执行中...'
+      const result = await api.playActionRun(embeddedWcId.value, runForPlay())
+      if (!result.success) {
+        playStatus.value = 'failed'
+        statusText.value = '复原启动失败: ' + (result.error || '未知错误')
+      }
     }
 
-    function buildActionItem(ev) {
-      if (ev.type === 3 && ev.data) {
-        const src = ev.data.source
-        if (src === 2) {
-          const im = { 0:'mouseup', 1:'mousedown', 2:'click', 3:'contextmenu', 4:'dblclick', 5:'focus', 6:'blur', 7:'touchstart', 8:'touchmove', 9:'touchend' }
-          return { action: im[ev.data.type] || 'mouseInteraction', selector: buildSelector(ev) }
-        }
-        if (src === 5) {
-          return { action: 'input', selector: buildSelector(ev), value: (ev.data.text || '').slice(0, 100) }
-        }
-        if (src === 3) {
-          return { action: 'scroll', selector: buildSelector(ev) }
-        }
-        if (src === 11) {
-          const lm = { 0:'log', 1:'warn', 2:'error' }
-          return { action: lm[ev.data.level] || 'log', selector: '', message: ev.data.payload ? String(ev.data.payload[0] || '').slice(0, 100) : '' }
-        }
-        if (src === 1) return { action: 'mousemove', selector: '' }
-        if (src === 6) return { action: 'touchmove', selector: '' }
-        if (src === 12) return { action: 'drag', selector: buildSelector(ev) }
-        return { action: 'source' + src, selector: buildSelector(ev) }
-      }
-      if (ev.type === 2) return { action: 'snapshot', selector: '' }
-      if (ev.type === 4) return { action: 'meta', selector: '' }
-      return { action: 'type' + ev.type, selector: '' }
+    async function stopPlay() {
+      const result = await api.stopActionPlay(activePlayId.value || undefined)
+      statusText.value = result.success ? '正在停止复原...' : '停止失败: ' + (result.error || '未知错误')
     }
 
     function loadUrl() {
@@ -421,105 +269,100 @@ createApp({
       if (url && webviewEl.value) webviewEl.value.loadURL(url)
     }
 
-    function getCurrentTabMeta() {
-      if (targetId.value && targetId.value !== EMBEDDED) {
-        return tabs.value.find(tab => String(tab.webContentsId) === String(currentWcId.value)) || null
-      }
-      return null
+    function toggleStep(index) {
+      selectedSteps.has(index) ? selectedSteps.delete(index) : selectedSteps.add(index)
     }
 
-    function syncReplayPartition() {
-      const tab = getCurrentTabMeta()
-      replayPartition.value = tab?.partition || EMBEDDED_PARTITION
-    }
-
-    function postReplayCommand(command) {
-      const view = replayWebviewEl.value
-      if (!view || typeof view.send !== 'function') return false
-      view.send('debugger:replay-command', command)
-      return true
-    }
-
-    function findEventIndexByTime(timeMs) {
-      const base = allEvents.value[0]?.timestamp || 0
-      const target = base + Math.max(0, Number(timeMs) || 0)
-      for (let i = allEvents.value.length - 1; i >= 0; i--) {
-        if (allEvents.value[i].timestamp <= target) return i
-      }
-      return allEvents.value.length > 0 ? 0 : -1
-    }
-
-    function updateActiveEventByTime(timeMs) {
-      const idx = findEventIndexByTime(timeMs)
-      if (idx >= 0 && idx !== activeEventIndex.value) {
-        activeEventIndex.value = idx
+    function toggleAllVisible() {
+      if (allSelected.value) {
+        selectedSteps.clear()
+      } else {
+        steps.value.forEach((_, i) => selectedSteps.add(i))
       }
     }
 
-    function ensureReplayWebview() {
-      nextTick(() => {
-        const view = replayWebviewEl.value
-        if (!view) return
-        if (view.dataset.initialized === '1') return
-
-        view.dataset.initialized = '1'
-
-        view.addEventListener('dom-ready', () => {
-          replayReady.value = false
-        })
-
-        view.addEventListener('ipc-message', (event) => {
-          if (event.channel === 'debugger:replay-ready') {
-            replayReady.value = true
-            if (allEvents.value.length > 0) {
-              playEvents(allEvents.value)
-            }
-            return
-          }
-
-          if (event.channel === 'debugger:replay-time') {
-            const payload = event.args[0] || {}
-            updateActiveEventByTime(payload.timeMs)
-            return
-          }
-
-          if (event.channel === 'debugger:replay-error') {
-            replayHint.value = '回放失败: ' + (event.args[0] || '未知错误')
-          }
-        })
+    function copySelected() {
+      const indices = Array.from(selectedSteps).sort((a, b) => a - b)
+      const selected = indices.map(i => steps.value[i]).filter(Boolean)
+      navigator.clipboard.writeText(JSON.stringify(toPlainJson(selected), null, 2)).then(() => {
+        statusText.value = '已复制 ' + selected.length + ' 步动作'
+      }).catch(() => {
+        statusText.value = '复制失败'
       })
     }
 
-    // ---- 点击事件跳转 ----
-    function goToEvent(index) {
-      activeEventIndex.value = index
-      // 回放模式：seek 到对应时间点
-      if (activeTab.value === 'replay' && replayReady.value) {
-        const ev = allEvents.value[index]
-        if (ev) {
-          const baseTs = allEvents.value[0]?.timestamp || 0
-          seekReplayer(ev.timestamp - baseTs)
-        }
+    function locatorSummary(step) {
+      if (!step.locator) return step.type === 'navigate' ? '导航到 ' + (step.payload?.url || step.url) : '无定位器'
+      const l = step.locator
+      if (l.testId) return 'data-testid=' + l.testId
+      if (l.id) return '#' + l.id
+      if (l.name) return (l.tag || '*') + '[name=' + l.name + ']'
+      if (l.css) return l.css
+      if (l.text) return (l.tag || '*') + ' text="' + l.text + '"'
+      if (l.xpath) return l.xpath
+      return l.tag || 'element'
+    }
+
+    function payloadSummary(step) {
+      if (!step.payload) return ''
+      if (step.type === 'input' || step.type === 'change') return 'value: ' + String(step.payload.value ?? '').slice(0, 80)
+      if (step.type === 'scroll') return 'scroll: ' + Number(step.payload.x || 0) + ', ' + Number(step.payload.y || 0)
+      if (step.type === 'keydown') return 'key: ' + step.payload.key
+      if (step.type === 'click') return 'button: ' + (step.payload.button ?? 0)
+      return ''
+    }
+
+    function typeBadgeClass(type) {
+      const map = {
+        navigate: 'bg-cyan-500/15 text-cyan-300',
+        click: 'bg-emerald-500/15 text-emerald-300',
+        input: 'bg-fuchsia-500/15 text-fuchsia-300',
+        change: 'bg-violet-500/15 text-violet-300',
+        scroll: 'bg-amber-500/15 text-amber-300',
+        keydown: 'bg-slate-500/20 text-slate-300'
       }
+      return map[type] || 'bg-slate-500/20 text-slate-300'
     }
 
-    function seekReplayer(timeMs) {
-      postReplayCommand({ type: 'seek', timeMs })
+    function resultFor(index) {
+      return results.value.find(r => r.index === index)
     }
 
-    // 拖拽分隔条
+    function resultLabel(index) {
+      const result = resultFor(index)
+      if (!result) return index === activeStepIndex.value && isPlaying.value ? '执行中' : ''
+      if (result.status === 'success') return '成功'
+      if (result.status === 'failed') return result.error || '失败'
+      return result.status
+    }
+
+    function resultTextClass(index) {
+      const result = resultFor(index)
+      if (!result) return 'text-slate-600'
+      if (result.status === 'success') return 'text-emerald-400'
+      if (result.status === 'failed') return 'text-rose-400'
+      return 'text-slate-400'
+    }
+
+    function stepRowClass(step, index) {
+      const result = resultFor(index)
+      if (result?.status === 'failed') return 'border-l-rose-500 bg-rose-500/5'
+      if (result?.status === 'success') return 'border-l-emerald-500'
+      if (activeStepIndex.value === index) return 'border-l-sky-500 bg-sky-500/5'
+      return 'border-l-transparent'
+    }
+
     function startResize() {
       isResizing.value = true
-      // 创建遮罩层防止 iframe/webview 吞掉鼠标事件
       const overlay = document.createElement('div')
       overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;cursor:col-resize;'
       document.body.appendChild(overlay)
-      const onMove = (e) => {
+      const onMove = (event) => {
         const container = leftPanel.value?.parentElement
         if (!container) return
         const rect = container.getBoundingClientRect()
-        const rw = rect.right - e.clientX
-        rightWidth.value = Math.max(180, Math.min(rw, rect.width * 0.7))
+        const rw = rect.right - event.clientX
+        rightWidth.value = Math.max(260, Math.min(rw, rect.width * 0.72))
       }
       const onUp = () => {
         isResizing.value = false
@@ -531,141 +374,65 @@ createApp({
       document.addEventListener('mouseup', onUp)
     }
 
-    // 事件标签
-    function eventLabel(ev) {
-      const t = ev.type
-      if (t === 3 && ev.data) {
-        const src = ev.data.source
-        const map = { 0:'mutation', 1:'mousemove', 2:'mouseinteraction', 3:'scroll', 4:'viewportresize', 5:'input', 6:'touchmove', 7:'mediainteraction', 8:'stylesheetrule', 9:'canvasmutation', 10:'font', 11:'log', 12:'drag', 13:'styledeclaration', 14:'selection', 15:'adoptedstylesheet', 16:'custom' }
-        const label = map[src] || 'Incremental'
-        if (src === 2 && ev.data.type !== undefined) {
-          const im = { 0:'mouseup', 1:'mousedown', 2:'click', 3:'contextmenu', 4:'dblclick', 5:'focus', 6:'blur', 7:'touchstart', 8:'touchmove', 9:'touchend' }
-          return im[ev.data.type] || label
-        }
-        if (src === 5 && ev.data.tagName) return 'input(' + ev.data.tagName.toLowerCase() + ')'
-        if (src === 3) return 'scroll'
-        if (src === 11 && ev.data.level) {
-          const lm = { 0:'log', 1:'warn', 2:'error' }
-          return (lm[ev.data.level] || 'log') + (ev.data.payload ? ': ' + String(ev.data.payload[0] || '').slice(0, 30) : '')
-        }
-        return label
-      }
-      if (t === 4) return 'meta'
-      if (t === 0) return 'domcontentloaded'
-      if (t === 1) return 'load'
-      return 'Type' + t
-    }
-
-    function eventBadgeClass(ev) {
-      if (ev.type === 2) return 'bg-green-500/10 text-green-400'
-      if (ev.type === 4) return 'bg-purple-500/10 text-purple-400'
-      if (ev.type === 5) return 'bg-amber-500/10 text-amber-400'
-      if (ev.type === 3 && ev.data) {
-        const s = ev.data.source
-        if (s === 2 || s === 3 || s === 5 || s === 6) return 'bg-pink-500/10 text-pink-400'
-        if (s === 11) return 'bg-slate-500/10 text-slate-400'
-      }
-      return 'bg-blue-500/10 text-blue-400'
-    }
-
-    function formatTs(ts) {
-      const d = new Date(ts)
-      return d.getMinutes().toString().padStart(2, '0') + ':' +
-             d.getSeconds().toString().padStart(2, '0') + '.' +
-             d.getMilliseconds().toString().padStart(3, '0').slice(0, 2)
-    }
-
-    // 回放
-    function playEvents(events) {
-      nextTick(() => {
-        ensureReplayWebview()
-        requestAnimationFrame(() => {
-          if (!replayReady.value) return
-          const ok = postReplayCommand({ type: 'load-events', events })
-          if (!ok) replayHint.value = '回放容器未就绪'
-        })
-      })
-    }
-
-    // 实时事件推送
-    api.on('debugger:event', (event) => {
+    api.on('debugger:action-step', (step) => {
       if (!isRecording.value) return
-      allEvents.value.push(event)
+      steps.value.push(step)
+      if (targetRun.value) targetRun.value.steps = steps.value
+      nextTick(() => {
+        const el = stepListEl.value
+        if (el) el.scrollTop = el.scrollHeight
+      })
     })
 
-    // 主进程通知录制被自动停止（如页面导航）
-    api.on('debugger:recording-stopped', () => {
-      if (isRecording.value) {
-        isRecording.value = false
-        statusText.value = '录制已自动停止（页面导航）'
-      }
+    api.on('debugger:action-play-state', (state) => {
+      activePlayId.value = state.playId || activePlayId.value
+      playStatus.value = state.status
+      activeStepIndex.value = typeof state.currentIndex === 'number' ? state.currentIndex : activeStepIndex.value
+      results.value = state.results || []
+      if (state.status === 'running') statusText.value = '复原执行中 ' + Math.max(0, state.currentIndex + 1) + '/' + state.total
+      if (state.status === 'completed') statusText.value = '复原完成 (' + state.total + ' 步)'
+      if (state.status === 'failed') statusText.value = '复原失败: ' + (state.error || '未知错误')
+      if (state.status === 'stopped') statusText.value = '复原已停止'
     })
 
-    // 主进程推送内嵌 webview 的 webContentsId
     api.on('debugger:embedded-wcid', (wcId) => {
-      console.log('[debugger] received embedded-wcid from main:', wcId)
-      if (targetId.value === EMBEDDED || !targetId.value) {
-        currentWcId.value = wcId
-      }
+      embeddedWcId.value = wcId
+      if (targetId.value === EMBEDDED || !targetId.value) currentWcId.value = wcId
     })
 
     api.on('debugger:load-url', (url) => {
       if (webviewEl.value) webviewEl.value.loadURL(url)
     })
 
-    watch(activeTab, (val) => {
-      if (val === 'replay') {
-        ensureReplayWebview()
-      }
-    })
-
-    watch(replayPartition, () => {
-      replayReady.value = false
-      nextTick(() => ensureReplayWebview())
-    })
-
-    watch(() => rightWidth.value, () => {
-      nextTick(() => postReplayCommand({ type: 'resize' }))
-    })
-
     onMounted(async () => {
-      console.log('[debugger] onMounted, webviewEl:', !!webviewEl.value)
       await refreshTabs()
       targetId.value = EMBEDDED
-      currentWcId.value = await api.getEmbeddedWcId()
-      syncReplayPartition()
-      console.log('[debugger] initial embeddedWcId:', currentWcId.value, 'canStart:', canStart.value)
+      embeddedWcId.value = await api.getEmbeddedWcId()
+      currentWcId.value = embeddedWcId.value
 
       nextTick(() => {
-        if (webviewEl.value) {
-          webviewEl.value.addEventListener('dom-ready', async () => {
-            try {
-              const wcId = webviewEl.value.getWebContentsId()
-              await api.setEmbeddedWcId(wcId)
-              if (targetId.value === EMBEDDED || !targetId.value) {
-                currentWcId.value = wcId
-              }
-            } catch (error) {
-              console.warn('[debugger] failed to set embedded wcId:', error)
-            }
-          })
-        }
-        ensureReplayWebview()
+        if (!webviewEl.value) return
+        webviewEl.value.addEventListener('dom-ready', async () => {
+          try {
+            const wcId = webviewEl.value.getWebContentsId()
+            embeddedWcId.value = wcId
+            await api.setEmbeddedWcId(wcId)
+            if (targetId.value === EMBEDDED || !targetId.value) currentWcId.value = wcId
+          } catch (error) {
+            console.warn('[debugger] failed to set embedded wcId:', error)
+          }
+        })
       })
     })
 
     return {
-      targetId, tabs, isRecording, statusText, allEvents, activeEventIndex,
-      activeTab, urlInput, rightWidth, isResizing, replayHint,
-      webviewEl, replayerEl, replayWebviewEl, eventListEl, leftPanel, rightPanel,
-      replayPartition, embeddedPartition,
-      showUrlBar, canStart, canExport,
-      selectedCategories, selectedEvents, eventCategories, filteredIndices, isAllCategoriesSelected,
-      doMinimize, doMaximize, doClose, startRecording, stopRecording,
-      exportEvents, exportSelected, loadUrl, goToEvent, startResize,
-      eventLabel, eventBadgeClass, formatTs,
-      toggleCategory, selectOnlyCategory, toggleEventSelect, selectAllVisible, clearSelection,
-      selectAllCategories
+      targetId, tabs, currentWcId, embeddedWcId, steps, results, activeStepIndex,
+      isRecording, isPlaying, statusText, statusClass, urlInput, rightWidth, isResizing,
+      embeddedPartition, selectedSteps, allSelected, webviewEl, leftPanel, stepListEl,
+      canStart, canExport, canPlay,
+      doMinimize, doMaximize, doClose, startRecording, stopRecording, startPlay, stopPlay,
+      exportRun, copySelected, loadUrl, toggleStep, toggleAllVisible, startResize,
+      locatorSummary, payloadSummary, typeBadgeClass, resultLabel, resultTextClass, stepRowClass
     }
   }
 }).mount('#app')

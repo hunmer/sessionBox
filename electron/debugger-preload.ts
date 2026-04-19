@@ -3,11 +3,13 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 const api = {
   getTabs: (): Promise<any[]> => ipcRenderer.invoke('debugger:get-tabs'),
-  inject: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:inject', wcId),
-  startRecord: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:start-record', wcId),
-  stopRecord: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:stop-record', wcId),
-  getEvents: (wcId: number): Promise<any[]> => ipcRenderer.invoke('debugger:get-events', wcId),
-  exportEvents: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:export-events', wcId),
+  injectActionRecorder: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:inject-action-recorder', wcId),
+  startActionRecord: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:start-action-record', wcId),
+  stopActionRecord: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:stop-action-record', wcId),
+  getActionRun: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:get-action-run', wcId),
+  exportActionRun: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:export-action-run', wcId),
+  playActionRun: (wcId: number, run: any): Promise<any> => ipcRenderer.invoke('debugger:play-action-run', wcId, run),
+  stopActionPlay: (playId?: string): Promise<any> => ipcRenderer.invoke('debugger:stop-action-play', playId),
   loadUrl: (url: string): Promise<any> => ipcRenderer.invoke('debugger:load-url', url),
   getEmbeddedWcId: (): Promise<number | null> => ipcRenderer.invoke('debugger:get-embedded-wcid'),
   setEmbeddedWcId: (wcId: number | null): Promise<any> => ipcRenderer.invoke('debugger:set-embedded-wcid', wcId),

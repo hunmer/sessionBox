@@ -1,18 +1,21 @@
-import { ipcMain, BrowserWindow, dialog } from 'electron'
+import { ipcMain, BrowserWindow, dialog, webContents } from 'electron'
 import { join } from 'path'
 import { writeFile } from 'fs/promises'
 import {
-  injectRrweb,
-  startRecording,
-  stopRecording,
-  getRecordedEvents,
-  getActiveRecordings
-} from '../services/debugger'
+  injectActionRecorder,
+  startActionRecording,
+  stopActionRecording,
+  getActionRun,
+  getActiveActionRuns,
+  type ActionRun
+} from '../services/action-recorder'
+import { playActionRun, stopActionPlay } from '../services/action-player'
 import { webviewManager } from '../services/webview-manager'
 import { getPageById, listTabs } from '../services/store'
 
 let debuggerWindow: BrowserWindow | null = null
 let embeddedWcId: number | null = null
+let activePlayId: string | null = null
 
 export function registerDebuggerIpcHandlers(): void {
 
@@ -45,8 +48,12 @@ export function registerDebuggerIpcHandlers(): void {
 
     debuggerWindow.on('closed', () => {
       embeddedWcId = null
-      for (const wcId of getActiveRecordings()) {
-        stopRecording(wcId)
+      if (activePlayId) {
+        stopActionPlay(activePlayId)
+        activePlayId = null
+      }
+      for (const wcId of getActiveActionRuns()) {
+        stopActionRecording(wcId)
       }
       debuggerWindow = null
     })
@@ -59,7 +66,7 @@ export function registerDebuggerIpcHandlers(): void {
     if (!manager) return []
 
     const tabs = listTabs()
-    const result: { tabId: string; title: string; url: string; webContentsId: number }[] = []
+    const result: { tabId: string; title: string; url: string; webContentsId: number; partition: string }[] = []
 
     for (const tab of tabs) {
       const wc = manager.getWebContents(tab.id)
@@ -79,38 +86,79 @@ export function registerDebuggerIpcHandlers(): void {
     return result
   })
 
-  ipcMain.handle('debugger:inject', async (_e, wcId: number) => {
-    return injectRrweb(wcId)
+  ipcMain.handle('debugger:inject-action-recorder', async (_e, wcId: number) => {
+    return injectActionRecorder(wcId)
   })
 
-  ipcMain.handle('debugger:start-record', (_e, wcId: number) => {
-    return startRecording(wcId, (event) => {
+  ipcMain.handle('debugger:start-action-record', async (_e, wcId: number) => {
+    return startActionRecording(wcId, (step) => {
       if (debuggerWindow && !debuggerWindow.isDestroyed()) {
-        debuggerWindow.webContents.send('debugger:event', event)
+        debuggerWindow.webContents.send('debugger:action-step', step)
       }
     })
   })
 
-  ipcMain.handle('debugger:stop-record', (_e, wcId: number) => {
-    return stopRecording(wcId)
+  ipcMain.handle('debugger:stop-action-record', (_e, wcId: number) => {
+    return stopActionRecording(wcId)
   })
 
-  ipcMain.handle('debugger:get-events', (_e, wcId: number) => {
-    return getRecordedEvents(wcId)
+  ipcMain.handle('debugger:get-action-run', (_e, wcId: number) => {
+    return getActionRun(wcId)
   })
 
-  ipcMain.handle('debugger:export-events', async (_e, wcId: number) => {
-    const events = getRecordedEvents(wcId)
-    if (events.length === 0) return { success: false, error: '没有录制事件' }
+  ipcMain.handle('debugger:export-action-run', async (_e, wcId: number) => {
+    const run = getActionRun(wcId)
+    if (!run || run.steps.length === 0) return { success: false, error: '没有录制动作' }
 
     const result = await dialog.showSaveDialog(debuggerWindow!, {
-      defaultPath: `rrweb-events-${Date.now()}.json`,
+      defaultPath: `action-run-${Date.now()}.json`,
       filters: [{ name: 'JSON', extensions: ['json'] }]
     })
     if (result.canceled || !result.filePath) return { success: false }
 
-    await writeFile(result.filePath, JSON.stringify(events, null, 2), 'utf-8')
+    await writeFile(result.filePath, JSON.stringify({
+      version: 1,
+      type: 'sessionbox-action-run',
+      initialUrl: run.initialUrl,
+      partition: run.partition,
+      startedAt: run.startedAt,
+      endedAt: run.endedAt,
+      steps: run.steps
+    }, null, 2), 'utf-8')
     return { success: true, path: result.filePath }
+  })
+
+  ipcMain.handle('debugger:play-action-run', async (_e, targetWcId: number, run: ActionRun) => {
+    const targetWc = webContents.fromId(targetWcId)
+    if (!targetWc || targetWc.isDestroyed()) return { success: false, error: '目标 WebContents 不存在或已销毁' }
+    if (!run || !Array.isArray(run.steps)) return { success: false, error: 'ActionRun 无效' }
+
+    playActionRun(targetWc, run, {
+      onState: (state) => {
+        activePlayId = state.status === 'running' ? state.playId : activePlayId
+        if (state.status !== 'running' && activePlayId === state.playId) activePlayId = null
+        debuggerWindow?.webContents.send('debugger:action-play-state', state)
+      }
+    }).catch((error) => {
+      debuggerWindow?.webContents.send('debugger:action-play-state', {
+        playId: activePlayId || '',
+        runId: run.id,
+        status: 'failed',
+        currentIndex: -1,
+        total: run.steps.length,
+        results: [],
+        error: error instanceof Error ? error.message : String(error)
+      })
+      activePlayId = null
+    })
+
+    return { success: true }
+  })
+
+  ipcMain.handle('debugger:stop-action-play', (_e, playId?: string) => {
+    if (playId) return stopActionPlay(playId)
+    if (!activePlayId) return { success: false, error: '没有正在执行的复原任务' }
+    return stopActionPlay(activePlayId)
   })
 
   ipcMain.handle('debugger:load-url', async (_e, url: string) => {
