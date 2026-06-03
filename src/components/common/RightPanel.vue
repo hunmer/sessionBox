@@ -257,6 +257,14 @@ function openFullPage(site: string) {
             variant="ghost"
             size="icon"
             class="h-8 w-8"
+            @click="chatUIStore.togglePanel()"
+          >
+            <MessageSquare class="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
             @click="emit('openProxy')"
           >
             <Network class="h-4 w-4" />
