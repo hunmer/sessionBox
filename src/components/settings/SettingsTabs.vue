@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Input } from '@/components/ui/input'
-import { Snowflake } from 'lucide-vue-next'
+import { Snowflake, RotateCcw } from 'lucide-vue-next'
 
 const api = window.api
 
 const enabled = ref(false)
 const minutes = ref(30)
+const restoreLastUrl = ref(false)
 
 // 预设选项
 const presets = [
@@ -20,6 +21,7 @@ onMounted(async () => {
   const val = await api.settings.getTabFreezeMinutes()
   minutes.value = val || 30
   enabled.value = val > 0
+  restoreLastUrl.value = await api.settings.getRestoreLastUrl()
 })
 
 async function apply() {
@@ -41,9 +43,41 @@ function onInputBlur() {
   if (minutes.value < 1) minutes.value = 1
   if (enabled.value) apply()
 }
+
+async function toggleRestoreLastUrl() {
+  restoreLastUrl.value = !restoreLastUrl.value
+  await api.settings.setRestoreLastUrl(restoreLastUrl.value)
+}
 </script>
 
 <template>
+  <!-- 恢复上次地址 -->
+  <h3 class="text-sm font-medium mb-3 flex items-center gap-2">
+    <RotateCcw class="w-4 h-4" />
+    恢复上次地址
+  </h3>
+  <p class="text-xs text-muted-foreground mb-4">
+    启用后，重启应用时恢复标签页的上次浏览地址；关闭则恢复到创建时的初始地址。
+  </p>
+  <div class="flex items-center justify-between mb-6">
+    <label class="text-xs text-muted-foreground">恢复上次浏览地址</label>
+    <button
+      role="switch"
+      :aria-checked="restoreLastUrl"
+      class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+      :class="restoreLastUrl ? 'bg-primary' : 'bg-input'"
+      @click="toggleRestoreLastUrl"
+    >
+      <span
+        class="pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-sm transition-transform"
+        :class="restoreLastUrl ? 'translate-x-4' : 'translate-x-0'"
+      />
+    </button>
+  </div>
+
+  <hr class="border-border mb-6" />
+
+  <!-- 冻结标签 -->
   <h3 class="text-sm font-medium mb-3 flex items-center gap-2">
     <Snowflake class="w-4 h-4" />
     冻结标签

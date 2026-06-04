@@ -72,7 +72,9 @@ import {
   listSearchEngines,
   setSearchEngines,
   getDefaultSearchEngineId,
-  setDefaultSearchEngineId
+  setDefaultSearchEngineId,
+  getRestoreLastUrl,
+  setRestoreLastUrl
 } from '../services/store'
 import type { Container, Group, Bookmark as BookmarkType, Workspace, BookmarkFolder, Page, PasswordEntry, SearchEngine } from '../services/store'
 import { registerTabIpcHandlers } from './tab'
@@ -402,6 +404,9 @@ function registerSettingsIpc(): void {
     setTabFreezeMinutes(minutes)
     webviewManager.setFreezeMinutes(minutes)
   })
+
+  ipcMain.handle('settings:getRestoreLastUrl', () => getRestoreLastUrl())
+  ipcMain.handle('settings:setRestoreLastUrl', (_e, enabled: boolean) => setRestoreLastUrl(enabled))
 
   ipcMain.handle('settings:getMinimizeOnClose', () => getMinimizeOnClose())
   ipcMain.handle('settings:setMinimizeOnClose', (_e, enabled: boolean) => setMinimizeOnClose(enabled))

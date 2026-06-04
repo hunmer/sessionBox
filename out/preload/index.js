@@ -190,6 +190,8 @@ const api = {
   settings: {
     getTabFreezeMinutes: () => electron.ipcRenderer.invoke("settings:getTabFreezeMinutes"),
     setTabFreezeMinutes: (minutes) => electron.ipcRenderer.invoke("settings:setTabFreezeMinutes", minutes),
+    getRestoreLastUrl: () => electron.ipcRenderer.invoke("settings:getRestoreLastUrl"),
+    setRestoreLastUrl: (enabled) => electron.ipcRenderer.invoke("settings:setRestoreLastUrl", enabled),
     setDefaultBrowser: (enabled) => electron.ipcRenderer.invoke("settings:setDefaultBrowser", enabled),
     checkDefaultBrowser: () => electron.ipcRenderer.invoke("settings:checkDefaultBrowser"),
     getMinimizeOnClose: () => electron.ipcRenderer.invoke("settings:getMinimizeOnClose"),

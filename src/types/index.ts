@@ -67,6 +67,7 @@ export interface Tab {
   pageId: string
   title: string
   url: string
+  originUrl?: string // 创建时的初始 URL，不随导航变化
   order: number
   pinned?: boolean // 固定标签
   muted?: boolean // 静音标签

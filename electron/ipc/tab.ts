@@ -8,7 +8,8 @@ import {
   reorderTabs,
   saveTabs,
   getPageById,
-  getContainerById
+  getContainerById,
+  getRestoreLastUrl
 } from '../services/store'
 import { webviewManager } from '../services/webview-manager'
 import type { Tab } from '../services/store'
@@ -59,6 +60,7 @@ export function registerTabIpcHandlers(): void {
         pageId: '',
         title: internalPageTitle || '新标签页',
         url: tabUrl,
+        originUrl: tabUrl,
         order,
         workspaceId: workspaceId || undefined
       })
@@ -77,6 +79,7 @@ export function registerTabIpcHandlers(): void {
       pageId: pageId,
       title: page.name,
       url: tabUrl,
+      originUrl: tabUrl,
       order
     })
     webviewManager.registerPendingView(tab.id, pageId, pageContainerId, tabUrl)
@@ -222,16 +225,23 @@ export function registerTabIpcHandlers(): void {
   // 先清除旧视图，避免刷新时重复叠加
   ipcMain.handle('tab:restore-all', () => {
     webviewManager.destroyAll()
+    const restoreLastUrl = getRestoreLastUrl()
     const tabs = listTabs()
     for (const tab of tabs) {
       if (tab.pageId) {
         const page = getPageById(tab.pageId)
-        const container = page?.containerId ? getContainerById(page.containerId) : undefined
         if (page) {
-          webviewManager.registerPendingView(tab.id, tab.pageId, page.containerId || '', tab.url || page.url)
+          // 开启恢复：用上次 URL；关闭恢复：用 originUrl，没有则回退到 page.url
+          const finalUrl = restoreLastUrl
+            ? (tab.url || page.url)
+            : (tab.originUrl || page.url)
+          webviewManager.registerPendingView(tab.id, tab.pageId, page.containerId || '', finalUrl)
         }
       } else {
-        webviewManager.registerPendingView(tab.id, '', '', tab.url || 'https://www.baidu.com')
+        const finalUrl = restoreLastUrl
+          ? (tab.url || 'https://www.baidu.com')
+          : (tab.originUrl || 'https://www.baidu.com')
+        webviewManager.registerPendingView(tab.id, '', '', finalUrl)
       }
     }
     return tabs.map((t) => t.id)

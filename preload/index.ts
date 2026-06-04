@@ -393,6 +393,8 @@ const api = {
   settings: {
     getTabFreezeMinutes: (): Promise<number> => ipcRenderer.invoke('settings:getTabFreezeMinutes'),
     setTabFreezeMinutes: (minutes: number): Promise<void> => ipcRenderer.invoke('settings:setTabFreezeMinutes', minutes),
+    getRestoreLastUrl: (): Promise<boolean> => ipcRenderer.invoke('settings:getRestoreLastUrl'),
+    setRestoreLastUrl: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setRestoreLastUrl', enabled),
     setDefaultBrowser: (enabled: boolean): Promise<DefaultBrowserResult> => ipcRenderer.invoke('settings:setDefaultBrowser', enabled),
     checkDefaultBrowser: (): Promise<boolean> => ipcRenderer.invoke('settings:checkDefaultBrowser'),
     getMinimizeOnClose: (): Promise<boolean> => ipcRenderer.invoke('settings:getMinimizeOnClose'),

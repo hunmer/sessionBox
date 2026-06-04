@@ -61,6 +61,7 @@ export interface Tab {
   pageId: string
   title: string
   url: string
+  originUrl?: string // 创建时的初始 URL，不随导航变化
   order: number
   pinned?: boolean
   muted?: boolean
@@ -215,6 +216,7 @@ interface StoreSchema {
   containerExtensions: Record<string, string[]>  // containerId -> extensionIds
   windowState: WindowState
   tabFreezeMinutes: number
+  restoreLastUrl: boolean
   minimizeOnClose: boolean
   shortcuts: ShortcutBindingStore[]
   mutedSites: string[]  // 默认静音的网站域名列表
@@ -245,6 +247,7 @@ const defaults: StoreSchema = {
   containerExtensions: {},
   windowState: { width: 1280, height: 800, isMaximized: false },
   tabFreezeMinutes: 0, // 0 = 禁用冻结
+  restoreLastUrl: false,
   minimizeOnClose: true,
   shortcuts: [],
   mutedSites: [],
@@ -714,6 +717,14 @@ export function getTabFreezeMinutes(): number {
 
 export function setTabFreezeMinutes(minutes: number): void {
   store.set('tabFreezeMinutes', minutes)
+}
+
+export function getRestoreLastUrl(): boolean {
+  return store.get('restoreLastUrl', false)
+}
+
+export function setRestoreLastUrl(enabled: boolean): void {
+  store.set('restoreLastUrl', enabled)
 }
 
 export function getDefaultContainerId(): string {
