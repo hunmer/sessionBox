@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const projectRoot = path.join(__dirname, '..')
+const electronDistPath = path.join(projectRoot, 'node_modules', 'electron', 'dist')
+const electronExePath = path.join(electronDistPath, 'electron.exe')
 
 // 解析命令行参数
 const args = process.argv.slice(2)
@@ -65,6 +67,12 @@ function getVersion() {
   return packageJson.version
 }
 
+function ensureElectronRuntime() {
+  if (!fs.existsSync(electronExePath)) {
+    throw new Error(`Electron runtime missing: ${electronExePath}. Run "pnpm rebuild electron" or reinstall dependencies.`)
+  }
+}
+
 ;(async () => {
   try {
     const version = getVersion()
@@ -106,6 +114,7 @@ function getVersion() {
       stdio: 'inherit',
       cwd: projectRoot
     })
+    ensureElectronRuntime()
 
     // 5. 清理旧构建产物并打包
     console.log('\n🧹 步骤 5/5: 清理并打包 Electron 应用...')
