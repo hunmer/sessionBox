@@ -677,7 +677,11 @@ useIpcEvent('shortcut', (actionId) => {
             </SidebarProvider>
           </ResizablePanel>
 
-          <ResizableHandle />
+          <!-- 侧边栏分隔条：折叠态禁用拖拽并隐藏（min-size 已随状态切换，折叠态固定为 collapsed-size） -->
+          <ResizableHandle
+            :disabled="sidebarCollapsed"
+            :class="sidebarCollapsed && 'pointer-events-none opacity-0'"
+          />
 
           <!-- 垂直标签栏面板（仅垂直模式） -->
           <template v-if="tabStore.tabLayout === 'vertical'">
