@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { Plus, ChevronDown, Folder, MoreHorizontal, Pencil, Trash2, FolderInput } from 'lucide-vue-next'
+import { Plus, ChevronDown, Folder, MoreHorizontal, Pencil, Trash2, FolderInput, BookMarked, EyeOff, Settings } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from '@/components/ui/dropdown-menu'
 import {
@@ -19,6 +19,8 @@ import { useBookmarkStore } from '@/stores/bookmark'
 import { useTabStore } from '@/stores/tab'
 import { getFaviconUrl } from '@/lib/utils'
 import type { Bookmark } from '@/types'
+
+const emit = defineEmits<{ 'open-settings': [tab?: string] }>()
 
 const bookmarkStore = useBookmarkStore()
 const tabStore = useTabStore()
@@ -76,6 +78,21 @@ function openSite(site: { url: string; pageId?: string }) {
   tabStore.createTabForSite(site.url, site.pageId)
 }
 
+/** 打开书签管理器（sessionbox://bookmarks） */
+function openBookmarkManager() {
+  tabStore.openInternalPage('bookmarks')
+}
+
+/** 隐藏书签栏 */
+function hideBookmarkBar() {
+  tabStore.toggleBookmarkBar()
+}
+
+/** 打开书签设置栏目 */
+function openBookmarkSettings() {
+  emit('open-settings', 'bookmark')
+}
+
 function handleEdit(site: Bookmark) {
   editSite.value = { id: site.id, title: site.title, url: site.url, pageId: site.pageId }
   showAddDialog.value = true
@@ -126,15 +143,17 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex items-center h-[34px] px-2 gap-1 bg-card/20 border-b border-border">
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      class="h-7 w-7 flex-shrink-0 rounded-md hover:bg-secondary"
-      @click="handleAdd"
-    >
-      <Plus class="w-3.5 h-3.5" />
-    </Button>
+  <ContextMenu>
+    <ContextMenuTrigger as-child>
+      <div class="flex items-center h-[34px] px-2 gap-1 bg-card/20 border-b border-border">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="h-7 w-7 flex-shrink-0 rounded-md hover:bg-secondary"
+          @click="handleAdd"
+        >
+          <Plus class="w-3.5 h-3.5" />
+        </Button>
 
     <div class="w-px h-4 bg-border flex-shrink-0" />
 
@@ -274,5 +293,32 @@ onBeforeUnmount(() => {
       :edit-site="editSite"
       @update:open="onDialogClose"
     />
-  </div>
+      </div>
+    </ContextMenuTrigger>
+
+    <ContextMenuContent class="min-w-[160px]">
+      <ContextMenuItem
+        class="text-xs"
+        @click="openBookmarkManager"
+      >
+        <BookMarked class="w-3.5 h-3.5 mr-2" />
+        打开书签管理器
+      </ContextMenuItem>
+      <ContextMenuItem
+        class="text-xs"
+        @click="hideBookmarkBar"
+      >
+        <EyeOff class="w-3.5 h-3.5 mr-2" />
+        隐藏书签栏
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        class="text-xs"
+        @click="openBookmarkSettings"
+      >
+        <Settings class="w-3.5 h-3.5 mr-2" />
+        书签设置
+      </ContextMenuItem>
+    </ContextMenuContent>
+  </ContextMenu>
 </template>

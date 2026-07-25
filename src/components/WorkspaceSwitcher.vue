@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Component } from "vue"
-import { ChevronDown, Plus } from "lucide-vue-next"
+import { ChevronDown, Plus, Sun, Moon } from "lucide-vue-next"
 import { computed, ref } from "vue"
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ import { useWorkspaceStore } from '@/stores/workspace'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
+import { useThemeStore } from '@/stores/theme'
 
 const props = defineProps<{
   workspaces: {
@@ -40,7 +41,13 @@ const workspaceStore = useWorkspaceStore()
 const containerStore = useContainerStore()
 const pageStore = usePageStore()
 const tabStore = useTabStore()
+const themeStore = useThemeStore()
 const dialogOpen = ref(false)
+
+/** 切换亮色/暗色主题 */
+function toggleTheme() {
+  themeStore.setTheme(themeStore.theme === 'dark' ? 'light' : 'dark')
+}
 
 /** 当前激活工作区的完整信息（包含 logo） */
 const activeWorkspaceInfo = computed(() =>
@@ -86,7 +93,7 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
     v-if="activeWorkspaceInfo"
     :class="collapsed ? 'w-full justify-center' : ''"
   >
-    <SidebarMenuItem :class="collapsed ? 'flex justify-center' : ''">
+    <SidebarMenuItem :class="collapsed ? 'flex justify-center' : 'flex items-center'">
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton
@@ -161,6 +168,47 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <!-- 切换亮色/暗色主题 -->
+      <SidebarMenuButton
+        v-if="!collapsed"
+        :tooltip="themeStore.theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'"
+        class="ml-auto size-7 shrink-0 justify-center p-0"
+        aria-label="切换主题"
+        @click="toggleTheme"
+      >
+        <Sun
+          v-if="themeStore.theme === 'dark'"
+          class="size-4"
+        />
+        <Moon
+          v-else
+          class="size-4"
+        />
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  </SidebarMenu>
+
+  <!-- 折叠状态下单独的主题切换按钮 -->
+  <SidebarMenu
+    v-if="collapsed"
+    class="w-full justify-center"
+  >
+    <SidebarMenuItem class="flex justify-center">
+      <SidebarMenuButton
+        :tooltip="themeStore.theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'"
+        class="size-8 p-0 flex items-center justify-center"
+        aria-label="切换主题"
+        @click="toggleTheme"
+      >
+        <Sun
+          v-if="themeStore.theme === 'dark'"
+          class="size-4"
+        />
+        <Moon
+          v-else
+          class="size-4"
+        />
+      </SidebarMenuButton>
     </SidebarMenuItem>
   </SidebarMenu>
 

@@ -89,6 +89,9 @@ const pageTabs = computed(() => {
   return map
 })
 
+// 当前激活标签页所属的页面 id（用于高亮当前页面）
+const activePageId = computed(() => tabStore.activeTab?.pageId ?? null)
+
 // 关闭页面的单个标签页
 async function closePageTab(tabId: string) {
   await tabStore.closeTab(tabId)
@@ -306,6 +309,7 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                     <SidebarMenuSubButton
                       as-child
                       class="flex-1"
+                      :is-active="activePageId === pageItem.id"
                     >
                       <a
                         href="#"

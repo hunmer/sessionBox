@@ -168,9 +168,11 @@ watch(() => tabStore.activeNavState.isLoading, (loading) => {
 })
 
 // ====== 侧边栏面板控制 ======
-const SIDEBAR_STORAGE_KEY = 'sessionbox-sidebar-width'
-const SIDEBAR_MIN_SIZE = 55 // ResizablePanel 允许的最小宽度
-const SIDEBAR_COLLAPSED_SIZE = 85 // 检测折叠状态的阈值
+const SIDEBAR_STORAGE_KEY = 'sessionbox-sidebar-width' // 折叠宽度（受 collapsed-size 约束）
+const SIDEBAR_EXPANDED_STORAGE_KEY = 'sessionbox-sidebar-expanded-width' // 展开宽度（受 min-size 约束）
+const SIDEBAR_COLLAPSED_SIZE = 55 // 折叠态宽度：collapse() 跳到这里，绕过 min-size
+const SIDEBAR_MIN_SIZE = 200 // 展开态下手动拖拽的最小宽度限制（折叠态不受此限制）
+const SIDEBAR_COLLAPSE_THRESHOLD = 120 // 小于此值视为已折叠（介于折叠宽度与展开最小宽度之间）
 const SIDEBAR_DEFAULT_SIZE = 260
 
 // ====== 垂直标签栏面板控制 ======
@@ -192,15 +194,27 @@ const sidebarPanelRef = ref<InstanceType<typeof ResizablePanel>>()
 
 // 从 localStorage 恢复侧边栏宽度
 const savedWidth = localStorage.getItem(SIDEBAR_STORAGE_KEY)
-const sidebarDefaultSize = savedWidth ? Math.max(Number(savedWidth), SIDEBAR_MIN_SIZE) : SIDEBAR_DEFAULT_SIZE
-// 如果保存的宽度等于折叠宽度，则初始化为折叠态
-const sidebarCollapsed = ref(savedWidth ? Number(savedWidth) <= SIDEBAR_COLLAPSED_SIZE : false)
+const savedExpandedWidth = localStorage.getItem(SIDEBAR_EXPANDED_STORAGE_KEY)
+const isInitiallyCollapsed = savedWidth ? Number(savedWidth) <= SIDEBAR_COLLAPSE_THRESHOLD : false
+// 展开宽度：优先用单独持久化的值，其次回退到当前宽度，最后用默认值。始终不低于展开最小宽度。
+const sidebarExpandedSize = ref(
+  Math.max(
+    savedExpandedWidth ? Number(savedExpandedWidth) : (savedWidth && Number(savedWidth) > SIDEBAR_COLLAPSE_THRESHOLD ? Number(savedWidth) : SIDEBAR_DEFAULT_SIZE),
+    SIDEBAR_MIN_SIZE
+  )
+)
+// 初始尺寸：折叠态走 collapsed-size，展开态走展开宽度
+const sidebarDefaultSize = isInitiallyCollapsed ? SIDEBAR_COLLAPSED_SIZE : sidebarExpandedSize.value
+// 折叠状态由当前宽度推导
+const sidebarCollapsed = ref(isInitiallyCollapsed)
+// min-size 响应式：展开态=200（限制手动拖拽），折叠态=折叠宽度（允许缩到小尺寸）
+// 这样 reka-ui 的 clamp 不会阻止折叠，且无需依赖 collapse() 的转发
+const sidebarMinSize = computed(() => (sidebarCollapsed.value ? SIDEBAR_COLLAPSED_SIZE : SIDEBAR_MIN_SIZE))
 
 // 从 localStorage 恢复垂直标签栏宽度
 const savedVerticalTabWidth = localStorage.getItem(VERTICAL_TAB_STORAGE_KEY)
 const verticalTabDefaultSize = savedVerticalTabWidth ? Number(savedVerticalTabWidth) : VERTICAL_TAB_DEFAULT_SIZE
 const sidebarCurrentSize = ref(sidebarDefaultSize)
-const sidebarExpandedSize = ref(sidebarDefaultSize)
 const verticalTabCurrentSize = ref(verticalTabDefaultSize)
 
 // 从 localStorage 恢复聊天面板宽度
@@ -215,7 +229,7 @@ const immersivePanelVisible = ref<Record<ImmersiveEdge, boolean>>({
   bottom: false
 })
 const immersiveHideTimers: Partial<Record<ImmersiveEdge, ReturnType<typeof setTimeout>>> = {}
-const immersiveSidebarSize = computed(() => Math.max(sidebarExpandedSize.value, SIDEBAR_MIN_SIZE))
+const immersiveSidebarSize = computed(() => Math.max(sidebarExpandedSize.value, SIDEBAR_MIN_SIZE)) // 沉浸态始终用展开宽度
 const immersiveVerticalTabSize = computed(() => Math.max(verticalTabCurrentSize.value, 120))
 const immersiveLeftPanelWidth = computed(() =>
   immersiveSidebarSize.value + (tabStore.tabLayout === 'vertical' ? immersiveVerticalTabSize.value : 0)
@@ -299,11 +313,14 @@ function handleImmersiveModeChange(enabled: boolean) {
 function handleLayout(sizes: number[]) {
   // 从布局尺寸变化同步侧边栏折叠状态（比依赖 collapse/expand 事件更可靠）
   if (sizes.length > 0) {
-    sidebarCurrentSize.value = Math.max(Math.round(sizes[0]), SIDEBAR_MIN_SIZE)
-    if (Math.round(sizes[0]) > SIDEBAR_COLLAPSED_SIZE) {
-      sidebarExpandedSize.value = Math.max(Math.round(sizes[0]), SIDEBAR_MIN_SIZE)
+    const sidebarWidth = Math.round(sizes[0])
+    sidebarCurrentSize.value = sidebarWidth
+    const isCollapsed = sidebarWidth <= SIDEBAR_COLLAPSE_THRESHOLD
+    // 仅在展开态下记录展开宽度，并保证不低于展开最小宽度
+    if (!isCollapsed) {
+      sidebarExpandedSize.value = Math.max(sidebarWidth, SIDEBAR_MIN_SIZE)
     }
-    sidebarCollapsed.value = Math.round(sizes[0]) <= SIDEBAR_COLLAPSED_SIZE
+    sidebarCollapsed.value = isCollapsed
   }
   if (tabStore.tabLayout === 'vertical' && sizes.length >= 3) {
     verticalTabCurrentSize.value = Math.max(Math.round(sizes[1]), 120)
@@ -311,8 +328,15 @@ function handleLayout(sizes: number[]) {
   nextTick(() => sendBounds())
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    // sizes[0] 始终是侧边栏面板的像素宽度
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(Math.round(sizes[0])))
+    if (sizes.length > 0) {
+      const sidebarWidth = Math.round(sizes[0])
+      // sizes[0] 是侧边栏面板的像素宽度（折叠态=collapsed-size，展开态=展开宽度）
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarWidth))
+      // 展开宽度单独持久化，确保重载后展开仍能恢复到原宽度
+      if (sidebarWidth > SIDEBAR_COLLAPSE_THRESHOLD) {
+        localStorage.setItem(SIDEBAR_EXPANDED_STORAGE_KEY, String(Math.max(sidebarWidth, SIDEBAR_MIN_SIZE)))
+      }
+    }
     // 垂直模式下 sizes[1] 是垂直标签栏面板的像素宽度
     if (tabStore.tabLayout === 'vertical' && sizes.length >= 3) {
       localStorage.setItem(VERTICAL_TAB_STORAGE_KEY, String(Math.round(sizes[1])))
@@ -331,18 +355,15 @@ function handleLayout(sizes: number[]) {
 function toggleSidebar() {
   const panel = sidebarPanelRef.value as any
   if (!panel) return
-  const currentSize = panel.getSize?.()
   if (sidebarCollapsed.value) {
-    panel.resize(Math.max(sidebarExpandedSize.value, SIDEBAR_MIN_SIZE))
+    // 展开：先置为展开态，让 min-size 回到 200，再恢复记忆宽度
     sidebarCollapsed.value = false
+    nextTick(() => panel.resize(Math.max(sidebarExpandedSize.value, SIDEBAR_MIN_SIZE)))
     return
   }
-
-  if (currentSize != null && Math.round(currentSize) > SIDEBAR_COLLAPSED_SIZE) {
-    sidebarExpandedSize.value = Math.max(Math.round(currentSize), SIDEBAR_MIN_SIZE)
-  }
-  panel.resize(SIDEBAR_MIN_SIZE)
+  // 折叠：先置为折叠态，让 min-size 降到折叠宽度，再缩到 collapsed-size
   sidebarCollapsed.value = true
+  nextTick(() => panel.resize(SIDEBAR_COLLAPSED_SIZE))
 }
 
 // 窗口最大化状态
@@ -423,11 +444,13 @@ onMounted(async () => {
       if (panel) {
         const size = panel.getSize?.()
         if (size != null) {
-          sidebarCurrentSize.value = Math.max(Math.round(size), SIDEBAR_MIN_SIZE)
-          if (Math.round(size) > SIDEBAR_COLLAPSED_SIZE) {
-            sidebarExpandedSize.value = Math.max(Math.round(size), SIDEBAR_MIN_SIZE)
+          const sidebarWidth = Math.round(size)
+          const isCollapsed = sidebarWidth <= SIDEBAR_COLLAPSE_THRESHOLD
+          sidebarCurrentSize.value = sidebarWidth
+          if (!isCollapsed) {
+            sidebarExpandedSize.value = Math.max(sidebarWidth, SIDEBAR_MIN_SIZE)
           }
-          sidebarCollapsed.value = Math.round(size) <= SIDEBAR_COLLAPSED_SIZE
+          sidebarCollapsed.value = isCollapsed
         }
       }
       sendBounds()
@@ -636,12 +659,12 @@ useIpcEvent('shortcut', (actionId) => {
         @layout="handleLayout"
       >
         <template v-if="!immersiveMode">
-          <!-- 侧边栏面板 -->
+          <!-- 侧边栏面板：min-size 响应式 —— 展开态 200 限制拖拽，折叠态 55 允许缩到小尺寸 -->
           <ResizablePanel
             ref="sidebarPanelRef"
             size-unit="px"
             :default-size="sidebarDefaultSize"
-            :min-size="SIDEBAR_MIN_SIZE"
+            :min-size="sidebarMinSize"
           >
             <SidebarProvider
               :open="!sidebarCollapsed"
@@ -688,7 +711,10 @@ useIpcEvent('shortcut', (actionId) => {
               <BrowserToolbar v-if="tabStore.activeTab && !immersiveMode" />
 
               <!-- 快捷网站栏 -->
-              <BookmarkBar v-if="tabStore.bookmarkBarVisible && !immersiveMode" />
+              <BookmarkBar
+                v-if="tabStore.bookmarkBarVisible && !immersiveMode"
+                @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
+              />
              
               <!-- WebContentsView 占位区域 -->
               <div class="flex-1 relative bg-background">
@@ -933,7 +959,10 @@ useIpcEvent('shortcut', (actionId) => {
             @update:immersive-mode="handleImmersiveModeChange"
           />
           <BrowserToolbar v-if="tabStore.activeTab" />
-          <BookmarkBar v-if="tabStore.bookmarkBarVisible" />
+          <BookmarkBar
+            v-if="tabStore.bookmarkBarVisible"
+            @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
+          />
         </div>
 
         <div

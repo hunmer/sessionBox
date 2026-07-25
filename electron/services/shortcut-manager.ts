@@ -1,5 +1,5 @@
 import { globalShortcut, BrowserWindow } from 'electron'
-import { getShortcutBindings, setShortcutBindings } from './store'
+import { getShortcutBindings, setShortcutBindings, listTabs } from './store'
 
 /** 快捷键分组 */
 export type ShortcutGroup = 'tab' | 'navigation' | 'view' | 'tools' | 'window'
@@ -122,6 +122,9 @@ export function registerGlobalShortcuts(): void {
           } else {
             win.minimize()
           }
+        } else if (binding.id === 'close-tab' && listTabs().length === 0) {
+          // 标签页数量为 0 时，关闭窗口（仅在 tabs=0 时允许触发关闭应用）
+          win.close()
         } else {
           if (win.isMinimized()) win.restore()
           win.focus()
@@ -233,15 +236,43 @@ export function findAnyShortcutMatch(accelerator: string): string | null {
   return match?.id ?? null
 }
 
+/**
+ * 判断 close-tab 快捷键当前是否应该关闭整个窗口：
+ * 当（含工作区所有）标签页数量为 0 时，关闭主窗口而非关闭标签页。
+ *
+ * 关键点：永远不要让 close-tab 的按键穿透到系统默认行为（macOS 默认 Cmd+W 会关闭窗口），
+ * 防止用户快速连按 Ctrl+W 时，在「tab 已关闭、下个 tab 尚未激活」的间隙意外关闭窗口。
+ */
+function shouldCloseWindowForCloseTab(): boolean {
+  return listTabs().length === 0
+}
+
 /** 拦截本地快捷键并发送给渲染进程，返回是否已拦截 */
 export function handleBeforeInputEvent(input: Electron.Input, sender: Electron.WebContents): boolean {
   const accelerator = inputEventToAccelerator(input)
   if (!accelerator) return false
 
   const actionId = findLocalShortcutMatch(accelerator)
-  if (!actionId) return false
+  if (!actionId) {
+    // close-tab 没有被匹配为本地快捷键时仍需保护：若当前是关闭标签页的按键（如默认 Cmd+W），
+    // 且已无标签页，则必须吞掉该事件，避免穿透到系统默认「关闭窗口」行为。
+    if (accelerator === getEffectiveAccelerator('close-tab') && shouldCloseWindowForCloseTab()) {
+      const win = BrowserWindow.getAllWindows()[0]
+      if (win && !win.isDestroyed()) win.close()
+      return true
+    }
+    return false
+  }
 
   console.log('[Shortcut] 本地快捷键拦截:', accelerator, '->', actionId)
+
+  // close-tab 特殊处理：没有标签页时关闭窗口（仅在 tabs=0 时允许触发关闭应用）
+  if (actionId === 'close-tab' && shouldCloseWindowForCloseTab()) {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (win && !win.isDestroyed()) win.close()
+    return true
+  }
+
   // 发送给渲染进程执行
   const win = BrowserWindow.getAllWindows()[0]
   if (win && !win.isDestroyed()) {
