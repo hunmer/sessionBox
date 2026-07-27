@@ -4,4 +4,4 @@ node_modules.dev/
 *.tgz
 out/*
 .DS_Store
-out/
+out/*
