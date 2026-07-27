@@ -235,12 +235,14 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
     <template #item="{ element: workspace }">
       <Collapsible v-model:open="openStates[workspace.group.id]">
         <SidebarMenuItem>
-          <div class="flex items-center gap-1 group/menu-button-wrapper">
+          <div
+            class="flex items-center gap-1 group/menu-button-wrapper"
+            :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
+          >
             <SidebarMenuButton as-child>
               <a
                 href="#"
                 class="flex-1 flex items-center gap-2"
-                :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
                 @click.prevent="openStates[workspace.group.id] = !openStates[workspace.group.id]"
               >
                 <ChevronRight
@@ -252,11 +254,6 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                   :emoji="workspace.emoji"
                 />
                 <span class="flex-1">{{ workspace.name }}</span>
-                <span
-                  v-if="workspace.color"
-                  class="w-2 h-2 rounded-full flex-shrink-0"
-                  :style="{ backgroundColor: workspace.color }"
-                />
               </a>
             </SidebarMenuButton>
             <DropdownMenu>
@@ -419,9 +416,14 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
 </template>
 
 <style scoped>
-/* 分组名称 hover 效果 */
-.group\/menu-button-wrapper:hover {
+/* 分组始终展示分组颜色背景 */
+.group\/menu-button-wrapper {
   background-color: var(--hover-bg, transparent);
+}
+
+/* 移除按钮默认的灰色 hover 叠加 */
+.group\/menu-button-wrapper :deep([data-slot="sidebar-menu-button"]:hover) {
+  background-color: transparent;
 }
 
 /* 页面项 hover 效果 - 覆盖 SidebarMenuSubButton 默认的 hover 样式 */
