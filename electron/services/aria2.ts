@@ -290,6 +290,18 @@ export async function stopAria2(): Promise<void> {
 }
 
 /** 添加下载任务（从 webview 下载拦截调用） */
+/** aria2 可获取的协议前缀（blob:/data: 等只在渲染进程内存中存在，aria2 无法抓取） */
+const ARIA2_FETCHABLE_PROTOCOLS = ['http://', 'https://', 'ftp://', 'sftp://', 'magnet:', 'http://', 'thunder://', 'ed2k://']
+
+/** 判断 URL 是否能交给 aria2 下载（非空、且为 aria2 可直接请求的协议） */
+export function isAria2Fetchable(url: string | undefined | null): boolean {
+  if (!url) return false
+  const trimmed = url.trim()
+  if (!trimmed) return false
+  // blob:/data: 是渲染进程内存中的资源，aria2 作为独立进程无法获取
+  return ARIA2_FETCHABLE_PROTOCOLS.some((p) => trimmed.startsWith(p))
+}
+
 export async function addDownload(
   url: string,
   options: {
@@ -300,6 +312,11 @@ export async function addDownload(
     referer?: string
   } = {}
 ): Promise<string> {
+  // blob:/data:/空 URL 等无法被 aria2 获取，提前拦截避免 "No URI to download" 错误
+  if (!isAria2Fetchable(url)) {
+    throw new Error(`不可交给 aria2 下载的 URL: ${url || '(空)'}`)
+  }
+
   const downloadOpts: Record<string, unknown> = {}
   if (options.dir) downloadOpts.dir = options.dir
   if (options.filename) downloadOpts.out = options.filename

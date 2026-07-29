@@ -9,6 +9,7 @@ import SidebarGroups from './SidebarGroups.vue'
 import GroupDialog from './GroupDialog.vue'
 import PageDialog from './PageDialog.vue'
 import MemoryInfo from './MemoryInfo.vue'
+import DownloadStatus from './DownloadStatus.vue'
 import {
   SidebarContent,
   SidebarHeader,
@@ -194,6 +195,7 @@ const workspaceSwitcherItems = computed(() => {
         @select-page="handleSelectPage"
       />
       <div class="mt-auto shrink-0">
+        <DownloadStatus :collapsed="collapsed" @open-full="tabStore.openInternalPage('downloads')" />
         <MemoryInfo :collapsed="collapsed" />
         <NavUser
           class="p-1"

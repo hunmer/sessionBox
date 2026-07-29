@@ -18,6 +18,7 @@ import {
   startNotificationMonitor,
   stopNotificationMonitor
 } from '../services/aria2'
+import { getTasks as getSystemTasks, removeTask as removeSystemTask, clearFinished as clearSystemFinished, clearAll as clearSystemAll } from '../services/system-downloads'
 import { webviewManager } from '../services/webview-manager'
 
 export function registerDownloadIpcHandlers(): void {
@@ -63,6 +64,20 @@ export function registerDownloadIpcHandlers(): void {
   ipcMain.handle('download:globalStat', () => getGlobalStat())
 
   ipcMain.handle('download:purge', () => purgeDownloadResult())
+
+  // ====== 系统下载器任务（Electron DownloadItem 兜底路径） ======
+
+  /** 列出所有系统下载任务 */
+  ipcMain.handle('download:listSystem', () => getSystemTasks())
+
+  /** 移除单个系统下载任务记录 */
+  ipcMain.handle('download:removeSystem', (_e, gid: string) => removeSystemTask(gid))
+
+  /** 清空已结束的系统下载任务（保留进行中的） */
+  ipcMain.handle('download:clearSystemFinished', () => clearSystemFinished())
+
+  /** 清空全部系统下载任务记录 */
+  ipcMain.handle('download:clearSystemAll', () => clearSystemAll())
 
   /** 在系统文件管理器中显示已下载的文件 */
   ipcMain.handle('download:showInFolder', async (_e, filePath: string) => {

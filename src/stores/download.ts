@@ -49,13 +49,16 @@ export const useDownloadStore = defineStore('download', () => {
   const activeTasks = ref<DownloadTask[]>([])
   const waitingTasks = ref<DownloadTask[]>([])
   const stoppedTasks = ref<DownloadTask[]>([])
+  /** 系统下载器任务（Electron DownloadItem 兜底路径），与 aria2 任务统一展示 */
+  const systemTasks = ref<DownloadTask[]>([])
   const globalStat = ref<DownloadGlobalStat | null>(null)
   const loading = ref(false)
 
   const allTasks = computed(() => [
     ...activeTasks.value,
     ...waitingTasks.value,
-    ...stoppedTasks.value
+    ...stoppedTasks.value,
+    ...systemTasks.value
   ])
 
   /** 刷新所有任务列表 */
@@ -84,6 +87,20 @@ export const useDownloadStore = defineStore('download', () => {
     } catch {
       // ignore
     }
+  }
+
+  /** 刷新系统下载器任务（Electron DownloadItem 兜底路径） */
+  async function refreshSystemTasks() {
+    try {
+      systemTasks.value = await api.download.listSystem()
+    } catch {
+      // 主进程未就绪
+    }
+  }
+
+  /** 判断 gid 是否为系统下载任务（sys_ 前缀） */
+  function isSystemTask(gid: string): boolean {
+    return gid.startsWith('sys_')
   }
 
   /** 检查连接状态 */
@@ -128,20 +145,27 @@ export const useDownloadStore = defineStore('download', () => {
     await refreshTasks()
   }
 
-  /** 移除任务 */
+  /** 移除任务（自动路由 aria2 / 系统下载器） */
   async function remove(gid: string) {
+    if (isSystemTask(gid)) {
+      await api.download.removeSystem(gid)
+      await refreshSystemTasks()
+      return
+    }
     await api.download.remove(gid)
     await refreshTasks()
   }
 
-  /** 清除已完成/出错的记录 */
+  /** 清除已完成/出错的记录（aria2 与系统下载器一并清理） */
   async function purge() {
     await api.download.purge()
-    await refreshTasks()
+    await api.download.clearSystemFinished()
+    await Promise.all([refreshTasks(), refreshSystemTasks()])
   }
 
-  /** 重试失败的任务：移除后重新添加 */
+  /** 重试失败的任务：仅 aria2 任务可重试（系统下载器为 Electron DownloadItem，无法重放） */
   async function retry(task: DownloadTask) {
+    if (isSystemTask(task.gid)) return
     await remove(task.gid)
     await api.download.add(task.url, {
       filename: task.filename || undefined,
@@ -150,14 +174,70 @@ export const useDownloadStore = defineStore('download', () => {
     await refreshTasks()
   }
 
-  /** 初始化：加载配置、检查连接、拉取任务列表 */
+  /** 初始化：加载配置、检查连接、拉取任务列表、订阅系统下载进度推送 */
   async function init() {
     await loadConfig()
     await checkConnection()
+
+    // 订阅系统下载进度推送（主进程节流 300ms），实时同步 systemTasks
+    unsubscribeSystemProgress = api.download.onDownloadProgress((tasks) => {
+      systemTasks.value = tasks
+    })
+
+    // 系统下载任务不依赖 aria2 连接，始终拉取
+    await refreshSystemTasks()
+
     if (connected.value) {
       await Promise.all([refreshTasks(), refreshStat()])
     }
   }
+
+  /** 取消系统下载进度订阅（store 卸载或重新初始化时调用） */
+  let unsubscribeSystemProgress: (() => void) | null = null
+  function dispose() {
+    if (unsubscribeSystemProgress) {
+      unsubscribeSystemProgress()
+      unsubscribeSystemProgress = null
+    }
+  }
+
+  /**
+   * 下载状态摘要：聚合 aria2 + 系统下载器的活跃/待下载/失败数量、
+   * 当前总传输速度、总体下载百分比。供侧边栏等紧凑 UI 使用。
+   */
+  const downloadSummary = computed(() => {
+    const tasks = allTasks.value
+    let active = 0
+    let waiting = 0
+    let error = 0
+    let totalCompleted = 0
+    let totalLength = 0
+    let totalSpeed = 0
+
+    for (const t of tasks) {
+      if (t.status === 'active') {
+        active++
+        totalSpeed += t.downloadSpeed || 0
+      } else if (t.status === 'waiting' || t.status === 'paused') {
+        waiting++
+      } else if (t.status === 'error') {
+        error++
+      }
+
+      // 进度统计：包含 active/waiting/paused（有进度信息），complete 算 100%
+      if (t.status === 'active' || t.status === 'waiting' || t.status === 'paused' || t.status === 'complete') {
+        totalCompleted += t.completedLength || 0
+        totalLength += t.totalLength || 0
+      }
+    }
+
+    // 总体百分比：基于所有有进度信息的任务的字节加权
+    const progress = totalLength > 0
+      ? Math.min(100, (totalCompleted / totalLength) * 100)
+      : (active + waiting > 0 ? 0 : 0)
+
+    return { active, waiting, error, totalSpeed, progress }
+  })
 
   return {
     connected,
@@ -165,11 +245,15 @@ export const useDownloadStore = defineStore('download', () => {
     activeTasks,
     waitingTasks,
     stoppedTasks,
+    systemTasks,
     globalStat,
     loading,
     allTasks,
+    downloadSummary,
+    isSystemTask,
     refreshTasks,
     refreshStat,
+    refreshSystemTasks,
     checkConnection,
     loadConfig,
     saveConfig,
@@ -180,6 +264,7 @@ export const useDownloadStore = defineStore('download', () => {
     remove,
     purge,
     retry,
-    init
+    init,
+    dispose
   }
 })
