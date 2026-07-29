@@ -26,6 +26,8 @@ export interface Aria2Config {
   userAgent: string
   autoStart: boolean
   alwaysAsk: boolean
+  /** 默认分组模板（{host}/{type}/{date} 等），自动拦截的下载会应用此归档规则 */
+  defaultCategory: string
   notifyOnStart: boolean
   notifyOnSuccess: boolean
   notifyOnFailure: boolean
@@ -79,6 +81,7 @@ const DEFAULT_CONFIG: Aria2Config = {
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   autoStart: false,
   alwaysAsk: false,
+  defaultCategory: '',
   notifyOnStart: false,
   notifyOnSuccess: false,
   notifyOnFailure: false

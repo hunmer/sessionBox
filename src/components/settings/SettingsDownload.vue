@@ -1,20 +1,81 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { useDownloadStore } from '@/stores/download'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Server, RefreshCw } from 'lucide-vue-next'
 
 const store = useDownloadStore()
 const editConfig = ref<Record<string, any>>({})
+
+/** 分组预设：none=不分组，其余为固定模板，custom=展开自定义输入 */
+const groupPreset = ref<'none' | 'host' | 'type' | 'host_date' | 'host_type_date' | 'custom'>('none')
+const customGroup = ref('')
+
+/** 分组预设选项（template 为对应模板字符串，与主进程 {host}/{type}/{date} 变量一致） */
+const groupOptions: { value: typeof groupPreset.value; label: string; template: string }[] = [
+  { value: 'none', label: '不分组', template: '' },
+  { value: 'host', label: '按站点', template: '{host}' },
+  { value: 'type', label: '按文件类型', template: '{type}' },
+  { value: 'host_date', label: '站点 / 日期', template: '{host}/{date}' },
+  { value: 'host_type_date', label: '站点 / 类型 / 日期', template: '{host}/{type}/{date}' },
+  { value: 'custom', label: '自定义…', template: '' }
+]
+
+/** 从配置同步初始预设：能匹配预设则选中预设，否则进入自定义 */
+function syncPresetFromConfig(template: string) {
+  const matched = groupOptions.find((o) => o.template && o.template === template)
+  if (matched) {
+    groupPreset.value = matched.value
+    customGroup.value = ''
+  } else if (template) {
+    groupPreset.value = 'custom'
+    customGroup.value = template
+  } else {
+    groupPreset.value = 'none'
+    customGroup.value = ''
+  }
+}
+
+/** 当前生效的分组模板字符串 */
+const categoryTemplate = computed(() => {
+  if (groupPreset.value === 'custom') return customGroup.value.trim()
+  const opt = groupOptions.find((o) => o.value === groupPreset.value)
+  return opt?.template || ''
+})
+
+/** 预览：展示当前配置将创建的子目录路径（用示例值替换变量） */
+const groupPreview = computed(() => {
+  const tpl = categoryTemplate.value
+  if (!tpl) return '直接保存到下载目录'
+  return tpl
+    .replace(/\{host\}/gi, 'example.com')
+    .replace(/\{type\}/gi, '压缩包')
+    .replace(/\{date\}/gi, new Date().toISOString().slice(0, 10))
+})
+
+/** 预设变化时保存到配置（自定义则在输入时保存） */
+watch(groupPreset, (val) => {
+  if (val !== 'custom') {
+    const opt = groupOptions.find((o) => o.value === val)
+    saveField('defaultCategory', opt?.template || '')
+  }
+})
+
+watch(customGroup, (val) => {
+  saveField('defaultCategory', val.trim())
+})
 
 watch(
   () => store.config,
   (config) => {
     if (config) {
       editConfig.value = { ...config }
+      // 同步分组预设选择（配置加载后才知 defaultCategory 值）
+      syncPresetFromConfig(config.defaultCategory || '')
     }
   },
   { immediate: true }
@@ -150,6 +211,55 @@ async function handleToggleConnection() {
             :disabled="editConfig.alwaysAsk"
             @update:model-value="saveField('downloadDir', $event)"
           />
+        </div>
+
+        <!-- 默认分组归档 -->
+        <div class="space-y-1.5">
+          <label class="text-xs text-muted-foreground">默认分组归档</label>
+          <Select v-model="groupPreset">
+            <SelectTrigger class="h-8 text-sm">
+              <SelectValue placeholder="选择分组方式" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="opt in groupOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <!-- 自定义模板输入 -->
+          <Input
+            v-if="groupPreset === 'custom'"
+            v-model="customGroup"
+            placeholder="如 {host}/{type}/{date} 或 {host}/{date}"
+            class="h-8 text-sm font-mono"
+          />
+
+          <!-- 变量说明 -->
+          <div class="rounded-md bg-muted/40 px-2.5 py-2 text-[11px] text-muted-foreground space-y-1">
+            <p class="font-medium text-foreground/70">
+              可用变量（用 <code class="px-0.5 py-px rounded bg-muted text-foreground/80">/</code> 分隔多级目录）：
+            </p>
+            <p><code class="text-foreground/80">{host}</code> 站点域名，如 example.com</p>
+            <p><code class="text-foreground/80">{type}</code> 文件类型，如 视频 / 音频 / 压缩包 / 图片 / 文档 / 其他</p>
+            <p><code class="text-foreground/80">{date}</code> 当天日期，如 2026-07-29</p>
+            <p class="text-foreground/50 pt-0.5">
+              示例：<code class="text-foreground/70">{host}/{type}/{date}</code> → 自动创建子目录并归档，不存在的文件夹会自动创建。
+            </p>
+          </div>
+
+          <!-- 预览 -->
+          <p
+            v-if="categoryTemplate"
+            class="text-[11px] text-muted-foreground truncate"
+            :title="`子目录：${groupPreview}`"
+          >
+            子目录预览：<span class="text-foreground/70 font-mono">{{ groupPreview }}</span>
+          </p>
         </div>
       </div>
     </section>

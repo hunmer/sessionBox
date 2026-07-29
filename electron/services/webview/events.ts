@@ -152,8 +152,8 @@ export function setupEventForwarding(
     const fallbackToSystem = () => {
       if (!config.alwaysAsk && config.downloadDir) {
         try {
-          // 分组目录 + 无冲突文件名（与 aria2 路径行为一致）
-          const resolved = resolveDownloadPath(config.downloadDir, filename, url)
+          // 分组目录 + 无冲突文件名（与 aria2 路径行为一致，应用默认分组模板）
+          const resolved = resolveDownloadPath(config.downloadDir, filename, url, config.defaultCategory)
           // DownloadItem.setSavePath 接收完整路径，会自动创建中间目录
           item.setSavePath(join(resolved.dir, resolved.filename))
         } catch {
@@ -187,9 +187,9 @@ export function setupEventForwarding(
         const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ')
 
         if (cookieStr) {
-          await addDownload(url, { filename, referer, cookies: cookieStr, headers: [] })
+          await addDownload(url, { filename, referer, cookies: cookieStr, headers: [], category: config.defaultCategory })
         } else {
-          await addDownload(url, { filename, referer })
+          await addDownload(url, { filename, referer, category: config.defaultCategory })
         }
         if (canSend()) win.webContents.send('on:download:started', { url, filename, tabId })
       } catch (e) {

@@ -38,6 +38,7 @@ export interface Aria2Config {
   userAgent: string
   autoStart: boolean
   alwaysAsk: boolean
+  defaultCategory: string
   notifyOnStart: boolean
   notifyOnSuccess: boolean
   notifyOnFailure: boolean
