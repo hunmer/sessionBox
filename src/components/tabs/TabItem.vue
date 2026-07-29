@@ -5,6 +5,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
@@ -88,6 +89,19 @@ const activeStyle = computed(() => {
 function handleClose(e: MouseEvent) {
   e.stopPropagation()
   tabStore.closeTab(props.tab.id)
+}
+
+// 关闭其他标签页（保留当前，跳过固定的）
+function handleCloseOther() {
+  tabStore.closeOtherTabs(props.tab.id)
+}
+// 关闭左侧标签页（跳过固定的）
+function handleCloseLeft() {
+  tabStore.closeLeftTabs(props.tab.id)
+}
+// 关闭右侧标签页（跳过固定的）
+function handleCloseRight() {
+  tabStore.closeRightTabs(props.tab.id)
 }
 
 // 获取当前标签页的域名
@@ -344,6 +358,16 @@ onBeforeUnmount(clearTimers)
           </ContextMenuItem>
           <ContextMenuItem @click="tabStore.openInBrowser(tab.id)">
             <ExternalLink class="w-3.5 h-3.5 mr-2" />浏览器打开
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem @click="handleCloseOther">
+            <X class="w-3.5 h-3.5 mr-2" />关闭其他标签页
+          </ContextMenuItem>
+          <ContextMenuItem @click="handleCloseLeft">
+            <X class="w-3.5 h-3.5 mr-2" />关闭左边
+          </ContextMenuItem>
+          <ContextMenuItem @click="handleCloseRight">
+            <X class="w-3.5 h-3.5 mr-2" />关闭右边
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>

@@ -308,6 +308,48 @@ async function closeTabAction(ctx: TabStoreContext, tabId: string) {
   }
 }
 
+// 批量关闭：依次调用 closeTabAction，跳过已固定的标签页
+async function closeTabsSequentially(ctx: TabStoreContext, tabIds: string[]) {
+  // 复制一份 id 列表，避免关闭过程中 reactive 数组变化影响迭代
+  for (const id of [...tabIds]) {
+    if (ctx.tabs.value.some((t) => t.id === id)) {
+      await closeTabAction(ctx, id)
+    }
+  }
+}
+
+// 关闭其他标签页（保留当前标签页，跳过固定标签页）
+async function closeOtherTabsAction(ctx: TabStoreContext, keepTabId: string) {
+  const targets = ctx.workspaceTabs.value
+    .filter((t) => t.id !== keepTabId && !t.pinned)
+    .map((t) => t.id)
+  await closeTabsSequentially(ctx, targets)
+}
+
+// 关闭左侧标签页（跳过固定标签页）
+async function closeLeftTabsAction(ctx: TabStoreContext, anchorTabId: string) {
+  const currentTabs = ctx.workspaceTabs.value
+  const idx = currentTabs.findIndex((t) => t.id === anchorTabId)
+  if (idx <= 0) return
+  const targets = currentTabs
+    .slice(0, idx)
+    .filter((t) => !t.pinned)
+    .map((t) => t.id)
+  await closeTabsSequentially(ctx, targets)
+}
+
+// 关闭右侧标签页（跳过固定标签页）
+async function closeRightTabsAction(ctx: TabStoreContext, anchorTabId: string) {
+  const currentTabs = ctx.workspaceTabs.value
+  const idx = currentTabs.findIndex((t) => t.id === anchorTabId)
+  if (idx === -1) return
+  const targets = currentTabs
+    .slice(idx + 1)
+    .filter((t) => !t.pinned)
+    .map((t) => t.id)
+  await closeTabsSequentially(ctx, targets)
+}
+
 async function switchTab(ctx: TabStoreContext, tabId: string) {
   const { useSplitStore } = await import('./split')
   const splitStore = useSplitStore()
@@ -682,6 +724,9 @@ export const useTabStore = defineStore('tab', () => {
   const createTabForSite = (url: string, pageId?: string, targetPaneId?: string | null) =>
     createTabForSiteAction(ctx, url, pageId, targetPaneId)
   const closeTab = (tabId: string) => closeTabAction(ctx, tabId)
+  const closeOtherTabs = (keepTabId: string) => closeOtherTabsAction(ctx, keepTabId)
+  const closeLeftTabs = (anchorTabId: string) => closeLeftTabsAction(ctx, anchorTabId)
+  const closeRightTabs = (anchorTabId: string) => closeRightTabsAction(ctx, anchorTabId)
   const switchTab_ = (tabId: string) => switchTab(ctx, tabId)
   const updateTab = (tabId: string, data: Partial<Omit<Tab, 'id'>>) => updateTabAction(ctx, tabId, data)
   const reorderTabs = async (tabIds: string[]) => {
@@ -761,7 +806,8 @@ export const useTabStore = defineStore('tab', () => {
     sortedTabs, workspaceTabs, groupedWorkspaceTabs, activeTab, activeNavState, activeProxyInfo,
     isInternalPage, internalPagePath, tabLayout, toggleLayout, bookmarkBarVisible, toggleBookmarkBar,
     tabGroupEnabled, tabGroupMode, setTabGroupMode, setTabGroupFilter, clearTabGroupFilter,
-    groupedSortedTabs, loadTabs, createTab, createTabForSite, closeTab, switchTab: switchTab_,
+    groupedSortedTabs, loadTabs, createTab, createTabForSite, closeTab, closeOtherTabs,
+    closeLeftTabs, closeRightTabs, switchTab: switchTab_,
     updateTab, reorderTabs, navigate, openInternalPage, goBack, goForward, reload, forceReload,
     zoomIn, zoomOut, zoomReset, zoomLevels, fetchZoomLevel, activeZoomLevel, detectProxy,
     setProxyEnabled, applyProxy, openDevTools, openInNewWindow, openInBrowser, toggleMute,
