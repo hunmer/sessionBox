@@ -5,7 +5,8 @@ import { getSnifferDomains, getMutedSites } from '../store'
 import { handleBeforeInputEvent } from '../shortcut-manager'
 import { cacheFaviconFromUrl } from '../favicon-cache'
 import { pluginEventBus, broadcastToRenderer } from '../plugin-event-bus'
-import { addDownload, checkConnection } from '../aria2'
+import { addDownload, checkConnection, getAria2Config } from '../aria2'
+import { join } from 'path'
 
 export function setupEventForwarding(
   tabId: string,
@@ -141,7 +142,19 @@ export function setupEventForwarding(
 
   // 拦截下载事件
   const willDownloadHandler = (event: Electron.Event, item: Electron.DownloadItem) => {
-    if (!aria2Enabled()) return
+    // 未启用 aria2：走系统下载器
+    if (!aria2Enabled()) {
+      const config = getAria2Config()
+      // 关闭“总是询问下载位置”时，直接预设保存路径，避免弹出系统保存对话框
+      if (!config.alwaysAsk && config.downloadDir) {
+        try {
+          item.setSavePath(join(config.downloadDir, item.getFilename()))
+        } catch {
+          // 设置失败则回退到 Chromium 默认行为
+        }
+      }
+      return
+    }
     if (wc.isDestroyed()) return
 
     event.preventDefault()

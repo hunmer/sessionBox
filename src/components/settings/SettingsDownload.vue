@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useDownloadStore } from '@/stores/download'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -19,6 +19,14 @@ watch(
   },
   { immediate: true }
 )
+
+// 切换到本设置页时，确保配置已加载：不依赖 DownloadMiniPopover 的挂载时序
+// （右侧栏未渲染或 init 异步未完成时 store.config 可能为 null，导致表单空白）
+onMounted(() => {
+  if (!store.config) {
+    void store.loadConfig()
+  }
+})
 
 function saveField(key: string, value: unknown) {
   editConfig.value[key] = value
