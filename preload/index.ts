@@ -494,7 +494,7 @@ const api = {
     updateConfig: (config: any): Promise<any> => ipcRenderer.invoke('download:updateConfig', config),
     start: (): Promise<boolean> => ipcRenderer.invoke('download:start'),
     stop: (): Promise<void> => ipcRenderer.invoke('download:stop'),
-    add: (url: string, options?: { filename?: string; dir?: string; headers?: string[]; cookies?: string; referer?: string }): Promise<string> =>
+    add: (url: string, options?: { filename?: string; dir?: string; headers?: string[]; cookies?: string; referer?: string; category?: string }): Promise<string> =>
       ipcRenderer.invoke('download:add', url, options),
     pause: (gid: string): Promise<void> => ipcRenderer.invoke('download:pause', gid),
     resume: (gid: string): Promise<void> => ipcRenderer.invoke('download:resume', gid),

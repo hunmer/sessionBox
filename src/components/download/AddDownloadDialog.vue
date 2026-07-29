@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { useDownloadStore } from '@/stores/download'
 
 const props = defineProps<{
@@ -19,6 +20,34 @@ const url = ref('')
 const filename = ref('')
 const dir = ref('')
 const submitting = ref(false)
+
+/** 分组预设：none=不分组，其余为模板字符串。custom=展开自定义输入 */
+const groupPreset = ref<'none' | 'host' | 'type' | 'host_date' | 'host_type_date' | 'custom'>('none')
+const customGroup = ref('')
+
+/** 分组预设选项（value=模板字符串，主进程用 {host}/{type}/{date} 解析） */
+const groupOptions: { value: typeof groupPreset.value; label: string; template: string }[] = [
+  { value: 'none', label: '不分组', template: '' },
+  { value: 'host', label: '按站点', template: '{host}' },
+  { value: 'type', label: '按文件类型', template: '{type}' },
+  { value: 'host_date', label: '站点 / 日期', template: '{host}/{date}' },
+  { value: 'host_type_date', label: '站点 / 类型 / 日期', template: '{host}/{type}/{date}' },
+  { value: 'custom', label: '自定义…', template: '' }
+]
+
+/** 当前生效的分组模板字符串 */
+const category = computed(() => {
+  if (groupPreset.value === 'custom') return customGroup.value.trim()
+  const opt = groupOptions.find((o) => o.value === groupPreset.value)
+  return opt?.template || ''
+})
+
+/** 分组预览：展示最终将创建的子目录路径 */
+const groupPreview = computed(() => {
+  const cat = category.value
+  if (!cat) return '直接保存到下载目录'
+  return cat
+})
 
 /** 从 URL 中提取文件名 */
 function extractFilenameFromUrl(raw: string): string {
@@ -46,6 +75,8 @@ watch(() => props.open, (open) => {
     url.value = ''
     filename.value = ''
     dir.value = ''
+    groupPreset.value = 'none'
+    customGroup.value = ''
     submitting.value = false
   }
 })
@@ -64,7 +95,8 @@ async function handleSubmit() {
   try {
     await window.api.download.add(normalizedUrl, {
       filename: filename.value.trim() || undefined,
-      dir: dir.value.trim() || undefined
+      dir: dir.value.trim() || undefined,
+      category: category.value || undefined
     })
     await store.refreshTasks()
     emit('update:open', false)
@@ -134,6 +166,49 @@ async function pickDirectory() {
               浏览
             </Button>
           </div>
+        </div>
+
+        <!-- 分组归档 -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs text-muted-foreground">分组归档</label>
+          <Select v-model="groupPreset">
+            <SelectTrigger class="h-8 text-sm">
+              <SelectValue placeholder="选择分组方式" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="opt in groupOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <!-- 自定义模板输入 -->
+          <div
+            v-if="groupPreset === 'custom'"
+            class="flex flex-col gap-1"
+          >
+            <Input
+              v-model="customGroup"
+              placeholder="如 {host}/{type}/{date} 或 {host}/{date}"
+              class="h-8 text-sm font-mono"
+            />
+            <span class="text-[10px] text-muted-foreground">
+              可用变量：{host} 站点 · {type} 文件类型 · {date} 日期 · 用 / 分隔多级目录
+            </span>
+          </div>
+
+          <!-- 预览 -->
+          <span
+            v-if="category"
+            class="text-[10px] text-muted-foreground truncate"
+            :title="groupPreview"
+          >
+            子目录：{{ groupPreview }}
+          </span>
         </div>
       </div>
 

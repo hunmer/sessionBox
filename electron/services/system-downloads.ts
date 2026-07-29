@@ -10,6 +10,7 @@
 
 import { BrowserWindow } from 'electron'
 import type { DownloadItem } from 'electron'
+import { notifyDownloadStart, notifyDownloadSuccess, notifyDownloadFailure } from './download-notify'
 
 /** 系统下载任务，字段对齐 store 侧的 DownloadTask（仅渲染需要的子集） */
 export interface SystemDownloadTask {
@@ -102,6 +103,9 @@ export function trackDownload(item: DownloadItem): string {
   tasks.set(gid, task)
   items.set(gid, item)
 
+  // 开始下载通知
+  notifyDownloadStart(task.filename)
+
   let lastReceived = item.getReceivedBytes()
   let lastTime = Date.now()
 
@@ -149,9 +153,13 @@ export function trackDownload(item: DownloadItem): string {
       t.status = 'complete'
       t.completedLength = t.totalLength || t.completedLength
       t.progress = 100
+      // 下载成功通知
+      notifyDownloadSuccess(t.filename, t.totalLength)
     } else {
       t.status = 'error'
       t.errorMessage = state === 'interrupted' ? '下载中断' : `下载失败（${state}）`
+      // 下载失败通知
+      notifyDownloadFailure(t.filename, t.errorMessage)
     }
     t.downloadSpeed = 0
 

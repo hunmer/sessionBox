@@ -268,6 +268,17 @@ const api = {
     listStopped: () => electron.ipcRenderer.invoke("download:listStopped"),
     globalStat: () => electron.ipcRenderer.invoke("download:globalStat"),
     purge: () => electron.ipcRenderer.invoke("download:purge"),
+    // 系统下载器任务（Electron DownloadItem 兜底路径，与 aria2 任务统一展示）
+    listSystem: () => electron.ipcRenderer.invoke("download:listSystem"),
+    removeSystem: (gid) => electron.ipcRenderer.invoke("download:removeSystem", gid),
+    clearSystemFinished: () => electron.ipcRenderer.invoke("download:clearSystemFinished"),
+    clearSystemAll: () => electron.ipcRenderer.invoke("download:clearSystemAll"),
+    /** 订阅系统下载进度推送（主进程节流 300ms 推送一次任务列表） */
+    onDownloadProgress: (handler) => {
+      const listener = (_e, tasks) => handler(tasks);
+      electron.ipcRenderer.on("on:system-download:progress", listener);
+      return () => electron.ipcRenderer.removeListener("on:system-download:progress", listener);
+    },
     showInFolder: (filePath) => electron.ipcRenderer.invoke("download:showInFolder", filePath),
     getFilePath: (dir, filename) => electron.ipcRenderer.invoke("download:getFilePath", dir, filename),
     startDrag: (filePath) => electron.ipcRenderer.send("download:startDrag", filePath),

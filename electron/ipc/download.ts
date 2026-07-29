@@ -45,7 +45,7 @@ export function registerDownloadIpcHandlers(): void {
     webviewManager.setAria2Enabled(false)
   })
 
-  ipcMain.handle('download:add', (_e, url: string, options?: { filename?: string; dir?: string; headers?: string[]; cookies?: string; referer?: string }) =>
+  ipcMain.handle('download:add', (_e, url: string, options?: { filename?: string; dir?: string; headers?: string[]; cookies?: string; referer?: string; category?: string }) =>
     addDownload(url, options)
   )
 

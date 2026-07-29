@@ -5,9 +5,11 @@
 
 import { spawn, ChildProcess } from 'child_process'
 import Store from 'electron-store'
-import { app, Notification } from 'electron'
+import { app } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
+import { resolveDownloadPath } from './download-path'
+import { notifyDownloadStart, notifyDownloadSuccess, notifyDownloadFailure } from './download-notify'
 
 // ====== 类型定义 ======
 
@@ -310,6 +312,8 @@ export async function addDownload(
     headers?: string[]
     cookies?: string
     referer?: string
+    /** 分组模板（{host}/{type}/{date} 等），用于自动创建子目录并归组 */
+    category?: string
   } = {}
 ): Promise<string> {
   // blob:/data:/空 URL 等无法被 aria2 获取，提前拦截避免 "No URI to download" 错误
@@ -318,8 +322,19 @@ export async function addDownload(
   }
 
   const downloadOpts: Record<string, unknown> = {}
-  if (options.dir) downloadOpts.dir = options.dir
-  if (options.filename) downloadOpts.out = options.filename
+
+  // 解析最终保存路径：分组目录 + 无冲突文件名
+  const filename = options.filename || ''
+  const baseDir = options.dir || getConfig().downloadDir
+  if (filename && baseDir) {
+    const resolved = resolveDownloadPath(baseDir, filename, url, options.category)
+    downloadOpts.dir = resolved.dir
+    downloadOpts.out = resolved.filename
+  } else {
+    if (options.dir) downloadOpts.dir = options.dir
+    if (options.filename) downloadOpts.out = options.filename
+  }
+
   if (options.headers?.length) downloadOpts.header = options.headers
   if (options.cookies) downloadOpts.cookie = options.cookies
   if (options.referer) downloadOpts.referer = options.referer
@@ -398,29 +413,12 @@ const previousTaskStatus = new Map<string, Aria2TaskInfo['status']>()
 
 let monitorTimer: ReturnType<typeof setInterval> | null = null
 
-/** 格式化文件大小 */
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
-}
-
-/** 显示系统通知 */
-function showNotification(title: string, body: string): void {
-  if (!Notification.isSupported()) return
-  new Notification({ title, body, silent: false }).show()
-}
-
 /** 检测任务状态变化并触发通知 */
 async function checkAndNotify(): Promise<void> {
   const config = getConfig()
-  const shouldNotifyOnStart = config.notifyOnStart
-  const shouldNotifyOnSuccess = config.notifyOnSuccess
-  const shouldNotifyOnFailure = config.notifyOnFailure
 
   // 如果所有通知都关闭，跳过轮询
-  if (!shouldNotifyOnStart && !shouldNotifyOnSuccess && !shouldNotifyOnFailure) return
+  if (!config.notifyOnStart && !config.notifyOnSuccess && !config.notifyOnFailure) return
 
   try {
     const [active, waiting, stopped] = await Promise.all([
@@ -437,18 +435,22 @@ async function checkAndNotify(): Promise<void> {
       const prevStatus = previousTaskStatus.get(task.gid)
 
       if (prevStatus === undefined) {
-        // 新任务首次出现
-        if (shouldNotifyOnStart && (task.status === 'active' || task.status === 'waiting')) {
-          showNotification('开始下载', task.filename || task.url)
+        // 新任务首次出现：
+        // - 进行中/等待 → 开始下载通知
+        // - 已完成/失败（小文件在两次轮询间就结束了）→ 直接发完成通知，避免漏报
+        if (task.status === 'active' || task.status === 'waiting') {
+          notifyDownloadStart(task.filename || task.url)
+        } else if (task.status === 'complete') {
+          notifyDownloadSuccess(task.filename, task.totalLength)
+        } else if (task.status === 'error') {
+          notifyDownloadFailure(task.filename, task.errorMessage)
         }
       } else if (prevStatus !== task.status) {
         // 状态变化
-        if (shouldNotifyOnSuccess && task.status === 'complete') {
-          const size = task.totalLength > 0 ? ` (${formatFileSize(task.totalLength)})` : ''
-          showNotification('下载完成', `${task.filename}${size}`)
-        } else if (shouldNotifyOnFailure && task.status === 'error') {
-          const errMsg = task.errorMessage ? `：${task.errorMessage}` : ''
-          showNotification('下载失败', `${task.filename}${errMsg}`)
+        if (task.status === 'complete') {
+          notifyDownloadSuccess(task.filename, task.totalLength)
+        } else if (task.status === 'error') {
+          notifyDownloadFailure(task.filename, task.errorMessage)
         }
       }
     }

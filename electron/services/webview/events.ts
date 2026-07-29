@@ -7,6 +7,7 @@ import { cacheFaviconFromUrl } from '../favicon-cache'
 import { pluginEventBus, broadcastToRenderer } from '../plugin-event-bus'
 import { addDownload, checkConnection, getAria2Config, isAria2Fetchable } from '../aria2'
 import { trackDownload } from '../system-downloads'
+import { resolveDownloadPath } from '../download-path'
 import { join } from 'path'
 
 export function setupEventForwarding(
@@ -147,11 +148,14 @@ export function setupEventForwarding(
     const filename = item.getFilename()
     const config = getAria2Config()
 
-    /** 回退到系统下载器：预设保存路径后纳入后台下载跟踪，与 aria2 任务统一查看 */
+    /** 回退到系统下载器：解析无冲突路径后预设保存路径，并纳入后台下载跟踪 */
     const fallbackToSystem = () => {
       if (!config.alwaysAsk && config.downloadDir) {
         try {
-          item.setSavePath(join(config.downloadDir, filename))
+          // 分组目录 + 无冲突文件名（与 aria2 路径行为一致）
+          const resolved = resolveDownloadPath(config.downloadDir, filename, url)
+          // DownloadItem.setSavePath 接收完整路径，会自动创建中间目录
+          item.setSavePath(join(resolved.dir, resolved.filename))
         } catch {
           // 设置失败则交给 Chromium 默认行为
         }

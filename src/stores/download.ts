@@ -174,8 +174,17 @@ export const useDownloadStore = defineStore('download', () => {
     await refreshTasks()
   }
 
+  /** 取消系统下载进度订阅（重新初始化或 store 卸载时调用，避免重复订阅） */
+  let unsubscribeSystemProgress: (() => void) | null = null
+
   /** 初始化：加载配置、检查连接、拉取任务列表、订阅系统下载进度推送 */
   async function init() {
+    // 避免重复 init 导致多次订阅进度推送
+    if (unsubscribeSystemProgress) {
+      unsubscribeSystemProgress()
+      unsubscribeSystemProgress = null
+    }
+
     await loadConfig()
     await checkConnection()
 
@@ -193,7 +202,6 @@ export const useDownloadStore = defineStore('download', () => {
   }
 
   /** 取消系统下载进度订阅（store 卸载或重新初始化时调用） */
-  let unsubscribeSystemProgress: (() => void) | null = null
   function dispose() {
     if (unsubscribeSystemProgress) {
       unsubscribeSystemProgress()
