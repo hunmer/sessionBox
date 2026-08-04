@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Info, Cookie, Database, HardDrive, Trash2, RefreshCw } from 'lucide-vue-next'
+import { Info, Cookie, Database, HardDrive, Trash2, RefreshCw, ClipboardPaste } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -27,6 +27,11 @@ const info = ref<SiteDataInfo | null>(null)
 const loading = ref(false)
 const clearing = ref(false)
 const confirmOpen = ref(false)
+
+// 导入 cookie 模式
+const importMode = ref(false)
+const importText = ref('')
+const importing = ref(false)
 
 /** 当前 tab 是否为可清理的有效网站 */
 const hasSite = computed(() => {
@@ -90,6 +95,46 @@ async function handleClear() {
   } finally {
     clearing.value = false
     confirmOpen.value = false
+  }
+}
+
+function startImport() {
+  importText.value = ''
+  importMode.value = true
+}
+
+function cancelImport() {
+  importMode.value = false
+  importText.value = ''
+}
+
+async function handleImport() {
+  if (!tabStore.activeTabId) return
+  const text = importText.value.trim()
+  if (!text) {
+    toast.error('请粘贴 cookie 内容')
+    return
+  }
+  importing.value = true
+  try {
+    const res = await api.siteData.importCookies(tabStore.activeTabId, text)
+    if (res.success) {
+      const msg = res.skipped > 0
+        ? `已导入 ${res.count} 条 Cookie（${res.skipped} 条格式无效已跳过）`
+        : `已导入 ${res.count} 条 Cookie`
+      toast.success(msg)
+      importMode.value = false
+      importText.value = ''
+      // 页面由主进程自动刷新；关闭 popover 并刷新展示数据
+      emit('cleared')
+      setTimeout(loadInfo, 500)
+    } else {
+      toast.error(res.skipped > 0 ? `未导入：${res.skipped} 条格式无效` : '未识别到有效 Cookie，请检查格式')
+    }
+  } catch {
+    toast.error('导入失败')
+  } finally {
+    importing.value = false
   }
 }
 
@@ -164,32 +209,86 @@ watch(() => tabStore.activeTabId, loadInfo, { immediate: true })
 
     <!-- 底部操作 -->
     <div class="px-3 py-1.5">
-      <Button
-        variant="ghost"
-        size="sm"
-        class="w-full h-7 gap-1 text-xs"
-        :disabled="!hasSite || loading"
-        @click="loadInfo"
+      <!-- 导入模式：textarea + 确认 -->
+      <div
+        v-if="importMode"
+        class="flex flex-col gap-2"
       >
-        <RefreshCw
-          class="h-3 w-3"
-          :class="loading ? 'animate-spin' : ''"
+        <p class="text-[11px] text-muted-foreground leading-relaxed">
+          粘贴 cookie，应用到 <span class="font-medium text-foreground">{{ hostname }}</span>
+        </p>
+        <textarea
+          v-model="importText"
+          class="w-full min-h-[100px] text-[11px] font-mono rounded border border-input bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+          placeholder="name=value; name2=value2&#10;或每行一条：&#10;name=value&#10;name2=value2"
+          spellcheck="false"
         />
-        刷新
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        class="w-full h-7 gap-1 text-xs text-destructive hover:text-destructive"
-        :disabled="!hasSite || clearing"
-        @click="confirmOpen = true"
+        <p class="text-[10px] text-muted-foreground leading-snug">
+          支持标准 Cookie 头格式或每行一条。导入后会覆盖同名 Cookie 并刷新页面。
+        </p>
+        <div class="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            class="flex-1 h-7 text-xs"
+            :disabled="importing"
+            @click="cancelImport"
+          >
+            取消
+          </Button>
+          <Button
+            size="sm"
+            class="flex-1 h-7 text-xs"
+            :disabled="importing || !importText.trim()"
+            @click="handleImport"
+          >
+            {{ importing ? '导入中...' : '导入' }}
+          </Button>
+        </div>
+      </div>
+
+      <!-- 默认操作按钮 -->
+      <div
+        v-else
+        class="flex flex-col"
       >
-        <Trash2 class="h-3 w-3" />
-        一键清理当前站点
-      </Button>
-      <p class="text-[10px] text-muted-foreground text-center mt-1">
-        清理 Cookie / localStorage / IndexedDB / Cache
-      </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="w-full h-7 gap-1 text-xs"
+          :disabled="!hasSite || loading"
+          @click="loadInfo"
+        >
+          <RefreshCw
+            class="h-3 w-3"
+            :class="loading ? 'animate-spin' : ''"
+          />
+          刷新
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="w-full h-7 gap-1 text-xs"
+          :disabled="!hasSite || importing"
+          @click="startImport"
+        >
+          <ClipboardPaste class="h-3 w-3" />
+          从其他浏览器导入 Cookie
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="w-full h-7 gap-1 text-xs text-destructive hover:text-destructive"
+          :disabled="!hasSite || clearing"
+          @click="confirmOpen = true"
+        >
+          <Trash2 class="h-3 w-3" />
+          一键清理当前站点
+        </Button>
+        <p class="text-[10px] text-muted-foreground text-center mt-1">
+          清理 Cookie / localStorage / IndexedDB / Cache
+        </p>
+      </div>
     </div>
 
     <!-- 清理确认 -->

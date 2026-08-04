@@ -460,6 +460,8 @@ const api = {
   siteData: {
     getInfo: (tabId: string): Promise<SiteDataInfo> => ipcRenderer.invoke('siteData:getInfo', tabId),
     clear: (tabId: string): Promise<{ success: boolean }> => ipcRenderer.invoke('siteData:clear', tabId),
+    importCookies: (tabId: string, cookieText: string): Promise<{ success: boolean; count: number; skipped: number }> =>
+      ipcRenderer.invoke('siteData:importCookies', tabId, cookieText),
   },
 
   sniffer: {
