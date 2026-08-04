@@ -444,14 +444,14 @@ async function checkAndNotify(): Promise<void> {
         if (task.status === 'active' || task.status === 'waiting') {
           notifyDownloadStart(task.filename || task.url)
         } else if (task.status === 'complete') {
-          notifyDownloadSuccess(task.filename, task.totalLength)
+          notifyDownloadSuccess(task.filename, task.totalLength, task.dir)
         } else if (task.status === 'error') {
           notifyDownloadFailure(task.filename, task.errorMessage)
         }
       } else if (prevStatus !== task.status) {
         // 状态变化
         if (task.status === 'complete') {
-          notifyDownloadSuccess(task.filename, task.totalLength)
+          notifyDownloadSuccess(task.filename, task.totalLength, task.dir)
         } else if (task.status === 'error') {
           notifyDownloadFailure(task.filename, task.errorMessage)
         }

@@ -12,7 +12,8 @@
  * require 路径 './aria2' 无法解析会导致 "Cannot find module './aria2'" 崩溃。
  */
 
-import { Notification } from 'electron'
+import { Notification, shell } from 'electron'
+import { join } from 'path'
 import { getAria2Config } from './aria2'
 
 /** 格式化文件大小 */
@@ -23,8 +24,11 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
-/** 底层通知发送 */
-function showNotification(title: string, body: string): void {
+/**
+ * 底层通知发送
+ * @param filePath 可选的完整文件路径：传入后点击通知会在资源管理器中定位该文件
+ */
+function showNotification(title: string, body: string, filePath?: string): void {
   if (!Notification.isSupported()) return
   try {
     const n = new Notification({
@@ -32,6 +36,16 @@ function showNotification(title: string, body: string): void {
       body,
       silent: false
     })
+    // 点击下载完成通知 → 资源管理器定位文件（跨平台：Explorer/Finder/文件管理器）
+    if (filePath) {
+      n.on('click', () => {
+        try {
+          shell.showItemInFolder(filePath)
+        } catch {
+          // 定位失败不影响其他流程
+        }
+      })
+    }
     n.show()
   } catch {
     // 通知失败不应影响下载流程
@@ -45,10 +59,12 @@ export function notifyDownloadStart(filename: string): void {
 }
 
 /** 下载成功通知 */
-export function notifyDownloadSuccess(filename: string, totalBytes: number): void {
+export function notifyDownloadSuccess(filename: string, totalBytes: number, dir?: string): void {
   if (!getAria2Config().notifyOnSuccess) return
   const size = totalBytes > 0 ? ` (${formatFileSize(totalBytes)})` : ''
-  showNotification('下载完成', `${filename}${size}`)
+  // dir 非空时拼出完整路径，点击通知可在资源管理器中定位
+  const filePath = dir ? join(dir, filename) : undefined
+  showNotification('下载完成', `${filename}${size}`, filePath)
 }
 
 /** 下载失败通知 */

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUpdate } from 'vue'
-import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star, KeyRound, CornerDownLeft, ZoomIn, ZoomOut, RotateCcw } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, RotateCw, Loader2, Code2, Star, KeyRound, CornerDownLeft, ZoomIn, ZoomOut, RotateCcw, Info } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -10,6 +10,7 @@ import { useBookmarkStore } from '@/stores/bookmark'
 import { getFaviconUrl } from '@/lib/utils'
 import AddBookmarkDialog from '@/components/bookmarks/AddBookmarkDialog.vue'
 import PasswordPopover from './PasswordPopover.vue'
+import SiteDataPopover from './SiteDataPopover.vue'
 
 interface SearchEngine {
   id: string
@@ -207,6 +208,12 @@ const editSite = ref<{ id: string; title: string; url: string; pageId?: string }
 // 密码 popover
 const passwordPopoverOpen = ref(false)
 
+// 站点信息 popover
+const siteDataPopoverOpen = ref(false)
+
+/** 当前 tab 是否为内部页面（内部页面不展示站点信息按钮） */
+const isInternalPage = computed(() => !!tabStore.activeTab?.url?.startsWith('sessionbox://'))
+
 /** 当前 tab 关联的页面 ID */
 const activePageId = computed(() => tabStore.activeTab?.pageId)
 
@@ -312,13 +319,35 @@ function handleZoomReset() {
           </Button>
           <Input
             v-model="urlInput"
-            class="toolbar-url-input flex-1 h-7 text-xs bg-secondary/60 border-transparent focus:border-ring pl-7"
+            class="toolbar-url-input flex-1 h-7 text-xs bg-secondary/60 border-transparent focus:border-ring pl-7 pr-7"
             placeholder="输入网址或搜索..."
             :disabled="!tabStore.activeTabId"
             @keydown="handleInputKeydown"
             @focus="onFocus"
             @blur="onBlur"
           />
+          <!-- 站点信息按钮（最右侧） -->
+          <Popover v-model:open="siteDataPopoverOpen">
+            <PopoverTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="absolute right-0.5 h-6 w-6 z-10 rounded-sm text-muted-foreground"
+                :disabled="!tabStore.activeTabId || isInternalPage"
+                @mousedown.prevent
+              >
+                <Info class="w-3.5 h-3.5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="bottom"
+              :side-offset="4"
+              align="end"
+              class="w-80 p-0"
+            >
+              <SiteDataPopover @cleared="siteDataPopoverOpen = false" />
+            </PopoverContent>
+          </Popover>
         </div>
       </PopoverTrigger>
       <PopoverContent

@@ -16,6 +16,15 @@ export interface Proxy {
   pacUrl?: string
 }
 
+export interface SiteDataInfo {
+  origin: string
+  hostname: string
+  cookieCount: number
+  storageBytes: number
+  usageBytes: number
+  quotaBytes: number
+}
+
 export interface Workspace {
   id: string
   title: string
@@ -446,6 +455,11 @@ const api = {
     set: (engines: SearchEngine[]): Promise<void> => ipcRenderer.invoke('searchEngine:set', engines),
     getDefault: (): Promise<string> => ipcRenderer.invoke('searchEngine:getDefault'),
     setDefault: (id: string): Promise<void> => ipcRenderer.invoke('searchEngine:setDefault', id)
+  },
+
+  siteData: {
+    getInfo: (tabId: string): Promise<SiteDataInfo> => ipcRenderer.invoke('siteData:getInfo', tabId),
+    clear: (tabId: string): Promise<{ success: boolean }> => ipcRenderer.invoke('siteData:clear', tabId),
   },
 
   sniffer: {

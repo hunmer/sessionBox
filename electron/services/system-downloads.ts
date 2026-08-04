@@ -154,7 +154,7 @@ export function trackDownload(item: DownloadItem): string {
       t.completedLength = t.totalLength || t.completedLength
       t.progress = 100
       // 下载成功通知
-      notifyDownloadSuccess(t.filename, t.totalLength)
+      notifyDownloadSuccess(t.filename, t.totalLength, t.dir)
     } else {
       t.status = 'error'
       t.errorMessage = state === 'interrupted' ? '下载中断' : `下载失败（${state}）`

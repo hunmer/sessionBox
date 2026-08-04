@@ -146,6 +146,16 @@ export interface DefaultBrowserResult {
   openedSystemSettings: boolean
 }
 
+// 站点数据信息（cookie / storage 占用）
+export interface SiteDataInfo {
+  origin: string
+  hostname: string
+  cookieCount: number
+  storageBytes: number   // localStorage 估算字节
+  usageBytes: number     // 总占用（含 IndexedDB / Cache / SW，来自 navigator.storage.estimate）
+  quotaBytes: number     // 配额上限
+}
+
 export type {
   SplitPane,
   SplitPresetType,

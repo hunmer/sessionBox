@@ -94,6 +94,7 @@ import { registerAIProviderIpcHandlers } from './ai-provider'
 import { isDefaultBrowser, setDefaultBrowser } from '../services/default-browser'
 import { listSkills, searchSkill, readSkill, writeSkill, deleteSkill } from '../services/skill-store'
 import { registerDebuggerIpcHandlers } from './debugger'
+import { registerSiteDataIpc } from './site-data'
 
 /** 容器图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'container-icons')
@@ -599,4 +600,5 @@ export function registerIpcHandlers(): void {
   registerSkillIpc()
   registerSystemIpc()
   registerDebuggerIpcHandlers()
+  registerSiteDataIpc()
 }

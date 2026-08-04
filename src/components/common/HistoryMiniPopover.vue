@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { useHistoryStore } from '@/stores/history'
 import { useTabStore } from '@/stores/tab'
-import { getDomain } from '@/lib/utils'
+import { getDomain, getFaviconUrl } from '@/lib/utils'
 import type { HistoryEntry } from '@/lib/db'
 
 const historyStore = useHistoryStore()
@@ -76,6 +76,16 @@ onMounted(loadRecent)
           class="group flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 rounded-sm cursor-pointer transition-colors"
           @click="handleOpenUrl(entry.url)"
         >
+          <!-- 图标 -->
+          <div class="w-4 h-4 flex-shrink-0">
+            <img
+              :src="getFaviconUrl(entry.url)"
+              class="w-4 h-4 rounded-sm"
+              alt=""
+              @error="($event.target as HTMLImageElement).style.display = 'none'"
+            >
+          </div>
+
           <div class="flex-1 min-w-0">
             <p class="text-xs truncate">
               {{ entry.title || entry.url }}
