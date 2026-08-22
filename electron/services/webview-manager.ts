@@ -2,7 +2,7 @@ import { BrowserWindow, WebContentsView } from 'electron'
 import { ensureExtensionsLoadedForContainer, getExtensionsForContainer } from './extensions'
 import { getPageById, getContainerById, getGroupById, getProxyById, getZoomPreference, type Proxy } from './store'
 import { applyProxyToSession } from './proxy'
-import { getUserAgent } from '../utils/user-agent'
+import { getUserAgent, installClientHintsRewrite } from '../utils/user-agent'
 import { broadcastToRenderer, pluginEventBus } from './plugin-event-bus'
 import { handleBeforeInputEvent } from './shortcut-manager'
 
@@ -184,6 +184,7 @@ class WebviewManager {
     })
 
     view.webContents.setUserAgent(getUserAgent(page?.userAgent))
+    installClientHintsRewrite(view.webContents.session)
     registerBlockedProtocolHandlers(view.webContents.session)
 
     let applyProxyPromise: Promise<void> | null = null

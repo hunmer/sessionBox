@@ -230,6 +230,11 @@ const api = {
     getDefault: () => electron.ipcRenderer.invoke("searchEngine:getDefault"),
     setDefault: (id) => electron.ipcRenderer.invoke("searchEngine:setDefault", id)
   },
+  siteData: {
+    getInfo: (tabId) => electron.ipcRenderer.invoke("siteData:getInfo", tabId),
+    clear: (tabId) => electron.ipcRenderer.invoke("siteData:clear", tabId),
+    importCookies: (tabId, cookieText) => electron.ipcRenderer.invoke("siteData:importCookies", tabId, cookieText)
+  },
   sniffer: {
     toggle: (tabId, enabled) => electron.ipcRenderer.invoke("sniffer:toggle", tabId, enabled),
     setDomainEnabled: (domain, enabled) => electron.ipcRenderer.invoke("sniffer:setDomainEnabled", domain, enabled),

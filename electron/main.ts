@@ -1,6 +1,6 @@
-import { app, BrowserWindow, nativeImage, protocol, net } from 'electron'
+import { app, BrowserWindow, nativeImage, protocol, net, session } from 'electron'
 import { join } from 'path'
-import { setupUserAgent } from './utils/user-agent'
+import { setupUserAgent, installClientHintsRewrite } from './utils/user-agent'
 import { migrateBookmarksAndPasswords } from './services/migration'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
@@ -285,6 +285,9 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     electronApp.setAppUserModelId('com.session-box')
+
+    // 默认 session 的 Client Hints 改写（容器分区的在各视图创建时安装）
+    installClientHintsRewrite(session.defaultSession)
 
     ensureWindowsBrowserRegistration()
 

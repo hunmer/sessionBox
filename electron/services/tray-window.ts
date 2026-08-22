@@ -2,13 +2,9 @@
 import { BrowserWindow, Tray, screen } from 'electron'
 import { getTrayWindowSizes, updateTrayWindowSize } from './store'
 import type { Page, TrayWindowSizes } from './store'
-import { getUserAgent } from '../utils/user-agent'
+import { getUserAgent, getMobileUserAgent, installClientHintsRewrite } from '../utils/user-agent'
 
 type TrayWindowType = keyof TrayWindowSizes
-
-// 移动端 Chrome User-Agent
-const MOBILE_USER_AGENT =
-  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36'
 
 interface TaskbarWindowEntry {
   win: BrowserWindow
@@ -54,6 +50,7 @@ class TrayWindowManager {
 
     // 始终设置 Chrome UA，避免暴露 Electron 标识
     win.webContents.setUserAgent(getUserAgent(page.userAgent))
+    installClientHintsRewrite(win.webContents.session)
     win.loadURL(page.url || 'about:blank')
     win.once('ready-to-show', () => win.show())
 
@@ -86,10 +83,11 @@ class TrayWindowManager {
 
     // 手机版使用移动端 User-Agent，桌面版使用 Chrome UA
     if (mode === 'mobile') {
-      win.webContents.setUserAgent(MOBILE_USER_AGENT)
+      win.webContents.setUserAgent(getMobileUserAgent())
     } else {
       win.webContents.setUserAgent(getUserAgent(page.userAgent))
     }
+    installClientHintsRewrite(win.webContents.session)
 
     win.loadURL(page.url || 'about:blank')
     win.once('ready-to-show', () => win.show())
