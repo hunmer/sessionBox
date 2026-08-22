@@ -6,7 +6,7 @@ SessionBox 是一个基于 **Electron + Vue 3** 的**多账号浏览器管理桌
 
 典型场景：社交媒体多账号运营、电商多店铺管理、多身份浏览、浏览器自动化。
 
-技术栈：Electron 35（三进程）+ electron-vite 构建 + Vue 3 + Pinia（21 Store）+ Tailwind CSS 4 + shadcn-vue(Radix/reka) + Dexie(IndexedDB) + electron-store/JsonStore 持久化。
+技术栈：Electron 38（三进程）+ electron-vite 构建 + Vue 3 + Pinia（21 Store）+ Tailwind CSS 4 + shadcn-vue(Radix/reka) + Dexie(IndexedDB) + electron-store/JsonStore 持久化。
 
 ## 约定的规则（高优先级）
 

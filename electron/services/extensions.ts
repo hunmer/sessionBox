@@ -62,8 +62,7 @@ function getLoadedElectronExtensionId(
   browserSession: Session,
   extensionPath: string
 ): string | undefined {
-  const sessionExtensions = browserSession.extensions || browserSession
-  return sessionExtensions
+  return browserSession.extensions
     .getAllExtensions()
     .find((loadedExtension) => loadedExtension.path === extensionPath)?.id
 }
@@ -72,18 +71,7 @@ async function unloadElectronExtension(
   browserSession: Session,
   electronExtensionId: string
 ): Promise<void> {
-  const sessionExtensions = browserSession.extensions
-  if (sessionExtensions && typeof sessionExtensions.unloadExtension === 'function') {
-    await sessionExtensions.unloadExtension(electronExtensionId)
-    return
-  }
-
-  if (typeof browserSession.removeExtension === 'function') {
-    browserSession.removeExtension(electronExtensionId)
-    return
-  }
-
-  throw new Error('Current Electron session does not support unloading extensions')
+  browserSession.extensions.removeExtension(electronExtensionId)
 }
 
 function getInitialExtensionTabTitle(
@@ -323,8 +311,7 @@ export function openExtensionBrowserActionPopup(
   if (!extension) return
 
   const browserSession = getSessionForContainer(containerId)
-  const sessionExtensions = browserSession.extensions || browserSession
-  const electronExt = sessionExtensions.getAllExtensions().find(
+  const electronExt = browserSession.extensions.getAllExtensions().find(
     (e) => e.path === extension.path
   )
   if (!electronExt) return

@@ -58,7 +58,7 @@
     "@types/node": "^22.13.0",
     "@types/turndown": "^5.0.6",
     "@vitejs/plugin-vue": "^5.2.1",
-    "electron": "^35.7.5",
+    "electron": "^38.2.0",
     "electron-builder": "^26.8.1",
     "electron-updater": "^6.3.9",
     "electron-vite": "^3.0.0",
