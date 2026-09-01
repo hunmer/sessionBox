@@ -1,4 +1,5 @@
 import { BrowserWindow } from 'electron'
+import type { ReadableStream } from 'node:stream/web'
 import { getAIProvider, listTabs, listGroups, listPages, listWorkspaces, getPageById, getGroupById } from './store'
 import { webviewManager } from './webview-manager'
 import {
@@ -259,7 +260,7 @@ interface ParsedStream { textContent: string; toolCalls: ParsedToolCall[]; stopR
 
 /** 解析完整 SSE 流，同时转发事件到渲染进程并累积 tool_use 信息 */
 async function parseSSEStream(
-  body: NodeJS.ReadableStream,
+  body: ReadableStream,
   send: (channel: string, data: unknown) => void,
   requestId: string,
   cumulativeUsage: { inputTokens: number; outputTokens: number },

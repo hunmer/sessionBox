@@ -73,7 +73,7 @@ const DEFAULT_DURATION = 4000
  */
 export function useNotification() {
   /** 构建 vue-sonner 所需的 options 对象 */
-  function buildSonnerOptions(options?: NotificationOptions) {
+  function buildSonnerOptions(options?: Omit<NotificationOptions, 'title'>) {
     if (!options) return undefined
     const opts: Record<string, any> = {
       description: options.description,

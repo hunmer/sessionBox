@@ -66,7 +66,7 @@ async function checkUrl(
 
       try {
         // 先尝试 HEAD
-        let response: Electron.FetchResponse
+        let response: Awaited<ReturnType<typeof net.fetch>>
         try {
           response = await net.fetch(url, {
             method: 'HEAD',

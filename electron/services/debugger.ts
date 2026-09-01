@@ -88,7 +88,7 @@ export function startRecording(wcId: number, onEvent?: (event: any) => void): { 
       // 通知前端录制已自动停止
       try {
         const { BrowserWindow } = require('electron')
-        const win = BrowserWindow.getAllWindows().find(w => w.getTitle() === '调试工具')
+        const win = BrowserWindow.getAllWindows().find((w: Electron.BrowserWindow) => w.getTitle() === '调试工具')
         win?.webContents.send('debugger:recording-stopped', wcId)
       } catch {}
     }

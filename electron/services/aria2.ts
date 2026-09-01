@@ -137,7 +137,7 @@ async function sendRPC(method: string, params: unknown[] = []): Promise<any> {
     body: JSON.stringify(body)
   })
 
-  const data = await resp.json()
+  const data = (await resp.json()) as { error?: { message: string }; result?: unknown }
   if (data.error) throw new Error(`RPC Error: ${data.error.message}`)
   return data.result
 }

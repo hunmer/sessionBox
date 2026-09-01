@@ -15,17 +15,6 @@ export const useContainerStore = defineStore('container', () => {
 
   // ====== 计算属性 ======
 
-  /** 按分组归类的容器映射 */
-  const containersByGroup = computed(() => {
-    const map = new Map<string, Container[]>()
-    for (const container of containers.value) {
-      const list = map.get(container.groupId) || []
-      list.push(container)
-      map.set(container.groupId, list)
-    }
-    return map
-  })
-
   /** 排序后的分组列表 */
   const sortedGroups = computed(() =>
     [...groups.value].sort((a, b) => a.order - b.order)
@@ -147,7 +136,6 @@ export const useContainerStore = defineStore('container', () => {
     defaultContainerId,
     defaultWorkspaceId,
     askContainerOnOpen,
-    containersByGroup,
     sortedGroups,
     workspaceGroups,
     getContainer,

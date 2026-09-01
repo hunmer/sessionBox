@@ -108,6 +108,7 @@ export interface ShortcutBindingStore {
   id: string
   accelerator: string
   global: boolean
+  enabled?: boolean
 }
 
 // 分屏布局数据
@@ -430,11 +431,11 @@ export function reorderContainers(containerIds: string[]): void {
 // ====== 页面操作 ======
 
 export function listPages(): Page[] {
-  return getCollection<Page>('pages')
+  return getCollection('pages')
 }
 
 export function createPage(data: Omit<Page, 'id'>): Page {
-  const pages = getCollection<Page>('pages')
+  const pages = getCollection('pages')
   const page: Page = { ...data, id: randomUUID() }
   pages.push(page)
   setCollection('pages', pages)
@@ -443,7 +444,7 @@ export function createPage(data: Omit<Page, 'id'>): Page {
 }
 
 export function updatePage(id: string, data: Partial<Omit<Page, 'id'>>): void {
-  const pages = getCollection<Page>('pages')
+  const pages = getCollection('pages')
   const idx = pages.findIndex(p => p.id === id)
   if (idx !== -1) {
     pages[idx] = { ...pages[idx], ...data }
@@ -453,13 +454,13 @@ export function updatePage(id: string, data: Partial<Omit<Page, 'id'>>): void {
 }
 
 export function deletePage(id: string): void {
-  const pages = getCollection<Page>('pages').filter(p => p.id !== id)
+  const pages = getCollection('pages').filter(p => p.id !== id)
   setCollection('pages', pages)
   try { pluginEventBus.emit('page:deleted', id) } catch {}
 }
 
 export function reorderPages(pageIds: string[]): void {
-  const pages = getCollection<Page>('pages')
+  const pages = getCollection('pages')
   pageIds.forEach((id, order) => {
     const p = pages.find(p => p.id === id)
     if (p) p.order = order
@@ -469,15 +470,15 @@ export function reorderPages(pageIds: string[]): void {
 }
 
 export function getPageById(id: string): Page | undefined {
-  return getCollection<Page>('pages').find(p => p.id === id)
+  return getCollection('pages').find(p => p.id === id)
 }
 
 export function getPagesByGroup(groupId: string): Page[] {
-  return getCollection<Page>('pages').filter(p => p.groupId === groupId)
+  return getCollection('pages').filter(p => p.groupId === groupId)
 }
 
 export function getPagesByContainer(containerId: string): Page[] {
-  return getCollection<Page>('pages').filter(p => p.containerId === containerId)
+  return getCollection('pages').filter(p => p.containerId === containerId)
 }
 
 // ====== Page 数据迁移 ======
@@ -491,7 +492,7 @@ export function migrateContainersToPages(): void {
   }
 
   // 读取 containers 数据（可能含旧字段）
-  const containers = getCollection<Record<string, any>>('containers')
+  const containers = store.get('containers', defaults.containers) as Array<Record<string, any>>
   const pages: Page[] = []
 
   for (const c of containers) {
@@ -519,7 +520,7 @@ export function migrateContainersToPages(): void {
 
 /** 将 Tab 的 containerId 迁移为 pageId */
 export function migrateTabContainerIdToPageId(): void {
-  const tabs = getCollection<Record<string, any>>('tabs')
+  const tabs = store.get('tabs', defaults.tabs) as Array<Record<string, any>>
   const pages = getCollection('pages')
   let updated = false
 
@@ -528,7 +529,7 @@ export function migrateTabContainerIdToPageId(): void {
     if (tab.pageId) return tab
     // 如果有旧的 containerId，查找对应的 page
     if (tab.containerId) {
-      const page = pages.find((p: Page) => p.containerId === tab.containerId)
+      const page = pages.find(p => p.containerId === tab.containerId)
       updated = true
       return { ...tab, pageId: page?.id ?? '' }
     }
@@ -536,7 +537,7 @@ export function migrateTabContainerIdToPageId(): void {
   })
 
   if (updated) {
-    setCollection('tabs', newTabs)
+    setCollection('tabs', newTabs as Tab[])
     console.log('[Migration] Updated tabs with pageId')
   }
 }

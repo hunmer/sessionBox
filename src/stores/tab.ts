@@ -497,7 +497,7 @@ function registerMetadataListeners(ctx: TabStoreContext) {
     const t = ctx.tabs.value.find((t) => t.id === tabId)
     if (t) {
       t.title = title as string
-      api.tab.update(tabId, { title: title as string })
+      api.tab.update(tabId as string, { title: title as string })
       useHistoryStore().updateTitle(t.url, title as string)
     }
   })
@@ -506,7 +506,7 @@ function registerMetadataListeners(ctx: TabStoreContext) {
     const t = ctx.tabs.value.find((t) => t.id === tabId)
     if (t) {
       t.url = url as string
-      api.tab.update(tabId, { url: url as string })
+      api.tab.update(tabId as string, { url: url as string })
       useHistoryStore().addHistory(url as string, t.title)
     }
   })
@@ -717,7 +717,9 @@ export const useTabStore = defineStore('tab', () => {
   }
 
   // -- Actions（委托给外部函数）--
-  const loadTabs = () => (ctx.tabs.value = api.tab.list())
+  const loadTabs = async () => {
+    ctx.tabs.value = await api.tab.list()
+  }
 
   const createTab = (pageId: string, targetPaneId?: string | null) =>
     createTabAction(ctx, pageId, targetPaneId)

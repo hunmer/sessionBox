@@ -5,10 +5,10 @@ const cache = new Map<string, Component | null>()
 
 /** 解析 lucide 图标名称为 Vue 组件 */
 export function resolveLucideIcon(name: string): Component | null {
-  let comp = cache.get(name)
-  if (comp !== undefined) return comp
+  const cached = cache.get(name)
+  if (cached !== undefined) return cached
   const raw = (lucideIcons as any)[name]
-  comp = raw ? markRaw(raw) : null
+  const comp: Component | null = raw ? markRaw(raw) : null
   cache.set(name, comp)
   return comp
 }

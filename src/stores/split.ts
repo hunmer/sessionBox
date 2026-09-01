@@ -25,6 +25,7 @@ import {
 } from '@/lib/split-layout'
 import { useTabStore } from './tab'
 import { useWorkspaceStore } from './workspace'
+import type { SavedSplitSchemeData, SplitLayoutData } from '../../preload/index'
 
 const api = window.api
 
@@ -272,9 +273,9 @@ function resolvePreferredPaneAfterRemove(
 function resolveSinglePaneTabId(
   remainingPane: SplitPane | undefined,
   removedPane: SplitPane,
-  activeTabId: string | undefined
+  activeTabId: string | null | undefined
 ): string | undefined {
-  return remainingPane?.activeTabId ?? removedPane.activeTabId ?? activeTabId
+  return remainingPane?.activeTabId ?? removedPane.activeTabId ?? activeTabId ?? undefined
 }
 
 /** 处理 tab 点击的路由逻辑：查找 tab 已在哪个 pane 或分配到目标 pane */
@@ -429,7 +430,7 @@ export const useSplitStore = defineStore('split', () => {
   async function saveScheme(name: string) {
     if (!activeLayout.value) return
     const scheme = { ...buildSchemeFromLayout(activeLayout.value), name }
-    await api.split.createScheme(scheme)
+    await api.split.createScheme(scheme as unknown as SavedSplitSchemeData)
     savedSchemes.value.push(scheme)
   }
 
@@ -438,7 +439,10 @@ export const useSplitStore = defineStore('split', () => {
     savedSchemes.value = savedSchemes.value.filter((s) => s.id !== id)
   }
 
-  async function loadSchemes() { savedSchemes.value = await api.split.listSchemes() }
+  async function loadSchemes() {
+    // IPC 返回的是持久化结构（字面量被放宽为 string），边界处对齐为 UI 类型
+    savedSchemes.value = (await api.split.listSchemes()) as unknown as SavedSplitScheme[]
+  }
 
   async function persistState(targetWorkspaceId = workspaceStore.activeWorkspaceId) {
     if (activeLayout.value) {
@@ -449,10 +453,15 @@ export const useSplitStore = defineStore('split', () => {
   }
 
   async function restoreState(targetWorkspaceId = workspaceStore.activeWorkspaceId) {
-    const data = await api.split.getState(targetWorkspaceId)
+    const data: SplitLayoutData | null = await api.split.getState(targetWorkspaceId)
     manualAdjustEnabled.value = false
     if (data) {
-      const { layout, manualAdjust } = buildRestoredLayout(data)
+      const { layout, manualAdjust } = buildRestoredLayout({
+        presetType: data.presetType,
+        panes: data.panes,
+        manualAdjustEnabled: data.manualAdjustEnabled,
+        root: data.root as SplitNode | undefined
+      })
       activeLayout.value = layout
       focusedPaneId.value = findInitialPaneId(layout.panes)
       manualAdjustEnabled.value = manualAdjust

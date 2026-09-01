@@ -9,11 +9,30 @@ import {
 
 let mainWindow: BrowserWindow | null = null
 
+/** 检查更新结果（避免泄露 electron-updater 内部类型） */
+export interface CheckUpdateResult {
+  success: boolean
+  updateInfo?: { version: string; releaseDate: string; releaseNotes: unknown } | null
+  error?: string
+}
+
+/** useAutoUpdater 返回的 API（显式声明，避免推断引用不可移植的依赖类型） */
+export interface AutoUpdaterApi {
+  setMainWindow: (win: BrowserWindow) => void
+  checkForUpdates: () => Promise<CheckUpdateResult>
+  downloadUpdate: () => Promise<{ success: boolean; error?: string }>
+  quitAndInstall: (isSilent?: boolean) => void
+  getCurrentVersion: () => string
+  getUpdateInfo: () => { success: boolean; version: string | null }
+  initUpdateSource: () => void
+  applyUpdateSource: (source: UpdateSource) => void
+}
+
 /**
  * 自动更新模块
  * 提供应用自动检查、下载和安装更新的功能
  */
-export function useAutoUpdater() {
+export function useAutoUpdater(): AutoUpdaterApi {
   // 配置自动更新服务器地址
   autoUpdater.autoDownload = false // 不自动下载，由用户确认
   autoUpdater.autoInstallOnAppQuit = true // 退出时自动安装
@@ -123,7 +142,7 @@ export function useAutoUpdater() {
   /**
    * 检查更新（先应用当前激活的更新源）
    */
-  const checkForUpdates = async () => {
+  const checkForUpdates = async (): Promise<CheckUpdateResult> => {
     try {
       // 每次检查前刷新更新源配置
       const source = getActiveUpdateSource()
@@ -152,7 +171,7 @@ export function useAutoUpdater() {
   /**
    * 下载更新
    */
-  const downloadUpdate = async () => {
+  const downloadUpdate = async (): Promise<{ success: boolean; error?: string }> => {
     try {
       await autoUpdater.downloadUpdate()
       return { success: true }
@@ -176,14 +195,14 @@ export function useAutoUpdater() {
   /**
    * 获取当前版本
    */
-  const getCurrentVersion = () => {
+  const getCurrentVersion = (): string => {
     return app.getVersion()
   }
 
   /**
    * 获取更新信息（从本地 latest.yml 读取，如果存在）
    */
-  const getUpdateInfo = () => {
+  const getUpdateInfo = (): { success: boolean; version: string | null } => {
     try {
       const latestYmlPath = join(app.getAppPath(), 'latest.yml')
       const content = readFileSync(latestYmlPath, 'utf-8')

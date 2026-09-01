@@ -12,7 +12,8 @@ import {
 } from './store'
 import { webviewManager } from './webview-manager'
 
-const extensionRuntimeLicense = process.env.ELECTRON_CHROME_EXTENSIONS_LICENSE || 'GPL-3.0'
+const extensionRuntimeLicense = (process.env.ELECTRON_CHROME_EXTENSIONS_LICENSE ||
+  'GPL-3.0') as 'GPL-3.0' | 'Patron-License-2020-11-19'
 const defaultPartitionKey = '__default__'
 
 type PartitionKey = string
@@ -113,17 +114,17 @@ function createExtensionsInstance(
       const resolvedContainerId = containerId || null
       const partitionKey = getPartitionKey(resolvedContainerId)
       const container = resolvedContainerId ? getContainerById(resolvedContainerId) : undefined
-      const tabUrl = details.url || container?.defaultUrl || 'https://www.baidu.com'
+      const tabUrl = details.url || 'https://www.baidu.com'
       const order = listTabs().reduce((max, tab) => Math.max(max, tab.order), -1) + 1
 
       const tab = createStoredTab({
-        containerId: resolvedContainerId || '',
+        pageId: '',
         title: getInitialExtensionTabTitle(partitionKey, details.url, container?.name),
         url: tabUrl,
         order
       })
 
-      const webContents = webviewManager.createView(tab.id, resolvedContainerId || '', tabUrl)
+      const webContents = webviewManager.createView(tab.id, '', tabUrl, resolvedContainerId || undefined)
       if (!webContents) {
         deleteStoredTab(tab.id)
         throw new Error('Failed to create extension tab webContents')
@@ -317,7 +318,7 @@ export function openExtensionBrowserActionPopup(
   if (!electronExt) return
 
   const tabId = webviewManager.getActiveTabIdByContainer(containerId)
-  ext.api.browserAction.openPopup(
+  ;(ext as any).api.browserAction.openPopup(
     { extension: { id: electronExt.id } } as any,
     { anchorRect, tabId: tabId ?? undefined }
   )

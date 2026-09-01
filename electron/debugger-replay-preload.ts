@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+// preload 运行在渲染进程，但本文件由主进程 tsconfig 编译（无 DOM lib），这里声明用到的 window API
+declare const window: {
+  dispatchEvent(event: unknown): boolean
+  addEventListener(type: string, listener: (event: { message?: string }) => void): void
+  [key: string]: unknown
+}
+
 type ReplayCommand =
   | { type: 'load-events'; events: any[] }
   | { type: 'seek'; timeMs: number }

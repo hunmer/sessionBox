@@ -696,7 +696,7 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  const globalWindow = window as typeof window & { api: IpcAPI }
+  const globalWindow = globalThis as typeof globalThis & { api: IpcAPI; electron: typeof electronAPI }
   globalWindow.electron = electronAPI
   globalWindow.api = api
 }

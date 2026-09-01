@@ -77,9 +77,9 @@ export function registerExtensionHandlers(): void {
     console.log('[Extension IPC] extension:select called')
 
     const ownerWindow = BrowserWindow.fromWebContents(event.sender)
-    const dialogOptions = {
+    const dialogOptions: Electron.OpenDialogOptions = {
       title: '选择 Chrome 扩展目录',
-      properties: ['openDirectory', 'dontAddToRecent'] as const
+      properties: ['openDirectory', 'dontAddToRecent']
     }
 
     const result = ownerWindow

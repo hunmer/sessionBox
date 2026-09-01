@@ -182,12 +182,12 @@ class WebviewManager {
 
   // ====== 视图创建与销毁 ======
 
-  createView(tabId: string, pageId: string, url: string) {
+  createView(tabId: string, pageId: string, url: string, containerOverride?: string) {
     if (!this.mainWindow) return null
     if (url.startsWith('sessionbox://')) return null
 
     const page = getPageById(pageId)
-    const containerId = page?.containerId || ''
+    const containerId = containerOverride || page?.containerId || ''
     const container = containerId ? getContainerById(containerId) : undefined
 
     const proxyId = page?.proxyId ?? container?.proxyId ?? (page ? getGroupById(page.groupId)?.proxyId : undefined)
@@ -310,7 +310,7 @@ class WebviewManager {
     if (this.pendingViews.has(tabId)) {
       const pending = this.pendingViews.get(tabId)!
       this.pendingViews.delete(tabId)
-      this.createView(tabId, pending.pageId, pending.url)
+      this.createView(tabId, pending.pageId, pending.url, pending.containerId || undefined)
       return this.views.get(tabId) ?? null
     }
 
@@ -342,10 +342,11 @@ class WebviewManager {
         extensions.removeTab(entry.view.webContents)
       }
 
-      if (!this.mainWindow?.isDestroyed()) {
+      const mainWindow = this.mainWindow
+      if (mainWindow && !mainWindow.isDestroyed()) {
         entry.view.setVisible(false)
         entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
-        this.mainWindow.contentView.removeChildView(entry.view)
+        mainWindow.contentView.removeChildView(entry.view)
       }
 
       if (!entry.view.webContents.isDestroyed()) {

@@ -5,8 +5,7 @@ import {
   updateProxy,
   deleteProxy,
   getProxyById,
-  listContainers,
-  getGroupById
+  listContainers
 } from '../services/store'
 import { testProxy, applyProxyToSession } from '../services/proxy'
 import { webviewManager } from '../services/webview-manager'
@@ -64,7 +63,7 @@ async function hotUpdateProxy(proxyId: string, isDelete = false): Promise<void> 
   const containers = listContainers()
 
   for (const container of containers) {
-    const effectiveProxyId = container.proxyId ?? getGroupById(container.groupId)?.proxyId
+    const effectiveProxyId = container.proxyId
     if (effectiveProxyId !== proxyId) continue
 
     const partition = `persist:container-${container.id}`

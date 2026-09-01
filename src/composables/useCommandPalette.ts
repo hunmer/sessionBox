@@ -1,6 +1,6 @@
 // src/composables/useCommandPalette.ts
 
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, type Ref, type ShallowRef } from 'vue'
 import type { CommandItem, CommandProvider } from '@/types/command'
 
 export interface ParsedQuery {
@@ -12,9 +12,26 @@ export interface ParsedQuery {
   unknownPrefix: boolean
 }
 
-export function useCommandPalette() {
+/** useCommandPalette 返回的 API（显式声明，避免推断出引用 .pnpm 内部依赖的类型） */
+export interface CommandPaletteApi {
+  providers: ShallowRef<CommandProvider[]>
+  results: ShallowRef<Map<string, CommandItem[]>>
+  loading: Ref<boolean>
+  activeProvider: Ref<CommandProvider | null>
+  queryText: Ref<string>
+  registerProvider: (provider: CommandProvider) => void
+  registerProviders: (list: CommandProvider[]) => void
+  activateProvider: (provider: CommandProvider) => void
+  deactivateProvider: () => void
+  searchWithProvider: (provider: CommandProvider, query: string) => Promise<void>
+  parseQuery: (input: string) => ParsedQuery
+  search: (input: string) => Promise<void>
+}
+
+export function useCommandPalette(): CommandPaletteApi {
   const providers = shallowRef<CommandProvider[]>([])
-  const results = ref<Map<string, CommandItem[]>>(new Map())
+  // shallowRef：Map 总是整体替换，无需深层响应式，也避免推断出不可移植的深层解包类型
+  const results = shallowRef<Map<string, CommandItem[]>>(new Map())
   const loading = ref(false)
   const activeProvider = ref<CommandProvider | null>(null)
   const queryText = ref('')

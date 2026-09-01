@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, toRaw } from 'vue'
+import { ref, computed, toRaw, type Ref } from 'vue'
 import type { ChatSession, ChatMessage, ToolCall, ChatThinkingBlock } from '@/types'
 import {
   createSession as dbCreateSession,

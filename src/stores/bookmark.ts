@@ -78,7 +78,8 @@ function parseBookmarkHTML(
         pendingBookmarks.push({
           title,
           url,
-          folderId: parentFolderId,
+          // 顶层书签不属于任何文件夹，留空时由展示层归入根级
+          folderId: parentFolderId ?? '',
           order: pendingBookmarks.filter((b) => b.folderId === parentFolderId).length
         })
       }
