@@ -241,10 +241,7 @@ function openFullPage(site: string) {
       <!-- 区域二：扩展列表（垂直模式） -->
       <ResizablePanel :default-size="33">
         <div class="flex flex-col items-center justify-center py-2 h-full overflow-y-auto">
-          <ExtensionActionList
-            vertical
-            @open-manager="extensionManagerRef?.open()"
-          />
+          
         </div>
       </ResizablePanel>
 
@@ -253,22 +250,10 @@ function openFullPage(site: string) {
       <!-- 区域三：设置 / 代理入口 -->
       <ResizablePanel :default-size="34">
         <div class="flex flex-col items-center justify-end gap-1 py-2 h-full">
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8"
-            @click="chatUIStore.togglePanel()"
-          >
-            <MessageSquare class="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8"
-            @click="emit('openProxy')"
-          >
-            <Network class="h-4 w-4" />
-          </Button>
+          <ExtensionActionList
+            vertical
+            @open-manager="extensionManagerRef?.open()"
+          />
         </div>
       </ResizablePanel>
     </ResizablePanelGroup>

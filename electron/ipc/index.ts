@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog, app, shell } from 'electron'
+import { ipcMain, BrowserWindow, dialog, app, shell, nativeTheme } from 'electron'
 import { join } from 'path'
 import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { execSync } from 'child_process'
@@ -26,6 +26,8 @@ import {
   setDefaultContainerId,
   getMinimizeOnClose,
   setMinimizeOnClose,
+  getNativeThemeSource,
+  setNativeThemeSource,
   getAskContainerOnOpen,
   setAskContainerOnOpen,
   getDefaultWorkspaceId,
@@ -473,8 +475,25 @@ function registerPasswordIpc(): void {
   })
 }
 
-/** 主题导入导出 IPC */
+/** 主题导入导出 IPC + nativeTheme 同步（影响 BrowserView/WebView 中网页读取的 prefers-color-scheme） */
 function registerThemeIpc(): void {
+  // 启动时恢复上次保存的主题来源，避免已打开网页按系统主题渲染造成闪变
+  nativeTheme.themeSource = getNativeThemeSource()
+
+  ipcMain.handle('theme:setNativeTheme', (_e, source: 'system' | 'light' | 'dark') => {
+    if (source !== 'system' && source !== 'light' && source !== 'dark') {
+      throw new Error(`Invalid theme source: ${source}`)
+    }
+    nativeTheme.themeSource = source
+    setNativeThemeSource(source)
+    return nativeTheme.shouldUseDarkColors
+  })
+
+  ipcMain.handle('theme:getNativeTheme', () => ({
+    source: nativeTheme.themeSource,
+    isDark: nativeTheme.shouldUseDarkColors
+  }))
+
   ipcMain.handle('theme:importOpenFile', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     if (!win) return null

@@ -326,12 +326,13 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
               @update:model-value="onPageReorder(workspace.group.id, $event)"
             >
               <template #item="{ element: pageItem }">
-                <ContextMenu>
-                  <ContextMenuTrigger as-child>
-                    <SidebarMenuSubItem
-                      :style="workspace.color ? { '--item-hover': workspace.color + '20' } : undefined"
-                      class="group/menu-sub-item"
-                    >
+                <!-- item 插槽根节点必须是真实元素（li），vuedraggable 的 data-draggable 标记才能落到 li 上；根为 renderless 组件时标记会丢失，导致拖拽被外层分组列表抢占 -->
+                <SidebarMenuSubItem
+                  :style="workspace.color ? { '--item-hover': workspace.color + '20' } : undefined"
+                  class="group/menu-sub-item"
+                >
+                  <ContextMenu>
+                    <ContextMenuTrigger as-child>
                       <div class="flex items-center gap-1 w-full">
                         <SidebarMenuSubButton
                           as-child
@@ -435,23 +436,23 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                    </SidebarMenuSubItem>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem @click="emit('editPage', pageItem.page)">
-                      <Pencil class="w-4 h-4 mr-2" />
-                      编辑
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem
-                      class="text-destructive"
-                      @click="emit('deletePage', pageItem.page)"
-                    >
-                      <Trash2 class="w-4 h-4 mr-2" />
-                      删除
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem @click="emit('editPage', pageItem.page)">
+                        <Pencil class="w-4 h-4 mr-2" />
+                        编辑
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        class="text-destructive"
+                        @click="emit('deletePage', pageItem.page)"
+                      >
+                        <Trash2 class="w-4 h-4 mr-2" />
+                        删除
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                </SidebarMenuSubItem>
               </template>
             </draggable>
           </CollapsibleContent>

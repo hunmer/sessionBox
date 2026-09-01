@@ -743,6 +743,14 @@ export function setMinimizeOnClose(enabled: boolean): void {
   store.set('minimizeOnClose', enabled)
 }
 
+export function getNativeThemeSource(): 'system' | 'light' | 'dark' {
+  return store.get('nativeThemeSource', 'system')
+}
+
+export function setNativeThemeSource(source: 'system' | 'light' | 'dark'): void {
+  store.set('nativeThemeSource', source)
+}
+
 // ====== MCP 设置 ======
 
 export function getMcpEnabled(): boolean {

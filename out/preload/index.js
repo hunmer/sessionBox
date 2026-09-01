@@ -221,7 +221,9 @@ const api = {
   },
   theme: {
     importOpenFile: () => electron.ipcRenderer.invoke("theme:importOpenFile"),
-    exportSaveFile: (json) => electron.ipcRenderer.invoke("theme:exportSaveFile", json)
+    exportSaveFile: (json) => electron.ipcRenderer.invoke("theme:exportSaveFile", json),
+    setNativeTheme: (source) => electron.ipcRenderer.invoke("theme:setNativeTheme", source),
+    getNativeTheme: () => electron.ipcRenderer.invoke("theme:getNativeTheme")
   },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   searchEngine: {

@@ -446,6 +446,10 @@ const api = {
       ipcRenderer.invoke('theme:importOpenFile'),
     exportSaveFile: (json: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('theme:exportSaveFile', json),
+    setNativeTheme: (source: 'system' | 'light' | 'dark'): Promise<boolean> =>
+      ipcRenderer.invoke('theme:setNativeTheme', source),
+    getNativeTheme: (): Promise<{ source: 'system' | 'light' | 'dark'; isDark: boolean }> =>
+      ipcRenderer.invoke('theme:getNativeTheme'),
   },
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),

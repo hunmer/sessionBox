@@ -12,6 +12,7 @@ import MemoryInfo from './MemoryInfo.vue'
 import DownloadStatus from './DownloadStatus.vue'
 import {
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarRail,
 } from '@/components/ui/sidebar'
@@ -194,18 +195,17 @@ const workspaceSwitcherItems = computed(() => {
         @delete-page="handleDeletePage"
         @select-page="handleSelectPage"
       />
-      <div class="mt-auto shrink-0">
-        <DownloadStatus :collapsed="collapsed" @open-full="tabStore.openInternalPage('downloads')" />
-        <MemoryInfo :collapsed="collapsed" />
-        <NavUser
-          class="p-1"
-          :user="{ name: userProfileStore.profile.name, email: '', avatar: userProfileStore.avatarSrc, emoji: userProfileStore.isEmojiAvatar ? userProfileStore.profile.avatar : undefined }"
-          :collapsed="collapsed"
-          @open-settings="emit('openSettings', $event)"
-        />
-      </div>
     </SidebarContent>
-    <SidebarRail />
+    <SidebarFooter class="shrink-0">
+      <DownloadStatus :collapsed="collapsed" @open-full="tabStore.openInternalPage('downloads')" />
+      <MemoryInfo :collapsed="collapsed" />
+      <NavUser
+        class="p-1"
+        :user="{ name: userProfileStore.profile.name, email: '', avatar: userProfileStore.avatarSrc, emoji: userProfileStore.isEmojiAvatar ? userProfileStore.profile.avatar : undefined }"
+        :collapsed="collapsed"
+        @open-settings="emit('openSettings', $event)"
+      />
+    </SidebarFooter>
   </div>
 
   <!-- 分组编辑对话框 -->

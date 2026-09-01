@@ -383,11 +383,17 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
+  /** 同步 Electron nativeTheme，让 BrowserView/WebView 里的网页（含第三方站点）读取到相同的 prefers-color-scheme */
+  function syncNativeTheme(t: Theme) {
+    window.api?.theme?.setNativeTheme(t)?.catch(() => {})
+  }
+
   function setTheme(t: Theme) {
     theme.value = t
     localStorage.setItem(THEME_KEY, t)
     applyThemeMode(t)
     applyPresetVars()
+    syncNativeTheme(t)
   }
 
   function setPreset(key: string) {
@@ -411,6 +417,7 @@ export const useThemeStore = defineStore('theme', () => {
   // 初始化
   applyThemeMode(theme.value)
   applyPresetVars()
+  syncNativeTheme(theme.value)
 
   watch(theme, () => applyPresetVars())
 
