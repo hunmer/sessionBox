@@ -40,7 +40,6 @@ function onPointerUp(): void {
       style="-webkit-app-region: no-drag"
       @pointerdown="onPointerDown($event, edge.dir)"
       @pointerup="onPointerUp"
-      @pointercancel="onPointerUp"
     />
   </div>
 </template>

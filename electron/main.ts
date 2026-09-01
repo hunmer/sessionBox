@@ -156,8 +156,6 @@ if (!gotTheLock) {
       autoHideMenuBar: true,
       frame: false,
       transparent: true,
-      minWidth: 900,
-      minHeight: 600,
       icon: nativeImage.createFromPath(iconPath),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),

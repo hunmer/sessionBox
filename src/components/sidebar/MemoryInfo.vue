@@ -48,15 +48,6 @@ onUnmounted(() => {
 
 <template>
   <div class="px-3 pt-2 pb-1 text-xs text-sidebar-foreground/60 space-y-1.5">
-    <!-- 应用占用 + 系统总内存 -->
-    <div
-      v-if="!collapsed"
-      class="flex items-center justify-between"
-    >
-      <span>应用占用 {{ formatMB(appMemoryKB) }} MB</span>
-      <span>系统总内存 {{ formatGB(totalMemoryKB) }} GB</span>
-    </div>
-
     <!-- 应用占用进度条 -->
     <div
       class="flex h-2 w-full overflow-hidden rounded-full bg-sidebar-foreground/5"

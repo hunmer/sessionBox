@@ -397,14 +397,18 @@ function registerWindowIpc(): void {
   })
 
   // 手动窗口缩放：Windows 上 transparent 窗口没有 WS_THICKFRAME，
-  // 原生 resize 边框不可用，需主进程轮询光标位置模拟
+  // 原生 resize 边框不可用，需主进程轮询光标位置模拟。
+  // 每次拖拽都重置光标基准；主进程轮询屏幕坐标，避免光标进入
+  // WebContentsView 后渲染层 pointermove 无法继续传递。
   let resizeTimer: NodeJS.Timeout | null = null
+  let resizeWin: BrowserWindow | null = null
 
   function stopManualResize(): void {
     if (resizeTimer) {
       clearInterval(resizeTimer)
       resizeTimer = null
     }
+    resizeWin = null
   }
 
   ipcMain.on('window:startResize', (e, direction: string) => {
@@ -412,28 +416,29 @@ function registerWindowIpc(): void {
     if (!win || win.isMaximized() || win.isFullScreen()) return
     stopManualResize()
 
-    const startBounds = win.getBounds()
-    const startPos = screen.getCursorScreenPoint()
-    const [minWidth = 400, minHeight = 300] = win.getMinimumSize()
-
+    let lastPos = screen.getCursorScreenPoint()
+    resizeWin = win
     resizeTimer = setInterval(() => {
-      if (win.isDestroyed()) {
+      if (win.isDestroyed() || win.isMaximized() || win.isFullScreen()) {
         stopManualResize()
         return
       }
+
       const pos = screen.getCursorScreenPoint()
-      let { x, y, width, height } = startBounds
-      const dx = pos.x - startPos.x
-      const dy = pos.y - startPos.y
-      if (direction.includes('e')) width = Math.max(minWidth, startBounds.width + dx)
-      if (direction.includes('s')) height = Math.max(minHeight, startBounds.height + dy)
+      let { x, y, width, height } = win.getBounds()
+      const dx = pos.x - lastPos.x
+      const dy = pos.y - lastPos.y
+      lastPos = pos
+
+      if (direction.includes('e')) width += dx
+      if (direction.includes('s')) height += dy
       if (direction.includes('w')) {
-        width = Math.max(minWidth, startBounds.width - dx)
-        x = startBounds.x + startBounds.width - width
+        width -= dx
+        x += dx
       }
       if (direction.includes('n')) {
-        height = Math.max(minHeight, startBounds.height - dy)
-        y = startBounds.y + startBounds.height - height
+        height -= dy
+        y += dy
       }
       win.setBounds({ x, y, width, height })
     }, 16)

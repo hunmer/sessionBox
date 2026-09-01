@@ -31,6 +31,9 @@ import {
 
 export { BLOCKED_SCHEMES }
 
+// 为渲染层边缘缩放把手让出命中区域，避免被 WebContentsView 覆盖。
+const WINDOW_RESIZE_GUTTER = 6
+
 class WebviewManager {
   private sessionProxyEnabled = new Map<string, boolean>()
   private tabProxyOverride = new Map<string, string>()
@@ -54,6 +57,20 @@ class WebviewManager {
 
   getMainWindow(): BrowserWindow | null {
     return this.mainWindow
+  }
+
+  private reserveResizeGutter(rect: { x: number; y: number; width: number; height: number }): { x: number; y: number; width: number; height: number } {
+    const win = this.mainWindow
+    if (!win || win.isDestroyed()) return rect
+    const content = win.getContentBounds()
+    const result = { ...rect }
+    if (rect.x + rect.width >= content.width) {
+      result.width = Math.max(1, rect.width - WINDOW_RESIZE_GUTTER)
+    }
+    if (rect.y + rect.height >= content.height) {
+      result.height = Math.max(1, rect.height - WINDOW_RESIZE_GUTTER)
+    }
+    return result
   }
 
   setAria2Enabled(enabled: boolean): void {
@@ -393,7 +410,7 @@ class WebviewManager {
     this.multiBoundsActive = false
     this.visibleTabIds = new Set([this.activeTabId])
 
-    entry.view.setBounds(rect)
+    entry.view.setBounds(this.reserveResizeGutter(rect))
     entry.view.setVisible(this.overlayVisible)
     entry.lastActiveAt = Date.now()
 
@@ -414,7 +431,7 @@ class WebviewManager {
       const entry = this.ensureViewReady(tabId)
       if (entry) {
         visibleTabIds.add(tabId)
-        entry.view.setBounds(rect)
+        entry.view.setBounds(this.reserveResizeGutter(rect))
         entry.view.setVisible(this.overlayVisible)
         entry.lastActiveAt = Date.now()
       }
