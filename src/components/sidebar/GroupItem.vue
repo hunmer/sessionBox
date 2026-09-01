@@ -314,7 +314,7 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
             </ContextMenuContent>
           </ContextMenu>
           <CollapsibleContent>
-            <!-- 页面列表（可拖拽排序） -->
+            <!-- 页面列表（可拖拽排序）；注意 item 插槽根必须是单个真实元素（li），vuedraggable 的 data-draggable 标记才能落到 li 上，根为 renderless 组件时标记会丢失，导致拖拽被外层分组列表抢占 -->
             <draggable
               :model-value="workspace.pages"
               item-key="id"
@@ -326,7 +326,6 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
               @update:model-value="onPageReorder(workspace.group.id, $event)"
             >
               <template #item="{ element: pageItem }">
-                <!-- item 插槽根节点必须是真实元素（li），vuedraggable 的 data-draggable 标记才能落到 li 上；根为 renderless 组件时标记会丢失，导致拖拽被外层分组列表抢占 -->
                 <SidebarMenuSubItem
                   :style="workspace.color ? { '--item-hover': workspace.color + '20' } : undefined"
                   class="group/menu-sub-item"

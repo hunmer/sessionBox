@@ -206,6 +206,7 @@ const workspaceSwitcherItems = computed(() => {
         @open-settings="emit('openSettings', $event)"
       />
     </SidebarFooter>
+    <SidebarRail />
   </div>
 
   <!-- 分组编辑对话框 -->

@@ -17,6 +17,7 @@ import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import UpdateNotification from '@/components/common/UpdateNotification.vue'
 import RightPanel from '@/components/common/RightPanel.vue'
 import InternalPageHost from '@/components/common/InternalPageHost.vue'
+import WindowResizeHandles from '@/components/common/WindowResizeHandles.vue'
 import SplitView from '@/components/tabs/SplitView.vue'
 import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
 import NewTabDialog from '@/components/tabs/NewTabDialog.vue'
@@ -216,6 +217,8 @@ const savedVerticalTabWidth = localStorage.getItem(VERTICAL_TAB_STORAGE_KEY)
 const verticalTabDefaultSize = savedVerticalTabWidth ? Number(savedVerticalTabWidth) : VERTICAL_TAB_DEFAULT_SIZE
 const sidebarCurrentSize = ref(sidebarDefaultSize)
 const verticalTabCurrentSize = ref(verticalTabDefaultSize)
+// 程序化折叠/展开期间，布局事件可能先于 resize 到达，暂时锁定目标状态
+const sidebarToggleTarget = ref<boolean | null>(null)
 
 // 从 localStorage 恢复聊天面板宽度
 const savedChatPanelWidth = localStorage.getItem(CHAT_PANEL_STORAGE_KEY)
@@ -320,7 +323,14 @@ function handleLayout(sizes: number[]) {
     if (!isCollapsed) {
       sidebarExpandedSize.value = Math.max(sidebarWidth, SIDEBAR_MIN_SIZE)
     }
-    sidebarCollapsed.value = isCollapsed
+    if (sidebarToggleTarget.value !== null) {
+      sidebarCollapsed.value = sidebarToggleTarget.value
+      // resize 已达到目标尺寸后，恢复由实际布局尺寸驱动状态
+      const reachedTarget = sidebarToggleTarget.value ? isCollapsed : !isCollapsed
+      if (reachedTarget) sidebarToggleTarget.value = null
+    } else {
+      sidebarCollapsed.value = isCollapsed
+    }
   }
   if (tabStore.tabLayout === 'vertical' && sizes.length >= 3) {
     verticalTabCurrentSize.value = Math.max(Math.round(sizes[1]), 120)
@@ -357,11 +367,13 @@ function toggleSidebar() {
   if (!panel) return
   if (sidebarCollapsed.value) {
     // 展开：先置为展开态，让 min-size 回到 200，再恢复记忆宽度
+    sidebarToggleTarget.value = false
     sidebarCollapsed.value = false
     nextTick(() => panel.resize(Math.max(sidebarExpandedSize.value, SIDEBAR_MIN_SIZE)))
     return
   }
   // 折叠：先置为折叠态，让 min-size 降到折叠宽度，再缩到 collapsed-size
+  sidebarToggleTarget.value = true
   sidebarCollapsed.value = true
   nextTick(() => panel.resize(SIDEBAR_COLLAPSED_SIZE))
 }
@@ -652,6 +664,8 @@ useIpcEvent('shortcut', (actionId) => {
         class="absolute top-0 inset-x-0 h-[12px] z-50"
         style="-webkit-app-region: drag"
       />
+      <!-- 透明窗口手动缩放把手（Windows 上无原生 resize 边框） -->
+      <WindowResizeHandles v-if="!isMaximized" />
       <ResizablePanelGroup
         v-if="!immersiveMode"
         :key="tabStore.tabLayout"

@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog, app, shell, nativeTheme } from 'electron'
+import { ipcMain, BrowserWindow, dialog, app, shell, nativeTheme, screen } from 'electron'
 import { join } from 'path'
 import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { execSync } from 'child_process'
@@ -394,6 +394,53 @@ function registerWindowIpc(): void {
     const win = BrowserWindow.fromWebContents(e.sender)
     if (!win) return
     win.setFullScreen(!win.isFullScreen())
+  })
+
+  // 手动窗口缩放：Windows 上 transparent 窗口没有 WS_THICKFRAME，
+  // 原生 resize 边框不可用，需主进程轮询光标位置模拟
+  let resizeTimer: NodeJS.Timeout | null = null
+
+  function stopManualResize(): void {
+    if (resizeTimer) {
+      clearInterval(resizeTimer)
+      resizeTimer = null
+    }
+  }
+
+  ipcMain.on('window:startResize', (e, direction: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win || win.isMaximized() || win.isFullScreen()) return
+    stopManualResize()
+
+    const startBounds = win.getBounds()
+    const startPos = screen.getCursorScreenPoint()
+    const [minWidth = 400, minHeight = 300] = win.getMinimumSize()
+
+    resizeTimer = setInterval(() => {
+      if (win.isDestroyed()) {
+        stopManualResize()
+        return
+      }
+      const pos = screen.getCursorScreenPoint()
+      let { x, y, width, height } = startBounds
+      const dx = pos.x - startPos.x
+      const dy = pos.y - startPos.y
+      if (direction.includes('e')) width = Math.max(minWidth, startBounds.width + dx)
+      if (direction.includes('s')) height = Math.max(minHeight, startBounds.height + dy)
+      if (direction.includes('w')) {
+        width = Math.max(minWidth, startBounds.width - dx)
+        x = startBounds.x + startBounds.width - width
+      }
+      if (direction.includes('n')) {
+        height = Math.max(minHeight, startBounds.height - dy)
+        y = startBounds.y + startBounds.height - height
+      }
+      win.setBounds({ x, y, width, height })
+    }, 16)
+  })
+
+  ipcMain.on('window:endResize', () => {
+    stopManualResize()
   })
 
   // 外部链接

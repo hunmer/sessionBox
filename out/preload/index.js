@@ -185,7 +185,13 @@ const api = {
     maximize: () => electron.ipcRenderer.invoke("window:maximize"),
     close: () => electron.ipcRenderer.invoke("window:close"),
     isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized"),
-    toggleFullscreen: () => electron.ipcRenderer.invoke("window:toggleFullscreen")
+    toggleFullscreen: () => electron.ipcRenderer.invoke("window:toggleFullscreen"),
+    startResize: (direction) => {
+      electron.ipcRenderer.send("window:startResize", direction);
+    },
+    endResize: () => {
+      electron.ipcRenderer.send("window:endResize");
+    }
   },
   settings: {
     getTabFreezeMinutes: () => electron.ipcRenderer.invoke("settings:getTabFreezeMinutes"),

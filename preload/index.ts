@@ -396,7 +396,13 @@ const api = {
     maximize: (): Promise<boolean> => ipcRenderer.invoke('window:maximize'),
     close: (): Promise<void> => ipcRenderer.invoke('window:close'),
     isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
-    toggleFullscreen: (): Promise<void> => ipcRenderer.invoke('window:toggleFullscreen')
+    toggleFullscreen: (): Promise<void> => ipcRenderer.invoke('window:toggleFullscreen'),
+    startResize: (direction: string): void => {
+      ipcRenderer.send('window:startResize', direction)
+    },
+    endResize: (): void => {
+      ipcRenderer.send('window:endResize')
+    }
   },
 
   settings: {
