@@ -2,7 +2,7 @@
 import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import { listGroups, listPages } from './store'
+import { listGroups, listPages, getDefaultWindowState } from './store'
 import { trayWindowManager } from './tray-window'
 import type { Page } from './store'
 
@@ -31,10 +31,9 @@ class TrayManager {
     this.tray = new Tray(icon)
     this.tray.setToolTip('SessionBox')
 
-    // 双击激活主窗口（只显示不隐藏）
+    // 双击打开主窗口（恢复默认位置和默认大小）
     this.tray.on('double-click', () => {
-      mainWindow.show()
-      mainWindow.focus()
+      this.openMainWindow(mainWindow)
     })
 
     // 右键显示菜单（每次动态构建，确保任务栏窗口列表实时更新）
@@ -192,10 +191,7 @@ class TrayManager {
       { type: 'separator' },
       {
         label: '打开主窗口',
-        click: () => {
-          mainWindow.show()
-          mainWindow.focus()
-        }
+        click: () => this.openMainWindow(mainWindow)
       },
       { type: 'separator' },
       {
@@ -206,6 +202,22 @@ class TrayManager {
         }
       }
     ])
+  }
+
+  /** 打开主窗口：恢复到默认位置和默认大小 */
+  private openMainWindow(mainWindow: BrowserWindow): void {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore()
+    }
+    // 最大化状态下 setBounds 只会修改还原尺寸，先退出最大化
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize()
+    }
+    const { width, height } = getDefaultWindowState()
+    mainWindow.setBounds({ width, height })
+    mainWindow.center()
+    mainWindow.show()
+    mainWindow.focus()
   }
 
   /** 软件内打开：激活主窗口并通知渲染进程 */

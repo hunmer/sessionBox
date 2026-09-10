@@ -706,6 +706,10 @@ export function getWindowState(): WindowState {
   return store.get('windowState', defaults.windowState)
 }
 
+export function getDefaultWindowState(): WindowState {
+  return { ...defaults.windowState }
+}
+
 export function setWindowState(state: WindowState): void {
   store.set('windowState', state)
 }

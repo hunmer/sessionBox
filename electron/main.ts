@@ -5,7 +5,8 @@ import { migrateBookmarksAndPasswords } from './services/migration'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
-import { listExtensions, getWindowState, setWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled } from './services/store'
+import { listExtensions, getWindowState, setWindowState, getDefaultWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled } from './services/store'
+import type { WindowState } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
 import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
 import { trayManager } from './services/tray'
@@ -139,19 +140,43 @@ if (!gotTheLock) {
     trayWindowManager.destroyAll()
   })
 
+  // 主窗口最小尺寸（默认 1280x800）
+  const MIN_WINDOW_WIDTH = 800
+  const MIN_WINDOW_HEIGHT = 600
+
+  /** 校验保存的窗口大小：无效或小于最小尺寸时恢复默认值 */
+  function sanitizeWindowState(state: WindowState): WindowState {
+    const sizeValid =
+      Number.isFinite(state.width) &&
+      Number.isFinite(state.height) &&
+      state.width >= MIN_WINDOW_WIDTH &&
+      state.height >= MIN_WINDOW_HEIGHT
+    if (sizeValid) return state
+
+    console.warn(
+      `[Main] 窗口大小配置异常（${state.width}x${state.height}），恢复默认值`
+    )
+    const defaults = getDefaultWindowState()
+    const sanitized = { ...state, width: defaults.width, height: defaults.height }
+    setWindowState(sanitized)
+    return sanitized
+  }
+
   function createWindow(): void {
     const iconPath = app.isPackaged
       ? join(process.resourcesPath, 'icon.png')
       : join(__dirname, '../../resources/icon.png')
 
-    // 加载窗口状态
-    const windowState = getWindowState()
+    // 加载窗口状态（尺寸过小时恢复默认）
+    const windowState = sanitizeWindowState(getWindowState())
 
     const mainWindow = new BrowserWindow({
       x: windowState.x,
       y: windowState.y,
       width: windowState.width,
       height: windowState.height,
+      minWidth: MIN_WINDOW_WIDTH,
+      minHeight: MIN_WINDOW_HEIGHT,
       show: false,
       autoHideMenuBar: true,
       frame: false,
