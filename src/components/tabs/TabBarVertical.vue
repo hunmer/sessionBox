@@ -12,6 +12,14 @@ import type { Page } from '@/types'
 const tabStore = useTabStore()
 const showAddDialog = defineModel<boolean>('showAddDialog')
 
+defineProps<{
+  immersiveMode?: boolean
+}>()
+
+const emit = defineEmits<{
+  'update:immersive-mode': [value: boolean]
+}>()
+
 // 分组折叠状态
 const collapsedGroups = ref(new Set<string>())
 
@@ -62,7 +70,7 @@ function handleNavigateUrl(url: string) {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-card/30 border-r border-border">
+  <div class="flex flex-col h-full bg-card/30">
     <!-- 标签列表 - 分组模式 -->
     <draggable
       v-if="tabStore.tabGroupEnabled"
@@ -149,7 +157,11 @@ function handleNavigateUrl(url: string) {
         <Plus class="w-3.5 h-3.5" />
       </Button>
       <div class="flex-1" />
-      <TabLayoutMenu direction="vertical" />
+      <TabLayoutMenu
+        direction="vertical"
+        :immersive-mode="immersiveMode"
+        @update:immersive-mode="emit('update:immersive-mode', $event)"
+      />
     </div>
 
     <NewTabDialog

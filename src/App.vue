@@ -10,7 +10,6 @@ import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
 import TabBar from '@/components/tabs/TabBar.vue'
 import TabBarVertical from '@/components/tabs/TabBarVertical.vue'
-import BrowserToolbar from '@/components/toolbar/BrowserToolbar.vue'
 import BookmarkBar from '@/components/bookmarks/BookmarkBar.vue'
 import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
@@ -190,6 +189,12 @@ const TAB_BAR_HEIGHT = 42
 const TOOLBAR_HEIGHT = 42
 const BOOKMARK_BAR_HEIGHT = 34
 const BOTTOM_PANEL_HEIGHT = 30
+
+// ====== 浮动卡片布局 ======
+// 区域卡片：圆角描边 + 柔和阴影，配合 bg-muted 底色与 8px 间距形成悬浮效果
+const CARD_CLASSES = 'h-full overflow-hidden rounded-xl border border-border/60 shadow-sm'
+// 分隔条隐形化为 8px 间隙，悬停时微微提亮提示可拖拽
+const HANDLE_CLASSES = 'w-2 rounded-full bg-transparent transition-colors hover:bg-border/40'
 
 const sidebarPanelRef = ref<InstanceType<typeof ResizablePanel>>()
 
@@ -656,7 +661,7 @@ useIpcEvent('shortcut', (actionId) => {
 <template>
   <TooltipProvider :delay-duration="300">
     <div
-      class="relative h-screen w-screen overflow-hidden bg-background text-foreground transition-all duration-150"
+      class="relative h-screen w-screen overflow-hidden bg-muted text-foreground transition-all duration-150"
       :class="isMaximized ? '' : 'rounded-lg border border-border/60 shadow-2xl dark:shadow-black/50'"
     >
       <!-- 全宽窗口悬浮拖拽条 -->
@@ -670,6 +675,7 @@ useIpcEvent('shortcut', (actionId) => {
         v-if="!immersiveMode"
         :key="tabStore.tabLayout"
         direction="horizontal"
+        class="p-2"
         @layout="handleLayout"
       >
         <template v-if="!immersiveMode">
@@ -680,21 +686,26 @@ useIpcEvent('shortcut', (actionId) => {
             :default-size="sidebarDefaultSize"
             :min-size="sidebarMinSize"
           >
-            <SidebarProvider
-              :open="!sidebarCollapsed"
-              @update:open="sidebarCollapsed = !$event"
+            <div
+              class="bg-sidebar"
+              :class="CARD_CLASSES"
             >
-              <Sidebar
-                :collapsed="sidebarCollapsed"
-                @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'user'"
-              />
-            </SidebarProvider>
+              <SidebarProvider
+                :open="!sidebarCollapsed"
+                @update:open="sidebarCollapsed = !$event"
+              >
+                <Sidebar
+                  :collapsed="sidebarCollapsed"
+                  @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'user'"
+                />
+              </SidebarProvider>
+            </div>
           </ResizablePanel>
 
           <!-- 侧边栏分隔条：折叠态禁用拖拽并隐藏（min-size 已随状态切换，折叠态固定为 collapsed-size） -->
           <ResizableHandle
             :disabled="sidebarCollapsed"
-            :class="sidebarCollapsed && 'pointer-events-none opacity-0'"
+            :class="[HANDLE_CLASSES, sidebarCollapsed && 'pointer-events-none opacity-0']"
           />
 
           <!-- 垂直标签栏面板（仅垂直模式） -->
@@ -705,15 +716,27 @@ useIpcEvent('shortcut', (actionId) => {
               :min-size="120"
               :max-size="320"
             >
-              <TabBarVertical v-model:show-add-dialog="verticalTabAddDialog" />
+              <div
+                class="bg-background"
+                :class="CARD_CLASSES"
+              >
+                <TabBarVertical
+                  v-model:show-add-dialog="verticalTabAddDialog"
+                  :immersive-mode="immersiveMode"
+                  @update:immersive-mode="handleImmersiveModeChange"
+                />
+              </div>
             </ResizablePanel>
-            <ResizableHandle />
+            <ResizableHandle :class="HANDLE_CLASSES" />
           </template>
 
         <!-- 主内容区面板 -->
         </template>
         <ResizablePanel>
-          <div class="flex flex-col h-full min-w-0">
+          <div
+            class="flex flex-col h-full min-w-0 bg-background"
+            :class="CARD_CLASSES"
+          >
             <template v-if="ready">
               <!-- 水平标签栏 -->
               <TabBar
@@ -725,8 +748,7 @@ useIpcEvent('shortcut', (actionId) => {
                 @update:immersive-mode="handleImmersiveModeChange"
               />
 
-              <!-- 工具栏 -->
-              <BrowserToolbar v-if="tabStore.activeTab && !immersiveMode" />
+              <!-- 工具栏已合并至标签栏：导航按钮在左侧，其余功能在"更多"菜单 -->
 
               <!-- 快捷网站栏 -->
               <BookmarkBar
@@ -849,21 +871,27 @@ useIpcEvent('shortcut', (actionId) => {
 
         <!-- 聊天面板（可调整宽度，默认 380px） -->
         <template v-if="chatUIStore.isPanelVisible">
-          <ResizableHandle />
+          <ResizableHandle :class="HANDLE_CLASSES" />
           <ResizablePanel
             size-unit="px"
             :default-size="chatPanelDefaultSize"
             :min-size="280"
             :max-size="600"
           >
-            <ChatPanel :chat="chatStore" />
+            <div
+              class="bg-background"
+              :class="CARD_CLASSES"
+            >
+              <ChatPanel :chat="chatStore" />
+            </div>
           </ResizablePanel>
         </template>
 
         <!-- 右侧面板（固定 50px） -->
         <div
           v-if="!immersiveMode"
-          class="w-[50px] shrink-0 h-full border-l border-border"
+          class="ml-2 w-[50px] shrink-0 bg-background"
+          :class="CARD_CLASSES"
         >
           <RightPanel
             @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
@@ -976,7 +1004,6 @@ useIpcEvent('shortcut', (actionId) => {
             @toggle-sidebar="showImmersivePanel('left')"
             @update:immersive-mode="handleImmersiveModeChange"
           />
-          <BrowserToolbar v-if="tabStore.activeTab" />
           <BookmarkBar
             v-if="tabStore.bookmarkBarVisible"
             @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
@@ -1006,7 +1033,11 @@ useIpcEvent('shortcut', (actionId) => {
             class="h-full border-r border-border bg-background/96 shadow-2xl backdrop-blur-sm"
             :style="{ width: `${immersiveVerticalTabSize}px` }"
           >
-            <TabBarVertical v-model:show-add-dialog="verticalTabAddDialog" />
+            <TabBarVertical
+              v-model:show-add-dialog="verticalTabAddDialog"
+              :immersive-mode="immersiveMode"
+              @update:immersive-mode="handleImmersiveModeChange"
+            />
           </div>
         </div>
 

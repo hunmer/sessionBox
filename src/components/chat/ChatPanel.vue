@@ -61,10 +61,7 @@ function handleEdit(messageId: string, newContent: string) {
 </script>
 
 <template>
-  <div
-    class="flex flex-col h-full bg-background"
-    :class="{ 'border-l border-border': !embedded }"
-  >
+  <div class="flex flex-col h-full bg-background">
     <!-- 头部工具栏 -->
     <div class="flex items-center gap-1.5 px-3 py-2 border-b shrink-0">
       <BrowserViewPicker v-if="!embedded" />

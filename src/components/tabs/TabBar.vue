@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeftClose, PanelLeftOpen, ChevronRight, Eye, EyeOff } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeftClose, PanelLeftOpen, ChevronRight, ArrowLeft, ArrowRight, RotateCw, Loader2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { Toggle } from '@/components/ui/toggle'
 import draggable from 'vuedraggable'
 import TabLayoutMenu from './TabLayoutMenu.vue'
-import SplitButton from './SplitButton.vue'
 import NewTabDialog from './NewTabDialog.vue'
 import TabItem from './TabItem.vue'
 import { useTabStore } from '@/stores/tab'
@@ -24,6 +22,21 @@ defineEmits<{
 
 const tabStore = useTabStore()
 const showAddDialog = ref(false)
+
+// 导航状态（后退/前进/加载中）
+const navState = computed(() => tabStore.activeNavState)
+
+function goBack() {
+  if (tabStore.activeTabId) tabStore.goBack(tabStore.activeTabId)
+}
+
+function goForward() {
+  if (tabStore.activeTabId) tabStore.goForward(tabStore.activeTabId)
+}
+
+function reload() {
+  if (tabStore.activeTabId) tabStore.reload(tabStore.activeTabId)
+}
 
 // 分组折叠状态
 const collapsedGroups = ref(new Set<string>())
@@ -101,6 +114,45 @@ function handleNavigateUrl(url: string) {
         class="w-3.5 h-3.5"
       />
       <PanelLeftClose
+        v-else
+        class="w-3.5 h-3.5"
+      />
+    </Button>
+
+    <!-- 后退 -->
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      class="h-7 w-7 flex-shrink-0 rounded-full"
+      :disabled="!navState.canGoBack"
+      @click="goBack"
+    >
+      <ArrowLeft class="w-3.5 h-3.5" />
+    </Button>
+
+    <!-- 前进 -->
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      class="h-7 w-7 flex-shrink-0 rounded-full"
+      :disabled="!navState.canGoForward"
+      @click="goForward"
+    >
+      <ArrowRight class="w-3.5 h-3.5" />
+    </Button>
+
+    <!-- 刷新/加载中 -->
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      class="h-7 w-7 flex-shrink-0 rounded-full"
+      @click="reload"
+    >
+      <Loader2
+        v-if="navState.isLoading"
+        class="w-3.5 h-3.5 animate-spin"
+      />
+      <RotateCw
         v-else
         class="w-3.5 h-3.5"
       />
@@ -196,27 +248,12 @@ function handleNavigateUrl(url: string) {
         @navigate="handleNavigateUrl"
       />
 
-      <!-- 分屏按钮 -->
-      <SplitButton />
-
-      <!-- 更多选项 -->
-      <TabLayoutMenu direction="horizontal" />
-
-      <Toggle
-        class="ml-1 h-7 w-7 rounded-full bg-background/70 text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
-        :model-value="immersiveMode"
-        aria-label="Toggle immersive mode"
-        @update:model-value="$emit('update:immersive-mode', $event)"
-      >
-        <Eye
-          v-if="!immersiveMode"
-          class="w-3.5 h-3.5"
-        />
-        <EyeOff
-          v-else
-          class="w-3.5 h-3.5"
-        />
-      </Toggle>
+      <!-- 更多选项（分屏/沉浸模式已合并至菜单） -->
+      <TabLayoutMenu
+        direction="horizontal"
+        :immersive-mode="immersiveMode"
+        @update:immersive-mode="$emit('update:immersive-mode', $event)"
+      />
     </template>
 
     <!-- 窗口控制按钮 -->
