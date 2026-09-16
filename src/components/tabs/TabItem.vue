@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onBeforeUnmount } from 'vue'
-import { X, Globe, Loader2, ExternalLink, Monitor, Snowflake, Volume2, VolumeX, Pin, PinOff, GlobeLock } from 'lucide-vue-next'
+import { X, Globe, Loader2, Snowflake, Volume2, VolumeX, Pin, PinOff } from 'lucide-vue-next'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -339,7 +339,6 @@ onBeforeUnmount(clearTimers)
             v-if="isWebPage"
             @click="handleToggleSiteMute"
           >
-            <GlobeLock class="w-3.5 h-3.5 mr-2" />
             {{ isSiteMuted ? '取消静音此网站' : '静音此网站' }}
           </ContextMenuItem>
           <ContextMenuItem @click="tabStore.togglePin(tab.id)">
@@ -354,20 +353,20 @@ onBeforeUnmount(clearTimers)
             {{ isPinned ? '取消固定' : '固定标签' }}
           </ContextMenuItem>
           <ContextMenuItem @click="tabStore.openInNewWindow(tab.id)">
-            <Monitor class="w-3.5 h-3.5 mr-2" />新窗口打开
+            新窗口打开
           </ContextMenuItem>
           <ContextMenuItem @click="tabStore.openInBrowser(tab.id)">
-            <ExternalLink class="w-3.5 h-3.5 mr-2" />浏览器打开
+            浏览器打开
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem @click="handleCloseOther">
-            <X class="w-3.5 h-3.5 mr-2" />关闭其他标签页
+            关闭其他标签页
           </ContextMenuItem>
           <ContextMenuItem @click="handleCloseLeft">
-            <X class="w-3.5 h-3.5 mr-2" />关闭左边
+            关闭左边
           </ContextMenuItem>
           <ContextMenuItem @click="handleCloseRight">
-            <X class="w-3.5 h-3.5 mr-2" />关闭右边
+            关闭右边
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>

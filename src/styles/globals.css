@@ -2,6 +2,7 @@
 
 @theme inline {
   --color-background: var(--background);
+  --color-backdrop: var(--backdrop);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -45,6 +46,8 @@
 @layer base {
   :root.light {
     --background: #ffffff;
+    /* 浮动卡片布局的桌面底色：比卡片略深，衬托悬浮感 */
+    --backdrop: #eef0f4;
     --foreground: #222222;
     --card: #ffffff;
     --card-foreground: #222222;
@@ -76,6 +79,8 @@
 
   :root.dark {
     --background: #181e25;
+    /* 暗色底色比所有卡片更深，让卡片呈"浮起"而非"内嵌" */
+    --backdrop: #10151c;
     --foreground: #e8eaed;
     --card: #1f2733;
     --card-foreground: #e8eaed;

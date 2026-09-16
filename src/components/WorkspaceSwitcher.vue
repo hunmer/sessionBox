@@ -97,7 +97,7 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton
-            class="w-fit px-1.5 flex items-center justify-center"
+            class="flex-1 min-w-0 px-1.5 flex items-center justify-center rounded-lg border border-sidebar-border"
             :class="collapsed ? '!p-1.5' : ''"
           >
             <div

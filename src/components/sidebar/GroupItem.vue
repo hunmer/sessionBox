@@ -244,10 +244,13 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
           <ContextMenu>
             <ContextMenuTrigger as-child>
               <div
-                class="flex items-center gap-1 group/menu-button-wrapper"
+                class="flex items-center gap-1 rounded-lg group/menu-button-wrapper"
                 :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
               >
-                <SidebarMenuButton as-child>
+                <SidebarMenuButton
+                  as-child
+                  class="rounded-lg"
+                >
                   <a
                     href="#"
                     class="flex-1 flex items-center gap-2"

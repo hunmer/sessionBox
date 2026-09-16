@@ -38,6 +38,7 @@ const emit = defineEmits<{
     <SidebarMenuItem :class="collapsed ? 'flex justify-center' : ''">
       <SidebarMenuButton
         size="lg"
+        class="rounded-lg border border-sidebar-border"
         :class="['data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground', collapsed ? '!w-full justify-center' : '']"
         @click="emit('openSettings', 'user')"
       >

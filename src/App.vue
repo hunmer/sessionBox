@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, nextTick, ref, watch, computed } from 'vue'
+import { Info } from 'lucide-vue-next'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
@@ -18,6 +21,7 @@ import RightPanel from '@/components/common/RightPanel.vue'
 import InternalPageHost from '@/components/common/InternalPageHost.vue'
 import WindowResizeHandles from '@/components/common/WindowResizeHandles.vue'
 import SplitView from '@/components/tabs/SplitView.vue'
+import SiteDataPopover from '@/components/toolbar/SiteDataPopover.vue'
 import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
 import NewTabDialog from '@/components/tabs/NewTabDialog.vue'
 import CommandPaletteDialog from '@/components/command-palette/CommandPaletteDialog.vue'
@@ -66,6 +70,7 @@ const verticalTabAddDialog = ref(false)
 const tabOverviewOpen = ref(false)
 const commandPaletteOpen = ref(false)
 const newTabDialogOpen = ref(false)
+const siteDataPopoverOpen = ref(false)
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
 const shouldShowWebContentsView = computed(() =>
   !!tabStore.activeTab && !tabStore.isInternalPage && !isWebviewBlocked.value
@@ -191,8 +196,9 @@ const BOOKMARK_BAR_HEIGHT = 34
 const BOTTOM_PANEL_HEIGHT = 30
 
 // ====== 浮动卡片布局 ======
-// 区域卡片：圆角描边 + 柔和阴影，配合 bg-muted 底色与 8px 间距形成悬浮效果
-const CARD_CLASSES = 'h-full overflow-hidden rounded-xl border border-border/60 shadow-sm'
+// 区域卡片：圆角描边 + 柔和阴影，配合 bg-backdrop 底色与 8px 间距形成悬浮效果
+// 暗色下阴影加深，避免卡片浮起感消失
+const CARD_CLASSES = 'h-full overflow-hidden rounded-xl border border-border/60 shadow-card dark:shadow-lg dark:shadow-black/20'
 // 分隔条隐形化为 8px 间隙，悬停时微微提亮提示可拖拽
 const HANDLE_CLASSES = 'w-2 rounded-full bg-transparent transition-colors hover:bg-border/40'
 
@@ -661,7 +667,7 @@ useIpcEvent('shortcut', (actionId) => {
 <template>
   <TooltipProvider :delay-duration="300">
     <div
-      class="relative h-screen w-screen overflow-hidden bg-muted text-foreground transition-all duration-150"
+      class="relative h-screen w-screen overflow-hidden bg-backdrop text-foreground transition-all duration-150"
       :class="isMaximized ? '' : 'rounded-lg border border-border/60 shadow-2xl dark:shadow-black/50'"
     >
       <!-- 全宽窗口悬浮拖拽条 -->
@@ -818,25 +824,46 @@ useIpcEvent('shortcut', (actionId) => {
                     <span class="truncate">
                       {{ tabStore.activeTab?.url || '就绪' }}
                     </span>
-                    <div
-                      v-if="tabStore.activeProxyInfo"
-                      class="flex items-center gap-2 shrink-0 max-w-[45%]"
-                    >
-                      <Switch
-                        :model-value="proxyApplied"
-                        :disabled="!tabStore.activeProxyInfo?.enabled"
-                        @update:model-value="handleToggleProxy"
-                      />
-                      <Badge
-                        v-if="activeProxyBadgeText"
-                        variant="outline"
-                        class="max-w-full truncate select-none"
-                        :class="activeProxyBadgeClass"
-                        :title="tabStore.activeProxyInfo?.error || tabStore.activeProxyInfo?.ip || activeProxyBadgeText"
-                        @click="handleDetectProxy"
-                      >
-                        {{ activeProxyBadgeText }}
-                      </Badge>
+                    <div class="flex items-center gap-2 shrink-0 min-w-0 max-w-[45%]">
+                      <template v-if="tabStore.activeProxyInfo">
+                        <Switch
+                          :model-value="proxyApplied"
+                          :disabled="!tabStore.activeProxyInfo?.enabled"
+                          @update:model-value="handleToggleProxy"
+                        />
+                        <Badge
+                          v-if="activeProxyBadgeText"
+                          variant="outline"
+                          class="max-w-full truncate select-none"
+                          :class="activeProxyBadgeClass"
+                          :title="tabStore.activeProxyInfo?.error || tabStore.activeProxyInfo?.ip || activeProxyBadgeText"
+                          @click="handleDetectProxy"
+                        >
+                          {{ activeProxyBadgeText }}
+                        </Badge>
+                      </template>
+                      <!-- 站点数据 -->
+                      <Popover v-model:open="siteDataPopoverOpen">
+                        <PopoverTrigger as-child>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            class="h-5 w-5 shrink-0 rounded-sm text-muted-foreground"
+                            :disabled="!tabStore.activeTabId || tabStore.isInternalPage"
+                            @mousedown.prevent
+                          >
+                            <Info class="w-3 h-3" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          side="top"
+                          :side-offset="4"
+                          align="end"
+                          class="w-80 p-0"
+                        >
+                          <SiteDataPopover @cleared="siteDataPopoverOpen = false" />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                 </div>
@@ -992,7 +1019,7 @@ useIpcEvent('shortcut', (actionId) => {
         />
 
         <div
-          class="absolute inset-x-0 top-0 z-40 transition-all duration-300 ease-out"
+          class="absolute inset-x-0 top-0 z-40 overflow-hidden rounded-b-xl shadow-lg transition-all duration-300 ease-out"
           :class="immersivePanelVisible.top ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'"
           @mouseenter="showImmersivePanel('top')"
           @mouseleave="scheduleHideImmersivePanel('top')"
@@ -1011,14 +1038,14 @@ useIpcEvent('shortcut', (actionId) => {
         </div>
 
         <div
-          class="absolute left-0 top-0 bottom-0 z-40 flex transition-all duration-300 ease-out"
+          class="absolute left-0 top-0 bottom-0 z-40 flex overflow-hidden rounded-r-xl shadow-2xl transition-all duration-300 ease-out"
           :class="immersivePanelVisible.left ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 pointer-events-none'"
           :style="{ width: `${immersiveLeftPanelWidth}px` }"
           @mouseenter="showImmersivePanel('left')"
           @mouseleave="scheduleHideImmersivePanel('left')"
         >
           <div
-            class="h-full border-r border-border bg-background/96 shadow-2xl backdrop-blur-sm"
+            class="h-full border-r border-border bg-background/96 backdrop-blur-sm"
             :style="{ width: `${immersiveSidebarSize}px` }"
           >
             <SidebarProvider :open="true">
@@ -1030,7 +1057,7 @@ useIpcEvent('shortcut', (actionId) => {
           </div>
           <div
             v-if="tabStore.tabLayout === 'vertical'"
-            class="h-full border-r border-border bg-background/96 shadow-2xl backdrop-blur-sm"
+            class="h-full border-r border-border bg-background/96 backdrop-blur-sm"
             :style="{ width: `${immersiveVerticalTabSize}px` }"
           >
             <TabBarVertical
@@ -1042,13 +1069,13 @@ useIpcEvent('shortcut', (actionId) => {
         </div>
 
         <div
-          class="absolute right-0 top-0 bottom-0 z-40 transition-all duration-300 ease-out"
+          class="absolute right-0 top-0 bottom-0 z-40 overflow-hidden rounded-l-xl shadow-2xl transition-all duration-300 ease-out"
           :class="immersivePanelVisible.right ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'"
           :style="{ width: `${RIGHT_PANEL_WIDTH}px` }"
           @mouseenter="showImmersivePanel('right')"
           @mouseleave="scheduleHideImmersivePanel('right')"
         >
-          <div class="h-full border-l border-border bg-background/96 shadow-2xl backdrop-blur-sm">
+          <div class="h-full border-l border-border bg-background/96 backdrop-blur-sm">
             <RightPanel
               @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
               @open-proxy="proxyDialogOpen = true"
@@ -1057,7 +1084,7 @@ useIpcEvent('shortcut', (actionId) => {
         </div>
 
         <div
-          class="absolute inset-x-0 bottom-0 z-40 transition-all duration-300 ease-out"
+          class="absolute inset-x-0 bottom-0 z-40 overflow-hidden rounded-t-xl shadow-lg transition-all duration-300 ease-out"
           :class="immersivePanelVisible.bottom ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'"
           @mouseenter="showImmersivePanel('bottom')"
           @mouseleave="scheduleHideImmersivePanel('bottom')"

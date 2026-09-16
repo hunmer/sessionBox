@@ -83,7 +83,7 @@ const ungroupedOpen = ref(true)
           <DropdownMenuTrigger as-child>
             <SidebarMenuButton
               :tooltip="workspace.name"
-              class="flex items-center justify-center"
+              class="flex items-center justify-center rounded-lg"
             >
               <EmojiRenderer :emoji="workspace.emoji" />
             </SidebarMenuButton>

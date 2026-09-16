@@ -12,7 +12,6 @@ import {
   Star,
   KeyRound,
   Code2,
-  Info,
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -35,7 +34,6 @@ import { useTabStore, type TabGroupMode } from '@/stores/tab'
 import { useBookmarkStore } from '@/stores/bookmark'
 import AddBookmarkDialog from '@/components/bookmarks/AddBookmarkDialog.vue'
 import PasswordPopover from '@/components/toolbar/PasswordPopover.vue'
-import SiteDataPopover from '@/components/toolbar/SiteDataPopover.vue'
 import SplitMenuContent from './SplitMenuContent.vue'
 
 const props = defineProps<{
@@ -81,12 +79,6 @@ function toggleBookmark() {
     bookmarkDialogOpen.value = true
   }
 }
-
-// ====== 站点数据 ======
-const siteDataDialogOpen = ref(false)
-
-/** 当前 tab 是否为内部页面（内部页面不展示站点数据） */
-const isInternalPage = computed(() => !!tabStore.activeTab?.url?.startsWith('sessionbox://'))
 
 // ====== 密码/笔记 ======
 const passwordDialogOpen = ref(false)
@@ -204,14 +196,6 @@ function handleZoomReset() {
       </DropdownMenuItem>
       <DropdownMenuItem
         class="cursor-pointer"
-        :disabled="!tabStore.activeTabId || isInternalPage"
-        @click="siteDataDialogOpen = true"
-      >
-        <Info class="size-4 mr-2" />
-        <span class="flex-1">站点数据</span>
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        class="cursor-pointer"
         :disabled="!tabStore.activeTabId"
         @click="passwordDialogOpen = true"
       >
@@ -292,16 +276,6 @@ function handleZoomReset() {
     :default-url="tabStore.activeTab?.url"
     :default-title="tabStore.activeTab?.title"
   />
-
-  <!-- 站点数据对话框 -->
-  <Dialog v-model:open="siteDataDialogOpen">
-    <DialogContent class="w-80 p-0 gap-0">
-      <DialogTitle class="sr-only">
-        站点数据
-      </DialogTitle>
-      <SiteDataPopover @cleared="siteDataDialogOpen = false" />
-    </DialogContent>
-  </Dialog>
 
   <!-- 密码/笔记对话框 -->
   <Dialog v-model:open="passwordDialogOpen">
