@@ -134,14 +134,24 @@ export const useDownloadStore = defineStore('download', () => {
     globalStat.value = null
   }
 
-  /** 暂停任务 */
+  /** 暂停任务（自动路由 aria2 / 系统下载器） */
   async function pause(gid: string) {
+    if (isSystemTask(gid)) {
+      await api.download.pauseSystem(gid)
+      await refreshSystemTasks()
+      return
+    }
     await api.download.pause(gid)
     await refreshTasks()
   }
 
-  /** 恢复任务 */
+  /** 恢复任务（自动路由 aria2 / 系统下载器） */
   async function resume(gid: string) {
+    if (isSystemTask(gid)) {
+      await api.download.resumeSystem(gid)
+      await refreshSystemTasks()
+      return
+    }
     await api.download.resume(gid)
     await refreshTasks()
   }
@@ -159,7 +169,14 @@ export const useDownloadStore = defineStore('download', () => {
 
   /** 清除已完成/出错的记录（aria2 与系统下载器一并清理） */
   async function purge() {
-    await api.download.purge()
+    // aria2 未连接时 purge 会拒绝，忽略以保证系统下载记录仍被清理
+    if (connected.value) {
+      try {
+        await api.download.purge()
+      } catch {
+        // ignore
+      }
+    }
     await api.download.clearSystemFinished()
     await Promise.all([refreshTasks(), refreshSystemTasks()])
   }

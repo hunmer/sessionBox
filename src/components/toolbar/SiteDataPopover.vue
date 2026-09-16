@@ -5,6 +5,7 @@ import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -250,42 +251,75 @@ watch(() => tabStore.activeTabId, loadInfo, { immediate: true })
       <!-- 默认操作按钮 -->
       <div
         v-else
-        class="flex flex-col"
+        class="flex flex-col gap-0.5"
       >
-        <Button
-          variant="ghost"
-          size="sm"
-          class="w-full h-7 gap-1 text-xs"
-          :disabled="!hasSite || loading"
-          @click="loadInfo"
-        >
-          <RefreshCw
-            class="h-3 w-3"
-            :class="loading ? 'animate-spin' : ''"
-          />
-          刷新
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          class="w-full h-7 gap-1 text-xs"
-          :disabled="!hasSite || importing"
-          @click="startImport"
-        >
-          <ClipboardPaste class="h-3 w-3" />
-          从其他浏览器导入 Cookie
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          class="w-full h-7 gap-1 text-xs text-destructive hover:text-destructive"
-          :disabled="!hasSite || clearing"
-          @click="confirmOpen = true"
-        >
-          <Trash2 class="h-3 w-3" />
-          一键清理当前站点
-        </Button>
-        <p class="text-[10px] text-muted-foreground text-center mt-1">
+        <TooltipProvider :delay-duration="300">
+          <div class="flex items-center justify-end gap-0.5">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="size-7"
+                  :disabled="!hasSite || loading"
+                  @click="loadInfo"
+                >
+                  <RefreshCw
+                    class="h-3.5 w-3.5"
+                    :class="loading ? 'animate-spin' : ''"
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                :side-offset="4"
+              >
+                刷新
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="size-7"
+                  :disabled="!hasSite || importing"
+                  @click="startImport"
+                >
+                  <ClipboardPaste class="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                :side-offset="4"
+              >
+                导入 Cookie
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="size-7 text-destructive hover:text-destructive"
+                  :disabled="!hasSite || clearing"
+                  @click="confirmOpen = true"
+                >
+                  <Trash2 class="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                :side-offset="4"
+              >
+                一键清理当前站点
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+        <p class="text-[10px] text-muted-foreground text-center">
           清理 Cookie / localStorage / IndexedDB / Cache
         </p>
       </div>

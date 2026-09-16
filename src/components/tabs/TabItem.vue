@@ -268,7 +268,7 @@ onBeforeUnmount(clearTimers)
                 ? 'shadow-sm font-medium'
                 : isActive
                   ? 'bg-primary/15 text-primary border-primary/30 shadow-sm font-medium'
-                  : 'border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                  : 'border-border/60 text-muted-foreground hover:bg-muted/60 hover:text-foreground'
             ]"
             :style="activeStyle"
             @click="tabStore.switchTab(tab.id)"

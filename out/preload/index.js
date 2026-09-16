@@ -284,6 +284,8 @@ const api = {
     // 系统下载器任务（Electron DownloadItem 兜底路径，与 aria2 任务统一展示）
     listSystem: () => electron.ipcRenderer.invoke("download:listSystem"),
     removeSystem: (gid) => electron.ipcRenderer.invoke("download:removeSystem", gid),
+    pauseSystem: (gid) => electron.ipcRenderer.invoke("download:pauseSystem", gid),
+    resumeSystem: (gid) => electron.ipcRenderer.invoke("download:resumeSystem", gid),
     clearSystemFinished: () => electron.ipcRenderer.invoke("download:clearSystemFinished"),
     clearSystemAll: () => electron.ipcRenderer.invoke("download:clearSystemAll"),
     /** 订阅系统下载进度推送（主进程节流 300ms 推送一次任务列表） */

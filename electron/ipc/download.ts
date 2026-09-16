@@ -18,7 +18,7 @@ import {
   startNotificationMonitor,
   stopNotificationMonitor
 } from '../services/aria2'
-import { getTasks as getSystemTasks, removeTask as removeSystemTask, clearFinished as clearSystemFinished, clearAll as clearSystemAll } from '../services/system-downloads'
+import { getTasks as getSystemTasks, removeTask as removeSystemTask, pauseTask as pauseSystemTask, resumeTask as resumeSystemTask, clearFinished as clearSystemFinished, clearAll as clearSystemAll } from '../services/system-downloads'
 import { webviewManager } from '../services/webview-manager'
 
 export function registerDownloadIpcHandlers(): void {
@@ -70,8 +70,14 @@ export function registerDownloadIpcHandlers(): void {
   /** 列出所有系统下载任务 */
   ipcMain.handle('download:listSystem', () => getSystemTasks())
 
-  /** 移除单个系统下载任务记录 */
+  /** 移除单个系统下载任务记录（进行中的会取消下载） */
   ipcMain.handle('download:removeSystem', (_e, gid: string) => removeSystemTask(gid))
+
+  /** 暂停进行中的系统下载任务 */
+  ipcMain.handle('download:pauseSystem', (_e, gid: string) => pauseSystemTask(gid))
+
+  /** 恢复已暂停的系统下载任务 */
+  ipcMain.handle('download:resumeSystem', (_e, gid: string) => resumeSystemTask(gid))
 
   /** 清空已结束的系统下载任务（保留进行中的） */
   ipcMain.handle('download:clearSystemFinished', () => clearSystemFinished())

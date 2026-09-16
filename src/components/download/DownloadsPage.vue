@@ -284,7 +284,7 @@ function onDragStart(event: DragEvent) {
             </Button>
             <div class="flex-1" />
             <Button
-              v-if="store.connected"
+              v-if="store.allTasks.length > 0"
               size="sm"
               variant="ghost"
               class="h-7 text-xs"
@@ -296,29 +296,35 @@ function onDragStart(event: DragEvent) {
 
           <!-- 任务列表 -->
           <div class="flex-1 min-h-0 overflow-auto px-4 pb-2">
-            <!-- 未连接状态 -->
+            <!-- 未连接提示：浏览器直接下载的任务不依赖 aria2，仍可查看 -->
             <div
               v-if="!store.connected"
-              class="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground"
+              class="mb-2 flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground"
             >
-              <Server class="w-10 h-10" />
-              <p class="text-sm">
-                Aria2 服务未连接
-              </p>
+              <Server class="w-3.5 h-3.5 shrink-0" />
+              <span>Aria2 服务未连接，仅显示浏览器直接下载的任务</span>
               <Button
                 size="sm"
+                variant="outline"
+                class="ml-auto h-6 px-2 text-xs"
                 @click="emit('open-download-settings')"
               >
-                <Settings class="w-3.5 h-3.5 mr-1" /> 配置连接
+                <Settings class="w-3 h-3 mr-1" /> 配置连接
               </Button>
             </div>
 
             <!-- 空列表 -->
             <div
-              v-else-if="filteredTasks.length === 0"
-              class="flex items-center justify-center h-full text-sm text-muted-foreground"
+              v-if="filteredTasks.length === 0"
+              class="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground"
             >
-              暂无下载任务
+              <Server
+                v-if="!store.connected"
+                class="w-10 h-10"
+              />
+              <p class="text-sm">
+                {{ store.connected ? '暂无下载任务' : '暂无浏览器下载记录' }}
+              </p>
             </div>
 
             <!-- 任务列表 -->
@@ -369,6 +375,13 @@ function onDragStart(event: DragEvent) {
                       class="text-[10px] shrink-0"
                     >
                       {{ statusLabel(task.status) }}
+                    </Badge>
+                    <Badge
+                      v-if="store.isSystemTask(task.gid)"
+                      variant="outline"
+                      class="text-[10px] shrink-0 text-muted-foreground"
+                    >
+                      浏览器
                     </Badge>
                   </div>
 
@@ -431,7 +444,7 @@ function onDragStart(event: DragEvent) {
                     <Play class="w-3.5 h-3.5" />
                   </Button>
                   <Button
-                    v-if="task.status === 'error'"
+                    v-if="task.status === 'error' && !store.isSystemTask(task.gid)"
                     size="icon"
                     variant="ghost"
                     class="h-7 w-7"

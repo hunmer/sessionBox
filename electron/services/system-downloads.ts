@@ -190,12 +190,44 @@ export function getTasks(): SystemDownloadTask[] {
   })
 }
 
-/** 移除单个任务记录（不取消进行中的下载，仅清理列表显示） */
+/** 移除任务记录；进行中的下载先取消底层 DownloadItem（与 aria2 remove 行为一致） */
 export function removeTask(gid: string): void {
+  const item = items.get(gid)
+  if (item) {
+    try {
+      item.cancel()
+    } catch {
+      // 已结束的 item 无法取消，忽略
+    }
+  }
   tasks.delete(gid)
   items.delete(gid)
   finishedAt.delete(gid)
   broadcastNow()
+}
+
+/** 暂停进行中的系统下载任务 */
+export function pauseTask(gid: string): void {
+  const item = items.get(gid)
+  if (item && !item.isPaused()) {
+    try {
+      item.pause()
+    } catch {
+      // 非进行中状态无法暂停，忽略
+    }
+  }
+}
+
+/** 恢复已暂停的系统下载任务 */
+export function resumeTask(gid: string): void {
+  const item = items.get(gid)
+  if (item && item.canResume()) {
+    try {
+      item.resume()
+    } catch {
+      // 无法恢复，忽略
+    }
+  }
 }
 
 /** 清空所有已结束的任务（进行中的保留） */
