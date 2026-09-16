@@ -45,6 +45,7 @@ const editingGroup = ref<Group | null>(null)
 const pageDialogOpen = ref(false)
 const editingPage = ref<Page | null>(null)
 const newPageGroupId = ref<string>('')
+const newPageParentId = ref<string>('')
 
 // 分组操作
 function handleEditGroup(group: Group) {
@@ -71,8 +72,10 @@ async function handleDeleteGroup(group: Group) {
 
   // 先关闭并删除该分组下所有页面的标签页，再删除页面，最后删除分组
   for (const page of groupPages) {
-    const tab = tabStore.tabs.find(t => t.pageId === page.id)
-    if (tab) await tabStore.closeTab(tab.id)
+    const tabs = tabStore.tabs.filter(t => t.pageId === page.id)
+    for (const tab of tabs) {
+      await tabStore.closeTab(tab.id)
+    }
     await pageStore.deletePage(page.id)
   }
   await containerStore.deleteGroup(group.id)
@@ -92,6 +95,17 @@ function handleAddPage(groupId: string) {
   }
   editingPage.value = null
   newPageGroupId.value = groupId
+  newPageParentId.value = ''
+  pageDialogOpen.value = true
+}
+
+// 在某页面下添加子页面（子页面通过 parentId 认领父级，groupId 继承父页面）
+function handleAddSubPage(parentId: string) {
+  const parent = pageStore.getPage(parentId)
+  if (!parent) return
+  editingPage.value = null
+  newPageGroupId.value = parent.groupId
+  newPageParentId.value = parentId
   pageDialogOpen.value = true
 }
 
@@ -99,15 +113,24 @@ function handleAddPage(groupId: string) {
 function handleEditPage(page: Page) {
   editingPage.value = page
   newPageGroupId.value = page.groupId
+  newPageParentId.value = ''
   pageDialogOpen.value = true
 }
 
 // 删除页面
 async function handleDeletePage(page: Page) {
-  if (!confirm(`确定要删除页面「${page.name}」吗？`)) return
-  // 关闭关联的 tab
-  const tab = tabStore.tabs.find(t => t.pageId === page.id)
-  if (tab) await tabStore.closeTab(tab.id)
+  const children = pageStore.pages.filter(p => p.parentId === page.id)
+  const hint = children.length > 0 ? `其下 ${children.length} 个子页面将上移一层。` : ''
+  if (!confirm(`确定要删除页面「${page.name}」吗？${hint}`)) return
+  // 子页面上提一层（认领被删页面的父级）
+  for (const child of children) {
+    await pageStore.updatePage(child.id, { parentId: page.parentId })
+  }
+  // 关闭关联的所有标签页
+  const tabs = tabStore.tabs.filter(t => t.pageId === page.id)
+  for (const tab of tabs) {
+    await tabStore.closeTab(tab.id)
+  }
   await pageStore.deletePage(page.id)
 }
 
@@ -191,6 +214,7 @@ const workspaceSwitcherItems = computed(() => {
         @edit-group="handleEditGroup"
         @delete-group="handleDeleteGroup"
         @add-page="handleAddPage"
+        @add-sub-page="handleAddSubPage"
         @edit-page="handleEditPage"
         @delete-page="handleDeletePage"
         @select-page="handleSelectPage"
@@ -221,6 +245,7 @@ const workspaceSwitcherItems = computed(() => {
     v-model:open="pageDialogOpen"
     :page="editingPage"
     :group-id="newPageGroupId"
+    :parent-id="newPageParentId"
     @save="handleSavePage"
     @delete="handleDeletePage"
     @open-settings="emit('openSettings', $event)"

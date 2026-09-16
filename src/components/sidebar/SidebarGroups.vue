@@ -21,6 +21,7 @@ const emit = defineEmits<{
   editGroup: [group: Group]
   deleteGroup: [group: Group]
   addPage: [groupId: string]
+  addSubPage: [parentId: string]
   editPage: [page: Page]
   deletePage: [page: Page]
   selectPage: [pageId: string]
@@ -48,6 +49,7 @@ const emit = defineEmits<{
         @edit-group="emit('editGroup', $event)"
         @delete-group="emit('deleteGroup', $event)"
         @add-page="emit('addPage', $event)"
+        @add-sub-page="emit('addSubPage', $event)"
         @edit-page="emit('editPage', $event)"
         @delete-page="emit('deletePage', $event)"
         @select-page="emit('selectPage', $event)"

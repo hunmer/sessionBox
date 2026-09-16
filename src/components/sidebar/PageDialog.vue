@@ -29,6 +29,8 @@ const props = defineProps<{
   open: boolean
   page?: Page | null
   groupId?: string
+  /** 新建子页面时的父页面 id */
+  parentId?: string
 }>()
 
 const emit = defineEmits<{
@@ -89,12 +91,14 @@ const containers = computed(() => containerStore.containers)
 
 watch(() => props.open, (val) => {
   if (val) {
+    // 新建子页面时继承父页面的 url / user-agent / 代理
+    const inheritFrom = props.page ?? (props.parentId ? pageStore.getPage(props.parentId) : undefined)
     name.value = props.page?.name ?? ''
     icon.value = props.page?.icon ?? ''
-    url.value = props.page?.url ?? 'about:blank'
+    url.value = inheritFrom?.url ?? 'about:blank'
     containerId.value = props.page?.containerId || DEFAULT_CONTAINER
-    proxyId.value = props.page?.proxyId || NO_PROXY
-    userAgent.value = props.page?.userAgent ?? ''
+    proxyId.value = inheritFrom?.proxyId || NO_PROXY
+    userAgent.value = inheritFrom?.userAgent ?? ''
     autoCreateContainer.value = false
     newContainerName.value = ''
     newContainerProxyId.value = NO_PROXY
@@ -159,6 +163,7 @@ async function handleSave() {
 
   emit('save', {
     groupId: props.page?.groupId ?? props.groupId ?? '',
+    parentId: (props.page?.parentId ?? props.parentId) || undefined,
     containerId: resolvedContainerId,
     name: trimmed,
     icon: icon.value,
@@ -185,7 +190,7 @@ function handleDelete() {
   >
     <DialogContent class="sm:max-w-[420px] max-h-[85vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>{{ page ? '编辑页面' : '新建页面' }}</DialogTitle>
+        <DialogTitle>{{ page ? '编辑页面' : parentId ? '新建子页面' : '新建页面' }}</DialogTitle>
       </DialogHeader>
 
       <div class="flex flex-col gap-5 py-2 min-w-0">

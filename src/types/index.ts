@@ -52,6 +52,7 @@ export interface Container {
 export interface Page {
   id: string
   groupId: string
+  parentId?: string        // 父页面 id，空 = 顶层页面（子页面通过 parentId 认领父级）
   containerId?: string    // 空 = 走默认容器
   name: string
   icon: string

@@ -1,18 +1,12 @@
 <script setup lang="ts">
-import { reactive, computed, ref, onBeforeUnmount, watch } from 'vue'
-import { ChevronRight, MoreHorizontal, X, Pencil, Trash2, Plus } from "lucide-vue-next"
+import { reactive, watch } from 'vue'
+import { ChevronRight, MoreHorizontal, Pencil, Trash2, Plus } from "lucide-vue-next"
 import draggable from 'vuedraggable'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
+import PageTreeNode from './PageTreeNode.vue'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
-import { useTabStore } from '@/stores/tab'
-import { extractNavigableDropUrl, hasSupportedExternalDrop } from '@/lib/external-drop'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-
+import type { PageItem } from './page-tree'
 import {
   Collapsible,
   CollapsibleContent,
@@ -20,8 +14,6 @@ import {
 import {
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import {
   ContextMenu,
@@ -37,14 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Group, Page, Tab } from '@/types'
-
-interface PageItem {
-  page: Page
-  id: string
-  name: string
-  emoji: string
-}
+import type { Group, Page } from '@/types'
 
 interface Workspace {
   id: string
@@ -64,52 +49,13 @@ const emit = defineEmits<{
   editGroup: [group: Group]
   deleteGroup: [group: Group]
   addPage: [groupId: string]
+  addSubPage: [parentId: string]
   editPage: [page: Page]
   deletePage: [page: Page]
 }>()
 
 const containerStore = useContainerStore()
 const pageStore = usePageStore()
-const tabStore = useTabStore()
-
-// 计算每个页面的标签页数量
-const pageTabCounts = computed(() => {
-  const counts: Record<string, number> = {}
-  for (const tab of tabStore.tabs) {
-    if (tab.pageId) {
-      counts[tab.pageId] = (counts[tab.pageId] || 0) + 1
-    }
-  }
-  return counts
-})
-
-// 获取每个页面的标签页列表
-const pageTabs = computed(() => {
-  const map: Record<string, Tab[]> = {}
-  for (const tab of tabStore.tabs) {
-    if (tab.pageId) {
-      if (!map[tab.pageId]) map[tab.pageId] = []
-      map[tab.pageId].push(tab)
-    }
-  }
-  return map
-})
-
-// 当前激活标签页所属的页面 id（用于高亮当前页面）
-const activePageId = computed(() => tabStore.activeTab?.pageId ?? null)
-
-// 关闭页面的单个标签页
-async function closePageTab(tabId: string) {
-  await tabStore.closeTab(tabId)
-}
-
-// 关闭页面的所有标签页
-async function closeAllPageTabs(pageId: string) {
-  const tabs = pageTabs.value[pageId] || []
-  for (const tab of tabs) {
-    await tabStore.closeTab(tab.id)
-  }
-}
 
 // 为每个 workspace 维护独立的折叠状态，持久化到 localStorage
 const COLLAPSE_STORAGE_KEY = 'sessionbox-group-collapse-states'
@@ -134,94 +80,13 @@ watch(openStates, () => {
   localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify({ ...openStates }))
 })
 
-function handlePageClick(pageId: string) {
-  emit('selectPage', pageId)
-}
-
-const activeDropPageId = ref<string | null>(null)
-let hoverActivateTimer: ReturnType<typeof setTimeout> | null = null
-
-function clearHoverActivateTimer() {
-  if (!hoverActivateTimer) return
-  clearTimeout(hoverActivateTimer)
-  hoverActivateTimer = null
-}
-
-function getPageTabsById(pageId: string): Tab[] {
-  return tabStore.sortedTabs.filter(tab => tab.pageId === pageId)
-}
-
-function getFirstPageTab(pageId: string): Tab | null {
-  return getPageTabsById(pageId)[0] ?? null
-}
-
-async function activatePageFirstTab(pageId: string) {
-  const firstTab = getFirstPageTab(pageId)
-  if (!firstTab) return
-  await tabStore.switchTab(firstTab.id)
-}
-
-function handlePageDragOver(event: DragEvent, pageId: string) {
-  if (!hasSupportedExternalDrop(event)) return
-
-  event.preventDefault()
-  if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = 'copy'
-  }
-
-  if (activeDropPageId.value !== pageId) {
-    clearHoverActivateTimer()
-  }
-  activeDropPageId.value = pageId
-  if (hoverActivateTimer || tabStore.activeTabId === getFirstPageTab(pageId)?.id) return
-
-  hoverActivateTimer = setTimeout(() => {
-    hoverActivateTimer = null
-    void activatePageFirstTab(pageId)
-  }, 200)
-}
-
-function handlePageDragLeave(event: DragEvent, pageId: string) {
-  const currentTarget = event.currentTarget as HTMLElement | null
-  const relatedTarget = event.relatedTarget as Node | null
-  if (currentTarget?.contains(relatedTarget)) return
-
-  if (activeDropPageId.value === pageId) {
-    activeDropPageId.value = null
-  }
-  clearHoverActivateTimer()
-}
-
-async function handlePageDrop(event: DragEvent, pageId: string) {
-  const url = extractNavigableDropUrl(event)
-  activeDropPageId.value = null
-  clearHoverActivateTimer()
-  if (!url) return
-
-  event.preventDefault()
-
-  const firstTab = getFirstPageTab(pageId)
-  if (firstTab) {
-    await tabStore.switchTab(firstTab.id)
-    await tabStore.navigate(firstTab.id, url)
-    return
-  }
-
-  const createdTab = await tabStore.createTab(pageId)
-  await tabStore.navigate(createdTab.id, url)
-}
-
-onBeforeUnmount(() => {
-  clearHoverActivateTimer()
-})
-
 // 分组拖拽排序
 function onGroupReorder(reordered: Workspace[]) {
   containerStore.reorderGroups(reordered.map(w => w.group.id))
 }
 
-// 页面拖拽排序
-function onPageReorder(groupId: string, reordered: PageItem[]) {
+// 顶层页面拖拽排序（仅同层内）
+function onPageReorder(reordered: PageItem[]) {
   pageStore.reorderPages(reordered.map(p => p.id))
 }
 </script>
@@ -317,7 +182,7 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
             </ContextMenuContent>
           </ContextMenu>
           <CollapsibleContent>
-            <!-- 页面列表（可拖拽排序）；注意 item 插槽根必须是单个真实元素（li），vuedraggable 的 data-draggable 标记才能落到 li 上，根为 renderless 组件时标记会丢失，导致拖拽被外层分组列表抢占 -->
+            <!-- 顶层页面列表（可拖拽排序）；注意 item 插槽根必须是单个真实元素（li），vuedraggable 的 data-draggable 标记才能落到 li 上，根为 renderless 组件时标记会丢失，导致拖拽被外层分组列表抢占 -->
             <draggable
               :model-value="workspace.pages"
               item-key="id"
@@ -326,135 +191,17 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
               data-slot="sidebar-menu-sub"
               data-sidebar="menu-badge"
               class="border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5 group-data-[collapsible=icon]:hidden"
-              @update:model-value="onPageReorder(workspace.group.id, $event)"
+              @update:model-value="onPageReorder($event)"
             >
               <template #item="{ element: pageItem }">
-                <SidebarMenuSubItem
-                  :style="workspace.color ? { '--item-hover': workspace.color + '20' } : undefined"
-                  class="group/menu-sub-item"
-                >
-                  <ContextMenu>
-                    <ContextMenuTrigger as-child>
-                      <div class="flex items-center gap-1 w-full">
-                        <SidebarMenuSubButton
-                          as-child
-                          class="flex-1"
-                          :is-active="activePageId === pageItem.id"
-                        >
-                          <a
-                            href="#"
-                            class="flex items-center gap-2 w-full text-left rounded-md transition-colors"
-                            :class="activeDropPageId === pageItem.id ? 'bg-accent/60 text-accent-foreground' : ''"
-                            @click.prevent="handlePageClick(pageItem.id)"
-                            @dragover.stop="handlePageDragOver($event, pageItem.id)"
-                            @dragleave.stop="handlePageDragLeave($event, pageItem.id)"
-                            @drop.stop="handlePageDrop($event, pageItem.id)"
-                          >
-                            <EmojiRenderer
-                              :emoji="pageItem.emoji"
-                              :url="pageItem.url"
-                            />
-                            <span>{{ pageItem.name }}</span>
-                          </a>
-                        </SidebarMenuSubButton>
-                        <!-- 标签页关闭按钮 -->
-                        <template v-if="pageTabCounts[pageItem.id]">
-                          <!-- 单个标签页：直接关闭 -->
-                          <button
-                            v-if="pageTabCounts[pageItem.id] === 1"
-                            class="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                            @click.stop="closePageTab(pageTabs[pageItem.id][0].id)"
-                          >
-                            <X class="w-3.5 h-3.5" />
-                          </button>
-                          <!-- 多个标签页：弹出 Popover 列表 -->
-                          <Popover v-else>
-                            <PopoverTrigger as-child>
-                              <button
-                                class="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0 inline-flex items-center gap-0.5"
-                                @click.stop
-                              >
-                                <span class="text-[10px] leading-none">{{ pageTabCounts[pageItem.id] }}</span>
-                                <X class="w-3 h-3" />
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                              align="end"
-                              class="p-2 w-56"
-                              @click.stop
-                            >
-                              <div class="flex items-center justify-between mb-1.5 px-1">
-                                <span class="text-xs font-medium text-muted-foreground">打开的标签页</span>
-                                <button
-                                  class="text-xs text-destructive hover:underline"
-                                  @click="closeAllPageTabs(pageItem.id)"
-                                >
-                                  全部关闭
-                                </button>
-                              </div>
-                              <div class="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
-                                <div
-                                  v-for="tab in pageTabs[pageItem.id]"
-                                  :key="tab.id"
-                                  class="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted group/tab-item"
-                                >
-                                  <span
-                                    class="flex-1 text-xs truncate"
-                                    :title="tab.title || tab.url"
-                                  >{{ tab.title || tab.url }}</span>
-                                  <button
-                                    class="opacity-0 group-hover/tab-item:opacity-100 p-0.5 rounded hover:bg-destructive/10 text-destructive transition-opacity shrink-0"
-                                    @click="closePageTab(tab.id)"
-                                  >
-                                    <X class="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        </template>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger as-child>
-                            <button
-                              class="opacity-0 group-hover/menu-sub-item:opacity-100 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-opacity"
-                              @click.stop
-                            >
-                              <MoreHorizontal class="w-4 h-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuItem @click="emit('editPage', pageItem.page)">
-                              <Pencil class="w-4 h-4 mr-2" />
-                              编辑
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              class="text-destructive"
-                              @click="emit('deletePage', pageItem.page)"
-                            >
-                              <Trash2 class="w-4 h-4 mr-2" />
-                              删除
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent>
-                      <ContextMenuItem @click="emit('editPage', pageItem.page)">
-                        <Pencil class="w-4 h-4 mr-2" />
-                        编辑
-                      </ContextMenuItem>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem
-                        class="text-destructive"
-                        @click="emit('deletePage', pageItem.page)"
-                      >
-                        <Trash2 class="w-4 h-4 mr-2" />
-                        删除
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
-                </SidebarMenuSubItem>
+                <PageTreeNode
+                  :page-item="pageItem"
+                  :color="workspace.color"
+                  @select-page="emit('selectPage', $event)"
+                  @edit-page="emit('editPage', $event)"
+                  @delete-page="emit('deletePage', $event)"
+                  @add-sub-page="emit('addSubPage', $event)"
+                />
               </template>
             </draggable>
           </CollapsibleContent>
@@ -473,10 +220,5 @@ function onPageReorder(groupId: string, reordered: PageItem[]) {
 /* 移除按钮默认的灰色 hover 叠加 */
 .group\/menu-button-wrapper :deep([data-slot="sidebar-menu-button"]:hover) {
   background-color: transparent;
-}
-
-/* 页面项 hover 效果 - 覆盖 SidebarMenuSubButton 默认的 hover 样式 */
-.group\/menu-sub-item:hover :deep([data-slot="sidebar-menu-sub-button"]) {
-  background-color: var(--item-hover, transparent) !important;
 }
 </style>

@@ -5,6 +5,7 @@ import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
 import GroupItem from './GroupItem.vue'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
+import { buildPageTree, flattenPageItems } from './page-tree'
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -35,6 +36,7 @@ const emit = defineEmits<{
   editGroup: [group: Group]
   deleteGroup: [group: Group]
   addPage: [groupId: string]
+  addSubPage: [parentId: string]
   editPage: [page: Page]
   deletePage: [page: Page]
 }>()
@@ -43,7 +45,7 @@ const containerStore = useContainerStore()
 const pageStore = usePageStore()
 const tabStore = useTabStore()
 
-// 将 workspaceGroups 及其页面转换为 GroupItem 需要的格式
+// 将 workspaceGroups 及其页面转换为 GroupItem 需要的格式（页面按 parentId 组装为树）
 const workspaces = computed(() => {
   return containerStore.workspaceGroups.map((g) => ({
     id: g.id,
@@ -51,17 +53,17 @@ const workspaces = computed(() => {
     name: g.name,
     emoji: g.icon || '📁',
     color: g.color,
-    pages: (pageStore.pagesByGroup.get(g.id) || [])
-      .sort((a, b) => a.order - b.order)
-      .map((p) => ({
-        page: p,
-        id: p.id,
-        name: p.name,
-        emoji: p.icon || '',
-        url: p.url,
-      })),
+    pages: buildPageTree(pageStore.pagesByGroup.get(g.id) || []),
   }))
 })
+
+// 折叠态下拉需要平铺展示所有页面（含子页面）
+const collapsedPages = computed(() =>
+  workspaces.value.map((w) => ({
+    ...w,
+    flatPages: flattenPageItems(w.pages),
+  }))
+)
 
 // 当前工作区中无 pageId 归属的标签页（未分组）
 const ungroupedTabs = computed(() => {
@@ -76,7 +78,7 @@ const ungroupedOpen = ref(true)
   <template v-if="collapsed">
     <SidebarMenu>
       <SidebarMenuItem
-        v-for="workspace in workspaces"
+        v-for="workspace in collapsedPages"
         :key="workspace.name"
       >
         <DropdownMenu>
@@ -94,18 +96,22 @@ const ungroupedOpen = ref(true)
             class="w-48"
           >
             <DropdownMenuItem
-              v-for="pageItem in workspace.pages"
+              v-for="{ item: pageItem, depth } in workspace.flatPages"
               :key="pageItem.id"
               @click="emit('selectPage', pageItem.id)"
             >
-              <EmojiRenderer
-                :emoji="pageItem.emoji"
-                :url="pageItem.url"
-                class="mr-2"
-              />
-              {{ pageItem.name }}
+              <span
+                class="mr-1.5 shrink-0 inline-flex"
+                :style="{ marginLeft: `${depth * 12}px` }"
+              >
+                <EmojiRenderer
+                  :emoji="pageItem.emoji"
+                  :url="pageItem.url"
+                />
+              </span>
+              <span class="truncate">{{ pageItem.name }}</span>
             </DropdownMenuItem>
-            <template v-if="workspace.pages.length > 0">
+            <template v-if="workspace.flatPages.length > 0">
               <DropdownMenuSeparator />
             </template>
             <DropdownMenuItem @click.stop="emit('addPage', workspace.group.id)">
@@ -140,6 +146,7 @@ const ungroupedOpen = ref(true)
       @edit-group="emit('editGroup', $event)"
       @delete-group="emit('deleteGroup', $event)"
       @add-page="emit('addPage', $event)"
+      @add-sub-page="emit('addSubPage', $event)"
       @edit-page="emit('editPage', $event)"
       @delete-page="emit('deletePage', $event)"
     />
