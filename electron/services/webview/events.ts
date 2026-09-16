@@ -1,6 +1,6 @@
-import type { BrowserWindow, WebContentsView } from 'electron'
+import { BrowserWindow, clipboard, Menu } from 'electron'
+import type { Session, WebContentsView } from 'electron'
 import type { ViewEntry } from './types'
-import { clipboard, Menu } from 'electron'
 import { getSnifferDomains, getMutedSites } from '../store'
 import { handleBeforeInputEvent } from '../shortcut-manager'
 import { cacheFaviconFromUrl } from '../favicon-cache'
@@ -18,7 +18,7 @@ export function setupEventForwarding(
   snifferEnabled: Map<string, boolean>,
   onStartSniffing: (tabId: string) => void,
   aria2Enabled: () => boolean
-): ((...args: any[]) => void) | undefined {
+): void {
   const wc = view.webContents
   const win = mainWindow
 
@@ -142,8 +142,28 @@ export function setupEventForwarding(
     menu.popup({ window: win })
   })
 
-  // 拦截下载事件
-  const willDownloadHandler = (event: Electron.Event, item: Electron.DownloadItem) => {
+  // 下载拦截：同一 session 只注册一个处理器（多标签共享 session 时避免重复接管）
+  ensureSessionDownloadHandler(wc.session, views, aria2Enabled)
+}
+
+/** 已注册下载拦截的 session，配合 WeakSet 去重 */
+const downloadHandledSessions = new WeakSet<Session>()
+
+/**
+ * session 级 will-download 拦截。
+ * 无容器标签共享默认 session、同容器标签共享 persist 分区，
+ * 若按标签注册会一次下载触发 N 个处理器，产生 N 条重复记录。
+ * will-download 回调的第三个参数即发起下载的 webContents，据此定位 referer 与标签。
+ */
+function ensureSessionDownloadHandler(
+  session: Session,
+  views: Map<string, ViewEntry>,
+  aria2Enabled: () => boolean
+): void {
+  if (downloadHandledSessions.has(session)) return
+  downloadHandledSessions.add(session)
+
+  session.on('will-download', (event, item, wc) => {
     const url = item.getURL()
     const filename = item.getFilename()
     const config = getAria2Config()
@@ -191,18 +211,26 @@ export function setupEventForwarding(
         } else {
           await addDownload(url, { filename, referer, category: config.defaultCategory })
         }
-        if (canSend()) win.webContents.send('on:download:started', { url, filename, tabId })
+
+        // 按发起下载的 webContents 反查所属标签，通知渲染进程
+        const win = BrowserWindow.fromWebContents(wc)
+        let tabId: string | null = null
+        for (const [tid, entry] of views) {
+          if (entry.view.webContents === wc) {
+            tabId = tid
+            break
+          }
+        }
+        if (win && !win.isDestroyed() && tabId) {
+          win.webContents.send('on:download:started', { url, filename, tabId })
+        }
       } catch (e) {
         console.error('[Aria2] 添加下载失败，回退到系统下载器:', url, e)
         // aria2 添加失败：已 preventDefault，需手动用系统下载器兜底，避免文件丢失
         fallbackToSystem()
       }
     })()
-  }
-
-  wc.session.on('will-download', willDownloadHandler)
-
-  return willDownloadHandler
+  })
 }
 
 function buildContextMenuItems(

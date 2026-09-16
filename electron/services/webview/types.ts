@@ -29,7 +29,6 @@ export interface ViewEntry {
   pageId: string
   containerId: string
   lastActiveAt: number
-  willDownloadHandler?: (...args: any[]) => void
 }
 
 export interface FrozenTabInfo {

@@ -245,14 +245,13 @@ class WebviewManager {
     this.views.set(tabId, entry)
     pluginEventBus.emit('tab:created', { tabId, pageId, url })
 
-    // 设置事件转发
-    const handler = setupEventForwarding(
+    // 设置事件转发（will-download 在 session 级去重注册，见 events.ts）
+    setupEventForwarding(
       tabId, view, this.mainWindow, this.views,
       this.snifferEnabled,
       (tid) => this.startSniffingInternal(tid),
       () => this.aria2Enabled
     )
-    if (handler) entry.willDownloadHandler = handler
 
     // 拦截快捷键
     view.webContents.on('before-input-event', (event, input) => {
@@ -333,10 +332,6 @@ class WebviewManager {
     this.views.delete(tabId)
 
     try {
-      if (entry.willDownloadHandler && !entry.view.webContents.isDestroyed()) {
-        entry.view.webContents.session.removeListener('will-download', entry.willDownloadHandler)
-      }
-
       const extensions = getExtensionsForContainer(entry.containerId || null)
       if (!entry.view.webContents.isDestroyed()) {
         extensions.removeTab(entry.view.webContents)

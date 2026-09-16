@@ -18,10 +18,6 @@ export function freezeView(
   }
 
   try {
-    if (entry.willDownloadHandler && !entry.view.webContents.isDestroyed()) {
-      entry.view.webContents.session.removeListener('will-download', entry.willDownloadHandler)
-    }
-
     const extensions = getExtensionsForContainer(entry.containerId || null)
     if (!entry.view.webContents.isDestroyed()) {
       extensions.removeTab(entry.view.webContents)
