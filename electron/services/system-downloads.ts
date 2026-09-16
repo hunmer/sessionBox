@@ -2,14 +2,17 @@
  * 系统下载跟踪服务 - 主进程
  *
  * 为 Electron 的 DownloadItem（系统下载器兜底路径，aria2 未启用或无法获取 URL 时使用）
- * 提供内存级任务管理，让 blob:/data:/空 URL 等 aria2 下不了的文件也能在下载列表里
+ * 提供任务管理，让 blob:/data:/空 URL 等 aria2 下不了的文件也能在下载列表里
  * 查看进度、速度、状态，与 aria2 任务统一展示。
  *
- * 不持久化：与 Electron DownloadItem 生命周期一致，重启后清空。
+ * 持久化：已结束（含退出时中断）的任务记录写入 userData/system-downloads.json，
+ * 重启后恢复历史；进行中的任务无法跨重启续传，恢复时标记为「下载中断」。
  */
 
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, app } from 'electron'
 import type { DownloadItem } from 'electron'
+import { join } from 'path'
+import { JsonStore } from '../utils/json-store'
 import { notifyDownloadStart, notifyDownloadSuccess, notifyDownloadFailure } from './download-notify'
 
 /** 系统下载任务，字段对齐 store 侧的 DownloadTask（仅渲染需要的子集） */
@@ -39,6 +42,58 @@ const tasks = new Map<string, SystemDownloadTask>()
 const items = new Map<string, DownloadItem>()
 /** 任务结束时间，用于过期清理 */
 const finishedAt = new Map<string, number>()
+
+// ====== 持久化 ======
+
+interface PersistedData {
+  tasks: SystemDownloadTask[]
+}
+
+/** 持久化历史上限，防止 JSON 文件无限增长 */
+const MAX_PERSISTED_TASKS = 200
+
+const persisted = new JsonStore<PersistedData>(
+  join(app.getPath('userData'), 'system-downloads.json'),
+  { tasks: [] }
+)
+
+function gidSeq(gid: string): number {
+  const n = parseInt(gid.replace('sys_', ''), 10)
+  return Number.isNaN(n) ? 0 : n
+}
+
+/** 把当前任务快照写入磁盘（新任务在前，超出上限的旧记录丢弃） */
+function persistTasks(): void {
+  const snapshot = Array.from(tasks.values())
+    .sort((a, b) => gidSeq(b.gid) - gidSeq(a.gid))
+    .slice(0, MAX_PERSISTED_TASKS)
+  persisted.set('tasks', snapshot)
+}
+
+/** 启动时恢复历史任务；进行中/已暂停的无法续传，统一标记为中断 */
+function restoreTasks(): void {
+  const saved = persisted.get('tasks') ?? []
+  let maxSeq = 0
+  let changed = false
+  for (const t of saved) {
+    // 防御：跳过缺失 gid 的畸形记录
+    if (!t || typeof t.gid !== 'string') {
+      changed = true
+      continue
+    }
+    if (t.status === 'active' || t.status === 'paused') {
+      t.status = 'error'
+      t.errorMessage = '下载中断（应用退出）'
+      t.downloadSpeed = 0
+      changed = true
+    }
+    tasks.set(t.gid, t)
+    maxSeq = Math.max(maxSeq, gidSeq(t.gid))
+  }
+  seq = maxSeq
+  if (changed) persistTasks()
+}
+restoreTasks()
 
 /** 广播节流：300ms 一次，避免 updated 事件高频触发淹没渲染进程 */
 let broadcastScheduled = false
@@ -102,6 +157,7 @@ export function trackDownload(item: DownloadItem): string {
   updateProgress(task)
   tasks.set(gid, task)
   items.set(gid, item)
+  persistTasks()
 
   // 开始下载通知
   notifyDownloadStart(task.filename)
@@ -146,6 +202,16 @@ export function trackDownload(item: DownloadItem): string {
 
   // 下载结束（成功或失败）
   item.once('done', (_event, state) => {
+    // 用户主动取消（含保存对话框取消）：不留历史
+    if (state === 'cancelled') {
+      tasks.delete(gid)
+      items.delete(gid)
+      finishedAt.delete(gid)
+      persistTasks()
+      broadcastNow()
+      return
+    }
+
     const t = tasks.get(gid)
     if (!t) return
 
@@ -165,6 +231,7 @@ export function trackDownload(item: DownloadItem): string {
 
     finishedAt.set(gid, Date.now())
     items.delete(gid) // 释放 item 引用，允许 GC
+    persistTasks()
     broadcastNow()
   })
 
@@ -183,11 +250,7 @@ function updateProgress(task: SystemDownloadTask): void {
 
 /** 获取所有系统下载任务（按创建时间倒序，新的在前） */
 export function getTasks(): SystemDownloadTask[] {
-  return serializeTasks().sort((a, b) => {
-    const ai = parseInt(a.gid.replace('sys_', ''), 10)
-    const bi = parseInt(b.gid.replace('sys_', ''), 10)
-    return bi - ai
-  })
+  return serializeTasks().sort((a, b) => gidSeq(b.gid) - gidSeq(a.gid))
 }
 
 /** 移除任务记录；进行中的下载先取消底层 DownloadItem（与 aria2 remove 行为一致） */
@@ -203,30 +266,38 @@ export function removeTask(gid: string): void {
   tasks.delete(gid)
   items.delete(gid)
   finishedAt.delete(gid)
+  persistTasks()
   broadcastNow()
 }
 
 /** 暂停进行中的系统下载任务 */
 export function pauseTask(gid: string): void {
   const item = items.get(gid)
-  if (item && !item.isPaused()) {
-    try {
-      item.pause()
-    } catch {
-      // 非进行中状态无法暂停，忽略
-    }
+  const t = tasks.get(gid)
+  if (!item || !t || item.isPaused()) return
+  try {
+    item.pause()
+    t.status = 'paused'
+    t.downloadSpeed = 0
+    persistTasks()
+    broadcastNow()
+  } catch {
+    // 非进行中状态无法暂停，忽略
   }
 }
 
 /** 恢复已暂停的系统下载任务 */
 export function resumeTask(gid: string): void {
   const item = items.get(gid)
-  if (item && item.canResume()) {
-    try {
-      item.resume()
-    } catch {
-      // 无法恢复，忽略
-    }
+  const t = tasks.get(gid)
+  if (!item || !t || !item.canResume()) return
+  try {
+    item.resume()
+    t.status = 'active'
+    persistTasks()
+    broadcastNow()
+  } catch {
+    // 无法恢复，忽略
   }
 }
 
@@ -239,6 +310,7 @@ export function clearFinished(): void {
       finishedAt.delete(gid)
     }
   }
+  persistTasks()
   broadcastNow()
 }
 
@@ -247,5 +319,6 @@ export function clearAll(): void {
   tasks.clear()
   items.clear()
   finishedAt.clear()
+  persistTasks()
   broadcastNow()
 }
