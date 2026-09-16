@@ -302,7 +302,7 @@ onBeforeUnmount(clearTimers)
               :class="vertical ? 'flex-1 min-w-0' : isPinned ? 'max-w-[100px]' : 'max-w-[120px]'"
             >{{ pageTitle || pageLabel || '新标签页' }}</span>
             <span
-              v-if="pageTitle && pageLabel"
+              v-if="pageTitle && pageLabel && tabStore.tabPageLabelVisible"
               class="truncate text-[10px] text-muted-foreground/60 max-w-[60px] flex-shrink-0"
             >{{ pageLabel }}</span>
             <VolumeX

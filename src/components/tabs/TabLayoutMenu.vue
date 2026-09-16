@@ -16,7 +16,8 @@ import {
   ZoomOut,
   RotateCcw,
   Columns2,
-  EyeOff
+  EyeOff,
+  Tags
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -180,6 +181,17 @@ function handleZoomReset() {
         <span class="flex-1">快捷网站栏</span>
         <Check
           v-if="tabStore.bookmarkBarVisible"
+          class="size-4 text-primary"
+        />
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        class="cursor-pointer"
+        @click="tabStore.toggleTabPageLabel()"
+      >
+        <Tags class="size-4 mr-2" />
+        <span class="flex-1">标签页面标识</span>
+        <Check
+          v-if="tabStore.tabPageLabelVisible"
           class="size-4 text-primary"
         />
       </DropdownMenuItem>

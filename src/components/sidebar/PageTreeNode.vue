@@ -189,7 +189,7 @@ function onChildrenReorder(reordered: PageItem[]) {
   >
     <ContextMenu>
       <ContextMenuTrigger as-child>
-        <div class="flex items-center gap-1 w-full">
+        <div class="flex items-center gap-1 w-full group/page-row">
           <SidebarMenuSubButton
             as-child
             class="flex-1"
@@ -280,7 +280,7 @@ function onChildrenReorder(reordered: PageItem[]) {
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <button
-                class="opacity-0 group-hover/menu-sub-item:opacity-100 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-opacity"
+                class="opacity-0 group-hover/page-row:opacity-100 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-opacity"
                 @click.stop
               >
                 <MoreHorizontal class="w-4 h-4" />
@@ -351,8 +351,10 @@ function onChildrenReorder(reordered: PageItem[]) {
 </template>
 
 <style scoped>
-/* 页面项 hover 效果 - 覆盖 SidebarMenuSubButton 默认的 hover 样式 */
-.group\/menu-sub-item:hover :deep([data-slot="sidebar-menu-sub-button"]) {
+/* 页面行 hover 效果 - 覆盖 SidebarMenuSubButton 默认的 hover 样式。
+   注意作用域是行容器（group/page-row）而不是整个 li：li 还包含子页面列表，
+   用 li:hover 会因祖先 :hover 命中而让整棵子树的行一起高亮 */
+.group\/page-row:hover :deep([data-slot="sidebar-menu-sub-button"]) {
   background-color: var(--item-hover, transparent) !important;
 }
 </style>

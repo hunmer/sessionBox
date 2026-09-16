@@ -109,7 +109,8 @@ function onPageReorder(reordered: PageItem[]) {
           <ContextMenu>
             <ContextMenuTrigger as-child>
               <div
-                class="flex items-center gap-1 rounded-lg group/menu-button-wrapper"
+                class="flex items-center gap-1 group/menu-button-wrapper"
+                :class="openStates[workspace.group.id] && workspace.pages.length > 0 ? 'rounded-t-lg' : 'rounded-lg'"
                 :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
               >
                 <SidebarMenuButton
@@ -184,13 +185,15 @@ function onPageReorder(reordered: PageItem[]) {
           <CollapsibleContent>
             <!-- 顶层页面列表（可拖拽排序）；注意 item 插槽根必须是单个真实元素（li），vuedraggable 的 data-draggable 标记才能落到 li 上，根为 renderless 组件时标记会丢失，导致拖拽被外层分组列表抢占 -->
             <draggable
+              v-if="workspace.pages.length > 0"
               :model-value="workspace.pages"
               item-key="id"
               :animation="150"
               tag="ul"
               data-slot="sidebar-menu-sub"
               data-sidebar="menu-badge"
-              class="border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5 group-data-[collapsible=icon]:hidden"
+              class="pages-card border-sidebar-border mb-2 flex min-w-0 flex-col gap-1 rounded-b-lg border border-t-0 px-2.5 py-1 group-data-[collapsible=icon]:hidden"
+              :style="workspace.color ? { '--card-bg-from': workspace.color + '20', '--card-bg-to': workspace.color + '05' } : undefined"
               @update:model-value="onPageReorder($event)"
             >
               <template #item="{ element: pageItem }">
@@ -220,5 +223,10 @@ function onPageReorder(reordered: PageItem[]) {
 /* 移除按钮默认的灰色 hover 叠加 */
 .group\/menu-button-wrapper :deep([data-slot="sidebar-menu-button"]:hover) {
   background-color: transparent;
+}
+
+/* 页面卡片：从与头部相同的淡染向下渐变至近透明，与头部卡片连成一体 */
+.pages-card {
+  background-image: linear-gradient(to bottom, var(--card-bg-from, transparent), var(--card-bg-to, transparent));
 }
 </style>

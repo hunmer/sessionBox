@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, type ComponentPublicInstance } from 'vue'
 import { Plus, Minus, Square, X, Copy, PanelLeftClose, PanelLeftOpen, ChevronRight, ArrowLeft, ArrowRight, RotateCw, Loader2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import draggable from 'vuedraggable'
@@ -7,6 +7,7 @@ import TabLayoutMenu from './TabLayoutMenu.vue'
 import NewTabDialog from './NewTabDialog.vue'
 import TabItem from './TabItem.vue'
 import { useTabStore } from '@/stores/tab'
+import { useSplitStore } from '@/stores/split'
 import type { Page } from '@/types'
 
 defineProps<{
@@ -21,7 +22,32 @@ defineEmits<{
 }>()
 
 const tabStore = useTabStore()
+const splitStore = useSplitStore()
 const showAddDialog = ref(false)
+
+// tab 列表滚动容器（分组/扁平两种布局共用，同一时间只渲染一个）
+const tabListEl = ref<HTMLElement | null>(null)
+
+function setTabListRef(el: Element | ComponentPublicInstance | null) {
+  tabListEl.value = (el as ComponentPublicInstance | null)?.$el as HTMLElement ?? (el as HTMLElement | null)
+}
+
+// 当前激活 tab（分屏时以聚焦窗格为准，与 TabItem 的 isActive 逻辑一致）
+const activeTabId = computed(() =>
+  splitStore.isSplitActive ? splitStore.focusedPane?.activeTabId ?? null : tabStore.activeTabId
+)
+
+// 激活 tab 超出可视区域时自动滚动到对应位置
+function scrollActiveTabIntoView() {
+  const container = tabListEl.value
+  const id = activeTabId.value
+  if (!container || !id) return
+  const el = container.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(id)}"]`)
+  el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+}
+
+watch(activeTabId, () => nextTick(scrollActiveTabIntoView))
+onMounted(() => nextTick(scrollActiveTabIntoView))
 
 // 导航状态（后退/前进/加载中）
 const navState = computed(() => tabStore.activeNavState)
@@ -161,6 +187,7 @@ function handleNavigateUrl(url: string) {
     <!-- 标签列表 - 分组模式（每个 tab 独立可拖拽） -->
     <draggable
       v-if="tabStore.tabLayout === 'horizontal' && tabStore.tabGroupEnabled"
+      :ref="setTabListRef"
       :model-value="tabStore.groupedWorkspaceTabs"
       :animation="150"
       item-key="id"
@@ -173,6 +200,7 @@ function handleNavigateUrl(url: string) {
           v-show="tab.isGroupStart || !isGroupCollapsed(tab)"
           class="flex items-center gap-0.5 flex-shrink-0"
           :class="{ 'tab-pinned': tab.pinned }"
+          :data-tab-id="tab.id"
         >
           <!-- 分组 badge：仅在该组第一个 tab 前显示，可点击折叠 -->
           <span
@@ -184,6 +212,7 @@ function handleNavigateUrl(url: string) {
             :class="!tab.groupColor && 'bg-muted text-muted-foreground'"
             @click.stop="toggleGroupCollapse(tab)"
           >
+            <!-- 水平布局下分组向右展开：折叠朝右、展开朝下；垂直布局的箭头语义见 TabBarVertical -->
             <ChevronRight
               class="w-2.5 h-2.5 transition-transform"
               :class="!isGroupCollapsed(tab) && 'rotate-90'"
@@ -208,6 +237,7 @@ function handleNavigateUrl(url: string) {
     <!-- 标签列表 - 扁平模式（可拖拽排序） -->
     <draggable
       v-else-if="tabStore.tabLayout === 'horizontal'"
+      :ref="setTabListRef"
       :model-value="tabStore.workspaceTabs"
       :animation="150"
       item-key="id"
@@ -219,6 +249,7 @@ function handleNavigateUrl(url: string) {
         <div
           class="flex-shrink-0"
           :class="{ 'tab-pinned': tab.pinned }"
+          :data-tab-id="tab.id"
         >
           <TabItem :tab="tab" />
         </div>

@@ -1,5 +1,6 @@
 import { app, BrowserWindow, nativeImage, protocol, net, session } from 'electron'
 import { join } from 'path'
+import { initProcmConsole, shutdownProcmConsole } from './services/procm'
 import { setupUserAgent, installClientHintsRewrite } from './utils/user-agent'
 import { migrateBookmarksAndPasswords } from './services/migration'
 import { registerIpcHandlers } from './ipc'
@@ -28,6 +29,9 @@ function throttle<T extends (...args: any[]) => void>(fn: T, delay: number): T {
     }, delay)
   }) as T
 }
+
+// procm-mcp 托管启动时把 console 转发到 procm 控制台（需尽早调用以捕获后续输出）
+initProcmConsole()
 
 // 在 app ready 之前设置 UA
 setupUserAgent()
@@ -133,6 +137,7 @@ if (!gotTheLock) {
 
   app.on('before-quit', () => {
     isQuitting = true
+    shutdownProcmConsole()
     mcpServerService.stop().catch((error) => {
       console.error('[Main] Failed to stop MCP server:', error)
     })

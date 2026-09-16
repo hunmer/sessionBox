@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, ChevronRight } from 'lucide-vue-next'
+import { Plus, ChevronDown } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import draggable from 'vuedraggable'
 import TabLayoutMenu from './TabLayoutMenu.vue'
@@ -93,9 +93,10 @@ function handleNavigateUrl(url: string) {
             class="flex items-center gap-1.5 px-2 pt-1.5 pb-0.5 select-none cursor-pointer"
             @click.stop="toggleGroupCollapse(tab)"
           >
-            <ChevronRight
+            <!-- 垂直布局下分组向下展开：折叠朝下、展开朝上 -->
+            <ChevronDown
               class="w-3 h-3 flex-shrink-0 transition-transform text-muted-foreground"
-              :class="!isGroupCollapsed(tab) && 'rotate-90'"
+              :class="!isGroupCollapsed(tab) && 'rotate-180'"
             />
             <span
               class="text-[10px] font-medium px-1.5 py-0.5 rounded-md"

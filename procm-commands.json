@@ -1,0 +1,23 @@
+{
+  "commands": {
+    "dev": {
+      "script": "pnpm",
+      "args": ["run", "dev"],
+      "desc": "Electron 开发模式，console 自动转发到 sessionbox room",
+      "roomId": "sessionbox",
+      "group": "sessionbox"
+    },
+    "build": {
+      "script": "pnpm",
+      "args": ["run", "build"],
+      "desc": "构建主进程/预加载/渲染产物",
+      "group": "sessionbox"
+    },
+    "preview": {
+      "script": "pnpm",
+      "args": ["run", "preview"],
+      "desc": "预览构建产物",
+      "group": "sessionbox"
+    }
+  }
+}

@@ -15,6 +15,7 @@ export type TabGroupMode = 'none' | 'group' | 'account'
 
 const TAB_LAYOUT_KEY = 'sessionbox-tab-layout'
 const BOOKMARK_BAR_KEY = 'sessionbox-bookmark-bar-visible'
+const TAB_PAGE_LABEL_KEY = 'sessionbox-tab-page-label-visible'
 const TAB_GROUP_KEY = 'sessionbox-tab-group-mode'
 const ACTIVE_TAB_KEY = 'sessionbox-active-tab-id'
 const MAX_RECENTLY_CLOSED = 20
@@ -643,6 +644,11 @@ export const useTabStore = defineStore('tab', () => {
     bookmarkBarVisible.value = !bookmarkBarVisible.value
     localStorage.setItem(BOOKMARK_BAR_KEY, String(bookmarkBarVisible.value))
   }
+  const tabPageLabelVisible = ref(localStorage.getItem(TAB_PAGE_LABEL_KEY) !== 'false')
+  function toggleTabPageLabel() {
+    tabPageLabelVisible.value = !tabPageLabelVisible.value
+    localStorage.setItem(TAB_PAGE_LABEL_KEY, String(tabPageLabelVisible.value))
+  }
 
   // -- 分组模式 --
   const tabGroupMode = ref<TabGroupMode>(loadTabGroupMode())
@@ -807,6 +813,7 @@ export const useTabStore = defineStore('tab', () => {
     tabs, activeTabId, tabGroupFilterId, navStates, favicons, faviconVersions, frozenTabIds,
     sortedTabs, workspaceTabs, groupedWorkspaceTabs, activeTab, activeNavState, activeProxyInfo,
     isInternalPage, internalPagePath, tabLayout, toggleLayout, bookmarkBarVisible, toggleBookmarkBar,
+    tabPageLabelVisible, toggleTabPageLabel,
     tabGroupEnabled, tabGroupMode, setTabGroupMode, setTabGroupFilter, clearTabGroupFilter,
     groupedSortedTabs, loadTabs, createTab, createTabForSite, closeTab, closeOtherTabs,
     closeLeftTabs, closeRightTabs, switchTab: switchTab_,
