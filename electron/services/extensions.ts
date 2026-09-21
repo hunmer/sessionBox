@@ -142,6 +142,9 @@ function createExtensionsInstance(
       webviewManager.switchByWebContents(webContents)
     },
     removeTab(webContents) {
+      // Guest 因渲染进程 reload 被销毁时，只清理扩展内部引用，由 WebviewManager 重建。
+      if (webContents.isDestroyed()) return
+
       const tabId = webviewManager.destroyByWebContents(webContents)
       if (!tabId) return
 

@@ -121,7 +121,7 @@ const api = {
   },
   tab: {
     list: () => electron.ipcRenderer.invoke("tab:list"),
-    create: (pageId, url, containerId, workspaceId) => electron.ipcRenderer.invoke("tab:create", pageId, url, containerId, workspaceId),
+    create: (pageId, url, containerId, workspaceId, lastNonAuthUrl) => electron.ipcRenderer.invoke("tab:create", pageId, url, containerId, workspaceId, lastNonAuthUrl),
     close: (tabId) => electron.ipcRenderer.invoke("tab:close", tabId),
     switch: (tabId) => electron.ipcRenderer.invoke("tab:switch", tabId),
     update: (tabId, data) => electron.ipcRenderer.invoke("tab:update", tabId, data),
@@ -143,6 +143,7 @@ const api = {
     openInNewWindow: (tabId) => electron.ipcRenderer.invoke("tab:open-in-new-window", tabId),
     openAtTaskbar: (tabId) => electron.ipcRenderer.invoke("tab:open-at-taskbar", tabId),
     openInBrowser: (tabId) => electron.ipcRenderer.invoke("tab:open-in-browser", tabId),
+    syncExternalAuth: (tabId, browser, phase) => electron.ipcRenderer.invoke("tab:sync-external-auth", tabId, browser, phase),
     attachWebview: (tabId, webContentsId) => electron.ipcRenderer.invoke("tab:attach-webview", tabId, webContentsId),
     listRequestedWebviews: () => electron.ipcRenderer.invoke("tab:list-requested-webviews"),
     capture: (tabIds) => electron.ipcRenderer.invoke("tab:capture", tabIds),

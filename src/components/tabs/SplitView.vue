@@ -350,7 +350,7 @@ onUnmounted(() => {
     />
   </div>
 
-  <template v-else>
+  <div v-else class="absolute inset-0">
     <template v-if="displayNode">
       <div class="absolute inset-0">
         <SplitLayoutTree
@@ -389,5 +389,5 @@ onUnmounted(() => {
       id="webview-container"
       class="absolute inset-0"
     />
-  </template>
+  </div>
 </template>

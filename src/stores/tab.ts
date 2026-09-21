@@ -874,7 +874,6 @@ export const useTabStore = defineStore('tab', () => {
   const openExternalUrlInContainer = (url: string, containerId: string, workspaceId?: string) =>
     openExternalUrlInContainerAction(ctx, url, containerId, workspaceId)
   const cancelExternalUrl = () => { pendingExternalUrl.value = null }
-  const saveState = () => api.tab.saveAll(tabs.value)
   const init = () => initAction(ctx)
 
   // -- Watchers --
@@ -903,6 +902,6 @@ export const useTabStore = defineStore('tab', () => {
     zoomIn, zoomOut, zoomReset, zoomLevels, fetchZoomLevel, activeZoomLevel, detectProxy,
     setProxyEnabled, applyProxy, openDevTools, openInNewWindow, openAtTaskbar, openInBrowser, toggleMute,
     muteSite, unmuteSite, mutedSites, isSiteMuted, togglePin, restoreTab, gotoTab, gotoLastTab,
-    pendingExternalUrl, openExternalUrlInContainer, cancelExternalUrl, init, saveState
+    pendingExternalUrl, openExternalUrlInContainer, cancelExternalUrl, init
   }
 })

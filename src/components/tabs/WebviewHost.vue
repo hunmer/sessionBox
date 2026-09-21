@@ -18,6 +18,15 @@ const attachingTabIds = new Set<string>()
 const attachRetryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const cleanups: Array<() => void> = []
 
+function dismissHostOverlays(webview: WebviewElement) {
+  // Guest 页面内的点击不会冒泡到宿主文档，补发事件触发弹层的 outside-click。
+  webview.dispatchEvent(new window.PointerEvent('pointerdown', {
+    bubbles: true,
+    composed: true,
+    pointerType: 'mouse'
+  }))
+}
+
 function addView(request: { tabId: string; partition: string; userAgent: string }) {
   if (views.value[request.tabId]) return
   views.value[request.tabId] = {
@@ -86,6 +95,10 @@ onMounted(async () => {
     window.api.on('tab-webview:set-bounds', (payload) => {
       const { tabId, bounds } = payload as Pick<WebviewSpec, 'tabId' | 'bounds'>
       if (views.value[tabId]) views.value[tabId].bounds = bounds
+    }),
+    window.api.on('tab:focused', (payload) => {
+      const webview = elements.get(payload as string)
+      if (webview) dismissHostOverlays(webview)
     }),
     window.api.on('tab-webview:destroy', (payload) => {
       const { tabId } = payload as { tabId: string }

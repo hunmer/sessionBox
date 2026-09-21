@@ -115,7 +115,6 @@ function syncWebContentsViewVisibility() {
 }
 
 function handleBeforeUnload() {
-  void tabStore.saveState()
   void splitStore.persistState()
 }
 
@@ -583,6 +582,7 @@ useIpcEvent('shortcut', (actionId) => {
       break
     case 'reload-tab':
       if (tab) tabStore.reload(tab.id)
+      else window.location.reload()
       break
     case 'go-back':
       if (tab) tabStore.goBack(tab.id)
@@ -620,6 +620,7 @@ useIpcEvent('shortcut', (actionId) => {
       break
     case 'reload-tab-f5':
       if (tab) tabStore.reload(tab.id)
+      else window.location.reload()
       break
     case 'force-reload':
       if (tab) tabStore.forceReload(tab.id)

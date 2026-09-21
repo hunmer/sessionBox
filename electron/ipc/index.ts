@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow, dialog, app, shell, nativeTheme, screen } from 'electron'
 import { join, basename, extname } from 'path'
 import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync, rmSync, readdirSync } from 'node:fs'
-import { execSync } from 'child_process'
+import { execFileSync, execSync } from 'child_process'
 import { randomUUID } from 'node:crypto'
 import {
   listGroups,
@@ -106,14 +106,34 @@ import { getExternalAuthProfileDirs } from '../services/external-auth-cdp'
 const iconDir = join(app.getPath('userData'), 'container-icons')
 
 /** 为桌面快捷方式生成不覆盖已有文件的路径。 */
-function getUniqueShortcutPath(desktopPath: string, name: string): string {
+function getUniqueShortcutPath(desktopPath: string, name: string, extension = '.url'): string {
   const safeName = (name || 'SessionBox').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'SessionBox'
-  let path = join(desktopPath, `${safeName}.url`)
+  let path = join(desktopPath, `${safeName}${extension}`)
   let index = 2
   while (existsSync(path)) {
-    path = join(desktopPath, `${safeName} (${index++}).url`)
+    path = join(desktopPath, `${safeName} (${index++})${extension}`)
   }
   return path
+}
+
+/** 在 macOS 上编译一个通过自定义协议链接启动的 AppleScript 应用。 */
+function createAppleScriptShortcut(shortcutPath: string, protocolUrl: string): void {
+  const escapedUrl = protocolUrl.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  const script = `tell application "System Events"
+  open location "${escapedUrl}"
+end tell
+`
+  const tempScriptPath = join(app.getPath('temp'), `sessionbox-shortcut-${randomUUID()}.scpt`)
+
+  try {
+    writeFileSync(tempScriptPath, script, 'utf-8')
+    execFileSync('osacompile', ['-o', shortcutPath, tempScriptPath], { timeout: 10000 })
+  } catch (error) {
+    if (existsSync(shortcutPath)) rmSync(shortcutPath, { recursive: true, force: true })
+    throw error
+  } finally {
+    if (existsSync(tempScriptPath)) unlinkSync(tempScriptPath)
+  }
 }
 
 /** 将本地图标转换为 Windows 快捷方式可用的 ICO，失败时返回应用图标。 */
@@ -158,6 +178,28 @@ $img.Dispose()`
     }
   }
   return existsSync(icoPath) ? icoPath.replace(/\\/g, '/') : null
+}
+
+/** 按当前平台创建桌面快捷方式。 */
+function createDesktopShortcut(name: string, protocolUrl: string, icon?: string, pageUrl?: string): string {
+  const desktopPath = app.getPath('desktop')
+
+  if (process.platform === 'darwin') {
+    const shortcutPath = getUniqueShortcutPath(desktopPath, name, '.app')
+    createAppleScriptShortcut(shortcutPath, protocolUrl)
+    return shortcutPath
+  }
+
+  const shortcutPath = getUniqueShortcutPath(desktopPath, name)
+  const content = [
+    '[InternetShortcut]',
+    `URL=${protocolUrl}`,
+    `IconFile=${resolveShortcutIcon(icon, pageUrl)}`,
+    'IconIndex=0',
+    ''
+  ].join('\r\n')
+  writeFileSync(shortcutPath, content, 'utf-8')
+  return shortcutPath
 }
 
 // ====== 分组注册函数 ======
@@ -231,64 +273,13 @@ function registerContainerIpc(): void {
 
   ipcMain.handle('container:reorder', (_e, containerIds: string[]) => reorderContainers(containerIds))
 
-  /** 创建桌面快捷方式（.url 文件），使用 sessionbox:// 协议打开容器 */
+  /** 创建桌面快捷方式，使用 sessionbox:// 协议打开容器 */
   ipcMain.handle('container:createDesktopShortcut', (_e, containerId: string) => {
     const container = getContainerById(containerId)
     if (!container) throw new Error(`容器 ${containerId} 不存在`)
 
-    const desktopPath = app.getPath('desktop')
-    const shortcutPath = getUniqueShortcutPath(desktopPath, container.name)
     const protocolUrl = `sessionbox://openContainer?id=${container.id}`
-
-    // 默认使用应用图标
-    let iconFile = process.execPath.replace(/\\/g, '/')
-
-    // 如果有自定义图片图标，转换为 ICO 格式供快捷方式使用（.url 不支持 PNG/JPG）
-    if (container.icon?.startsWith('img:')) {
-      const imgName = container.icon.slice(4)
-      const imgPath = join(iconDir, imgName)
-
-      if (existsSync(imgPath) && !imgName.endsWith('.svg')) {
-        const icoName = imgName.replace(/\.[^.]+$/, '.ico')
-        const icoPath = join(iconDir, icoName)
-
-        // 缓存 ICO，避免重复转换
-        if (!existsSync(icoPath)) {
-          try {
-            const psScript = `
-Add-Type -AssemblyName System.Drawing
-$img = [System.Drawing.Image]::FromFile('${imgPath}')
-$icon = [System.Drawing.Icon]::FromHandle($img.GetHicon())
-$stream = [System.IO.FileStream]::new('${icoPath}', 'Create')
-$icon.Save($stream)
-$stream.Close()
-$img.Dispose()`
-            const encoded = Buffer.from(psScript, 'utf16le').toString('base64')
-            execSync(`powershell -NoProfile -EncodedCommand ${encoded}`, {
-              windowsHide: true,
-              timeout: 5000
-            })
-          } catch {
-            // 转换失败，继续使用默认应用图标
-          }
-        }
-
-        if (existsSync(icoPath)) {
-          iconFile = icoPath.replace(/\\/g, '/')
-        }
-      }
-    }
-
-    const content = [
-      '[InternetShortcut]',
-      `URL=${protocolUrl}`,
-      `IconFile=${iconFile}`,
-      'IconIndex=0',
-      ''
-    ].join('\r\n')
-
-    writeFileSync(shortcutPath, content, 'utf-8')
-    return shortcutPath
+    return createDesktopShortcut(container.name, protocolUrl, container.icon)
   })
 
   /** 选择图片并保存到本地图标目录，返回图标标识（img:文件名） */
@@ -358,12 +349,9 @@ function registerPageIpc(): void {
     const page = getPageById(pageId)
     if (!page) throw new Error(`页面 ${pageId} 不存在`)
     if (!['app', 'window', 'taskbar-desktop', 'taskbar-mobile'].includes(mode)) throw new Error(`无效的打开模式: ${mode}`)
-    const shortcutPath = getUniqueShortcutPath(app.getPath('desktop'), page.name)
     const payload = JSON.stringify({ action: 'openPage', pageId: page.id, mode })
     const protocolUrl = `sessionbox://json?data=${encodeURIComponent(payload)}`
-    const content = ['[InternetShortcut]', `URL=${protocolUrl}`, `IconFile=${resolveShortcutIcon(page.icon, page.url)}`, 'IconIndex=0', ''].join('\r\n')
-    writeFileSync(shortcutPath, content, 'utf-8')
-    return shortcutPath
+    return createDesktopShortcut(page.name, protocolUrl, page.icon, page.url)
   })
 }
 

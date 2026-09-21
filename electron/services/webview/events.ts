@@ -149,11 +149,18 @@ export function setupEventForwarding(
     }
   })
 
-  wc.on('focus', () => {
+  const notifyTabFocused = () => {
     const entry = views.get(tabId)
     if (!entry || !canSend()) return
     entry.lastActiveAt = Date.now()
     win.webContents.send('on:tab:focused', tabId)
+  }
+
+  wc.on('focus', notifyTabFocused)
+
+  wc.on('input-event', (_event, input) => {
+    if (input.type !== 'mouseDown') return
+    notifyTabFocused()
   })
 
   // 右键菜单

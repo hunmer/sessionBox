@@ -186,6 +186,18 @@ class WebviewManager {
 
   // ====== 视图创建与销毁 ======
 
+  private requestWebview(tabId: string, request: PendingViewInfo): void {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return
+
+    const page = getPageById(request.pageId)
+    this.requestedWebviews.set(tabId, request)
+    this.mainWindow.webContents.send('on:tab-webview:create', {
+      tabId,
+      partition: request.containerId ? `persist:container-${request.containerId}` : '',
+      userAgent: getUserAgent(page?.userAgent)
+    })
+  }
+
   createView(tabId: string, pageId: string, url: string, containerOverride?: string, lastNonAuthUrl?: string) {
     if (!this.mainWindow) return null
     if (url.startsWith('sessionbox://')) return null
@@ -195,13 +207,7 @@ class WebviewManager {
     const partition = containerId ? `persist:container-${containerId}` : ''
 
     if (this.tabImplementation === 'webview') {
-      const request = { url, pageId, containerId, lastNonAuthUrl }
-      this.requestedWebviews.set(tabId, request)
-      this.mainWindow.webContents.send('on:tab-webview:create', {
-        tabId,
-        partition,
-        userAgent: getUserAgent(page?.userAgent)
-      })
+      this.requestWebview(tabId, { url, pageId, containerId, lastNonAuthUrl })
       return null
     }
 
@@ -239,6 +245,22 @@ class WebviewManager {
     console.log('[WebviewManager] attachWebview accepted', { tabId, webContentsId, url: request.url })
     const view = new WebviewTabView(tabId, guest, this.mainWindow)
     this.initializeView(tabId, request.pageId, request.url, request.containerId, view, request.lastNonAuthUrl)
+
+    let recoveryUrl = request.url
+    guest.on('did-navigate', (_event, url) => { recoveryUrl = url })
+    guest.on('did-navigate-in-page', (_event, url) => { recoveryUrl = url })
+    guest.once('destroyed', () => {
+      const entry = this.views.get(tabId)
+      if (!entry || entry.view.webContents !== guest) return
+
+      this.views.delete(tabId)
+      this.requestWebview(tabId, {
+        ...request,
+        url: recoveryUrl,
+        lastNonAuthUrl: entry.lastNonAuthUrl
+      })
+    })
+
     if (this.activeTabId === tabId) {
       this.switchView(tabId)
     }
