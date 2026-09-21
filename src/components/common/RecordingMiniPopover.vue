@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ArrowRight, Play, Video } from 'lucide-vue-next'
+import { ArrowRight, Globe, Play, Video } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useTabStore } from '@/stores/tab'
+import { getFaviconUrl } from '@/lib/utils'
 
 interface Preset { id: string; name: string; stepCount: number; initialUrl?: string }
 interface DebugTab { tabId: string; title: string; url: string; webContentsId: number }
@@ -13,6 +15,7 @@ const emit = defineEmits<{ 'open-full': [] }>()
 const tabStore = useTabStore()
 const presets = ref<Preset[]>([])
 const tabs = ref<DebugTab[]>([])
+const showHidden = ref(false)
 
 function siteKey(url: string): string {
   try {
@@ -24,6 +27,10 @@ function siteKey(url: string): string {
 }
 
 const activeTab = computed(() => tabStore.activeTab)
+// 取消勾选时隐藏禁用项（网站不匹配等），只保留当前可执行的录制
+const visiblePresets = computed(() =>
+  showHidden.value ? presets.value : presets.value.filter(item => !disabledReason(item))
+)
 
 function matchesActiveSite(item: Preset): boolean {
   const currentSite = siteKey(activeTab.value?.url || '')
@@ -65,13 +72,19 @@ async function execute(item: Preset) {
       <div class="flex items-center gap-2 text-sm font-medium"><Video class="h-4 w-4" />录制</div>
       <Button variant="ghost" size="sm" class="h-7 gap-1 text-xs text-primary" @click="emit('open-full')">打开调试面板<ArrowRight class="h-3 w-3" /></Button>
     </div>
+    <div class="flex items-center gap-1.5 border-t px-3 py-1.5">
+      <Checkbox id="recording-show-hidden" :model-value="showHidden" class="h-3.5 w-3.5" @update:model-value="showHidden = $event === true" />
+      <label for="recording-show-hidden" class="cursor-pointer text-xs text-muted-foreground">展示已隐藏</label>
+    </div>
     <ScrollArea class="h-72 border-t">
-      <button v-for="item in presets" :key="item.id" class="flex w-full items-center gap-2 border-b px-3 py-2 text-left hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!!disabledReason(item)" :title="disabledReason(item) || '在当前标签页执行'" @click="execute(item)">
+      <button v-for="item in visiblePresets" :key="item.id" class="flex w-full items-center gap-2 border-b px-3 py-2 text-left hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!!disabledReason(item)" :title="disabledReason(item) || '在当前标签页执行'" @click="execute(item)">
+        <img v-if="item.initialUrl" :src="getFaviconUrl(item.initialUrl)" alt="" class="h-4 w-4 shrink-0 rounded-sm" @error="($event.target as HTMLImageElement).style.display = 'none'">
+        <Globe v-else class="h-4 w-4 shrink-0 text-muted-foreground" />
         <Play class="h-3.5 w-3.5 shrink-0" :class="disabledReason(item) ? 'text-muted-foreground' : 'text-primary'" />
         <span class="min-w-0 flex-1 truncate text-xs">{{ item.name }}</span>
         <Badge variant="secondary" class="text-[10px]">{{ item.stepCount }} 步</Badge>
       </button>
-      <div v-if="!presets.length" class="flex h-40 items-center justify-center text-xs text-muted-foreground">暂无已保存录制</div>
+      <div v-if="!visiblePresets.length" class="flex h-40 items-center justify-center text-xs text-muted-foreground">{{ presets.length ? '没有可在当前网站执行的录制' : '暂无已保存录制' }}</div>
     </ScrollArea>
   </div>
 </template>
