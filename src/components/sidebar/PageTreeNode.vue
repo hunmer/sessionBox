@@ -355,14 +355,15 @@ function onChildrenReorder(reordered: PageItem[]) {
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
-    <!-- 子页面列表（可拖拽排序，仅同层内）；item 插槽根必须是单个真实元素（li） -->
+    <!-- 子页面列表（可拖拽排序，仅同层内）；item 插槽根必须是单个真实元素（li）。
+         pl-8 的缩进量 = 父行折叠按钮(18px) + 间距(8px) + 图标宽(20px) ≈ 45px，让子节点图标显示在父图标右侧而不是下方对齐 -->
     <draggable
       v-if="hasChildren && childrenOpen"
       :model-value="pageItem.children"
       item-key="id"
       :animation="150"
       tag="ul"
-      class="border-sidebar-border ml-3 flex min-w-0 flex-col gap-1 border-l pl-1.5 py-0.5"
+      class="border-sidebar-border ml-3 flex min-w-0 flex-col gap-1 border-l pl-8 py-0.5"
       @update:model-value="onChildrenReorder"
     >
       <template #item="{ element: child }">

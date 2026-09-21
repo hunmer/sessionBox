@@ -20,13 +20,25 @@ function loadEnabledTools(): Record<string, boolean> {
 
 export const useChatUIStore = defineStore('chat-ui', () => {
   const isPanelVisible = ref(localStorage.getItem(PANEL_VISIBLE_KEY) === '1')
+  const isDebuggerPanelVisible = ref(false)
   const targetTabId = ref<string | null>(localStorage.getItem(TARGET_TAB_KEY))
   const enabledTools = ref<Record<string, boolean>>(loadEnabledTools())
   const providerManagerOpen = ref(false)
 
   function togglePanel() {
-    isPanelVisible.value = !isPanelVisible.value
+    const nextVisible = !isPanelVisible.value
+    isPanelVisible.value = nextVisible
+    if (nextVisible) isDebuggerPanelVisible.value = false
     localStorage.setItem(PANEL_VISIBLE_KEY, isPanelVisible.value ? '1' : '0')
+  }
+
+  function toggleDebuggerPanel() {
+    const nextVisible = !isDebuggerPanelVisible.value
+    isDebuggerPanelVisible.value = nextVisible
+    if (nextVisible) {
+      isPanelVisible.value = false
+      localStorage.setItem(PANEL_VISIBLE_KEY, '0')
+    }
   }
 
   function openProviderManager() {
@@ -61,11 +73,13 @@ export const useChatUIStore = defineStore('chat-ui', () => {
 
   return {
     isPanelVisible,
+    isDebuggerPanelVisible,
     targetTabId,
     enabledTools,
     enabledToolNames,
     providerManagerOpen,
     togglePanel,
+    toggleDebuggerPanel,
     openProviderManager,
     setTargetTab,
     toggleTool,

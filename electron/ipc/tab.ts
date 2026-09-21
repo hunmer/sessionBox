@@ -21,7 +21,12 @@ import type { Tab } from '../services/store'
  */
 export function registerTabIpcHandlers(): void {
   // 查询 tab 列表
-  ipcMain.handle('tab:list', () => listTabs())
+  ipcMain.handle('tab:list', () => {
+    const tabs = listTabs()
+    const legacyDebuggerTabs = tabs.filter(tab => tab.url === 'sessionbox://debugger')
+    legacyDebuggerTabs.forEach(tab => deleteTab(tab.id))
+    return tabs.filter(tab => tab.url !== 'sessionbox://debugger')
+  })
 
   // 创建 tab（含 WebContentsView）
   // pageId 为空字符串时使用默认 partition（无页面关联）
@@ -56,7 +61,6 @@ export function registerTabIpcHandlers(): void {
       'downloads': '下载管理',
       'passwords': '密码管理',
       'plugins': '插件管理',
-      'debugger': '网页调试与录制',
     }
     const pageKey = isInternalPage ? url!.replace('sessionbox://', '') : null
     const internalPageTitle = pageKey ? (internalPageTitles[pageKey] || pageKey) : null

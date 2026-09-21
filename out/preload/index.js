@@ -190,6 +190,7 @@ const api = {
     close: () => electron.ipcRenderer.invoke("window:close"),
     isMaximized: () => electron.ipcRenderer.invoke("window:isMaximized"),
     toggleFullscreen: () => electron.ipcRenderer.invoke("window:toggleFullscreen"),
+    toggleDevTools: () => electron.ipcRenderer.invoke("window:toggleDevTools"),
     startResize: (direction) => {
       electron.ipcRenderer.send("window:startResize", direction);
     },
@@ -414,9 +415,11 @@ const api = {
     createWindow: () => electron.ipcRenderer.invoke("debugger:create-window"),
     getTabs: () => electron.ipcRenderer.invoke("debugger:get-tabs"),
     getActionRun: (wcId) => electron.ipcRenderer.invoke("debugger:get-action-run", wcId),
+    clearActionSteps: (wcId) => electron.ipcRenderer.invoke("debugger:clear-action-steps", wcId),
     injectActionRecorder: (wcId) => electron.ipcRenderer.invoke("debugger:inject-action-recorder", wcId),
     startActionRecord: (wcId, options) => electron.ipcRenderer.invoke("debugger:start-action-record", wcId, options),
     stopActionRecord: (wcId) => electron.ipcRenderer.invoke("debugger:stop-action-record", wcId),
+    highlightActionStep: (wcId, step) => electron.ipcRenderer.invoke("debugger:highlight-action-step", wcId, step),
     playActionRun: (wcId, run, options) => electron.ipcRenderer.invoke("debugger:play-action-run", wcId, run, options),
     saveActionPreset: (name, run) => electron.ipcRenderer.invoke("debugger:save-action-preset", name, run),
     listActionPresets: () => electron.ipcRenderer.invoke("debugger:list-action-presets"),

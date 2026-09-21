@@ -42,6 +42,7 @@ import { createChatStore } from '@/stores/chat'
 import { useChatUIStore } from '@/stores/chat-ui'
 import { useAIProviderStore } from '@/stores/ai-provider'
 import ChatPanel from '@/components/chat/ChatPanel.vue'
+import DebuggerPage from '@/components/debugger/DebuggerPage.vue'
 import { useIpcEvent } from '@/composables/useIpc'
 import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
 import type { TabImplementation } from '../preload'
@@ -372,8 +373,8 @@ function handleLayout(sizes: number[]) {
     if (tabStore.tabLayout === 'vertical' && sizes.length >= 3) {
       localStorage.setItem(VERTICAL_TAB_STORAGE_KEY, String(Math.round(sizes[1])))
     }
-    // ChatPanel 始终是最后一个面板
-    if (chatUIStore.isPanelVisible) {
+    // 右侧工具面板始终是最后一个面板
+    if (chatUIStore.isPanelVisible || chatUIStore.isDebuggerPanelVisible) {
       const chatWidth = Math.round(sizes[sizes.length - 1])
       if (chatWidth >= CHAT_PANEL_MIN_SIZE && chatWidth <= CHAT_PANEL_MAX_SIZE) {
         localStorage.setItem(CHAT_PANEL_STORAGE_KEY, String(chatWidth))
@@ -659,7 +660,8 @@ useIpcEvent('shortcut', (actionId) => {
       break
     case 'open-devtools':
     case 'open-devtools-alt':
-      if (tab) tabStore.openDevTools(tab.id)
+      // 快捷键打开的是 Electron 应用自身的开发者工具；网页的开发者工具唯一入口在 TabLayoutMenu 菜单
+      window.api.window.toggleDevTools()
       break
     case 'focus-address-f6': {
       const input = document.querySelector<HTMLInputElement>('[data-address-input]')
@@ -923,8 +925,8 @@ useIpcEvent('shortcut', (actionId) => {
           </div>
         </ResizablePanel>
 
-        <!-- 聊天面板（可调整宽度，默认 380px） -->
-        <template v-if="chatUIStore.isPanelVisible">
+        <!-- 聊天 / 网页调试面板（互斥，可调整宽度） -->
+        <template v-if="chatUIStore.isPanelVisible || chatUIStore.isDebuggerPanelVisible">
           <ResizableHandle :class="HANDLE_CLASSES" />
           <ResizablePanel
             size-unit="px"
@@ -936,7 +938,11 @@ useIpcEvent('shortcut', (actionId) => {
               class="bg-background"
               :class="CARD_CLASSES"
             >
-              <ChatPanel :chat="chatStore" />
+              <ChatPanel
+                v-if="chatUIStore.isPanelVisible"
+                :chat="chatStore"
+              />
+              <DebuggerPage v-else />
             </div>
           </ResizablePanel>
         </template>

@@ -15,7 +15,7 @@ export interface ToolDefinition {
   }
 }
 
-export type ToolCategoryName = 'workflow' | 'tab' | 'auto' | 'skill' | 'workspace' | 'page' | 'dom' | 'utils'
+export type ToolCategoryName = 'workflow' | 'tab' | 'auto' | 'recording' | 'skill' | 'workspace' | 'page' | 'dom' | 'utils'
 export type ToolRiskLevel = 'low' | 'medium' | 'high'
 export type DiscoveryStage = 'category_list' | 'tool_list' | 'tool_detail' | 'execute'
 export type DiscoveryNextAction =
@@ -73,6 +73,12 @@ export const TOOL_CATEGORY_INFOS: ToolCategoryInfo[] = [
     not_suitable_for: ['单次人工交互', '精细 DOM 定位', '页面级信息读取'],
   },
   {
+    name: 'recording',
+    scenario: '网页操作录制方案的创建、查询、更新、删除和执行。',
+    suitable_for: ['查看已保存录制', '创建或修改录制方案', '带自定义参数执行录制', '删除录制方案'],
+    not_suitable_for: ['管理 Markdown Skill', '单次 DOM 点击', '标签页管理'],
+  },
+  {
     name: 'skill',
     scenario: '高层抽象能力，类似任务技能包。',
     suitable_for: ['业务任务封装', '复用型能力', '上层语义动作'],
@@ -107,19 +113,19 @@ export const TOOL_CATEGORY_INFOS: ToolCategoryInfo[] = [
 /** 所有浏览器业务工具的元数据列表 */
 export const BROWSER_TOOL_LIST: ToolMeta[] = [
   {
-    name: 'list_recordings', description: '列出已保存的网页操作录制', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'list'], riskLevel: 'low', suitableFor: ['查看可执行录制'],
+    name: 'list_recordings', description: '列出已保存的网页操作录制', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'list'], riskLevel: 'low', suitableFor: ['查看可执行录制'],
   },
   {
-    name: 'create_recording', description: '创建或保存网页操作录制', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'create'], riskLevel: 'medium', suitableFor: ['保存录制步骤'],
+    name: 'create_recording', description: '创建或保存网页操作录制', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'create'], riskLevel: 'medium', suitableFor: ['保存录制步骤'],
   },
   {
-    name: 'update_recording', description: '更新已保存网页操作录制', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'update'], riskLevel: 'medium', suitableFor: ['修改录制名称或步骤'],
+    name: 'update_recording', description: '更新已保存网页操作录制', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'update'], riskLevel: 'medium', suitableFor: ['修改录制名称或步骤'],
   },
   {
-    name: 'delete_recording', description: '删除已保存网页操作录制', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'delete'], riskLevel: 'high', suitableFor: ['删除不需要的录制'],
+    name: 'delete_recording', description: '删除已保存网页操作录制', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'delete'], riskLevel: 'high', suitableFor: ['删除不需要的录制'],
   },
   {
-    name: 'execute_recording', description: '在指定标签页执行录制，可传入自定义参数替换 {{name}} 占位符', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'execute'], riskLevel: 'high', suitableFor: ['自动执行录制流程'],
+    name: 'execute_recording', description: '在指定标签页执行录制，可传入自定义参数替换 {{name}} 占位符', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'execute'], riskLevel: 'high', suitableFor: ['自动执行录制流程'],
   },
   {
     name: 'click_element',

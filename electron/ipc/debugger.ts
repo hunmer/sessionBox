@@ -7,6 +7,7 @@ import {
   stopActionRecording,
   getActionRun,
   getActiveActionRuns,
+  clearActionRunSteps,
   type ActionRun
 } from '../services/action-recorder'
 import { playActionRun, stopActionPlay } from '../services/action-player'
@@ -155,10 +156,97 @@ export function registerDebuggerIpcHandlers(): void {
 
   ipcMain.handle('debugger:start-action-record', async (_e, wcId: number, options?: { eventTypes?: any[] }) => {
     return startActionRecording(wcId, (step) => {
-      if (debuggerWindow && !debuggerWindow.isDestroyed()) {
-        sendDebuggerEvent('debugger:action-step', step)
-      }
+      sendDebuggerEvent('debugger:action-step', step)
     }, { eventTypes: Array.isArray(options?.eventTypes) ? options.eventTypes as any : undefined })
+  })
+
+  ipcMain.handle('debugger:highlight-action-step', async (_e, wcId: number, step?: ActionRun['steps'][number] | null) => {
+    const wc = webContents.fromId(wcId)
+    if (!wc || wc.isDestroyed()) {
+      console.warn('[debugger:highlight] target unavailable', { wcId, stepId: step?.id })
+      return { success: false, error: '目标 WebContents 不存在或已销毁' }
+    }
+
+    console.info('[debugger:highlight] request', {
+      wcId,
+      pageUrl: wc.getURL(),
+      stepId: step?.id || null,
+      stepUrl: step?.url || null,
+      locator: step?.locator || null
+    })
+
+    try {
+      const result = await wc.executeJavaScript(`
+        (() => {
+          const overlayId = '__sessionbox_action_highlight__';
+          document.getElementById(overlayId)?.remove();
+          const step = ${JSON.stringify(step || null)};
+          if (!step) return { found: false, cleared: true, pageUrl: location.href };
+          if (!step.locator) return { found: false, reason: 'missing-locator', pageUrl: location.href, attempts: [] };
+
+          const locator = step.locator;
+          let element = null;
+          let strategy = '';
+          const attempts = [];
+          const select = (name, finder) => {
+            if (element) return;
+            try {
+              element = finder();
+              attempts.push({ strategy: name, matched: !!element });
+              if (element) strategy = name;
+            } catch (error) {
+              attempts.push({ strategy: name, matched: false, error: String(error) });
+            }
+          };
+
+          if (locator.css) select('css', () => document.querySelector(locator.css));
+          if (locator.testId) select('testId', () => Array.from(document.querySelectorAll('[data-testid], [data-test], [data-cy]'))
+            .find((item) => ['data-testid', 'data-test', 'data-cy'].some((name) => item.getAttribute(name) === locator.testId)) || null);
+          if (locator.id) select('id', () => document.getElementById(locator.id));
+          if (locator.name) select('name', () => Array.from(document.querySelectorAll('[name]')).find((item) => item.getAttribute('name') === locator.name) || null);
+          if (locator.xpath) select('xpath', () => document.evaluate(locator.xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue);
+          if (locator.text) select('text', () => {
+            const expected = String(locator.text).trim();
+            return Array.from(document.querySelectorAll(locator.tag || 'button, a, input, textarea, select, [role]'))
+              .find((item) => String(item.innerText || item.textContent || item.value || '').replace(/\\s+/g, ' ').trim() === expected) || null;
+          });
+          if (!(element instanceof Element)) return { found: false, reason: 'element-not-found', pageUrl: location.href, attempts };
+
+          element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+          const rect = element.getBoundingClientRect();
+          const overlay = document.createElement('div');
+          overlay.id = overlayId;
+          Object.assign(overlay.style, {
+            position: 'fixed',
+            left: Math.max(0, rect.left - 2) + 'px',
+            top: Math.max(0, rect.top - 2) + 'px',
+            width: Math.max(0, rect.width + 4) + 'px',
+            height: Math.max(0, rect.height + 4) + 'px',
+            border: '2px solid #f59e0b',
+            borderRadius: '4px',
+            boxSizing: 'border-box',
+            background: 'rgba(245, 158, 11, 0.12)',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.9), 0 0 0 4px rgba(245,158,11,0.25)',
+            pointerEvents: 'none',
+            zIndex: '2147483647'
+          });
+          document.documentElement.appendChild(overlay);
+          return {
+            found: true,
+            strategy,
+            pageUrl: location.href,
+            attempts,
+            tag: element.tagName.toLowerCase(),
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+          };
+        })()
+      `)
+      console.info('[debugger:highlight] result', { wcId, stepId: step?.id || null, result })
+      return { success: true, ...result }
+    } catch (error) {
+      console.warn('[debugger] highlight action step failed', { wcId, error })
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
+    }
   })
 
   ipcMain.handle('debugger:stop-action-record', (_e, wcId: number) => {
@@ -167,6 +255,12 @@ export function registerDebuggerIpcHandlers(): void {
 
   ipcMain.handle('debugger:get-action-run', (_e, wcId: number) => {
     return getActionRun(wcId)
+  })
+
+  ipcMain.handle('debugger:clear-action-steps', (_e, wcId: number) => {
+    const cleared = clearActionRunSteps(wcId)
+    console.info('[debugger:recording] clear steps', { wcId, cleared })
+    return { success: true, cleared }
   })
 
   ipcMain.handle('debugger:export-action-run', async (_e, wcId: number) => {

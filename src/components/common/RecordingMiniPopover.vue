@@ -30,7 +30,7 @@ async function execute(item: Preset) {
   <div class="w-80">
     <div class="flex items-center justify-between px-3 py-2">
       <div class="flex items-center gap-2 text-sm font-medium"><Video class="h-4 w-4" />录制</div>
-      <Button variant="ghost" size="sm" class="h-7 gap-1 text-xs text-primary" @click="emit('open-full')">打开新标签页<ArrowRight class="h-3 w-3" /></Button>
+      <Button variant="ghost" size="sm" class="h-7 gap-1 text-xs text-primary" @click="emit('open-full')">打开调试面板<ArrowRight class="h-3 w-3" /></Button>
     </div>
     <ScrollArea class="h-72 border-t">
       <button v-for="item in presets" :key="item.id" class="flex w-full items-center gap-2 border-b px-3 py-2 text-left hover:bg-muted/60" @click="execute(item)">

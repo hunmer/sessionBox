@@ -26,10 +26,10 @@ function copyResult() {
 }
 
 const statusConfig: Record<string, { label: string; class: string; icon: string }> = {
-  pending: { label: '等待中', class: 'bg-muted text-muted-foreground', icon: '⏳' },
-  running: { label: '执行中', class: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300', icon: '⚙️' },
-  completed: { label: '完成', class: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300', icon: '✅' },
-  error: { label: '错误', class: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', icon: '❌' },
+  pending: { label: '', class: 'bg-muted text-muted-foreground', icon: '⏳' },
+  running: { label: '', class: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300', icon: '⚙️' },
+  completed: { label: '', class: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300', icon: '✅' },
+  error: { label: '', class: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', icon: '❌' },
 }
 
 const config = computed(() => statusConfig[props.toolCall.status] ?? statusConfig.pending)

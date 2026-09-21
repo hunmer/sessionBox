@@ -407,6 +407,7 @@ const api = {
     close: (): Promise<void> => ipcRenderer.invoke('window:close'),
     isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
     toggleFullscreen: (): Promise<void> => ipcRenderer.invoke('window:toggleFullscreen'),
+    toggleDevTools: (): Promise<void> => ipcRenderer.invoke('window:toggleDevTools'),
     startResize: (direction: string): void => {
       ipcRenderer.send('window:startResize', direction)
     },
@@ -700,9 +701,11 @@ const api = {
     createWindow: (): Promise<any> => ipcRenderer.invoke('debugger:create-window'),
     getTabs: (): Promise<any[]> => ipcRenderer.invoke('debugger:get-tabs'),
     getActionRun: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:get-action-run', wcId),
+    clearActionSteps: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:clear-action-steps', wcId),
     injectActionRecorder: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:inject-action-recorder', wcId),
     startActionRecord: (wcId: number, options?: any): Promise<any> => ipcRenderer.invoke('debugger:start-action-record', wcId, options),
     stopActionRecord: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:stop-action-record', wcId),
+    highlightActionStep: (wcId: number, step?: any | null): Promise<any> => ipcRenderer.invoke('debugger:highlight-action-step', wcId, step),
     playActionRun: (wcId: number, run: any, options?: any): Promise<any> => ipcRenderer.invoke('debugger:play-action-run', wcId, run, options),
     saveActionPreset: (name: string, run: any): Promise<any> => ipcRenderer.invoke('debugger:save-action-preset', name, run),
     listActionPresets: (): Promise<any[]> => ipcRenderer.invoke('debugger:list-action-presets'),

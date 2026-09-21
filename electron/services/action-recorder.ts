@@ -556,6 +556,13 @@ export function getActiveActionRuns(): number[] {
   return Array.from(activeRuns.keys())
 }
 
+export function clearActionRunSteps(wcId: number): boolean {
+  const run = activeRuns.get(wcId)?.run ?? finishedRuns.get(wcId)
+  if (!run) return false
+  run.steps.length = 0
+  return true
+}
+
 export function clearActionRun(wcId: number): void {
   cleanupActionRecording(wcId)
   finishedRuns.delete(wcId)

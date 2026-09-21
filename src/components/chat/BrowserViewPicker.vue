@@ -17,9 +17,11 @@ const CURRENT_VALUE = '__current__'
 const props = withDefaults(defineProps<{
   modelValue?: string | null
   excludeInternal?: boolean
+  triggerClass?: string
 }>(), {
   modelValue: undefined,
   excludeInternal: false,
+  triggerClass: '',
 })
 
 const emit = defineEmits<{
@@ -104,7 +106,10 @@ const selectableTabs = computed(() => props.excludeInternal
     :model-value="getCurrentValue()"
     @update:model-value="handleChange"
   >
-    <SelectTrigger class="h-7 text-xs w-[160px]">
+    <SelectTrigger
+      class="text-xs"
+      :class="triggerClass || 'h-7 w-[160px]'"
+    >
       <img
         v-if="faviconFor(displayTab)"
         :src="faviconFor(displayTab)"

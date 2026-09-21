@@ -6,7 +6,6 @@ import HistoryPage from '@/components/history/HistoryPage.vue'
 import DownloadsPage from '@/components/download/DownloadsPage.vue'
 import PluginsPage from '@/components/plugins/PluginsPage.vue'
 import PasswordsPage from '@/components/passwords/PasswordsPage.vue'
-import DebuggerPage from '@/components/debugger/DebuggerPage.vue'
 
 defineProps<{
   contentInsetStyle?: CSSProperties
@@ -23,8 +22,7 @@ const INTERNAL_PAGES: Record<string, Component> = {
   history: markRaw(HistoryPage),
   downloads: markRaw(DownloadsPage),
   plugins: markRaw(PluginsPage),
-  passwords: markRaw(PasswordsPage),
-  debugger: markRaw(DebuggerPage)
+  passwords: markRaw(PasswordsPage)
 }
 
 function getInternalPageComponent(url?: string | null): Component | null {

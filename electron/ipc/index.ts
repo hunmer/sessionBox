@@ -465,6 +465,11 @@ function registerWindowIpc(): void {
     win.setFullScreen(!win.isFullScreen())
   })
 
+  // 打开应用自身（渲染进程 UI）的开发者工具，区别于网页标签页的开发者工具
+  ipcMain.handle('window:toggleDevTools', (e) => {
+    BrowserWindow.fromWebContents(e.sender)?.webContents.toggleDevTools()
+  })
+
   // 手动窗口缩放：Windows 上 transparent 窗口没有 WS_THICKFRAME，
   // 原生 resize 边框不可用，需主进程轮询光标位置模拟。
   // 每次拖拽都重置光标基准；主进程轮询屏幕坐标，避免光标进入

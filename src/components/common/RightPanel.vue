@@ -49,7 +49,7 @@ const debuggerOpen = ref(false)
 
 function openDebugger() {
   debuggerOpen.value = false
-  tabStore.createTabForSite('sessionbox://debugger')
+  chatUIStore.toggleDebuggerPanel()
 }
 
 function openFullPage(site: string) {
