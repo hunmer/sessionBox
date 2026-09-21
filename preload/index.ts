@@ -577,6 +577,13 @@ const api = {
       ipcRenderer.invoke('chat:completions', params),
     abort: (requestId: string): Promise<{ aborted: boolean }> =>
       ipcRenderer.invoke('chat:abort', requestId),
+    appendMessageLog: (
+      sessionId: string,
+      entry: { role: string; content: string; modelId?: string; createdAt: number }
+    ): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('chat:appendMessageLog', sessionId, entry),
+    openMessageLogLocation: (sessionId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('chat:openMessageLogLocation', sessionId),
   },
 
   aiProvider: {

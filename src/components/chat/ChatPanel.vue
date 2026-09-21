@@ -11,7 +11,14 @@ import BrowserViewPicker from './BrowserViewPicker.vue'
 import SessionManager from './SessionManager.vue'
 import ProviderManager from './ProviderManager.vue'
 import { Button } from '@/components/ui/button'
-import { Settings, Trash2, X } from 'lucide-vue-next'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Settings, Trash2, X, MoreHorizontal, FolderOpen } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{
   chat: ChatStoreInstance
@@ -53,6 +60,12 @@ function handleClear() {
   }
 }
 
+function handleOpenLogLocation() {
+  if (props.chat.currentSessionId) {
+    window.api.chat.openMessageLogLocation(props.chat.currentSessionId).catch(() => {})
+  }
+}
+
 function handleEdit(messageId: string, newContent: string) {
   props.chat.editMessage(messageId, newContent)
 }
@@ -67,26 +80,46 @@ function handleEdit(messageId: string, newContent: string) {
         v-if="!embedded"
         :chat="chat"
       />
-      <Button
-        v-if="!embedded"
-        variant="ghost"
-        size="icon"
-        class="h-7 w-7"
-        @click="uiStore.openProviderManager()"
-      >
-        <Settings class="h-4 w-4" />
-      </Button>
       <div class="flex-1" />
-      <!-- 清空对话 -->
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-7 w-7"
-        :disabled="chat.isStreaming"
-        @click="handleClear"
-      >
-        <Trash2 class="h-4 w-4" />
-      </Button>
+      <!-- 更多操作菜单 -->
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-7 w-7"
+          >
+            <MoreHorizontal class="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            v-if="!embedded"
+            class="cursor-pointer"
+            @click="uiStore.openProviderManager()"
+          >
+            <Settings class="h-4 w-4 mr-2" />
+            设置
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="cursor-pointer"
+            :disabled="chat.isStreaming || !chat.currentSessionId"
+            @click="handleClear"
+          >
+            <Trash2 class="h-4 w-4 mr-2" />
+            清空消息
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            class="cursor-pointer"
+            :disabled="!chat.currentSessionId"
+            @click="handleOpenLogLocation"
+          >
+            <FolderOpen class="h-4 w-4 mr-2" />
+            打开日志位置
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Button
         v-if="!embedded"
         variant="ghost"

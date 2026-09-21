@@ -16,10 +16,20 @@ const showArgs = ref(true)
 const showResult = ref(false)
 const copied = ref(false)
 
-function copyResult() {
-  const text = props.toolCall.error ?? formattedResult.value
-  if (!text) return
-  navigator.clipboard.writeText(text).then(() => {
+/** 复制完整的工具调用（工具名 + 输入参数 + 输出结果/错误） */
+function copyToolCall() {
+  const tc = props.toolCall
+  const parts: string[] = [`工具: ${tc.name}`]
+  if (tc.args && Object.keys(tc.args).length > 0) {
+    parts.push(`输入参数:\n${JSON.stringify(tc.args, null, 2)}`)
+  }
+  if (tc.error) {
+    parts.push(`错误:\n${tc.error}`)
+  } else if (tc.result != null) {
+    parts.push(`输出结果:\n${copyableResult.value}`)
+  }
+  if (parts.length === 1) return
+  navigator.clipboard.writeText(parts.join('\n\n')).then(() => {
     copied.value = true
     setTimeout(() => (copied.value = false), 1500)
   })
@@ -75,6 +85,14 @@ const isImageResult = computed(() => {
 const imageUrl = computed(() => {
   if (!isImageResult.value) return ''
   return (props.toolCall.result as Record<string, unknown>)?.url as string ?? ''
+})
+
+/** 复制用的结果文本；图片结果只取 URL，避免把 base64 数据塞进剪贴板 */
+const copyableResult = computed(() => {
+  if (isImageResult.value) {
+    return imageUrl.value ? `[图片] ${imageUrl.value}` : '[图片结果]'
+  }
+  return formattedResult.value
 })
 
 /** 格式化耗时 */
@@ -206,8 +224,8 @@ async function handleRerun() {
         </CollapsibleTrigger>
         <button
           class="p-0.5 rounded hover:bg-muted hover:text-foreground transition-colors"
-          title="复制输出"
-          @click.stop="copyResult"
+          title="复制完整调用（含结果）"
+          @click.stop="copyToolCall"
         >
           <svg
             v-if="!copied"

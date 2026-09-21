@@ -1,7 +1,66 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, shell, app } from 'electron'
+import { join } from 'node:path'
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { proxyChatCompletions, activeRequests, executeTool } from '../services/ai-proxy'
 
+/** 会话消息日志目录：{userData}/ai-chat-logs/{sessionId}.log */
+function messageLogPath(sessionId: string): string {
+  const dir = join(app.getPath('userData'), 'ai-chat-logs')
+  mkdirSync(dir, { recursive: true })
+  return join(dir, `${sessionId}.log`)
+}
+
+/** 确保日志文件存在（不存在则写入文件头），返回完整路径 */
+function ensureMessageLogFile(sessionId: string): string {
+  const filePath = messageLogPath(sessionId)
+  if (!existsSync(filePath)) {
+    writeFileSync(filePath, `# AI 会话日志 ${sessionId}\n`, 'utf8')
+  }
+  return filePath
+}
+
+function formatLogTime(ts: number): string {
+  const d = new Date(ts)
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+interface MessageLogEntry {
+  role: string
+  content: string
+  modelId?: string
+  createdAt: number
+}
+
 export function registerChatIpcHandlers(): void {
+  // 追加一条消息到会话日志文件
+  ipcMain.handle('chat:appendMessageLog', (_event, sessionId: string, entry: MessageLogEntry) => {
+    try {
+      const filePath = ensureMessageLogFile(sessionId)
+      const roleLabel = entry.role === 'user'
+        ? '用户'
+        : entry.role === 'assistant'
+          ? `AI${entry.modelId ? ` (${entry.modelId})` : ''}`
+          : entry.role
+      const text = `\n====== [${formatLogTime(entry.createdAt ?? Date.now())}] ${roleLabel} ======\n${entry.content ?? ''}\n`
+      appendFileSync(filePath, text, 'utf8')
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // 在系统文件管理器中定位当前会话的日志文件
+  ipcMain.handle('chat:openMessageLogLocation', (_event, sessionId: string) => {
+    try {
+      const filePath = ensureMessageLogFile(sessionId)
+      shell.showItemInFolder(filePath)
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   // Workflow engine 工具执行通道
   ipcMain.handle('agent:execTool', async (_event, toolType: string, params: Record<string, any>, targetTabId?: string) => {
     const result = await executeTool(toolType, params || {}, targetTabId)

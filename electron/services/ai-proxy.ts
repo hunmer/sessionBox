@@ -7,6 +7,7 @@ import {
   buildToolDetailResponse,
   buildToolListResponse,
   isBrowserBusinessToolName,
+  resolveBrowserBusinessToolName,
 } from '../../src/lib/agent/tools'
 import {
   executeCreateTab, executeWindowTool, executeBrowserTool,
@@ -367,13 +368,21 @@ export async function executeTool(
         return buildToolDetailResponse(toolName, enabledToolNames)
       }
       case 'execute_tool': {
-        const toolName = (args.tool_name || args.toolName || args.name) as string
+        const requestedToolName = (args.tool_name || args.toolName || args.name) as string
         const toolArgs = isRecord(args.args) ? args.args : {}
-        if (!toolName) return { error: 'tool_name is required' }
+        if (!requestedToolName) return { error: 'tool_name is required' }
+        const toolName = resolveBrowserBusinessToolName(requestedToolName)
         if (!isBrowserBusinessToolName(toolName)) return { error: `Unknown tool: ${toolName}` }
         if (enabledToolNames && !enabledToolNames.includes(toolName)) return { error: `Tool is disabled: ${toolName}` }
         const result = await executeTool(toolName, toolArgs, targetTabId, enabledToolNames)
-        return { stage: 'execute', need_next: false, next_action: 'none', data: { tool: toolName, result }, message: '工具执行完成。' }
+        const failed = isRecord(result) && (result.success === false || typeof result.error === 'string')
+        return {
+          stage: 'execute',
+          need_next: false,
+          next_action: 'none',
+          data: { tool: toolName, result },
+          message: failed ? `工具执行失败：${String(result.error || '未知错误')}` : '工具执行完成。'
+        }
       }
       case 'list_tabs': {
         const tabs = listTabs()
@@ -458,6 +467,7 @@ export async function executeTool(
       case 'search_skill':
         return executeSkillTool(name, args)
       case 'list_recordings':
+      case 'get_recording':
       case 'create_recording':
       case 'update_recording':
       case 'delete_recording':

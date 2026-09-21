@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { Copy, RefreshCw, Trash2, Pencil, Check } from 'lucide-vue-next'
+import { Copy, RefreshCw, Trash2, Pencil, Check, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { Markdown } from 'vue-stream-markdown'
 import 'vue-stream-markdown/index.css'
 import { useThemeStore } from '@/stores/theme'
@@ -60,6 +60,16 @@ const displayToolCalls = computed(() => {
   if (props.isStreaming && props.streamingToolCalls !== undefined) return props.streamingToolCalls
   return props.message.toolCalls
 })
+
+// --- 工具调用显示/隐藏 ---
+/** 消息完成后默认隐藏工具调用 UI，点击图标展开 */
+const showToolCalls = ref(false)
+
+/** 是否有工具调用 */
+const hasToolCalls = computed(() => !!displayToolCalls.value?.length)
+
+/** 流式过程中始终显示工具调用，完成后按开关决定 */
+const showToolCallUI = computed(() => props.isStreaming || showToolCalls.value)
 
 /** 原始文本对话框展示的思考内容（各思考块拼接） */
 const displayThinking = computed(() =>
@@ -237,7 +247,7 @@ const showStats = computed(() => !isUser.value && (durationMs.value !== null || 
 /** 最后一个文本段的索引 */
 const lastTextSegmentIndex = computed(() => {
   let last = -1
-  segments.value.forEach((seg, i) => { if (seg.type === 'text' && seg.content) last = i })
+  renderSegments.value.forEach((seg, i) => { if (seg.type === 'text' && seg.content) last = i })
   return last
 })
 
@@ -298,6 +308,35 @@ const segments = computed<ContentSegment[]>(() => {
   }
 
   return result
+})
+
+/**
+ * 模板实际渲染的片段：工具调用折叠时剔除工具卡片，
+ * 并把因折叠而相邻的多个思考块合并为一个思考过程；
+ * 中间隔有正文文本的思考块不合并。
+ */
+const renderSegments = computed<ContentSegment[]>(() => {
+  const segs = segments.value
+  if (showToolCallUI.value) return segs
+  const merged: ContentSegment[] = []
+  let pendingThinking: string[] = []
+  const flushThinking = () => {
+    if (pendingThinking.length) {
+      merged.push({ type: 'thinking', content: pendingThinking.join('\n\n') })
+      pendingThinking = []
+    }
+  }
+  for (const seg of segs) {
+    if (seg.type === 'tool-call') continue
+    if (seg.type === 'thinking') {
+      if (seg.content) pendingThinking.push(seg.content)
+    } else if (seg.content) {
+      flushThinking()
+      merged.push(seg)
+    }
+  }
+  flushThinking()
+  return merged
 })
 </script>
 
@@ -363,6 +402,25 @@ const segments = computed<ContentSegment[]>(() => {
       class="flex-1 min-w-0 space-y-1"
       :class="isUser ? 'text-right' : ''"
     >
+      <!-- 工具调用切换文字（消息完成后显示在消息上方，流式中工具 UI 常显无需切换） -->
+      <button
+        v-if="!isUser && hasToolCalls && !isStreaming && !isEditing"
+        class="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        @click="showToolCalls = !showToolCalls"
+      >
+        <ChevronDown
+          v-if="!showToolCalls"
+          class="h-3 w-3"
+        />
+        <ChevronUp
+          v-else
+          class="h-3 w-3"
+        />
+        {{ showToolCalls
+          ? `收起工具调用(${displayToolCalls?.length || 0})`
+          : `展开工具调用详情(${displayToolCalls?.length || 0})` }}
+      </button>
+
       <!-- 图片展示 -->
       <div
         v-if="message.images?.length"
@@ -420,7 +478,7 @@ const segments = computed<ContentSegment[]>(() => {
       <!-- 按顺序穿插渲染思考、文本和工具调用 -->
       <template v-if="!isEditing">
         <template
-          v-for="(seg, i) in segments"
+          v-for="(seg, i) in renderSegments"
           :key="i"
         >
           <ThinkingBlock

@@ -314,7 +314,9 @@ const api = {
   },
   chat: {
     completions: (params) => electron.ipcRenderer.invoke("chat:completions", params),
-    abort: (requestId) => electron.ipcRenderer.invoke("chat:abort", requestId)
+    abort: (requestId) => electron.ipcRenderer.invoke("chat:abort", requestId),
+    appendMessageLog: (sessionId, entry) => electron.ipcRenderer.invoke("chat:appendMessageLog", sessionId, entry),
+    openMessageLogLocation: (sessionId) => electron.ipcRenderer.invoke("chat:openMessageLogLocation", sessionId)
   },
   aiProvider: {
     list: () => electron.ipcRenderer.invoke("ai-provider:list"),

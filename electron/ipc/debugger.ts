@@ -37,7 +37,12 @@ function sanitizePresetName(name: string): string {
 }
 
 function isValidPresetId(id: string): boolean {
-  return /^[a-zA-Z0-9_-]+$/.test(id)
+  return id.length > 0
+    && id.length <= 255
+    && id !== '.'
+    && id !== '..'
+    && !/[<>:"/\\|?*\u0000-\u001f]/u.test(id)
+    && !/[. ]$/u.test(id)
 }
 
 export function registerDebuggerIpcHandlers(): void {

@@ -347,6 +347,15 @@ export function executeSkillTool(name: string, args: Record<string, unknown>): R
 }
 
 function recordingsDir(): string { return join(app.getPath('userData'), 'action-presets') }
+function isValidRecordingId(id: string): boolean {
+  return id.length > 0
+    && id.length <= 255
+    && id !== '.'
+    && id !== '..'
+    && !/[<>:"/\\|?*\u0000-\u001f]/u.test(id)
+    && !/[. ]$/u.test(id)
+}
+
 function replaceRecordingParams<T>(value: T, params: Record<string, unknown>): T {
   if (typeof value === 'string') return value.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_m, key) => String(params[key] ?? _m)) as T
   if (Array.isArray(value)) return value.map(item => replaceRecordingParams(item, params)) as T
@@ -354,7 +363,65 @@ function replaceRecordingParams<T>(value: T, params: Record<string, unknown>): T
   return value
 }
 
-export function executeRecordingTool(name: string, args: Record<string, unknown>): unknown {
+function mergeRecordingPatch<T>(base: T, patch: unknown): T {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return patch as T
+  const baseRecord = base && typeof base === 'object' && !Array.isArray(base) ? base as Record<string, unknown> : {}
+  return Object.fromEntries(Object.entries(patch as Record<string, unknown>).map(([key, value]) => [
+    key,
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? mergeRecordingPatch(baseRecord[key], value)
+      : value
+  ]).concat(Object.entries(baseRecord).filter(([key]) => !(key in (patch as Record<string, unknown>))))) as T
+}
+
+function applyRecordingOverrides(run: ActionRun, overrides: unknown[]): {
+  run: ActionRun
+  applied: Array<{ index: number; method: 'replace' | 'append' | 'skip'; stepId: string }>
+} {
+  const grouped = new Map<number, Array<{ method: 'replace' | 'append' | 'skip'; patch?: Record<string, unknown> }>>()
+  for (const raw of overrides) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('overrides 中每一项必须是对象')
+    const item = raw as Record<string, unknown>
+    const index = Number(item.index)
+    const method = item.method
+    if (!Number.isInteger(index) || index < 0 || index >= run.steps.length) throw new Error(`无效的步骤索引: ${item.index}`)
+    if (method !== 'replace' && method !== 'append' && method !== 'skip') throw new Error(`无效的 override method: ${String(method)}`)
+    if ((method === 'replace' || method === 'append') && (!item.patch || typeof item.patch !== 'object' || Array.isArray(item.patch))) {
+      throw new Error(`${method} 必须提供 patch 对象`)
+    }
+    const list = grouped.get(index) || []
+    list.push({ method, patch: item.patch as Record<string, unknown> | undefined })
+    grouped.set(index, list)
+  }
+
+  const steps: ActionRun['steps'] = []
+  const applied: Array<{ index: number; method: 'replace' | 'append' | 'skip'; stepId: string }> = []
+  run.steps.forEach((original, index) => {
+    let current = structuredClone(original)
+    let skipped = false
+    const appended: ActionRun['steps'] = []
+    for (const override of grouped.get(index) || []) {
+      if (override.method === 'skip') {
+        skipped = true
+        applied.push({ index, method: 'skip', stepId: current.id })
+      } else if (override.method === 'replace') {
+        current = mergeRecordingPatch(current, override.patch)
+        applied.push({ index, method: 'replace', stepId: current.id })
+      } else {
+        const appendedStep = mergeRecordingPatch(structuredClone(current), override.patch)
+        if (!override.patch?.id) appendedStep.id = `${current.id}_append_${index}_${appended.length}`
+        appended.push(appendedStep)
+        applied.push({ index, method: 'append', stepId: appendedStep.id })
+      }
+    }
+    if (!skipped) steps.push(current)
+    steps.push(...appended)
+  })
+
+  return { run: { ...run, steps }, applied }
+}
+
+export async function executeRecordingTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   const dir = recordingsDir()
   mkdirSync(dir, { recursive: true })
   const id = String(args.id || '')
@@ -362,6 +429,25 @@ export function executeRecordingTool(name: string, args: Record<string, unknown>
     return readdirSync(dir).filter(file => file.endsWith('.json')).map(file => {
       try { const item = JSON.parse(readFileSync(join(dir, file), 'utf8')); return { id: item.id || file.slice(0, -5), name: item.name, stepCount: item.steps?.length || 0, initialUrl: item.initialUrl || '', updatedAt: item.updatedAt || item.createdAt || 0 } } catch { return null }
     }).filter(Boolean)
+  }
+  if (name === 'get_recording') {
+    if (!id) return { error: 'id 为必填' }
+    if (!isValidRecordingId(id)) return { error: '录制 ID 无效' }
+    try {
+      const item = JSON.parse(readFileSync(join(dir, `${id}.json`), 'utf8'))
+      return {
+        id: item.id || id,
+        name: item.name || '',
+        initialUrl: item.initialUrl || '',
+        partition: item.partition || 'default',
+        stepCount: Array.isArray(item.steps) ? item.steps.length : 0,
+        steps: Array.isArray(item.steps) ? item.steps : [],
+        createdAt: item.createdAt || 0,
+        updatedAt: item.updatedAt || item.createdAt || 0
+      }
+    } catch {
+      return { error: '录制不存在' }
+    }
   }
   if (name === 'create_recording') {
     const steps = Array.isArray(args.steps) ? args.steps : []
@@ -373,7 +459,7 @@ export function executeRecordingTool(name: string, args: Record<string, unknown>
     return { success: true, id: newId, name: payload.name }
   }
   if (!id) return { error: 'id 为必填' }
-  if (!/^[a-zA-Z0-9_-]+$/.test(id)) return { error: '录制 ID 无效' }
+  if (!isValidRecordingId(id)) return { error: '录制 ID 无效' }
   const filePath = join(dir, `${id}.json`)
   if (name === 'delete_recording') { try { unlinkSync(filePath); return { success: true, id } } catch { return { error: '录制不存在' } } }
   try {
@@ -388,9 +474,21 @@ export function executeRecordingTool(name: string, args: Record<string, unknown>
       const tabId = String(args.tabId || webviewManager.getActiveTabId() || '')
       const wc = getWebContentsFromManager(tabId)
       if (!wc) return { error: '目标标签页不存在' }
-      const run = replaceRecordingParams({ id: item.id, partition: item.partition || 'default', startedAt: item.createdAt || Date.now(), endedAt: item.updatedAt || null, initialUrl: item.initialUrl || '', steps: item.steps || [] } as ActionRun, (args.parameters || {}) as Record<string, unknown>)
-      void playActionRun(wc, run, { pauseOnError: args.pauseOnError !== false, retryCount: Number(args.retryCount) || undefined })
-      return { success: true, id, tabId, stepCount: run.steps.length }
+      const sourceRun = { id: item.id, partition: item.partition || 'default', startedAt: item.createdAt || Date.now(), endedAt: item.updatedAt || null, initialUrl: item.initialUrl || '', steps: item.steps || [] } as ActionRun
+      const overrideResult = applyRecordingOverrides(sourceRun, Array.isArray(args.overrides) ? args.overrides : [])
+      const run = replaceRecordingParams(overrideResult.run, (args.parameters || {}) as Record<string, unknown>)
+      console.info('[recording] execute overrides', { id, applied: overrideResult.applied })
+      const state = await playActionRun(wc, run, { pauseOnError: args.pauseOnError !== false, retryCount: Number(args.retryCount) || undefined })
+      return {
+        success: state.status === 'completed',
+        id,
+        tabId,
+        stepCount: run.steps.length,
+        appliedOverrides: overrideResult.applied,
+        status: state.status,
+        results: state.results,
+        ...(state.error ? { error: state.error } : {})
+      }
     }
   } catch (error) { return { error: error instanceof Error ? error.message : String(error) } }
   return { error: `Unknown recording tool: ${name}` }

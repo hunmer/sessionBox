@@ -53,6 +53,15 @@ export interface ToolDiscoveryResponse<TData = Record<string, unknown>> {
 
 type EnabledToolFilter = ReadonlySet<string> | string[] | undefined
 
+const TOOL_NAME_ALIASES: Record<string, string> = {
+  recording_list: 'list_recordings',
+  recording_get: 'get_recording',
+  recording_create: 'create_recording',
+  recording_update: 'update_recording',
+  recording_delete: 'delete_recording',
+  recording_execute: 'execute_recording',
+}
+
 export const TOOL_CATEGORY_INFOS: ToolCategoryInfo[] = [
   {
     name: 'workflow',
@@ -116,6 +125,9 @@ export const BROWSER_TOOL_LIST: ToolMeta[] = [
     name: 'list_recordings', description: '列出已保存的网页操作录制', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'list'], riskLevel: 'low', suitableFor: ['查看可执行录制'],
   },
   {
+    name: 'get_recording', description: '查询指定网页操作录制的完整步骤', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'detail'], riskLevel: 'low', suitableFor: ['查看录制步骤和索引', '执行前构造临时步骤修改'],
+  },
+  {
     name: 'create_recording', description: '创建或保存网页操作录制', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'create'], riskLevel: 'medium', suitableFor: ['保存录制步骤'],
   },
   {
@@ -125,7 +137,7 @@ export const BROWSER_TOOL_LIST: ToolMeta[] = [
     name: 'delete_recording', description: '删除已保存网页操作录制', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'delete'], riskLevel: 'high', suitableFor: ['删除不需要的录制'],
   },
   {
-    name: 'execute_recording', description: '在指定标签页执行录制，可传入自定义参数替换 {{name}} 占位符', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'execute'], riskLevel: 'high', suitableFor: ['自动执行录制流程'],
+    name: 'execute_recording', description: '在指定标签页执行录制，可替换占位符或覆盖录制的输入内容', category: '录制管理', discoveryCategory: 'recording', tags: ['recording', 'execute'], riskLevel: 'high', suitableFor: ['自动执行录制流程'],
   },
   {
     name: 'click_element',
@@ -444,6 +456,7 @@ export const DISCOVERY_TOOL_NAMES = [
 
 const TOOL_EXAMPLE_INPUTS: Record<string, Record<string, unknown>> = {
   list_recordings: {},
+  get_recording: { id: 'recording-id' },
   create_recording: { name: '登录流程', steps: [] },
   update_recording: { id: 'recording-id', name: '更新后的登录流程' },
   delete_recording: { id: 'recording-id' },
@@ -584,10 +597,11 @@ function createRecordingTools(tabIdField: { type: 'string'; description: string 
   const stepField = { type: 'array', description: 'ActionStep 步骤数组，可在字符串值中使用 {{参数名}} 占位符', items: { type: 'object' } }
   return [
     { name: 'list_recordings', description: '列出所有已保存的网页操作录制。', input_schema: { type: 'object', properties: {} } },
+    { name: 'get_recording', description: '读取指定录制的完整信息和步骤数组。步骤索引从 0 开始，可用于构造 execute_recording.overrides。', input_schema: { type: 'object', properties: { id: { type: 'string', description: '录制 ID' } }, required: ['id'] } },
     { name: 'create_recording', description: '创建网页操作录制。', input_schema: { type: 'object', properties: { name: { type: 'string', description: '录制名称' }, initialUrl: { type: 'string', description: '起始 URL' }, steps: stepField }, required: ['name', 'steps'] } },
     { name: 'update_recording', description: '更新已有录制的名称、起始 URL 或步骤。', input_schema: { type: 'object', properties: { id: { type: 'string', description: '录制 ID' }, name: { type: 'string', description: '新名称' }, initialUrl: { type: 'string', description: '新起始 URL' }, steps: stepField }, required: ['id'] } },
     { name: 'delete_recording', description: '删除指定录制。', input_schema: { type: 'object', properties: { id: { type: 'string', description: '录制 ID' } }, required: ['id'] } },
-    { name: 'execute_recording', description: '执行指定录制。parameters 会替换步骤字符串中的 {{参数名}} 占位符。', input_schema: { type: 'object', properties: { id: { type: 'string', description: '录制 ID' }, tabId: tabIdField, parameters: { type: 'object', description: '自定义输入参数', properties: {} }, pauseOnError: { type: 'boolean', description: '出错时暂停，默认 true' }, retryCount: { type: 'number', description: '失败重试次数' } }, required: ['id'] } },
+    { name: 'execute_recording', description: '执行指定录制，可通过 overrides 临时修改步骤但不保存。index 是原始步骤的 0 基索引；replace 深度合并 patch 到该步骤，append 复制该步骤并合并 patch 后插入其后，skip 跳过该步骤。parameters 仅替换 {{参数名}} 占位符。', input_schema: { type: 'object', properties: { id: { type: 'string', description: '录制 ID' }, tabId: tabIdField, overrides: { type: 'array', description: '仅本次执行生效的步骤修改数组', items: { type: 'object', properties: { index: { type: 'number', description: '原始步骤的 0 基索引' }, method: { type: 'string', enum: ['replace', 'append', 'skip'] }, patch: { type: 'object', description: 'replace/append 使用的步骤局部字段，支持嵌套字段深度合并', properties: {} } }, required: ['index', 'method'] } }, parameters: { type: 'object', description: '仅用于替换步骤字符串中的 {{参数名}} 占位符', properties: {} }, pauseOnError: { type: 'boolean', description: '出错时暂停，默认 true' }, retryCount: { type: 'number', description: '失败重试次数' } }, required: ['id'] } },
   ]
 }
 
@@ -676,7 +690,11 @@ export function isToolCategoryName(name: string): name is ToolCategoryName {
 }
 
 export function isBrowserBusinessToolName(name: string): boolean {
-  return BROWSER_TOOL_LIST.some((tool) => tool.name === name)
+  return BROWSER_TOOL_LIST.some((tool) => tool.name === resolveBrowserBusinessToolName(name))
+}
+
+export function resolveBrowserBusinessToolName(name: string): string {
+  return TOOL_NAME_ALIASES[name] || name
 }
 
 export function buildCategoryListResponse(): ToolDiscoveryResponse<{ categories: ToolCategoryInfo[] }> {
@@ -742,8 +760,9 @@ export function buildToolDetailResponse(
   toolName: string,
   enabledToolNames?: EnabledToolFilter,
 ): ToolDiscoveryResponse<Record<string, unknown>> {
-  const meta = BROWSER_TOOL_LIST.find((tool) => tool.name === toolName)
-  const definition = createBrowserTools(null).find((tool) => tool.name === toolName)
+  const canonicalToolName = resolveBrowserBusinessToolName(toolName)
+  const meta = BROWSER_TOOL_LIST.find((tool) => tool.name === canonicalToolName)
+  const definition = createBrowserTools(null).find((tool) => tool.name === canonicalToolName)
 
   if (!meta || !definition) {
     return {
@@ -755,13 +774,13 @@ export function buildToolDetailResponse(
     }
   }
 
-  if (!isToolEnabled(toolName, enabledToolNames)) {
+  if (!isToolEnabled(canonicalToolName, enabledToolNames)) {
     return {
       stage: 'tool_detail',
       need_next: true,
       next_action: 'select_tool',
       data: {},
-      message: `工具 ${toolName} 当前未启用，不能查看详情或执行。`,
+      message: `工具 ${canonicalToolName} 当前未启用，不能查看详情或执行。`,
     }
   }
 
@@ -777,14 +796,16 @@ export function buildToolDetailResponse(
       output_schema: GENERIC_OUTPUT_SCHEMA,
       examples: [
         {
-          input: TOOL_EXAMPLE_INPUTS[toolName] ?? {},
+          input: TOOL_EXAMPLE_INPUTS[canonicalToolName] ?? {},
           output: { success: true, result: {} },
         },
       ],
       constraints: buildToolConstraints(meta, definition),
       notes: buildToolNotes(meta),
     },
-    message: '请根据 input_schema 提供完整参数后调用 execute_tool。',
+    message: canonicalToolName === toolName
+      ? '请根据 input_schema 提供完整参数后调用 execute_tool。'
+      : `已将别名 ${toolName} 归一为 ${canonicalToolName}。请使用规范工具名调用 execute_tool。`,
   }
 }
 

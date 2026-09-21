@@ -73,8 +73,8 @@ async function setTabImplementation(value: unknown) {
       <SelectValue placeholder="选择标签页实现方式" />
     </SelectTrigger>
     <SelectContent>
-      <SelectItem value="webview">webview（默认）</SelectItem>
-      <SelectItem value="browsercontent">browsercontent（当前实现）</SelectItem>
+      <SelectItem value="webview">webview</SelectItem>
+      <SelectItem value="browsercontent">browsercontent</SelectItem>
     </SelectContent>
   </Select>
 

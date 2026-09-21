@@ -19,6 +19,16 @@ import { runAgentStream } from '@/lib/agent/agent'
 
 // ====== 辅助函数 ======
 
+/** 将消息追加写入会话日志文件（{userData}/ai-chat-logs/{sessionId}.log），失败静默不影响主流程 */
+function appendToMessageLog(message: ChatMessage): void {
+  window.api.chat.appendMessageLog(message.sessionId, {
+    role: message.role,
+    content: message.content,
+    modelId: message.modelId,
+    createdAt: message.createdAt,
+  }).catch(() => {})
+}
+
 /** 将消息更新持久化到 DB 和本地数组 */
 async function persistMessageUpdate(
   messageId: string,
@@ -143,11 +153,14 @@ function createStreamCallbacks(
       try {
         const updates = buildStreamUpdates(streamingToken, streamingToolCalls, streamingThinkingBlocks, streamingUsage)
         await persistMessageUpdate(assistantMsg.id, messages, updates)
+        appendToMessageLog({ ...assistantMsg, ...updates, content: updates.content ?? '' })
       } finally { resetStreamState() }
     },
     onError: async (error: Error) => {
       try {
-        await persistMessageUpdate(assistantMsg.id, messages, { content: streamingToken.value || `[错误] ${error.message}` })
+        const updates: Partial<ChatMessage> = { content: streamingToken.value || `[错误] ${error.message}` }
+        await persistMessageUpdate(assistantMsg.id, messages, updates)
+        appendToMessageLog({ ...assistantMsg, ...updates })
       } finally { resetStreamState() }
     },
   }
@@ -328,8 +341,10 @@ export function createChatStore(scope: string) {
         const idx = messages.value.findIndex((m) => m.id === assistantMsg.id)
         if (idx !== -1) {
           const errorContent = error instanceof Error ? error.message : String(error)
-          messages.value[idx] = { ...messages.value[idx], content: `[错误] ${errorContent}` }
-          await dbUpdateMessage(assistantMsg.id, { content: `[错误] ${errorContent}` })
+          const errorMsg = { ...messages.value[idx], content: `[错误] ${errorContent}` }
+          messages.value[idx] = errorMsg
+          await dbUpdateMessage(assistantMsg.id, { content: errorMsg.content })
+          appendToMessageLog(errorMsg)
         }
       }
     }
@@ -341,6 +356,7 @@ export function createChatStore(scope: string) {
 
       const userMsg = await dbAddMessage({ sessionId, role: 'user', content, images, createdAt: Date.now() })
       messages.value.push(userMsg)
+      appendToMessageLog(userMsg)
 
       const session = sessions.value.find((s) => s.id === sessionId)
       if (session && session.messageCount <= 1) {
@@ -366,9 +382,11 @@ export function createChatStore(scope: string) {
       }
 
       if (currentSessionId.value) {
-        messages.value.push(await dbAddMessage({
+        const interruptMsg = await dbAddMessage({
           sessionId: currentSessionId.value, role: 'system', content: '用户已中断操作', createdAt: Date.now(),
-        }))
+        })
+        messages.value.push(interruptMsg)
+        appendToMessageLog(interruptMsg)
       }
       isStreaming.value = false
       streamingMessageId.value = null
