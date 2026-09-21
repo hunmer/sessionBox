@@ -20,8 +20,8 @@ const props = defineProps<{ open: boolean; initialTab?: string }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const tabs = [
-  { key: 'theme', label: '主题', icon: Palette },
   { key: 'general', label: '常规', icon: Settings2 },
+  { key: 'theme', label: '主题', icon: Palette },
   { key: 'tabs', label: '标签页', icon: LayoutList },
   { key: 'bookmark', label: '书签', icon: Bookmark },
   { key: 'containers', label: '容器', icon: Box },
@@ -32,11 +32,12 @@ const tabs = [
   { key: 'mcp', label: 'MCP', icon: Server },
   { key: 'about', label: '关于', icon: Info }
 ]
-const activeTab = ref('general')
+const activeTab = ref(tabs[0].key)
 
 watch(() => props.open, (open) => {
-  if (open && props.initialTab) {
-    activeTab.value = props.initialTab
+  if (open) {
+    // initialTab 可能是已下线的选项卡 key（如 'user'），非法时回落到第一个
+    activeTab.value = tabs.some((t) => t.key === props.initialTab) ? props.initialTab! : tabs[0].key
   }
 })
 </script>

@@ -785,6 +785,8 @@ export const useTabStore = defineStore('tab', () => {
     createTabAction(ctx, pageId, targetPaneId)
   const createTabForSite = (url: string, pageId?: string, targetPaneId?: string | null) =>
     createTabForSiteAction(ctx, url, pageId, targetPaneId)
+  const createTabInDefaultSession = (url: string, targetPaneId?: string | null) =>
+    createTabInDefaultSessionAction(ctx, url, targetPaneId)
   const closeTab = (tabId: string) => closeTabAction(ctx, tabId)
   const closeOtherTabs = (keepTabId: string) => closeOtherTabsAction(ctx, keepTabId)
   const closeLeftTabs = (anchorTabId: string) => closeLeftTabsAction(ctx, anchorTabId)
@@ -814,6 +816,10 @@ export const useTabStore = defineStore('tab', () => {
   const openDevTools = (tabId: string) => api.tab.openDevTools(tabId)
   const openInNewWindow = async (tabId: string) => {
     await api.tab.openInNewWindow(tabId)
+    await closeTabAction(ctx, tabId)
+  }
+  const openAtTaskbar = async (tabId: string) => {
+    await api.tab.openAtTaskbar(tabId)
     await closeTabAction(ctx, tabId)
   }
   const openInBrowser = (tabId: string) => api.tab.openInBrowser(tabId)
@@ -870,11 +876,11 @@ export const useTabStore = defineStore('tab', () => {
     tabPageLabelVisible, toggleTabPageLabel,
     tabIconOnly, toggleTabIconOnly,
     tabGroupEnabled, tabGroupMode, setTabGroupMode, setTabGroupFilter, clearTabGroupFilter,
-    groupedSortedTabs, loadTabs, createTab, createTabForSite, closeTab, closeOtherTabs,
+    groupedSortedTabs, loadTabs, createTab, createTabForSite, createTabInDefaultSession, closeTab, closeOtherTabs,
     closeLeftTabs, closeRightTabs, switchTab: switchTab_,
     updateTab, reorderTabs, navigate, openInternalPage, goBack, goForward, reload, forceReload,
     zoomIn, zoomOut, zoomReset, zoomLevels, fetchZoomLevel, activeZoomLevel, detectProxy,
-    setProxyEnabled, applyProxy, openDevTools, openInNewWindow, openInBrowser, toggleMute,
+    setProxyEnabled, applyProxy, openDevTools, openInNewWindow, openAtTaskbar, openInBrowser, toggleMute,
     muteSite, unmuteSite, mutedSites, isSiteMuted, togglePin, restoreTab, gotoTab, gotoLastTab,
     pendingExternalUrl, openExternalUrlInContainer, cancelExternalUrl, init, saveState
   }

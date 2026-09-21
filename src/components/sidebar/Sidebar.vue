@@ -155,18 +155,14 @@ function handleSelectPage(pageId: string) {
   }
 }
 
-/** 打开主页，未配置时弹出设置对话框并定位到「常规」 */
+/** 打开主页：始终新开标签并使用默认 session（不挂任何账号容器）；未配置时弹出设置对话框并定位到「常规」 */
 function openHomepage() {
-  const { url, openMethod } = homepageStore.settings
+  const { url } = homepageStore.settings
   if (!url?.trim()) {
     emit('openSettings', 'general')
     return
   }
-  if (openMethod === 'newTab' || !tabStore.activeTab) {
-    tabStore.createTabForSite(url)
-  } else {
-    tabStore.navigate(tabStore.activeTab.id, url)
-  }
+  tabStore.createTabInDefaultSession(url)
 }
 
 // navMain: 【主页】

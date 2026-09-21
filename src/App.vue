@@ -445,14 +445,9 @@ onMounted(async () => {
   void aiProviderStore.init()
   ready.value = true
 
-  // 启动时自动打开主页
+  // 启动时自动打开主页（默认 session，不挂账号容器）
   if (homepageStore.settings.autoOpen && homepageStore.hasHomepage()) {
-    const url = homepageStore.settings.url
-    if (homepageStore.settings.openMethod === 'currentTab' && tabStore.activeTab) {
-      tabStore.navigate(tabStore.activeTab.id, url)
-    } else {
-      tabStore.createTabForSite(url)
-    }
+    tabStore.createTabInDefaultSession(homepageStore.settings.url)
   }
 
   // 监听 webview 容器尺寸变化
@@ -702,7 +697,7 @@ useIpcEvent('shortcut', (actionId) => {
               >
                 <Sidebar
                   :collapsed="sidebarCollapsed"
-                  @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'user'"
+                  @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
                 />
               </SidebarProvider>
             </div>
@@ -1051,7 +1046,7 @@ useIpcEvent('shortcut', (actionId) => {
             <SidebarProvider :open="true">
               <Sidebar
                 :collapsed="false"
-                @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'user'"
+                @open-settings="settingsDialogOpen = true; settingsInitialTab = $event || 'general'"
               />
             </SidebarProvider>
           </div>

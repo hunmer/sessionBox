@@ -40,7 +40,7 @@ const emit = defineEmits<{
         size="lg"
         class="rounded-lg border border-sidebar-border"
         :class="['data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground', collapsed ? '!w-full justify-center' : '']"
-        @click="emit('openSettings', 'user')"
+        @click="emit('openSettings', 'general')"
       >
         <Avatar class="h-8 w-8 rounded-lg">
           <AvatarImage

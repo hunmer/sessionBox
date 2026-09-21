@@ -12,6 +12,7 @@ import {
   getRestoreLastUrl
 } from '../services/store'
 import { webviewManager } from '../services/webview-manager'
+import { trayWindowManager } from '../services/tray-window'
 import type { Tab } from '../services/store'
 
 /**
@@ -201,6 +202,15 @@ export function registerTabIpcHandlers(): void {
 
     newWin.loadURL(info.url)
     newWin.once('ready-to-show', () => newWin.show())
+  })
+
+  // 在任务栏窗口中打开指定 tab 的当前 URL
+  ipcMain.handle('tab:open-at-taskbar', (_e, tabId: string) => {
+    const info = webviewManager.getViewInfo(tabId)
+    if (!info) throw new Error(`Tab ${tabId} 不存在`)
+    const page = info.pageId ? getPageById(info.pageId) : undefined
+    if (!page) throw new Error(`Tab ${tabId} 未关联页面`)
+    trayWindowManager.openTabAtTaskbar(page, info.url)
   })
 
   // 批量截取标签页缩略图

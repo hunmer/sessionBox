@@ -1,5 +1,5 @@
 // electron/services/tray-window.ts
-import { app, BrowserWindow, ipcMain, Tray, screen } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, Tray, screen } from 'electron'
 import { join } from 'path'
 import {
   getFloatingBallStates,
@@ -18,6 +18,7 @@ type TrayWindowType = keyof TrayWindowSizes
 interface TaskbarWindowEntry {
   win: BrowserWindow
   floatingBall: BrowserWindow | null
+  floatingBallPosition: { x: number; y: number } | null
   page: Page
   mode: 'desktop' | 'mobile'
   id: string
@@ -40,6 +41,8 @@ class TrayWindowManager {
   private taskbarWindows = new Map<string, TaskbarWindowEntry>()
   private nextId = 0
   private preserveStatesOnDestroy = false
+  private mainWindow: BrowserWindow | null = null
+  private tray: Tray | null = null
   private dragState: { ball: BrowserWindow; startCursor: { x: number; y: number }; startWindow: { x: number; y: number }; moved: boolean } | null = null
 
   constructor() {
@@ -66,10 +69,30 @@ class TrayWindowManager {
           this.showTaskbarWindow(entry.id)
         } else {
           const { x, y } = ball.getBounds()
+          entry.floatingBallPosition = { x, y }
           setFloatingBallState({ id: entry.id, pageId: entry.page.id, mode: entry.mode, x, y })
+          console.info('[FloatingBall] position saved', { id: entry.id, x, y })
         }
+      } else if (data.type === 'context-menu') {
+        this.showFloatingBallMenu(entry, ball)
       }
     })
+  }
+
+  setMainWindow(mainWindow: BrowserWindow): void {
+    this.mainWindow = mainWindow
+  }
+
+  setTray(tray: Tray): void {
+    this.tray = tray
+  }
+
+  openTabAtTaskbar(page: Page, url: string): void {
+    if (!this.tray) {
+      console.warn('[TrayWindow] tray is not ready, cannot open tab at taskbar')
+      return
+    }
+    this.openAtTaskbar(this.tray, { ...page, url }, 'desktop')
   }
 
   /** 恢复上次退出时仍隐藏在悬浮图标中的任务栏窗口。 */
@@ -86,6 +109,7 @@ class TrayWindowManager {
         position: { x: state.x, y: state.y },
         startHidden: true
       })
+      console.info('[FloatingBall] restored', { id: state.id, pageId: state.pageId, x: state.x, y: state.y })
     }
   }
 
@@ -159,7 +183,14 @@ class TrayWindowManager {
     })
 
     const id = restore?.id ?? `taskbar-${Date.now()}-${this.nextId++}`
-    const entry: TaskbarWindowEntry = { win, floatingBall: null, page, mode, id }
+    const entry: TaskbarWindowEntry = {
+      win,
+      floatingBall: null,
+      floatingBallPosition: restore?.position ?? null,
+      page,
+      mode,
+      id
+    }
 
     // 失焦自动隐藏（不关闭）
     win.on('blur', () => {
@@ -300,7 +331,11 @@ class TrayWindowManager {
       x: bounds.x + Math.max(0, Math.round((bounds.width - ballSize) / 2)),
       y: bounds.y + Math.max(0, Math.round((bounds.height - ballSize) / 2))
     }
-    const position = this.clampFloatingBallPosition(savedPosition ?? defaultPosition, ballSize)
+    const position = this.clampFloatingBallPosition(
+      savedPosition ?? entry.floatingBallPosition ?? defaultPosition,
+      ballSize
+    )
+    entry.floatingBallPosition = position
     const ball = new BrowserWindow({
       width: ballSize,
       height: ballSize,
@@ -327,6 +362,7 @@ class TrayWindowManager {
     const savePosition = throttle(() => {
       if (ball.isDestroyed()) return
       const { x, y } = ball.getBounds()
+      entry.floatingBallPosition = { x, y }
       setFloatingBallState({ id: entry.id, pageId: entry.page.id, mode: entry.mode, x, y })
     }, 300)
     ball.on('move', savePosition)
@@ -338,6 +374,7 @@ class TrayWindowManager {
       y: position.y
     })
     this.loadFloatingBallHtml(ball, entry.page)
+    console.info('[FloatingBall] shown', { id: entry.id, pageId: entry.page.id, ...position })
     ball.once('ready-to-show', () => {
       if (!ball.isDestroyed()) ball.showInactive()
     })
@@ -346,6 +383,10 @@ class TrayWindowManager {
   private closeFloatingBall(entry: TaskbarWindowEntry, preserveState = false): void {
     const ball = entry.floatingBall
     entry.floatingBall = null
+    if (ball && !ball.isDestroyed()) {
+      const { x, y } = ball.getBounds()
+      entry.floatingBallPosition = { x, y }
+    }
     if (preserveState && ball && !ball.isDestroyed()) {
       const { x, y } = ball.getBounds()
       setFloatingBallState({ id: entry.id, pageId: entry.page.id, mode: entry.mode, x, y })
@@ -364,22 +405,54 @@ class TrayWindowManager {
     } catch {
       // 页面 URL 无效时使用应用图标。
     }
+    const appIconDataUrl = this.getIconDataUrl(appIconPath)
     const cachedIconPath = domain ? getCachedIconPath(domain) : null
-    this.setFloatingBallContent(ball, cachedIconPath ?? appIconPath)
+    const cachedIconDataUrl = cachedIconPath ? this.getIconDataUrl(cachedIconPath) : null
+    this.setFloatingBallContent(ball, cachedIconDataUrl ?? appIconDataUrl)
 
-    if (!domain || cachedIconPath) return
+    if (!domain || cachedIconDataUrl) return
     const faviconPath = await fetchAndCacheFavicon(domain)
     if (ball.isDestroyed() || faviconPath.endsWith('unknow.ico')) return
-    const faviconUrl = `file:///${faviconPath.replace(/\\/g, '/')}`
+    const faviconUrl = this.getIconDataUrl(faviconPath)
+    if (!faviconUrl) return
     ball.webContents.executeJavaScript(
-      `document.getElementById('icon').src=${JSON.stringify(faviconUrl)}`
+      `const icon=document.getElementById('icon');icon.style.display='';icon.src=${JSON.stringify(faviconUrl)}`
     ).catch(() => undefined)
   }
 
-  private setFloatingBallContent(ball: BrowserWindow, iconPath: string): void {
+  private getIconDataUrl(iconPath: string): string | null {
+    const image = nativeImage.createFromPath(iconPath)
+    if (image.isEmpty()) return null
+    return image.resize({ width: 38, height: 38, quality: 'best' }).toDataURL()
+  }
+
+  private setFloatingBallContent(ball: BrowserWindow, iconDataUrl: string | null): void {
     if (ball.isDestroyed()) return
-    const iconUrl = `file:///${iconPath.replace(/\\/g, '/')}`
-    ball.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(this.getFloatingBallHtml(iconUrl))}`)
+    ball.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(this.getFloatingBallHtml(iconDataUrl))}`)
+  }
+
+  private showFloatingBallMenu(entry: TaskbarWindowEntry, ball: BrowserWindow): void {
+    console.info('[FloatingBall] context menu', { id: entry.id, pageId: entry.page.id })
+    Menu.buildFromTemplate([
+      {
+        label: '在软件内打开',
+        click: () => {
+          const mainWindow = this.mainWindow
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            if (mainWindow.isMinimized()) mainWindow.restore()
+            mainWindow.show()
+            mainWindow.focus()
+            mainWindow.webContents.send('on:tray:openInApp', entry.page.id)
+          }
+          this.closeTaskbarWindow(entry.id)
+        }
+      },
+      { type: 'separator' },
+      {
+        label: '关闭',
+        click: () => this.closeTaskbarWindow(entry.id)
+      }
+    ]).popup({ window: ball })
   }
 
   private clampFloatingBallPosition(position: { x: number; y: number }, size: number): { x: number; y: number } {
@@ -391,19 +464,24 @@ class TrayWindowManager {
     }
   }
 
-  private getFloatingBallHtml(iconUrl: string): string {
+  private getFloatingBallHtml(iconUrl: string | null): string {
+    const image = iconUrl
+      ? `<img id="icon" src="${iconUrl}" onerror="this.style.display='none'">`
+      : '<img id="icon" style="display:none">'
     return `<!doctype html><html><head><meta charset="utf-8"><style>
       html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
       a{box-sizing:border-box;display:flex;width:100%;height:100%;align-items:center;justify-content:center;
         border:2px solid rgba(255,255,255,.9);border-radius:50%;background:#fff;
-        box-shadow:0 3px 12px rgba(0,0,0,.35);text-decoration:none;
-        user-select:none;cursor:pointer}
+        text-decoration:none;user-select:none;cursor:pointer}
       img{width:38px;height:38px;object-fit:contain;border-radius:8px;pointer-events:none}
+      .fallback{position:absolute;color:#2563eb;font:700 24px Arial,sans-serif;pointer-events:none}
+      img:not([style*="display: none"])+.fallback{display:none}
       body{padding:3px}
       a:hover{background:#f3f4f6}
-    </style></head><body><a id="ball" aria-label="恢复窗口"><img id="icon" src="${iconUrl}"></a><script>
+    </style></head><body><a id="ball" aria-label="恢复窗口">${image}<span class="fallback">S</span></a><script>
       const ball=document.getElementById('ball');let down=false;
       ball.addEventListener('mousedown',e=>{if(e.button!==0)return;down=true;window.floatingBall.send('pointer-down',e.screenX,e.screenY);e.preventDefault()});
+      ball.addEventListener('contextmenu',e=>{e.preventDefault();window.floatingBall.send('context-menu',e.screenX,e.screenY)});
       document.addEventListener('mousemove',e=>{if(down)window.floatingBall.send('pointer-move',e.screenX,e.screenY)});
       document.addEventListener('mouseup',e=>{if(!down)return;down=false;window.floatingBall.send('pointer-up',e.screenX,e.screenY)});
     </script></body></html>`

@@ -6,7 +6,10 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuTrigger
+  ContextMenuTrigger,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger
 } from '@/components/ui/context-menu'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import type { Tab } from '@/types'
@@ -380,9 +383,19 @@ onBeforeUnmount(clearTimers)
             />
             {{ isPinned ? '取消固定' : '固定标签' }}
           </ContextMenuItem>
-          <ContextMenuItem @click="tabStore.openInNewWindow(tab.id)">
-            新窗口打开
-          </ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              打开到
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent class="w-40">
+              <ContextMenuItem @click="tabStore.openInNewWindow(tab.id)">
+                新窗口打开
+              </ContextMenuItem>
+              <ContextMenuItem @click="tabStore.openAtTaskbar(tab.id)">
+                任务栏打开
+              </ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
           <ContextMenuItem @click="tabStore.openInBrowser(tab.id)">
             浏览器打开
           </ContextMenuItem>

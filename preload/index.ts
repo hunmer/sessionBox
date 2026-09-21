@@ -315,6 +315,7 @@ const api = {
     setMuted: (tabId: string, muted: boolean): Promise<void> =>
       ipcRenderer.invoke('tab:set-muted', tabId, muted),
     openInNewWindow: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-new-window', tabId),
+    openAtTaskbar: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-at-taskbar', tabId),
     openInBrowser: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-browser', tabId),
     capture: (tabIds: string[]): Promise<Record<string, string | null>> =>
       ipcRenderer.invoke('tab:capture', tabIds),

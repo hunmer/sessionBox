@@ -2,7 +2,6 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Camera } from 'lucide-vue-next'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -10,7 +9,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { useNotification } from '@/composables/useNotification'
 import { useContainerStore } from '@/stores/container'
-import { useHomepageStore, type HomepageOpenMethod } from '@/stores/homepage'
+import { useHomepageStore } from '@/stores/homepage'
 import { useUserProfileStore } from '@/stores/userProfile'
 import { useWorkspaceStore } from '@/stores/workspace'
 
@@ -105,11 +104,6 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   stopDefaultBrowserPolling()
 })
-
-const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
-  { value: 'newTab', label: '新标签页' },
-  { value: 'currentTab', label: '当前标签页' },
-]
 </script>
 
 <template>
@@ -166,21 +160,9 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
         placeholder="https://example.com"
         @update:model-value="homepageStore.updateSettings({ url: $event })"
       />
-    </div>
-
-    <div>
-      <label class="text-xs text-muted-foreground mb-1 block">打开方式</label>
-      <div class="flex gap-2">
-        <Button
-          v-for="opt in openMethodOptions"
-          :key="opt.value"
-          :variant="homepageStore.settings.openMethod === opt.value ? 'default' : 'outline'"
-          size="sm"
-          @click="homepageStore.updateSettings({ openMethod: opt.value })"
-        >
-          {{ opt.label }}
-        </Button>
-      </div>
+      <p class="text-xs text-muted-foreground/60 mt-1">
+        主页始终在默认会话中新标签页打开，不使用账号容器的登录状态。
+      </p>
     </div>
 
     <div class="flex items-center justify-between">

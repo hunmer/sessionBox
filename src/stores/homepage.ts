@@ -1,11 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-export type HomepageOpenMethod = 'newTab' | 'currentTab'
-
 export interface HomepageSettings {
   url: string
-  openMethod: HomepageOpenMethod
   autoOpen: boolean
 }
 
@@ -13,7 +10,6 @@ const STORAGE_KEY = 'sessionbox-homepage'
 
 const defaults: HomepageSettings = {
   url: '',
-  openMethod: 'newTab',
   autoOpen: false,
 }
 

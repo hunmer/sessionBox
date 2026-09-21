@@ -140,6 +140,7 @@ const api = {
     openDevTools: (tabId) => electron.ipcRenderer.invoke("tab:openDevTools", tabId),
     setMuted: (tabId, muted) => electron.ipcRenderer.invoke("tab:set-muted", tabId, muted),
     openInNewWindow: (tabId) => electron.ipcRenderer.invoke("tab:open-in-new-window", tabId),
+    openAtTaskbar: (tabId) => electron.ipcRenderer.invoke("tab:open-at-taskbar", tabId),
     openInBrowser: (tabId) => electron.ipcRenderer.invoke("tab:open-in-browser", tabId),
     capture: (tabIds) => electron.ipcRenderer.invoke("tab:capture", tabIds),
     updateBounds: (rect) => electron.ipcRenderer.send("tab:update-bounds", rect),
