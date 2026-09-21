@@ -61,6 +61,11 @@ const displayToolCalls = computed(() => {
   return props.message.toolCalls
 })
 
+/** 原始文本对话框展示的思考内容（各思考块拼接） */
+const displayThinking = computed(() =>
+  (displayThinkingBlocks.value || []).map(b => b.content).filter(Boolean).join('\n\n') || null
+)
+
 const isUser = computed(() => props.message.role === 'user')
 const isSystem = computed(() => props.message.role === 'system')
 
@@ -426,6 +431,7 @@ const segments = computed<ContentSegment[]>(() => {
             v-else-if="seg.type === 'text' && seg.content"
             class="inline-block rounded-lg px-3 py-2 text-sm leading-relaxed break-words max-w-[85%] overflow-hidden text-left"
             :class="isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'"
+            :style="isUser ? { '--foreground': 'var(--primary-foreground)' } : undefined"
           >
             <Markdown
               class="chat-markdown"

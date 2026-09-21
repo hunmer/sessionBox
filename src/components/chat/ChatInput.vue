@@ -41,6 +41,7 @@ import {
   Copy, Check, Pencil, Loader2,
 } from 'lucide-vue-next'
 import type { ToolDisplayItem } from '@/types'
+import ModelSelector from './ModelSelector.vue'
 
 interface SkillItem {
   name: string
@@ -66,7 +67,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   send: [content: string, images: string[]]
   stop: []
-  clear: []
   toggleTool: [toolName: string]
 }>()
 
@@ -260,15 +260,8 @@ async function confirmDelete() {
 
       <!-- 底部工具栏 -->
       <InputGroupAddon align="block-end">
-        <!-- 清空对话 -->
-        <InputGroupButton
-          variant="ghost"
-          size="icon-xs"
-          :disabled="isStreaming"
-          @click="$emit('clear')"
-        >
-          <Trash2 class="size-4" />
-        </InputGroupButton>
+        <!-- 模型选择 -->
+        <ModelSelector />
 
         <!-- 图片上传 -->
         <InputGroupButton

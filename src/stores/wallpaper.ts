@@ -14,10 +14,14 @@ const STORAGE_KEY = 'sessionbox-wallpaper'
 const CARD_SURFACES = ['--background', '--sidebar', '--card']
 /** 次级表面：比卡片略不透明，保证悬停/填充态可读 */
 const INNER_SURFACES = ['--secondary', '--muted', '--accent', '--sidebar-accent', '--sidebar-hover']
-/** 弹层表面：加成最高，菜单/下拉保持可读 */
-const OVERLAY_SURFACES = ['--popover']
+/**
+ * 弹层表面（popover/dropdown/dialog/sheet/context-menu/command palette 都用 bg-popover）
+ * 不参与透明化，始终用主题原始的不透明色，保证弹出内容可读。
+ * 仍纳入变量循环并主动写回原始值：自愈旧版本遗留的透明包装。
+ */
+const OPAQUE_SURFACES = new Set(['--popover'])
 
-const ALL_SURFACES = [...CARD_SURFACES, ...INNER_SURFACES, ...OVERLAY_SURFACES]
+const ALL_SURFACES = [...CARD_SURFACES, ...INNER_SURFACES]
 
 /**
  * 对比度补偿变量：半透明卡片让壁纸透出后，弱化文本与杂色背景对比度下降，
@@ -25,7 +29,13 @@ const ALL_SURFACES = [...CARD_SURFACES, ...INNER_SURFACES, ...OVERLAY_SURFACES]
  */
 const CONTRAST_FOREGROUND_VARS = new Set(['--muted-foreground'])
 
-const ALL_KEYS = [...ALL_SURFACES, ...CONTRAST_FOREGROUND_VARS]
+/**
+ * 描边变量：亮色模式下壁纸激活时隐藏（半透明白卡上的描边像贴边方框）；
+ * 暗色模式的白色低透明描边在毛玻璃上效果好，保留原值。--input 不动，表单输入框保留轮廓
+ */
+const STROKE_VARS = new Set(['--border', '--sidebar-border'])
+
+const ALL_KEYS = [...ALL_SURFACES, ...CONTRAST_FOREGROUND_VARS, ...STROKE_VARS, ...OPAQUE_SURFACES]
 
 /** muted-foreground 向前景色混合的比例 */
 const CONTRAST_MIX_RATIO = 0.35
@@ -44,8 +54,9 @@ function unwrapColorMix(value: string): string {
 }
 
 export const useWallpaperStore = defineStore('wallpaper', () => {
-  // 确保主题 store 先完成初始化（预设内联变量已写入根元素）再叠加透明化
-  useThemeStore()
+  // 确保主题 store 先完成初始化（预设内联变量已写入根元素）再叠加透明化；
+  // 同时读取当前亮暗模式，亮色模式下隐藏描边
+  const themeStore = useThemeStore()
 
   const wallpapers = ref<WallpaperItem[]>([])
   const selectedId = ref('')
@@ -53,11 +64,10 @@ export const useWallpaperStore = defineStore('wallpaper', () => {
   /** 卡片等表面的不透明度（0.3–1），壁纸图片本身始终不透明 */
   const cardOpacity = ref(0.8)
 
-  /** 各表面相对卡片不透明度的加成：次级 +0.05，弹层 +0.12，保证菜单与悬停态可读 */
+  /** 表面透明度：卡片直接取滑杆值，次级表面 +0.05 保证悬停态可读 */
   function alphaFor(name: string): number {
     if (CARD_SURFACES.includes(name)) return cardOpacity.value
-    if (INNER_SURFACES.includes(name)) return Math.min(1, cardOpacity.value + 0.05)
-    return Math.min(1, cardOpacity.value + 0.12)
+    return Math.min(1, cardOpacity.value + 0.05)
   }
 
   /**
@@ -117,7 +127,13 @@ export const useWallpaperStore = defineStore('wallpaper', () => {
         el.style.removeProperty(k)
         continue
       }
-      if (CONTRAST_FOREGROUND_VARS.has(k)) {
+      if (OPAQUE_SURFACES.has(k)) {
+        // 弹层表面：写回原始不透明色（同时清理历史版本遗留的透明包装）
+        el.style.setProperty(k, raw)
+      } else if (STROKE_VARS.has(k)) {
+        // 亮色模式隐藏描边；暗色模式写回原始值（低透明白描边在毛玻璃上效果尚可）
+        el.style.setProperty(k, themeStore.theme === 'light' ? 'transparent' : raw)
+      } else if (CONTRAST_FOREGROUND_VARS.has(k)) {
         const fg = savedVars['--foreground']
           || unwrapColorMix(cs.getPropertyValue('--foreground').trim())
         el.style.setProperty(

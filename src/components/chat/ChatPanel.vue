@@ -7,12 +7,11 @@ import { BROWSER_TOOL_LIST } from '@/lib/agent/tools'
 import type { ToolDisplayItem } from '@/types'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatInput from './ChatInput.vue'
-import ModelSelector from './ModelSelector.vue'
 import BrowserViewPicker from './BrowserViewPicker.vue'
 import SessionManager from './SessionManager.vue'
 import ProviderManager from './ProviderManager.vue'
 import { Button } from '@/components/ui/button'
-import { Settings, X } from 'lucide-vue-next'
+import { Settings, Trash2, X } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{
   chat: ChatStoreInstance
@@ -65,7 +64,6 @@ function handleEdit(messageId: string, newContent: string) {
     <!-- 头部工具栏 -->
     <div class="flex items-center gap-1.5 px-3 py-2 border-b shrink-0">
       <BrowserViewPicker v-if="!embedded" />
-      <ModelSelector />
       <SessionManager
         v-if="!embedded"
         :chat="chat"
@@ -80,6 +78,16 @@ function handleEdit(messageId: string, newContent: string) {
         <Settings class="h-4 w-4" />
       </Button>
       <div class="flex-1" />
+      <!-- 清空对话 -->
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7"
+        :disabled="chat.isStreaming"
+        @click="handleClear"
+      >
+        <Trash2 class="h-4 w-4" />
+      </Button>
       <Button
         v-if="!embedded"
         variant="ghost"
@@ -113,7 +121,6 @@ function handleEdit(messageId: string, newContent: string) {
       :enabled-tools="enabledTools"
       @send="handleSend"
       @stop="chat.stopGeneration()"
-      @clear="handleClear"
       @toggle-tool="handleToggleTool"
     />
 
