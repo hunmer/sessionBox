@@ -11,7 +11,8 @@
     "preview": "electron-vite preview",
     "pack": "node scripts/build-production.js local",
     "pack:release": "node scripts/build-production.js release",
-    "pack:dir": "npx electron-vite build && npx electron-builder --config electron-builder.json --dir"
+    "pack:dir": "npx electron-vite build && npx electron-builder --config electron-builder.json --dir",
+    "pack:mac": "node scripts/pack-mac-quick.js"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",

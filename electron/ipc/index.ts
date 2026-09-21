@@ -151,10 +151,19 @@ function setAppleScriptShortcutIcon(shortcutPath: string, icon?: string, pageUrl
   if (!sourcePath) return
 
   const iconPath = join(shortcutPath, 'Contents', 'Resources', 'applet.icns')
+  const iconsetPath = join(app.getPath('temp'), `sessionbox-icon-${randomUUID()}.iconset`)
   try {
-    execFileSync('sips', ['-s', 'format', 'icns', sourcePath, '--out', iconPath], { timeout: 10000, stdio: 'ignore' })
+    mkdirSync(iconsetPath, { recursive: true })
+    const iconSizes = [16, 32, 128, 256, 512]
+    for (const size of iconSizes) {
+      execFileSync('sips', ['--resampleHeightWidth', String(size), String(size), sourcePath, '--out', join(iconsetPath, `icon_${size}x${size}.png`)], { timeout: 10000, stdio: 'ignore' })
+      execFileSync('sips', ['--resampleHeightWidth', String(size * 2), String(size * 2), sourcePath, '--out', join(iconsetPath, `icon_${size}x${size}@2x.png`)], { timeout: 10000, stdio: 'ignore' })
+    }
+    execFileSync('iconutil', ['-c', 'icns', iconsetPath, '-o', iconPath], { timeout: 10000, stdio: 'ignore' })
   } catch {
     // favicon 格式不受 sips 支持时，保留 osacompile 的默认图标
+  } finally {
+    if (existsSync(iconsetPath)) rmSync(iconsetPath, { recursive: true, force: true })
   }
 }
 

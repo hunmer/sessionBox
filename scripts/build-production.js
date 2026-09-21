@@ -168,8 +168,14 @@ function validatePackagingResources(builderConfig) {
     const builderConfig = mode === 'local' ? 'electron-builder-local.json' : 'electron-builder.json'
     validatePackagingResources(builderConfig)
 
+    // electron-builder 真证书签名会就地改写 electronDist 里的 Electron.app (物化符号链接,
+    // 导致下次构建 bundle format is ambiguous), 克隆隔离副本保护依赖
+    execSync('rm -rf .electron-dist-iso && cp -Rc node_modules/electron/dist .electron-dist-iso', {
+      cwd: projectRoot
+    })
+
     console.log(`\n🔨 打包 Electron 应用 (配置: ${builderConfig})...`)
-    execSync(`npx electron-builder --config ${builderConfig}`, {
+    execSync(`npx electron-builder --config ${builderConfig} --config.electronDist=.electron-dist-iso`, {
       stdio: 'inherit',
       cwd: projectRoot
     })

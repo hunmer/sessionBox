@@ -45,7 +45,7 @@
     "target": [
       {
         "target": "dmg",
-        "arch": ["universal"]
+        "arch": ["arm64"]
       }
     ],
     "icon": "resources/icon.icns",
