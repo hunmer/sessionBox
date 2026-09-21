@@ -121,7 +121,12 @@ export default defineConfig({
     },
     plugins: [
       vue({
-        isProduction: false
+        isProduction: false,
+        template: {
+          compilerOptions: {
+            isCustomElement: (tag) => tag === 'webview'
+          }
+        }
       }),
       tailwindcss(),
       // 仅开发环境启用 Vue DevTools

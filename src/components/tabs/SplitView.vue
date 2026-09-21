@@ -4,6 +4,7 @@ import type { SplitDropPosition, SplitNode, SplitPane } from '@/types'
 import { isWebviewBlocked, setForcedWebviewBlocked } from '@/lib/webview-overlay'
 import { useSplitStore } from '@/stores/split'
 import { useTabStore } from '@/stores/tab'
+import { useIpcEvent } from '@/composables/useIpc'
 import type { Page } from '@/types'
 import NewTabDialog from './NewTabDialog.vue'
 import SplitLayoutTree from './SplitLayoutTree.vue'
@@ -70,6 +71,10 @@ function sendPaneBounds() {
 
   window.api.split.updateMultiBounds(bounds)
 }
+
+useIpcEvent('tab:request-bounds', () => {
+  nextTick(() => sendPaneBounds())
+})
 
 function handlePaneClick(paneId?: string | null) {
   if (!paneId) return

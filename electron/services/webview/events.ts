@@ -1,6 +1,7 @@
 import { BrowserWindow, clipboard, Menu } from 'electron'
-import type { Session, WebContentsView } from 'electron'
+import type { Session } from 'electron'
 import type { ViewEntry } from './types'
+import type { BaseTabView } from './tab-view'
 import { getSnifferDomains, getMutedSites } from '../store'
 import { handleBeforeInputEvent } from '../shortcut-manager'
 import { cacheFaviconFromUrl } from '../favicon-cache'
@@ -12,7 +13,7 @@ import { join } from 'path'
 
 export function setupEventForwarding(
   tabId: string,
-  view: WebContentsView,
+  view: BaseTabView,
   mainWindow: BrowserWindow,
   views: Map<string, ViewEntry>,
   snifferEnabled: Map<string, boolean>,

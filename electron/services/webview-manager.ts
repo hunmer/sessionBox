@@ -1,6 +1,6 @@
-import { BrowserWindow, WebContentsView } from 'electron'
+import { BrowserWindow, WebContentsView, webContents } from 'electron'
 import { ensureExtensionsLoadedForContainer, getExtensionsForContainer } from './extensions'
-import { getPageById, getContainerById, getGroupById, getProxyById, getZoomPreference, type Proxy } from './store'
+import { getPageById, getContainerById, getGroupById, getProxyById, getZoomPreference, getTabImplementation, type Proxy, type TabImplementation } from './store'
 import { applyProxyToSession } from './proxy'
 import { getUserAgent, installClientHintsRewrite } from '../utils/user-agent'
 import { broadcastToRenderer, pluginEventBus } from './plugin-event-bus'
@@ -28,6 +28,7 @@ import {
   saveZoomPreference,
   restoreZoomLevel as doRestoreZoomLevel
 } from './webview/zoom'
+import { BrowserContentTabView, WebviewTabView, type BaseTabView } from './webview/tab-view'
 
 export { BLOCKED_SCHEMES }
 
@@ -46,13 +47,16 @@ class WebviewManager {
   private freezeTimer: ReturnType<typeof setInterval> | null = null
   private frozenTabUrls = new Map<string, FrozenTabInfo>()
   private pendingViews = new Map<string, PendingViewInfo>()
+  private requestedWebviews = new Map<string, PendingViewInfo>()
   private _freezeMinutes = 0
   private aria2Enabled = false
   private snifferEnabled = new Map<string, boolean>()
   private sessionSnifferInstalled = new Set<string>()
+  private tabImplementation: TabImplementation = 'webview'
 
   setMainWindow(win: BrowserWindow): void {
     this.mainWindow = win
+    this.tabImplementation = getTabImplementation()
   }
 
   getMainWindow(): BrowserWindow | null {
@@ -188,17 +192,72 @@ class WebviewManager {
 
     const page = getPageById(pageId)
     const containerId = containerOverride || page?.containerId || ''
+    const partition = containerId ? `persist:container-${containerId}` : ''
+
+    if (this.tabImplementation === 'webview') {
+      const request = { url, pageId, containerId }
+      this.requestedWebviews.set(tabId, request)
+      this.mainWindow.webContents.send('on:tab-webview:create', {
+        tabId,
+        partition,
+        userAgent: getUserAgent(page?.userAgent)
+      })
+      return null
+    }
+
+    const nativeView = new WebContentsView({
+      webPreferences: {
+        partition: containerId ? partition : undefined
+      }
+    })
+    const view = new BrowserContentTabView(tabId, nativeView, this.mainWindow)
+    this.initializeView(tabId, pageId, url, containerId, view)
+    return view.webContents
+  }
+
+  attachWebview(tabId: string, webContentsId: number): boolean {
+    if (!this.mainWindow || this.tabImplementation !== 'webview') return false
+    if (this.views.has(tabId)) return true
+
+    const request = this.requestedWebviews.get(tabId)
+    const guest = webContents.fromId(webContentsId)
+    if (!request || !guest || guest.isDestroyed()) return false
+
+    this.requestedWebviews.delete(tabId)
+    const view = new WebviewTabView(tabId, guest, this.mainWindow)
+    this.initializeView(tabId, request.pageId, request.url, request.containerId, view)
+    if (this.activeTabId === tabId) {
+      this.switchView(tabId)
+    }
+    return true
+  }
+
+  getRequestedWebviews(): Array<{ tabId: string; partition: string; userAgent: string }> {
+    return [...this.requestedWebviews].map(([tabId, request]) => {
+      const page = getPageById(request.pageId)
+      return {
+        tabId,
+        partition: request.containerId ? `persist:container-${request.containerId}` : '',
+        userAgent: getUserAgent(page?.userAgent)
+      }
+    })
+  }
+
+  private initializeView(
+    tabId: string,
+    pageId: string,
+    url: string,
+    containerId: string,
+    view: BaseTabView
+  ): void {
+    if (!this.mainWindow) return
+
+    const page = getPageById(pageId)
     const container = containerId ? getContainerById(containerId) : undefined
 
     const proxyId = page?.proxyId ?? container?.proxyId ?? (page ? getGroupById(page.groupId)?.proxyId : undefined)
     const proxy = proxyId ? getProxyById(proxyId) : undefined
     const partition = containerId ? `persist:container-${containerId}` : ''
-
-    const view = new WebContentsView({
-      webPreferences: {
-        partition: containerId ? partition : undefined
-      }
-    })
 
     view.webContents.setUserAgent(getUserAgent(page?.userAgent))
     installClientHintsRewrite(view.webContents.session)
@@ -239,7 +298,6 @@ class WebviewManager {
     }
 
     view.setVisible(false)
-    this.mainWindow.contentView.addChildView(view)
 
     const entry: ViewEntry = { view, tabId, pageId, containerId, lastActiveAt: Date.now() }
     this.views.set(tabId, entry)
@@ -252,6 +310,8 @@ class WebviewManager {
       (tid) => this.startSniffingInternal(tid),
       () => this.aria2Enabled
     )
+
+    if (this.snifferEnabled.get(tabId)) this.startSniffingInternal(tabId)
 
     // 拦截快捷键
     view.webContents.on('before-input-event', (event, input) => {
@@ -280,7 +340,6 @@ class WebviewManager {
       }
     })()
 
-    return view.webContents
   }
 
   registerPendingView(tabId: string, pageId: string, containerId: string, url: string): void {
@@ -319,6 +378,10 @@ class WebviewManager {
   destroyView(tabId: string): void {
     pluginEventBus.emit('tab:closed', { tabId })
     this.pendingViews.delete(tabId)
+    const requestedWebview = this.requestedWebviews.delete(tabId)
+    if (requestedWebview && this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.webContents.send('on:tab-webview:destroy', { tabId })
+    }
     this.tabProxyOverride.delete(tabId)
     this.visibleTabIds.delete(tabId)
     this.snifferEnabled.delete(tabId)
@@ -339,13 +402,7 @@ class WebviewManager {
 
       const mainWindow = this.mainWindow
       if (mainWindow && !mainWindow.isDestroyed()) {
-        entry.view.setVisible(false)
-        entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
-        mainWindow.contentView.removeChildView(entry.view)
-      }
-
-      if (!entry.view.webContents.isDestroyed()) {
-        entry.view.webContents.close()
+        entry.view.destroy()
       }
 
       cleanupSessionSniffer(entry.containerId, this.snifferEnabled, this.views, this.sessionSnifferInstalled)
@@ -374,10 +431,12 @@ class WebviewManager {
   switchView(tabId: string): void {
     if (!this.mainWindow) return
 
+    this.activeTabId = tabId || null
     const target = this.ensureViewReady(tabId)
     if (!target) {
-      this.activeTabId = null
       this.hideAllViews()
+      if (tabId && this.requestedWebviews.has(tabId)) return
+      this.activeTabId = null
       return
     }
 
@@ -449,14 +508,15 @@ class WebviewManager {
   }
 
   setOverlayVisible(visible: boolean): void {
-    this.overlayVisible = visible
+    const effectiveVisible = this.tabImplementation === 'webview' ? true : visible
+    this.overlayVisible = effectiveVisible
     const targetTabIds = this.visibleTabIds.size > 0
       ? this.visibleTabIds
       : this.activeTabId ? new Set([this.activeTabId]) : new Set<string>()
 
     for (const tabId of targetTabIds) {
       const entry = this.views.get(tabId)
-      if (entry) entry.view.setVisible(visible)
+      if (entry) entry.view.setVisible(effectiveVisible)
     }
   }
 
@@ -465,6 +525,10 @@ class WebviewManager {
     for (const tabId of tabIds) {
       this.destroyView(tabId)
     }
+    for (const tabId of this.requestedWebviews.keys()) {
+      this.mainWindow?.webContents.send('on:tab-webview:destroy', { tabId })
+    }
+    this.requestedWebviews.clear()
     this.visibleTabIds.clear()
     this.multiBoundsActive = false
   }

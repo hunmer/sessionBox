@@ -23,13 +23,7 @@ export function freezeView(
       extensions.removeTab(entry.view.webContents)
     }
 
-    entry.view.setVisible(false)
-    entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
-    mainWindow?.contentView.removeChildView(entry.view)
-
-    if (!entry.view.webContents.isDestroyed()) {
-      entry.view.webContents.close()
-    }
+    entry.view.destroy()
   } catch {
     // 忽略销毁异常
   }

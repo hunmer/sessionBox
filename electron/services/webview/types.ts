@@ -1,4 +1,5 @@
-import type { Session, WebContentsView } from 'electron'
+import type { Session } from 'electron'
+import type { BaseTabView } from './tab-view'
 
 export const BLOCKED_SCHEMES = [
   'bitbrowser',
@@ -24,7 +25,7 @@ export const BLOCKED_SCHEMES = [
 ]
 
 export interface ViewEntry {
-  view: WebContentsView
+  view: BaseTabView
   tabId: string
   pageId: string
   containerId: string

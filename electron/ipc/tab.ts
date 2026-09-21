@@ -163,6 +163,12 @@ export function registerTabIpcHandlers(): void {
     webviewManager.openDevTools(tabId)
   })
 
+  ipcMain.handle('tab:attach-webview', (_e, tabId: string, webContentsId: number) => {
+    return webviewManager.attachWebview(tabId, webContentsId)
+  })
+
+  ipcMain.handle('tab:list-requested-webviews', () => webviewManager.getRequestedWebviews())
+
   // 设置标签静音
   ipcMain.handle('tab:set-muted', (_e, tabId: string, muted: boolean) => {
     updateTab(tabId, { muted })

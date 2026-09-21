@@ -469,7 +469,7 @@ class TrayWindowManager {
       ? `<img id="icon" src="${iconUrl}" onerror="this.style.display='none'">`
       : '<img id="icon" style="display:none">'
     return `<!doctype html><html><head><meta charset="utf-8"><style>
-      html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
+      html,body{box-sizing:border-box;width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
       a{box-sizing:border-box;display:flex;width:100%;height:100%;align-items:center;justify-content:center;
         border:2px solid rgba(255,255,255,.9);border-radius:50%;background:#fff;
         text-decoration:none;user-select:none;cursor:pointer}

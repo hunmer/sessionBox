@@ -208,6 +208,8 @@ export interface DefaultBrowserResult {
   openedSystemSettings: boolean
 }
 
+export type TabImplementation = 'browsercontent' | 'webview'
+
 // Chat 补全参数
 export interface ChatCompletionParams {
   providerId: string
@@ -317,6 +319,10 @@ const api = {
     openInNewWindow: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-new-window', tabId),
     openAtTaskbar: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-at-taskbar', tabId),
     openInBrowser: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-browser', tabId),
+    attachWebview: (tabId: string, webContentsId: number): Promise<boolean> =>
+      ipcRenderer.invoke('tab:attach-webview', tabId, webContentsId),
+    listRequestedWebviews: (): Promise<Array<{ tabId: string; partition: string; userAgent: string }>> =>
+      ipcRenderer.invoke('tab:list-requested-webviews'),
     capture: (tabIds: string[]): Promise<Record<string, string | null>> =>
       ipcRenderer.invoke('tab:capture', tabIds),
     updateBounds: (rect: { x: number; y: number; width: number; height: number }): void =>
@@ -412,6 +418,8 @@ const api = {
     setTabFreezeMinutes: (minutes: number): Promise<void> => ipcRenderer.invoke('settings:setTabFreezeMinutes', minutes),
     getRestoreLastUrl: (): Promise<boolean> => ipcRenderer.invoke('settings:getRestoreLastUrl'),
     setRestoreLastUrl: (enabled: boolean): Promise<void> => ipcRenderer.invoke('settings:setRestoreLastUrl', enabled),
+    getTabImplementation: (): Promise<TabImplementation> => ipcRenderer.invoke('settings:getTabImplementation'),
+    setTabImplementation: (implementation: TabImplementation): Promise<void> => ipcRenderer.invoke('settings:setTabImplementation', implementation),
     setDefaultBrowser: (enabled: boolean): Promise<DefaultBrowserResult> => ipcRenderer.invoke('settings:setDefaultBrowser', enabled),
     checkDefaultBrowser: (): Promise<boolean> => ipcRenderer.invoke('settings:checkDefaultBrowser'),
     getMinimizeOnClose: (): Promise<boolean> => ipcRenderer.invoke('settings:getMinimizeOnClose'),

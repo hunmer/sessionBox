@@ -215,6 +215,8 @@ export interface UpdateSource {
   url?: string
 }
 
+export type TabImplementation = 'browsercontent' | 'webview'
+
 interface StoreSchema {
   workspaces: Workspace[]
   groups: Group[]
@@ -227,6 +229,7 @@ interface StoreSchema {
   windowState: WindowState
   tabFreezeMinutes: number
   restoreLastUrl: boolean
+  tabImplementation: TabImplementation
   minimizeOnClose: boolean
   shortcuts: ShortcutBindingStore[]
   mutedSites: string[]  // 默认静音的网站域名列表
@@ -259,6 +262,7 @@ const defaults: StoreSchema = {
   windowState: { width: 1280, height: 800, isMaximized: false },
   tabFreezeMinutes: 0, // 0 = 禁用冻结
   restoreLastUrl: false,
+  tabImplementation: 'webview',
   minimizeOnClose: true,
   shortcuts: [],
   mutedSites: [],
@@ -741,6 +745,15 @@ export function getRestoreLastUrl(): boolean {
 
 export function setRestoreLastUrl(enabled: boolean): void {
   store.set('restoreLastUrl', enabled)
+}
+
+export function getTabImplementation(): TabImplementation {
+  const implementation = store.get('tabImplementation', 'webview')
+  return implementation === 'browsercontent' ? 'browsercontent' : 'webview'
+}
+
+export function setTabImplementation(implementation: TabImplementation): void {
+  store.set('tabImplementation', implementation)
 }
 
 export function getDefaultContainerId(): string {

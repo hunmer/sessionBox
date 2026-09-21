@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Input } from '@/components/ui/input'
-import { Snowflake, RotateCcw } from 'lucide-vue-next'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Layers3, Snowflake, RotateCcw } from 'lucide-vue-next'
+import type { TabImplementation } from '../../../preload'
 
 const api = window.api
 
 const enabled = ref(false)
 const minutes = ref(30)
 const restoreLastUrl = ref(false)
+const tabImplementation = ref<TabImplementation>('webview')
 
 // 预设选项
 const presets = [
@@ -22,6 +25,7 @@ onMounted(async () => {
   minutes.value = val || 30
   enabled.value = val > 0
   restoreLastUrl.value = await api.settings.getRestoreLastUrl()
+  tabImplementation.value = await api.settings.getTabImplementation()
 })
 
 async function apply() {
@@ -48,9 +52,34 @@ async function toggleRestoreLastUrl() {
   restoreLastUrl.value = !restoreLastUrl.value
   await api.settings.setRestoreLastUrl(restoreLastUrl.value)
 }
+
+async function setTabImplementation(value: unknown) {
+  if (value !== 'browsercontent' && value !== 'webview') return
+  tabImplementation.value = value
+  await api.settings.setTabImplementation(value)
+}
 </script>
 
 <template>
+  <h3 class="text-sm font-medium mb-3 flex items-center gap-2">
+    <Layers3 class="w-4 h-4" />
+    标签页实现方式
+  </h3>
+  <p class="text-xs text-muted-foreground mb-4">
+    选择网页标签页使用的 Electron 宿主。修改后重启应用生效。
+  </p>
+  <Select :model-value="tabImplementation" @update:model-value="setTabImplementation">
+    <SelectTrigger class="w-full mb-6">
+      <SelectValue placeholder="选择标签页实现方式" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="webview">webview（默认）</SelectItem>
+      <SelectItem value="browsercontent">browsercontent（当前实现）</SelectItem>
+    </SelectContent>
+  </Select>
+
+  <hr class="border-border mb-6" />
+
   <!-- 恢复上次地址 -->
   <h3 class="text-sm font-medium mb-3 flex items-center gap-2">
     <RotateCcw class="w-4 h-4" />

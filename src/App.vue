@@ -21,6 +21,7 @@ import RightPanel from '@/components/common/RightPanel.vue'
 import InternalPageHost from '@/components/common/InternalPageHost.vue'
 import WindowResizeHandles from '@/components/common/WindowResizeHandles.vue'
 import SplitView from '@/components/tabs/SplitView.vue'
+import WebviewHost from '@/components/tabs/WebviewHost.vue'
 import SiteDataPopover from '@/components/toolbar/SiteDataPopover.vue'
 import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
 import NewTabDialog from '@/components/tabs/NewTabDialog.vue'
@@ -42,6 +43,7 @@ import { useAIProviderStore } from '@/stores/ai-provider'
 import ChatPanel from '@/components/chat/ChatPanel.vue'
 import { useIpcEvent } from '@/composables/useIpc'
 import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
+import type { TabImplementation } from '../preload'
 
 type ImmersiveEdge = 'top' | 'left' | 'right' | 'bottom'
 
@@ -71,9 +73,15 @@ const tabOverviewOpen = ref(false)
 const commandPaletteOpen = ref(false)
 const newTabDialogOpen = ref(false)
 const siteDataPopoverOpen = ref(false)
+const tabImplementation = ref<TabImplementation>('webview')
 const activeProxyBadgeText = computed(() => tabStore.activeProxyInfo?.text || '')
 const shouldShowWebContentsView = computed(() =>
-  !!tabStore.activeTab && !tabStore.isInternalPage && !isWebviewBlocked.value
+  !!tabStore.activeTab
+  && !tabStore.isInternalPage
+  && (tabImplementation.value === 'webview' || !isWebviewBlocked.value)
+)
+const shouldPauseWebContentsView = computed(() =>
+  tabImplementation.value === 'browsercontent' && isOverlayActive.value
 )
 const proxyApplied = computed(() => {
   const info = tabStore.activeProxyInfo
@@ -428,6 +436,7 @@ function bindWebviewContainerObserver() {
 onMounted(async () => {
   startWebviewOverlayDetection()
   window.addEventListener('beforeunload', handleBeforeUnload)
+  tabImplementation.value = await window.api.settings.getTabImplementation()
 
   await Promise.all([
     workspaceStore.init(),
@@ -672,6 +681,7 @@ useIpcEvent('shortcut', (actionId) => {
       />
       <!-- 透明窗口手动缩放把手（Windows 上无原生 resize 边框） -->
       <WindowResizeHandles v-if="!isMaximized" />
+      <WebviewHost />
       <ResizablePanelGroup
         v-if="!immersiveMode"
         :key="tabStore.tabLayout"
@@ -792,7 +802,7 @@ useIpcEvent('shortcut', (actionId) => {
                 </div>
                 <!-- WebContentsView 被覆盖层（dialog/dropdown）隐藏时的兜底 -->
                 <div
-                  v-else-if="isOverlayActive"
+                  v-else-if="shouldPauseWebContentsView"
                   class="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center"
                 >
                   <p class="text-sm text-muted-foreground/60">
@@ -961,7 +971,7 @@ useIpcEvent('shortcut', (actionId) => {
             </div>
 
             <div
-              v-else-if="isOverlayActive"
+              v-else-if="shouldPauseWebContentsView"
               class="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm"
             >
               <p class="text-sm text-muted-foreground/60">
