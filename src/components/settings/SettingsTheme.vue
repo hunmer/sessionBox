@@ -443,9 +443,6 @@ async function removeWallpaper(id: string) {
             <div class="text-xs font-medium text-foreground">
               默认底色
             </div>
-            <div class="text-[10px] mt-0.5 text-muted-foreground">
-              恢复纯色外观
-            </div>
           </div>
         </button>
 
