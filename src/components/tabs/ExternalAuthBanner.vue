@@ -9,13 +9,19 @@ const props = defineProps<{ tabId: string }>()
 const emit = defineEmits<{ dismiss: [] }>()
 const notify = useNotification()
 const syncing = ref<ExternalAuthBrowser | null>(null)
+const pendingBrowser = ref<ExternalAuthBrowser | null>(null)
 
 async function start(browser: ExternalAuthBrowser) {
   if (syncing.value) return
   syncing.value = browser
+  const phase = pendingBrowser.value === browser ? 'complete' : 'start'
+  const loadingId = notify.loading(phase === 'complete' ? '正在同步登录结果...' : '正在启动外部浏览器...')
   try {
-    const result = await window.api.tab.syncExternalAuth(props.tabId, browser)
-    if (result.ok) {
+    const result = await window.api.tab.syncExternalAuth(props.tabId, browser, phase)
+    if (result.ok && result.pending) {
+      pendingBrowser.value = browser
+      notify.info('请在外部浏览器完成登录并关闭窗口，然后同步登录结果')
+    } else if (result.ok) {
       notify.success(`已同步 ${result.cookieCount || 0} 个登录 Cookie`)
       emit('dismiss')
     } else {
@@ -27,6 +33,7 @@ async function start(browser: ExternalAuthBrowser) {
       description: error instanceof Error ? error.message : String(error)
     })
   } finally {
+    notify.dismiss(loadingId)
     syncing.value = null
   }
 }
@@ -41,7 +48,7 @@ async function start(browser: ExternalAuthBrowser) {
       size="sm"
       variant="outline"
       class="h-6 px-2 text-xs"
-      :disabled="!!syncing"
+      :disabled="!!syncing || (!!pendingBrowser && pendingBrowser !== 'chrome')"
       @click.stop="start('chrome')"
     >
       <Loader2
@@ -52,13 +59,13 @@ async function start(browser: ExternalAuthBrowser) {
         v-else
         class="mr-1 size-3"
       />
-      Chrome
+      {{ pendingBrowser === 'chrome' ? '同步登录结果' : 'Chrome' }}
     </Button>
     <Button
       size="sm"
       variant="outline"
       class="h-6 px-2 text-xs"
-      :disabled="!!syncing"
+      :disabled="!!syncing || (!!pendingBrowser && pendingBrowser !== 'edge')"
       @click.stop="start('edge')"
     >
       <Loader2
@@ -69,7 +76,7 @@ async function start(browser: ExternalAuthBrowser) {
         v-else
         class="mr-1 size-3"
       />
-      Edge
+      {{ pendingBrowser === 'edge' ? '同步登录结果' : 'Edge' }}
     </Button>
     <Button
       size="icon-sm"

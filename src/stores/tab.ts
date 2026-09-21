@@ -252,9 +252,10 @@ async function createTabWithUrlAction(
   ctx: TabStoreContext,
   pageId: string,
   url: string,
-  targetPaneId?: string | null
+  targetPaneId?: string | null,
+  lastNonAuthUrl?: string
 ) {
-  const tab = await api.tab.create(pageId, url)
+  const tab = await api.tab.create(pageId, url, undefined, undefined, lastNonAuthUrl)
   await activateCreatedTab(ctx, tab.id, targetPaneId)
   return tab
 }
@@ -581,9 +582,24 @@ function registerMetadataListeners(ctx: TabStoreContext) {
   })
 }
 
+async function handleTabOpenUrl(
+  ctx: TabStoreContext,
+  pageId: unknown,
+  url: unknown,
+  lastNonAuthUrl: unknown
+) {
+  await createTabWithUrlAction(
+    ctx,
+    pageId as string,
+    url as string,
+    undefined,
+    typeof lastNonAuthUrl === 'string' ? lastNonAuthUrl : undefined
+  )
+}
+
 function registerExternalEventListeners(ctx: TabStoreContext) {
-  api.on('tab:open-url', async (pageId: unknown, url: unknown) => {
-    await createTabWithUrlAction(ctx, pageId as string, url as string)
+  api.on('tab:open-url', async (pageId: unknown, url: unknown, lastNonAuthUrl: unknown) => {
+    await handleTabOpenUrl(ctx, pageId, url, lastNonAuthUrl)
   })
 
   api.on('tab:frozen', (tabId: unknown, frozen: unknown) => {

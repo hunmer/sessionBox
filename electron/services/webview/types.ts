@@ -30,6 +30,7 @@ export interface ViewEntry {
   pageId: string
   containerId: string
   lastActiveAt: number
+  lastNonAuthUrl?: string
 }
 
 export interface FrozenTabInfo {
@@ -43,4 +44,5 @@ export interface PendingViewInfo {
   url: string
   pageId: string
   containerId: string
+  lastNonAuthUrl?: string
 }

@@ -212,6 +212,7 @@ export type TabImplementation = 'browsercontent' | 'webview'
 export type ExternalAuthBrowser = 'chrome' | 'edge'
 export interface ExternalAuthResult {
   ok: boolean
+  pending?: boolean
   cookieCount?: number
   finalUrl?: string
   error?: string
@@ -300,7 +301,8 @@ const api = {
 
   tab: {
     list: (): Promise<Tab[]> => ipcRenderer.invoke('tab:list'),
-    create: (pageId: string | null, url?: string, containerId?: string, workspaceId?: string): Promise<Tab> => ipcRenderer.invoke('tab:create', pageId, url, containerId, workspaceId),
+    create: (pageId: string | null, url?: string, containerId?: string, workspaceId?: string, lastNonAuthUrl?: string): Promise<Tab> =>
+      ipcRenderer.invoke('tab:create', pageId, url, containerId, workspaceId, lastNonAuthUrl),
     close: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:close', tabId),
     switch: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:switch', tabId),
     update: (tabId: string, data: Partial<Omit<Tab, 'id'>>): Promise<void> =>
@@ -328,8 +330,11 @@ const api = {
     openInNewWindow: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-new-window', tabId),
     openAtTaskbar: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-at-taskbar', tabId),
     openInBrowser: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-browser', tabId),
-    syncExternalAuth: (tabId: string, browser: ExternalAuthBrowser): Promise<ExternalAuthResult> =>
-      ipcRenderer.invoke('tab:sync-external-auth', tabId, browser),
+    syncExternalAuth: (
+      tabId: string,
+      browser: ExternalAuthBrowser,
+      phase: 'start' | 'complete'
+    ): Promise<ExternalAuthResult> => ipcRenderer.invoke('tab:sync-external-auth', tabId, browser, phase),
     attachWebview: (tabId: string, webContentsId: number): Promise<boolean> =>
       ipcRenderer.invoke('tab:attach-webview', tabId, webContentsId),
     listRequestedWebviews: (): Promise<Array<{ tabId: string; partition: string; userAgent: string }>> =>

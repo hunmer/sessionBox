@@ -25,6 +25,14 @@ export function setupEventForwarding(
 
   const isWebUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://') || url.startsWith('file:///')
   const canSend = () => !win.isDestroyed()
+  const isGoogleAuthUrl = (url: string) => {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase()
+      return hostname === 'accounts.google.com' || hostname === 'accounts.google.cn'
+    } catch {
+      return false
+    }
+  }
 
   // 自动嗅探
   const autoSniff = (url: string) => {
@@ -53,7 +61,7 @@ export function setupEventForwarding(
       accepted
     })
     if (accepted) {
-      win.webContents.send('on:tab:open-url', entry.pageId, url)
+      win.webContents.send('on:tab:open-url', entry.pageId, url, entry.lastNonAuthUrl || wc.getURL())
     }
     return { action: 'deny' }
   })
@@ -99,6 +107,8 @@ export function setupEventForwarding(
   }
 
   wc.on('did-navigate', (_event, url) => {
+    const entry = views.get(tabId)
+    if (entry && !isGoogleAuthUrl(url)) entry.lastNonAuthUrl = url
     pluginEventBus.emit('tab:navigated', { tabId, url })
     if (canSend()) win.webContents.send('on:tab:url-updated', tabId, url)
     onNavState()
@@ -107,6 +117,8 @@ export function setupEventForwarding(
   })
 
   wc.on('did-navigate-in-page', (_event, url) => {
+    const entry = views.get(tabId)
+    if (entry && !isGoogleAuthUrl(url)) entry.lastNonAuthUrl = url
     if (canSend()) win.webContents.send('on:tab:url-updated', tabId, url)
     onNavState()
     checkAutoMute(url)

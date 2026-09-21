@@ -186,7 +186,7 @@ class WebviewManager {
 
   // ====== 视图创建与销毁 ======
 
-  createView(tabId: string, pageId: string, url: string, containerOverride?: string) {
+  createView(tabId: string, pageId: string, url: string, containerOverride?: string, lastNonAuthUrl?: string) {
     if (!this.mainWindow) return null
     if (url.startsWith('sessionbox://')) return null
 
@@ -195,7 +195,7 @@ class WebviewManager {
     const partition = containerId ? `persist:container-${containerId}` : ''
 
     if (this.tabImplementation === 'webview') {
-      const request = { url, pageId, containerId }
+      const request = { url, pageId, containerId, lastNonAuthUrl }
       this.requestedWebviews.set(tabId, request)
       this.mainWindow.webContents.send('on:tab-webview:create', {
         tabId,
@@ -211,7 +211,7 @@ class WebviewManager {
       }
     })
     const view = new BrowserContentTabView(tabId, nativeView, this.mainWindow)
-    this.initializeView(tabId, pageId, url, containerId, view)
+    this.initializeView(tabId, pageId, url, containerId, view, lastNonAuthUrl)
     return view.webContents
   }
 
@@ -238,7 +238,7 @@ class WebviewManager {
     this.requestedWebviews.delete(tabId)
     console.log('[WebviewManager] attachWebview accepted', { tabId, webContentsId, url: request.url })
     const view = new WebviewTabView(tabId, guest, this.mainWindow)
-    this.initializeView(tabId, request.pageId, request.url, request.containerId, view)
+    this.initializeView(tabId, request.pageId, request.url, request.containerId, view, request.lastNonAuthUrl)
     if (this.activeTabId === tabId) {
       this.switchView(tabId)
     }
@@ -261,7 +261,8 @@ class WebviewManager {
     pageId: string,
     url: string,
     containerId: string,
-    view: BaseTabView
+    view: BaseTabView,
+    lastNonAuthUrl?: string
   ): void {
     if (!this.mainWindow) return
 
@@ -312,7 +313,22 @@ class WebviewManager {
 
     view.setVisible(false)
 
-    const entry: ViewEntry = { view, tabId, pageId, containerId, lastActiveAt: Date.now() }
+    const isGoogleAuth = (() => {
+      try {
+        const hostname = new URL(url).hostname.toLowerCase()
+        return hostname === 'accounts.google.com' || hostname === 'accounts.google.cn'
+      } catch {
+        return false
+      }
+    })()
+    const entry: ViewEntry = {
+      view,
+      tabId,
+      pageId,
+      containerId,
+      lastActiveAt: Date.now(),
+      lastNonAuthUrl: lastNonAuthUrl || (isGoogleAuth ? undefined : url)
+    }
     this.views.set(tabId, entry)
     pluginEventBus.emit('tab:created', { tabId, pageId, url })
 
@@ -357,9 +373,9 @@ class WebviewManager {
 
   }
 
-  registerPendingView(tabId: string, pageId: string, containerId: string, url: string): void {
+  registerPendingView(tabId: string, pageId: string, containerId: string, url: string, lastNonAuthUrl?: string): void {
     if (url.startsWith('sessionbox://')) return
-    this.pendingViews.set(tabId, { url, pageId, containerId })
+    this.pendingViews.set(tabId, { url, pageId, containerId, lastNonAuthUrl })
   }
 
   private ensureViewReady(tabId: string): ViewEntry | null {
@@ -383,7 +399,7 @@ class WebviewManager {
     if (this.pendingViews.has(tabId)) {
       const pending = this.pendingViews.get(tabId)!
       this.pendingViews.delete(tabId)
-      this.createView(tabId, pending.pageId, pending.url, pending.containerId || undefined)
+      this.createView(tabId, pending.pageId, pending.url, pending.containerId || undefined, pending.lastNonAuthUrl)
       return this.views.get(tabId) ?? null
     }
 
@@ -702,10 +718,15 @@ class WebviewManager {
     return result
   }
 
-  getViewInfo(tabId: string): { url: string; pageId: string; containerId: string } | null {
+  getViewInfo(tabId: string): { url: string; pageId: string; containerId: string; lastNonAuthUrl?: string } | null {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return null
-    return { url: entry.view.webContents.getURL(), pageId: entry.pageId, containerId: entry.containerId }
+    return {
+      url: entry.view.webContents.getURL(),
+      pageId: entry.pageId,
+      containerId: entry.containerId,
+      lastNonAuthUrl: entry.lastNonAuthUrl
+    }
   }
 
   getWebContents(tabId: string) {

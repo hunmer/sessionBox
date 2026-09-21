@@ -14,9 +14,18 @@ import {
 import { webviewManager } from '../services/webview-manager'
 import { trayWindowManager } from '../services/tray-window'
 import type { Tab } from '../services/store'
-import { syncExternalBrowserAuth, type ExternalAuthBrowser } from '../services/external-auth-cdp'
+import {
+  completeExternalBrowserAuth,
+  startExternalBrowserAuth,
+  type ExternalAuthBrowser
+} from '../services/external-auth-cdp'
 
-async function handleExternalAuthSync(_event: Electron.IpcMainInvokeEvent, tabId: string, browser: ExternalAuthBrowser) {
+async function handleExternalAuthSync(
+  _event: Electron.IpcMainInvokeEvent,
+  tabId: string,
+  browser: ExternalAuthBrowser,
+  phase: 'start' | 'complete'
+) {
   if (browser !== 'chrome' && browser !== 'edge') {
     return { ok: false, error: '不支持的浏览器' }
   }
@@ -25,12 +34,11 @@ async function handleExternalAuthSync(_event: Electron.IpcMainInvokeEvent, tabId
   if (!info || !wc) return { ok: false, error: `Tab ${tabId} 不存在` }
 
   const page = info.pageId ? getPageById(info.pageId) : undefined
-  const result = await syncExternalBrowserAuth(browser, info.url, wc.session, info.containerId, page?.url)
-  if (result.ok && !wc.isDestroyed()) {
-    let resumeUrl = page?.url
-    if (!resumeUrl && result.finalUrl) {
-      try { resumeUrl = new URL('/', result.finalUrl).href } catch { /* 保留空值并刷新 */ }
-    }
+  const syncAuth = phase === 'complete' ? completeExternalBrowserAuth : startExternalBrowserAuth
+  const returnUrl = info.lastNonAuthUrl || page?.url
+  const result = await syncAuth(browser, info.url, wc.session, info.containerId, returnUrl)
+  if (result.ok && !result.pending && !wc.isDestroyed()) {
+    const resumeUrl = info.lastNonAuthUrl || result.finalUrl || page?.url
     if (resumeUrl) await wc.loadURL(resumeUrl)
     else wc.reload()
   }
@@ -54,7 +62,14 @@ export function registerTabIpcHandlers(): void {
   // pageId 为空字符串时使用默认 partition（无页面关联）
   // containerId 用于无 pageId 时指定容器隔离
   // workspaceId 用于无 pageId 时指定工作区归属
-  ipcMain.handle('tab:create', (_e, pageId: string | null, url?: string, containerId?: string, workspaceId?: string) => {
+  ipcMain.handle('tab:create', (
+    _e,
+    pageId: string | null,
+    url?: string,
+    containerId?: string,
+    workspaceId?: string,
+    lastNonAuthUrl?: string
+  ) => {
     const tabs = listTabs()
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
     const mainWindow = webviewManager.getMainWindow()
@@ -99,7 +114,7 @@ export function registerTabIpcHandlers(): void {
         order,
         workspaceId: workspaceId || undefined
       })
-      webviewManager.registerPendingView(tab.id, '', resolvedContainerId, tabUrl)
+      webviewManager.registerPendingView(tab.id, '', resolvedContainerId, tabUrl, lastNonAuthUrl)
       mainWindow?.webContents.send('on:tab:created', tab)
       return tab
     }
@@ -117,7 +132,7 @@ export function registerTabIpcHandlers(): void {
       originUrl: tabUrl,
       order
     })
-    webviewManager.registerPendingView(tab.id, pageId, pageContainerId, tabUrl)
+    webviewManager.registerPendingView(tab.id, pageId, pageContainerId, tabUrl, lastNonAuthUrl)
     mainWindow?.webContents.send('on:tab:created', tab)
     return tab
   })
