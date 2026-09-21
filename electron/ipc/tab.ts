@@ -14,6 +14,28 @@ import {
 import { webviewManager } from '../services/webview-manager'
 import { trayWindowManager } from '../services/tray-window'
 import type { Tab } from '../services/store'
+import { syncExternalBrowserAuth, type ExternalAuthBrowser } from '../services/external-auth-cdp'
+
+async function handleExternalAuthSync(_event: Electron.IpcMainInvokeEvent, tabId: string, browser: ExternalAuthBrowser) {
+  if (browser !== 'chrome' && browser !== 'edge') {
+    return { ok: false, error: '不支持的浏览器' }
+  }
+  const info = webviewManager.getViewInfo(tabId)
+  const wc = webviewManager.getWebContents(tabId)
+  if (!info || !wc) return { ok: false, error: `Tab ${tabId} 不存在` }
+
+  const page = info.pageId ? getPageById(info.pageId) : undefined
+  const result = await syncExternalBrowserAuth(browser, info.url, wc.session, info.containerId, page?.url)
+  if (result.ok && !wc.isDestroyed()) {
+    let resumeUrl = page?.url
+    if (!resumeUrl && result.finalUrl) {
+      try { resumeUrl = new URL('/', result.finalUrl).href } catch { /* 保留空值并刷新 */ }
+    }
+    if (resumeUrl) await wc.loadURL(resumeUrl)
+    else wc.reload()
+  }
+  return result
+}
 
 /**
  * 注册 Tab 相关 IPC 处理器
@@ -248,6 +270,9 @@ export function registerTabIpcHandlers(): void {
 
     await shell.openExternal(info.url)
   })
+
+  // 使用已开放 CDP 的 Chrome/Edge 完成 Google 登录，并仅同步目标站 Cookie。
+  ipcMain.handle('tab:sync-external-auth', handleExternalAuthSync)
 
   // 启动时恢复所有保存的 tab（懒加载：仅注册，不创建 WebContentsView）
   // 先清除旧视图，避免刷新时重复叠加

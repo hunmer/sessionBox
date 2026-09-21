@@ -100,6 +100,7 @@ import { listSkills, searchSkill, readSkill, writeSkill, deleteSkill } from '../
 import { registerDebuggerIpcHandlers } from './debugger'
 import { registerSiteDataIpc } from './site-data'
 import { getCachedIconPath } from '../services/favicon-cache'
+import { getExternalAuthProfileDirs } from '../services/external-auth-cdp'
 
 /** 容器图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'container-icons')
@@ -208,6 +209,16 @@ function registerContainerIpc(): void {
     // 清理该容器的 partition 目录
     const partitionPath = join(app.getPath('userData'), 'Partitions', `persist:container-${id}`)
     if (existsSync(partitionPath)) rmSync(partitionPath, { recursive: true })
+
+    // 清理该容器在 Chrome/Edge 中持久化的外部登录专用 Profile。
+    for (const profilePath of getExternalAuthProfileDirs(id)) {
+      if (!existsSync(profilePath)) continue
+      try {
+        rmSync(profilePath, { recursive: true, force: true })
+      } catch (error) {
+        console.warn('[ExternalAuthCDP] 专用 Profile 正在使用，暂未清理', { profilePath, error })
+      }
+    }
 
     // 将关联此容器的 Page 的 containerId 置空
     const affectedPages = getPagesByContainer(id)

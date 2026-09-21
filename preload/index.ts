@@ -209,6 +209,13 @@ export interface DefaultBrowserResult {
 }
 
 export type TabImplementation = 'browsercontent' | 'webview'
+export type ExternalAuthBrowser = 'chrome' | 'edge'
+export interface ExternalAuthResult {
+  ok: boolean
+  cookieCount?: number
+  finalUrl?: string
+  error?: string
+}
 
 // Chat 补全参数
 export interface ChatCompletionParams {
@@ -321,6 +328,8 @@ const api = {
     openInNewWindow: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-new-window', tabId),
     openAtTaskbar: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-at-taskbar', tabId),
     openInBrowser: (tabId: string): Promise<void> => ipcRenderer.invoke('tab:open-in-browser', tabId),
+    syncExternalAuth: (tabId: string, browser: ExternalAuthBrowser): Promise<ExternalAuthResult> =>
+      ipcRenderer.invoke('tab:sync-external-auth', tabId, browser),
     attachWebview: (tabId: string, webContentsId: number): Promise<boolean> =>
       ipcRenderer.invoke('tab:attach-webview', tabId, webContentsId),
     listRequestedWebviews: (): Promise<Array<{ tabId: string; partition: string; userAgent: string }>> =>

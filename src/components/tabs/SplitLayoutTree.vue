@@ -4,6 +4,7 @@ import { GripVertical, Maximize2, Minimize2, Minus, X } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import type { SplitDropPosition, SplitNode, SplitPane } from '@/types'
+import ExternalAuthBanner from './ExternalAuthBanner.vue'
 
 defineOptions({
   name: 'SplitLayoutTree'
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<{
   fullscreenPaneId?: string | null
   draggingPaneId: string | null
   preview: { targetPaneId: string; position: SplitDropPosition } | null
+  googleAuthTabIds: string[]
   branchPath?: number[]
 }>(), {
   branchPath: () => [],
@@ -37,6 +39,7 @@ const emit = defineEmits<{
   'pane-fullscreen': [paneId: string]
   'pane-close-tab': [paneId: string]
   'pane-remove': [paneId: string]
+  'dismiss-auth': [tabId: string]
 }>()
 
 const pane = computed(() =>
@@ -53,6 +56,10 @@ const isFocused = computed(() => props.node.kind === 'pane' && props.focusedPane
 const isDragSource = computed(() => props.node.kind === 'pane' && props.draggingPaneId === props.node.paneId)
 const isFullscreenPane = computed(() => props.node.kind === 'pane' && props.fullscreenPaneId === props.node.paneId)
 const hasActiveTab = computed(() => !!pane.value?.activeTabId)
+const authTabId = computed(() => {
+  const tabId = pane.value?.activeTabId
+  return tabId && props.googleAuthTabIds.includes(tabId) ? tabId : null
+})
 const canRemovePane = computed(() => Object.keys(props.paneMap).length > 1)
 const previewPosition = computed(() => {
   if (props.node.kind !== 'pane') return null
@@ -91,6 +98,7 @@ function hotspotClass(position: SplitDropPosition): string {
             :fullscreen-pane-id="fullscreenPaneId"
             :dragging-pane-id="draggingPaneId"
             :preview="preview"
+            :google-auth-tab-ids="googleAuthTabIds"
             :branch-path="[...branchPath, index]"
             @pane-click="emit('pane-click', $event)"
             @request-add-tab="emit('request-add-tab', $event)"
@@ -103,6 +111,7 @@ function hotspotClass(position: SplitDropPosition): string {
             @pane-fullscreen="emit('pane-fullscreen', $event)"
             @pane-close-tab="emit('pane-close-tab', $event)"
             @pane-remove="emit('pane-remove', $event)"
+            @dismiss-auth="emit('dismiss-auth', $event)"
           />
         </ResizablePanel>
         <ResizableHandle v-if="index < node.children.length - 1" />
@@ -179,10 +188,18 @@ function hotspotClass(position: SplitDropPosition): string {
       </div>
     </div>
 
+    <ExternalAuthBanner
+      v-if="authTabId"
+      :tab-id="authTabId"
+      class="absolute inset-x-0 z-20"
+      :class="manualAdjustEnabled ? 'top-9' : 'top-0'"
+      @dismiss="emit('dismiss-auth', authTabId)"
+    />
+
     <div
       :id="`webview-pane-content-${node.paneId}`"
       class="absolute inset-x-0 bottom-0"
-      :class="manualAdjustEnabled ? 'top-9' : 'top-0'"
+      :style="{ top: `${(manualAdjustEnabled ? 36 : 0) + (authTabId ? 36 : 0)}px` }"
     >
       <div
         v-if="!pane?.activeTabId"

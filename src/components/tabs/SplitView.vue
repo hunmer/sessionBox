@@ -8,6 +8,7 @@ import { useIpcEvent } from '@/composables/useIpc'
 import type { Page } from '@/types'
 import NewTabDialog from './NewTabDialog.vue'
 import SplitLayoutTree from './SplitLayoutTree.vue'
+import ExternalAuthBanner from './ExternalAuthBanner.vue'
 
 const splitStore = useSplitStore()
 const tabStore = useTabStore()
@@ -17,6 +18,7 @@ const preview = ref<{ targetPaneId: string; position: SplitDropPosition } | null
 const showAddDialog = ref(false)
 const pendingAddTabPaneId = ref<string | null>(null)
 const fullscreenPaneId = ref<string | null>(null)
+const dismissedAuthUrls = ref<Record<string, string>>({})
 
 const paneMap = computed<Record<string, SplitPane | undefined>>(() =>
   Object.fromEntries(splitStore.activePanes.map((pane) => [pane.id, pane]))
@@ -37,6 +39,39 @@ const paneTitles = computed<Record<string, string>>(() => {
 
 const shouldRenderSplitLayout = computed(() =>
   splitStore.isSplitActive && !tabStore.isInternalPage
+)
+
+function isGoogleAuthUrl(url?: string): boolean {
+  if (!url) return false
+  try {
+    const hostname = new URL(url).hostname.toLowerCase()
+    return hostname === 'accounts.google.com' || hostname === 'accounts.google.cn'
+  } catch {
+    return false
+  }
+}
+
+function shouldShowAuthBanner(tabId?: string | null): boolean {
+  if (!tabId) return false
+  const url = tabStore.tabs.find((tab) => tab.id === tabId)?.url
+  return isGoogleAuthUrl(url) && dismissedAuthUrls.value[tabId] !== url
+}
+
+function dismissAuthBanner(tabId: string) {
+  const url = tabStore.tabs.find((tab) => tab.id === tabId)?.url
+  if (!url) return
+  dismissedAuthUrls.value = { ...dismissedAuthUrls.value, [tabId]: url }
+  nextTick(() => sendPaneBounds())
+}
+
+const activeAuthTabId = computed(() =>
+  !splitStore.isSplitActive && shouldShowAuthBanner(tabStore.activeTabId) ? tabStore.activeTabId : null
+)
+
+const googleAuthTabIds = computed(() =>
+  splitStore.activePanes
+    .map((pane) => pane.activeTabId)
+    .filter((tabId): tabId is string => !!tabId && shouldShowAuthBanner(tabId))
 )
 
 const displayNode = computed<SplitNode | null>(() => {
@@ -225,7 +260,11 @@ function handleDropPane(event: DragEvent, targetPaneId: string) {
 watch(
   () => [
     splitStore.activePanes.map((pane) => `${pane.id}:${pane.activeTabId}`).join(','),
-    splitStore.manualAdjustEnabled
+    splitStore.manualAdjustEnabled,
+    splitStore.activePanes.map((pane) => {
+      const tab = tabStore.tabs.find((item) => item.id === pane.activeTabId)
+      return `${pane.activeTabId || ''}:${tab?.url || ''}:${dismissedAuthUrls.value[pane.activeTabId || ''] || ''}`
+    }).join(',')
   ],
   () => {
     nextTick(() => sendPaneBounds())
@@ -296,9 +335,20 @@ onUnmounted(() => {
 <template>
   <div
     v-if="!shouldRenderSplitLayout"
-    id="webview-container"
     class="absolute inset-0"
-  />
+  >
+    <ExternalAuthBanner
+      v-if="activeAuthTabId"
+      :tab-id="activeAuthTabId"
+      class="absolute inset-x-0 top-0 z-20"
+      @dismiss="dismissAuthBanner(activeAuthTabId)"
+    />
+    <div
+      id="webview-container"
+      class="absolute inset-x-0 bottom-0"
+      :class="activeAuthTabId ? 'top-9' : 'top-0'"
+    />
+  </div>
 
   <template v-else>
     <template v-if="displayNode">
@@ -312,6 +362,7 @@ onUnmounted(() => {
           :fullscreen-pane-id="fullscreenPaneId"
           :dragging-pane-id="draggingPaneId"
           :preview="preview"
+          :google-auth-tab-ids="googleAuthTabIds"
           @pane-click="handlePaneClick"
           @request-add-tab="handleRequestAddTab"
           @branch-layout="handleBranchLayout"
@@ -323,6 +374,7 @@ onUnmounted(() => {
           @pane-fullscreen="handlePaneFullscreen"
           @pane-remove="handlePaneRemove"
           @pane-close-tab="handlePaneCloseTab"
+          @dismiss-auth="dismissAuthBanner"
         />
       </div>
       <NewTabDialog
