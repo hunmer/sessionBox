@@ -84,8 +84,11 @@ function handleNavigateUrl(url: string) {
       <template #item="{ element: tab }">
         <div
           v-show="tab.isGroupStart || !isGroupCollapsed(tab)"
-          class="w-full"
-          :class="{ 'tab-pinned': tab.pinned }"
+          class="w-full tab-item-wrapper tab-item-wrapper--vertical"
+          :class="{
+            'tab-pinned': tab.pinned,
+            'tab-item-wrapper--closing': tabStore.closingTabIds.has(tab.id)
+          }"
         >
           <!-- 分组标题：仅在该组第一个 tab 前显示 -->
           <div
@@ -136,8 +139,11 @@ function handleNavigateUrl(url: string) {
     >
       <template #item="{ element: tab }">
         <div
-          class="w-full"
-          :class="{ 'tab-pinned': tab.pinned }"
+          class="w-full tab-item-wrapper tab-item-wrapper--vertical"
+          :class="{
+            'tab-pinned': tab.pinned,
+            'tab-item-wrapper--closing': tabStore.closingTabIds.has(tab.id)
+          }"
         >
           <TabItem
             :tab="tab"

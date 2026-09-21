@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme inline {
   --color-background: var(--background);
@@ -41,6 +42,13 @@
   --shadow-brand: 0 0 15px rgba(44, 30, 116, 0.16);
   --shadow-card: 0 4px 6px rgba(0, 0, 0, 0.08);
   --shadow-card-elevated: 0 12px 16px -4px rgba(36, 36, 36, 0.08);
+}
+
+@theme {
+  /* 强 ease-out：进出场 UI；覆盖内置弱曲线，全库 ease-out 工具类同步受益 */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* 强 ease-in-out：屏幕内移动/变形 */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 @layer base {
@@ -169,4 +177,83 @@ textarea,
 a,
 img {
   -webkit-drag: none;
+}
+
+/* ====== 标签页进出场动画（plans/002）====== */
+/* 让 width/height 在 0 与 auto 之间可插值，无需猜测 max-width 上限 */
+:root {
+  interpolate-size: allow-keywords;
+}
+
+.tab-item-wrapper {
+  overflow: hidden; /* 收起期间裁切内容（标签内部文字本身有 truncate） */
+  transition: width 200ms var(--ease-out), opacity 150ms var(--ease-out);
+}
+
+.tab-item-wrapper:not(.tab-item-wrapper--vertical) {
+  width: auto; /* 显式 auto：配合 interpolate-size 让 0 → auto 可插值；vertical 保持 w-full */
+}
+
+.tab-item-wrapper--vertical {
+  height: auto;
+  transition: height 200ms var(--ease-out), opacity 150ms var(--ease-out);
+}
+
+/* 新插入的列表项（新建标签）从 0 宽/高 + 透明展开 */
+@starting-style {
+  .tab-item-wrapper:not(.tab-item-wrapper--vertical) {
+    width: 0;
+    opacity: 0;
+  }
+  .tab-item-wrapper--vertical {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+/* 关闭中：由 store 的 closingTabIds 驱动，水平收宽 / 垂直收高 */
+.tab-item-wrapper--closing {
+  opacity: 0;
+  pointer-events: none;
+}
+.tab-item-wrapper--closing:not(.tab-item-wrapper--vertical) {
+  width: 0;
+}
+.tab-item-wrapper--vertical.tab-item-wrapper--closing {
+  height: 0;
+}
+
+/* 减弱动态效果：布局收放瞬时，保留淡入淡出 */
+@media (prefers-reduced-motion: reduce) {
+  .tab-item-wrapper,
+  .tab-item-wrapper--vertical {
+    transition: opacity 150ms var(--ease-out);
+  }
+}
+
+/* ====== 标签文字折叠动画（plans/004）====== */
+.tab-label-enter-active,
+.tab-label-leave-active {
+  transition: max-width 200ms var(--ease-out), opacity 150ms var(--ease-out);
+}
+.tab-label-enter-from,
+.tab-label-leave-to {
+  max-width: 0;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-label-enter-active,
+  .tab-label-leave-active {
+    transition: opacity 150ms var(--ease-out);
+  }
+}
+
+/* 减弱动态效果：弹层的缩放/位移动画近零时长，hover 颜色等 transition 反馈保留 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-out {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
 }

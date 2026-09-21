@@ -21,6 +21,9 @@ const TAB_GROUP_KEY = 'sessionbox-tab-group-mode'
 const ACTIVE_TAB_KEY = 'sessionbox-active-tab-id'
 const MAX_RECENTLY_CLOSED = 20
 
+// 关闭动画时长（ms）：closingTabIds 标记后等待 CSS 收起完成再真正关闭
+const TAB_CLOSE_ANIM_MS = 150
+
 // ====== 类型 ======
 
 export interface TabProxyInfo {
@@ -55,6 +58,7 @@ interface TabStoreContext {
   favicons: Ref<Map<string, string>>
   faviconVersions: Ref<Map<string, number>>
   frozenTabIds: Ref<Set<string>>
+  closingTabIds: Ref<Set<string>>
   proxyInfos: Ref<Map<string, TabProxyInfo>>
   mutedSites: Ref<string[]>
   zoomLevels: Ref<Map<string, number>>
@@ -111,6 +115,7 @@ function cleanupTabState(
   ctx.favicons.value.delete(tabId)
   ctx.proxyInfos.value.delete(tabId)
   useSnifferStore().onTabClosed(tabId)
+  ctx.closingTabIds.value.delete(tabId)
 }
 
 // ====== 分组构建 ======
@@ -277,41 +282,62 @@ async function activateNextTabAfterClose(
   }
 }
 
+// 防重入：同一标签的关闭流程不允许并发（快速双击关闭按钮）
+const closingInFlight = new Set<string>()
+
 async function closeTabAction(ctx: TabStoreContext, tabId: string) {
-  const closingTab = ctx.tabs.value.find((t) => t.id === tabId)
-  if (closingTab && closingTab.pageId && !closingTab.url?.startsWith('sessionbox://')) {
-    ctx.recentlyClosedTabs.value.unshift({
-      pageId: closingTab.pageId,
-      title: closingTab.title,
-      url: closingTab.url,
-      order: closingTab.order
-    })
-    if (ctx.recentlyClosedTabs.value.length > MAX_RECENTLY_CLOSED) {
-      ctx.recentlyClosedTabs.value.pop()
+  if (closingInFlight.has(tabId)) return
+  closingInFlight.add(tabId)
+  try {
+    // 未被批量预标记 → 单个关闭：先标记让 CSS 开始收起，等动画走完再执行真正的关闭
+    if (!ctx.closingTabIds.value.has(tabId)) {
+      ctx.closingTabIds.value.add(tabId)
+      await new Promise((resolve) => setTimeout(resolve, TAB_CLOSE_ANIM_MS))
     }
-  }
+    const closingTab = ctx.tabs.value.find((t) => t.id === tabId)
+    if (closingTab && closingTab.pageId && !closingTab.url?.startsWith('sessionbox://')) {
+      ctx.recentlyClosedTabs.value.unshift({
+        pageId: closingTab.pageId,
+        title: closingTab.title,
+        url: closingTab.url,
+        order: closingTab.order
+      })
+      if (ctx.recentlyClosedTabs.value.length > MAX_RECENTLY_CLOSED) {
+        ctx.recentlyClosedTabs.value.pop()
+      }
+    }
 
-  const closingActive = ctx.activeTabId.value === tabId
-  const currentWorkspaceTabs = ctx.workspaceTabs.value
-  const currentIndex = currentWorkspaceTabs.findIndex((t) => t.id === tabId)
-  const nextWorkspaceTabId = currentIndex === -1
-    ? null
-    : currentWorkspaceTabs[currentIndex + 1]?.id ?? currentWorkspaceTabs[currentIndex - 1]?.id ?? null
+    const closingActive = ctx.activeTabId.value === tabId
+    const currentWorkspaceTabs = ctx.workspaceTabs.value
+    const currentIndex = currentWorkspaceTabs.findIndex((t) => t.id === tabId)
+    const nextWorkspaceTabId = currentIndex === -1
+      ? null
+      : currentWorkspaceTabs[currentIndex + 1]?.id ?? currentWorkspaceTabs[currentIndex - 1]?.id ?? null
 
-  await api.tab.close(tabId)
-  cleanupTabState(tabId, ctx)
+    await api.tab.close(tabId)
+    cleanupTabState(tabId, ctx)
 
-  const { useSplitStore } = await import('./split')
-  const splitStore = useSplitStore()
-  splitStore.handleTabClosed(tabId)
+    const { useSplitStore } = await import('./split')
+    const splitStore = useSplitStore()
+    splitStore.handleTabClosed(tabId)
 
-  if (closingActive) {
-    await activateNextTabAfterClose(ctx, splitStore, nextWorkspaceTabId)
+    if (closingActive) {
+      await activateNextTabAfterClose(ctx, splitStore, nextWorkspaceTabId)
+    }
+  } finally {
+    closingInFlight.delete(tabId)
   }
 }
 
 // 批量关闭：依次调用 closeTabAction，跳过已固定的标签页
 async function closeTabsSequentially(ctx: TabStoreContext, tabIds: string[]) {
+  // 先标记全部目标：所有标签同时开始收起动画，避免逐个 150ms 串行
+  for (const id of [...tabIds]) {
+    if (ctx.tabs.value.some((t) => t.id === id)) {
+      ctx.closingTabIds.value.add(id)
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, TAB_CLOSE_ANIM_MS))
   // 复制一份 id 列表，避免关闭过程中 reactive 数组变化影响迭代
   for (const id of [...tabIds]) {
     if (ctx.tabs.value.some((t) => t.id === id)) {
@@ -626,6 +652,7 @@ export const useTabStore = defineStore('tab', () => {
   const favicons = ref<Map<string, string>>(new Map())
   const faviconVersions = ref<Map<string, number>>(new Map())
   const frozenTabIds = ref<Set<string>>(new Set())
+  const closingTabIds = ref<Set<string>>(new Set())
   const proxyInfos = ref<Map<string, TabProxyInfo>>(new Map())
   const mutedSites = ref<string[]>([])
   const zoomLevels = ref<Map<string, number>>(new Map())
@@ -725,7 +752,7 @@ export const useTabStore = defineStore('tab', () => {
   // -- Context（传给提取出的外部函数）--
   const ctx: TabStoreContext = {
     tabs, activeTabId, tabGroupFilterId, navStates, favicons, faviconVersions,
-    frozenTabIds, proxyInfos, mutedSites, zoomLevels, pendingExternalUrl,
+    frozenTabIds, closingTabIds, proxyInfos, mutedSites, zoomLevels, pendingExternalUrl,
     recentlyClosedTabs, sortedTabs, workspaceTabs, listenersReady, restoreReady
   }
 
@@ -817,7 +844,7 @@ export const useTabStore = defineStore('tab', () => {
   })
 
   return {
-    tabs, activeTabId, tabGroupFilterId, navStates, favicons, faviconVersions, frozenTabIds,
+    tabs, activeTabId, tabGroupFilterId, navStates, favicons, faviconVersions, frozenTabIds, closingTabIds,
     sortedTabs, workspaceTabs, groupedWorkspaceTabs, activeTab, activeNavState, activeProxyInfo,
     isInternalPage, internalPagePath, tabLayout, toggleLayout, bookmarkBarVisible, toggleBookmarkBar,
     tabPageLabelVisible, toggleTabPageLabel,

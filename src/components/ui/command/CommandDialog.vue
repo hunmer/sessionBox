@@ -25,7 +25,7 @@ const forwarded = useForwardPropsEmits(props, emits)
     v-bind="forwarded"
   >
     <DialogContent
-      class="overflow-hidden p-0"
+      class="overflow-hidden p-0 duration-100"
       :show-close-button="false"
       @open-auto-focus="emits('openAutoFocus', $event)"
     >

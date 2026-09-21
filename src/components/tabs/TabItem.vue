@@ -259,7 +259,7 @@ onBeforeUnmount(clearTimers)
       <ContextMenu>
         <ContextMenuTrigger as-child>
           <div
-            class="group flex items-center gap-2 h-[30px] cursor-pointer transition-all select-none border rounded-xl"
+            class="group flex items-center gap-2 h-[30px] cursor-pointer transition-[color,background-color,border-color,box-shadow,opacity,padding] select-none border rounded-xl"
             :class="[
               iconOnly ? 'px-2' : 'px-3',
               vertical ? 'w-full' : '',
@@ -302,15 +302,19 @@ onBeforeUnmount(clearTimers)
               v-else
               class="w-3.5 h-3.5 flex-shrink-0 opacity-50"
             />
-            <span
-              v-if="!iconOnly"
-              class="truncate text-xs"
-              :class="vertical ? 'flex-1 min-w-0' : isPinned ? 'max-w-[100px]' : 'max-w-[120px]'"
-            >{{ pageTitle || pageLabel || '新标签页' }}</span>
-            <span
-              v-if="!iconOnly && pageTitle && pageLabel && tabStore.tabPageLabelVisible"
-              class="truncate text-[10px] text-muted-foreground/60 max-w-[60px] flex-shrink-0"
-            >{{ pageLabel }}</span>
+            <Transition name="tab-label">
+              <span
+                v-if="!iconOnly"
+                class="truncate text-xs"
+                :class="vertical ? 'flex-1 min-w-0' : isPinned ? 'max-w-[100px]' : 'max-w-[120px]'"
+              >{{ pageTitle || pageLabel || '新标签页' }}</span>
+            </Transition>
+            <Transition name="tab-label">
+              <span
+                v-if="!iconOnly && pageTitle && pageLabel && tabStore.tabPageLabelVisible"
+                class="truncate text-[10px] text-muted-foreground/60 max-w-[60px] flex-shrink-0"
+              >{{ pageLabel }}</span>
+            </Transition>
             <VolumeX
               v-if="!iconOnly && isMuted"
               class="w-3 h-3 flex-shrink-0 text-muted-foreground"

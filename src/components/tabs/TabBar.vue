@@ -198,8 +198,11 @@ function handleNavigateUrl(url: string) {
       <template #item="{ element: tab }">
         <div
           v-show="tab.isGroupStart || !isGroupCollapsed(tab)"
-          class="flex items-center gap-0.5 flex-shrink-0"
-          :class="{ 'tab-pinned': tab.pinned }"
+          class="flex items-center gap-0.5 flex-shrink-0 tab-item-wrapper"
+          :class="{
+            'tab-pinned': tab.pinned,
+            'tab-item-wrapper--closing': tabStore.closingTabIds.has(tab.id)
+          }"
           :data-tab-id="tab.id"
         >
           <!-- 分组 badge：仅在该组第一个 tab 前显示，可点击折叠 -->
@@ -247,8 +250,11 @@ function handleNavigateUrl(url: string) {
     >
       <template #item="{ element: tab }">
         <div
-          class="flex-shrink-0"
-          :class="{ 'tab-pinned': tab.pinned }"
+          class="flex-shrink-0 tab-item-wrapper"
+          :class="{
+            'tab-pinned': tab.pinned,
+            'tab-item-wrapper--closing': tabStore.closingTabIds.has(tab.id)
+          }"
           :data-tab-id="tab.id"
         >
           <TabItem :tab="tab" />
