@@ -9,7 +9,7 @@ export interface HomepageSettings {
 const STORAGE_KEY = 'sessionbox-homepage'
 
 const defaults: HomepageSettings = {
-  url: '',
+  url: 'https://web.jgtab.link',
   autoOpen: false,
 }
 

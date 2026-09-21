@@ -394,11 +394,11 @@ onBeforeUnmount(clearTimers)
               <ContextMenuItem @click="tabStore.openAtTaskbar(tab.id)">
                 任务栏打开
               </ContextMenuItem>
+                <ContextMenuItem @click="tabStore.openInBrowser(tab.id)">
+                系统浏览器打开
+              </ContextMenuItem>
             </ContextMenuSubContent>
           </ContextMenuSub>
-          <ContextMenuItem @click="tabStore.openInBrowser(tab.id)">
-            浏览器打开
-          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem @click="handleCloseOther">
             关闭其他标签页

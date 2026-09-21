@@ -41,10 +41,18 @@ export function setupEventForwarding(
     }
   }
 
-  wc.setWindowOpenHandler(({ url }) => {
-    if (!isWebUrl(url)) return { action: 'deny' }
+  wc.setWindowOpenHandler(({ url, disposition, frameName }) => {
     const entry = views.get(tabId)
-    if (entry && canSend()) {
+    const accepted = isWebUrl(url) && !!entry && canSend()
+    console.log('[WebviewManager] window open requested', {
+      tabId,
+      pageId: entry?.pageId ?? null,
+      url,
+      disposition,
+      frameName,
+      accepted
+    })
+    if (accepted) {
       win.webContents.send('on:tab:open-url', entry.pageId, url)
     }
     return { action: 'deny' }

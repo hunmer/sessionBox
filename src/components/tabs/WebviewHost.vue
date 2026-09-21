@@ -69,6 +69,7 @@ onUnmounted(() => {
       :key="view.tabId"
       :ref="(element: unknown) => bindElement(view.tabId, element)"
       src="about:blank"
+      allowpopups
       :partition="view.partition || undefined"
       :useragent="view.userAgent"
       class="fixed bg-background"

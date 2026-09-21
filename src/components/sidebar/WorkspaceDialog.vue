@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { Trash2 } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Workspace } from '@/types'
@@ -19,15 +24,18 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:open': [value: boolean]
   save: [data: { title: string; color: string }]
+  delete: []
 }>()
 
 const title = ref('')
 const color = ref('#3b82f6')
+const confirmDeleteOpen = ref(false)
 
 watch(() => props.open, (val) => {
   if (val) {
     title.value = props.workspace?.title ?? ''
     color.value = props.workspace?.color ?? '#3b82f6'
+    confirmDeleteOpen.value = false
   }
 })
 
@@ -35,6 +43,16 @@ function handleSave() {
   const trimmed = title.value.trim()
   if (!trimmed) return
   emit('save', { title: trimmed, color: color.value })
+  emit('update:open', false)
+}
+
+function handleDelete() {
+  confirmDeleteOpen.value = true
+}
+
+function handleConfirmDelete() {
+  emit('delete')
+  confirmDeleteOpen.value = false
   emit('update:open', false)
 }
 </script>
@@ -74,6 +92,16 @@ function handleSave() {
       </div>
       <DialogFooter>
         <Button
+          v-if="workspace && !workspace.isDefault"
+          variant="ghost"
+          size="icon"
+          class="mr-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
+          title="删除工作区"
+          @click="handleDelete"
+        >
+          <Trash2 class="size-4" />
+        </Button>
+        <Button
           variant="ghost"
           @click="emit('update:open', false)"
         >
@@ -86,6 +114,30 @@ function handleSave() {
           保存
         </Button>
       </DialogFooter>
+
+      <!-- 删除工作区二次确认 -->
+      <AlertDialog
+        :open="confirmDeleteOpen"
+        @update:open="confirmDeleteOpen = $event"
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定删除工作区“{{ workspace?.title }}”？该操作不可恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              @click="handleConfirmDelete"
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DialogContent>
   </Dialog>
 </template>

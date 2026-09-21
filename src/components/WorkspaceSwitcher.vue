@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Component } from "vue"
-import { ChevronDown, Plus, Sun, Moon } from "lucide-vue-next"
+import { ChevronDown, Pencil, Plus, Sun, Moon } from "lucide-vue-next"
 import { computed, ref } from "vue"
 import {
   DropdownMenu,
@@ -25,6 +25,7 @@ import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
 import { useThemeStore } from '@/stores/theme'
+import type { Workspace } from '@/types'
 
 const props = defineProps<{
   workspaces: {
@@ -43,6 +44,8 @@ const pageStore = usePageStore()
 const tabStore = useTabStore()
 const themeStore = useThemeStore()
 const dialogOpen = ref(false)
+const menuOpen = ref(false)
+const editingWorkspace = ref<Workspace | null>(null)
 
 /** 切换亮色/暗色主题 */
 function toggleTheme() {
@@ -76,11 +79,36 @@ const tabCountByWorkspace = computed(() => {
 })
 
 function handleAddWorkspace() {
+  editingWorkspace.value = null
+  dialogOpen.value = true
+}
+
+/** 打开编辑对话框（复用新建对话框，进入编辑模式） */
+function handleEditWorkspace(workspace: typeof props.workspaces[0]) {
+  editingWorkspace.value =
+    workspaceStore.workspaces.find((w) => w.id === workspace.id) ?? {
+      id: workspace.id,
+      title: workspace.name,
+      color: workspace.color || '#3b82f6',
+      order: 0,
+    }
+  menuOpen.value = false
   dialogOpen.value = true
 }
 
 async function handleSave(data: { title: string; color: string }) {
-  await workspaceStore.createWorkspace(data.title, data.color)
+  if (editingWorkspace.value) {
+    await workspaceStore.updateWorkspace(editingWorkspace.value.id, data)
+  } else {
+    await workspaceStore.createWorkspace(data.title, data.color)
+  }
+}
+
+async function handleDeleteWorkspace() {
+  const workspace = editingWorkspace.value
+  if (!workspace || workspaceStore.isDefaultWorkspace(workspace.id)) return
+  workspaceStore.close(workspace.id)
+  await workspaceStore.deleteWorkspace(workspace.id)
 }
 
 function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
@@ -94,7 +122,7 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
     :class="collapsed ? 'w-full justify-center' : ''"
   >
     <SidebarMenuItem :class="collapsed ? 'flex justify-center' : 'flex items-center'">
-      <DropdownMenu>
+      <DropdownMenu v-model:open="menuOpen">
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton
             class="flex-1 min-w-0 px-1.5 flex items-center justify-center rounded-lg border border-sidebar-border"
@@ -133,7 +161,7 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
           <DropdownMenuItem
             v-for="workspace in workspaces"
             :key="workspace.id"
-            class="gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+            class="group gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
             @click="handleSelectWorkspace(workspace)"
           >
             <div
@@ -153,6 +181,15 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
             >
               {{ tabCountByWorkspace.get(workspace.id) }}
             </Badge>
+            <!-- 编辑工作区：点击弹出编辑对话框 -->
+            <button
+              class="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100"
+              :class="tabCountByWorkspace.get(workspace.id) ? '' : 'ml-auto'"
+              title="编辑工作区"
+              @click.stop="handleEditWorkspace(workspace)"
+            >
+              <Pencil class="size-3" />
+            </button>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -214,6 +251,8 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
 
   <WorkspaceDialog
     v-model:open="dialogOpen"
+    :workspace="editingWorkspace"
     @save="handleSave"
+    @delete="handleDeleteWorkspace"
   />
 </template>
