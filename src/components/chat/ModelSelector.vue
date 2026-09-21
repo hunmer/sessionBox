@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAIProviderStore } from '@/stores/ai-provider'
+import { useChatUIStore } from '@/stores/chat-ui'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { InputGroupButton } from '@/components/ui/input-group'
-import { Check, ChevronDown } from 'lucide-vue-next'
+import { Check, ChevronDown, Settings } from 'lucide-vue-next'
+import { Separator } from '@/components/ui/separator'
 
 const providerStore = useAIProviderStore()
+const uiStore = useChatUIStore()
 const open = ref(false)
 
 const enabledProviders = computed(() => providerStore.providers.filter((p) => p.enabled))
@@ -19,6 +22,11 @@ function selectModel(providerId: string, modelId: string) {
   providerStore.selectProvider(providerId)
   providerStore.selectModel(modelId)
   open.value = false
+}
+
+function openProviderManager() {
+  open.value = false
+  uiStore.openProviderManager()
 }
 </script>
 
@@ -65,6 +73,14 @@ function selectModel(providerId: string, modelId: string) {
       >
         暂无可用模型
       </div>
+      <Separator class="my-1" />
+      <button
+        class="w-full flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-left text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        @click="openProviderManager"
+      >
+        <Settings class="size-3.5" />
+        <span>管理供应商</span>
+      </button>
     </PopoverContent>
   </Popover>
 </template>

@@ -23,6 +23,7 @@ import ProxyDialog from '@/components/proxy/ProxyDialog.vue'
 import ContainerMiniPopover from './ContainerMiniPopover.vue'
 import SnifferMiniPopover from './SnifferMiniPopover.vue'
 import PluginMiniPopover from './PluginMiniPopover.vue'
+import RecordingMiniPopover from './RecordingMiniPopover.vue'
 import PluginSettings from '@/components/plugins/PluginSettings.vue'
 import { useChatUIStore } from '@/stores/chat-ui'
 
@@ -44,9 +45,11 @@ const proxyDialogOpen = ref(false)
 const containerOpen = ref(false)
 const snifferOpen = ref(false)
 const pluginOpen = ref(false)
+const debuggerOpen = ref(false)
 
 function openDebugger() {
-  window.api.debugger?.createWindow?.()
+  debuggerOpen.value = false
+  tabStore.createTabForSite('sessionbox://debugger')
 }
 
 function openFullPage(site: string) {
@@ -57,6 +60,7 @@ function openFullPage(site: string) {
   containerOpen.value = false
   snifferOpen.value = false
   pluginOpen.value = false
+  debuggerOpen.value = false
   tabStore.createTabForSite(site)
 }
 </script>
@@ -215,14 +219,16 @@ function openFullPage(site: string) {
           </Popover>
 
           <!-- 网页调试 -->
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8"
-            @click="openDebugger"
-          >
-            <Bug class="h-4 w-4" />
-          </Button>
+          <Popover v-model:open="debuggerOpen">
+            <PopoverTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-8 w-8" title="网页调试与录制">
+                <Bug class="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="w-auto overflow-hidden p-0">
+              <RecordingMiniPopover @open-full="openDebugger" />
+            </PopoverContent>
+          </Popover>
 
           <!-- AI 聊天 -->
           <Button

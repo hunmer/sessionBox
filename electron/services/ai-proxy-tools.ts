@@ -4,11 +4,13 @@
  */
 import { BrowserWindow, app, webContents } from 'electron'
 import { join } from 'path'
-import { mkdirSync, writeFileSync } from 'fs'
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, unlinkSync } from 'fs'
 import { listTabs, createTab, listPages, getPageById, getGroupById } from './store'
 import { webviewManager } from './webview-manager'
 import { extractPageSummary, extractPageMarkdown, extractInteractiveNodes, extractInteractiveNodeDetail } from './page-extractor'
 import { writeSkill, readSkill, listSkills, searchSkill } from './skill-store'
+import { playActionRun } from './action-player'
+import type { ActionRun } from './action-recorder'
 
 /** 获取 webContents */
 function getWebContentsFromManager(tabId?: string): Electron.WebContents | null {
@@ -342,6 +344,56 @@ export function executeSkillTool(name: string, args: Record<string, unknown>): R
     }
   }
   return { error: `Unknown skill tool: ${name}` }
+}
+
+function recordingsDir(): string { return join(app.getPath('userData'), 'action-presets') }
+function replaceRecordingParams<T>(value: T, params: Record<string, unknown>): T {
+  if (typeof value === 'string') return value.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_m, key) => String(params[key] ?? _m)) as T
+  if (Array.isArray(value)) return value.map(item => replaceRecordingParams(item, params)) as T
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, replaceRecordingParams(item, params)])) as T
+  return value
+}
+
+export function executeRecordingTool(name: string, args: Record<string, unknown>): unknown {
+  const dir = recordingsDir()
+  mkdirSync(dir, { recursive: true })
+  const id = String(args.id || '')
+  if (name === 'list_recordings') {
+    return readdirSync(dir).filter(file => file.endsWith('.json')).map(file => {
+      try { const item = JSON.parse(readFileSync(join(dir, file), 'utf8')); return { id: item.id || file.slice(0, -5), name: item.name, stepCount: item.steps?.length || 0, initialUrl: item.initialUrl || '', updatedAt: item.updatedAt || item.createdAt || 0 } } catch { return null }
+    }).filter(Boolean)
+  }
+  if (name === 'create_recording') {
+    const steps = Array.isArray(args.steps) ? args.steps : []
+    if (!args.name || !steps.length) return { error: 'name 和非空 steps 为必填' }
+    const safe = String(args.name).trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').replace(/\s+/g, '-').slice(0, 60)
+    const now = Date.now(); const newId = `${now}-${safe || 'action-preset'}`
+    const payload = { version: 1, type: 'sessionbox-action-preset', id: newId, name: String(args.name), createdAt: now, updatedAt: now, initialUrl: String(args.initialUrl || ''), partition: 'default', stepCount: steps.length, steps }
+    writeFileSync(join(dir, `${newId}.json`), JSON.stringify(payload, null, 2), 'utf8')
+    return { success: true, id: newId, name: payload.name }
+  }
+  if (!id) return { error: 'id 为必填' }
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) return { error: '录制 ID 无效' }
+  const filePath = join(dir, `${id}.json`)
+  if (name === 'delete_recording') { try { unlinkSync(filePath); return { success: true, id } } catch { return { error: '录制不存在' } } }
+  try {
+    const item = JSON.parse(readFileSync(filePath, 'utf8'))
+    if (name === 'update_recording') {
+      if (args.name !== undefined) item.name = String(args.name)
+      if (args.initialUrl !== undefined) item.initialUrl = String(args.initialUrl)
+      if (Array.isArray(args.steps)) { item.steps = args.steps; item.stepCount = args.steps.length }
+      item.updatedAt = Date.now(); writeFileSync(filePath, JSON.stringify(item, null, 2), 'utf8'); return { success: true, id, name: item.name, stepCount: item.stepCount }
+    }
+    if (name === 'execute_recording') {
+      const tabId = String(args.tabId || webviewManager.getActiveTabId() || '')
+      const wc = getWebContentsFromManager(tabId)
+      if (!wc) return { error: '目标标签页不存在' }
+      const run = replaceRecordingParams({ id: item.id, partition: item.partition || 'default', startedAt: item.createdAt || Date.now(), endedAt: item.updatedAt || null, initialUrl: item.initialUrl || '', steps: item.steps || [] } as ActionRun, (args.parameters || {}) as Record<string, unknown>)
+      void playActionRun(wc, run, { pauseOnError: args.pauseOnError !== false, retryCount: Number(args.retryCount) || undefined })
+      return { success: true, id, tabId, stepCount: run.steps.length }
+    }
+  } catch (error) { return { error: error instanceof Error ? error.message : String(error) } }
+  return { error: `Unknown recording tool: ${name}` }
 }
 
 /** 执行 JS 注入工具 */

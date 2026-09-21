@@ -411,7 +411,24 @@ const api = {
     delete: (name) => electron.ipcRenderer.invoke("skill:delete", name)
   },
   debugger: {
-    createWindow: () => electron.ipcRenderer.invoke("debugger:create-window")
+    createWindow: () => electron.ipcRenderer.invoke("debugger:create-window"),
+    getTabs: () => electron.ipcRenderer.invoke("debugger:get-tabs"),
+    getActionRun: (wcId) => electron.ipcRenderer.invoke("debugger:get-action-run", wcId),
+    injectActionRecorder: (wcId) => electron.ipcRenderer.invoke("debugger:inject-action-recorder", wcId),
+    startActionRecord: (wcId, options) => electron.ipcRenderer.invoke("debugger:start-action-record", wcId, options),
+    stopActionRecord: (wcId) => electron.ipcRenderer.invoke("debugger:stop-action-record", wcId),
+    playActionRun: (wcId, run, options) => electron.ipcRenderer.invoke("debugger:play-action-run", wcId, run, options),
+    saveActionPreset: (name, run) => electron.ipcRenderer.invoke("debugger:save-action-preset", name, run),
+    listActionPresets: () => electron.ipcRenderer.invoke("debugger:list-action-presets"),
+    loadActionPreset: (id) => electron.ipcRenderer.invoke("debugger:load-action-preset", id),
+    updateActionPreset: (id, patch) => electron.ipcRenderer.invoke("debugger:update-action-preset", id, patch),
+    deleteActionPreset: (id) => electron.ipcRenderer.invoke("debugger:delete-action-preset", id),
+    stopActionPlay: (playId) => electron.ipcRenderer.invoke("debugger:stop-action-play", playId),
+    onActionStep: (callback) => {
+      const handler = (_e, step) => callback(step);
+      electron.ipcRenderer.on("on:debugger:action-step", handler);
+      return () => electron.ipcRenderer.removeListener("on:debugger:action-step", handler);
+    }
   },
   // 主进程 → 渲染进程事件监听
   on: (event, callback) => {

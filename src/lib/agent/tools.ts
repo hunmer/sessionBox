@@ -107,6 +107,21 @@ export const TOOL_CATEGORY_INFOS: ToolCategoryInfo[] = [
 /** 所有浏览器业务工具的元数据列表 */
 export const BROWSER_TOOL_LIST: ToolMeta[] = [
   {
+    name: 'list_recordings', description: '列出已保存的网页操作录制', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'list'], riskLevel: 'low', suitableFor: ['查看可执行录制'],
+  },
+  {
+    name: 'create_recording', description: '创建或保存网页操作录制', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'create'], riskLevel: 'medium', suitableFor: ['保存录制步骤'],
+  },
+  {
+    name: 'update_recording', description: '更新已保存网页操作录制', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'update'], riskLevel: 'medium', suitableFor: ['修改录制名称或步骤'],
+  },
+  {
+    name: 'delete_recording', description: '删除已保存网页操作录制', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'delete'], riskLevel: 'high', suitableFor: ['删除不需要的录制'],
+  },
+  {
+    name: 'execute_recording', description: '在指定标签页执行录制，可传入自定义参数替换 {{name}} 占位符', category: '录制管理', discoveryCategory: 'auto', tags: ['recording', 'execute'], riskLevel: 'high', suitableFor: ['自动执行录制流程'],
+  },
+  {
     name: 'click_element',
     description: '点击页面元素',
     category: '页面交互',
@@ -422,6 +437,11 @@ export const DISCOVERY_TOOL_NAMES = [
 ] as const
 
 const TOOL_EXAMPLE_INPUTS: Record<string, Record<string, unknown>> = {
+  list_recordings: {},
+  create_recording: { name: '登录流程', steps: [] },
+  update_recording: { id: 'recording-id', name: '更新后的登录流程' },
+  delete_recording: { id: 'recording-id' },
+  execute_recording: { id: 'recording-id', tabId: 'tab-1', parameters: { username: 'demo' } },
   click_element: { selector: '#submitBtn' },
   input_text: { selector: '#searchInput', text: 'SessionBox' },
   scroll_page: { direction: 'down', amount: 500 },
@@ -554,6 +574,17 @@ function createUtilityTools(): ToolDefinition[] {
   ]
 }
 
+function createRecordingTools(tabIdField: { type: 'string'; description: string }): ToolDefinition[] {
+  const stepField = { type: 'array', description: 'ActionStep 步骤数组，可在字符串值中使用 {{参数名}} 占位符', items: { type: 'object' } }
+  return [
+    { name: 'list_recordings', description: '列出所有已保存的网页操作录制。', input_schema: { type: 'object', properties: {} } },
+    { name: 'create_recording', description: '创建网页操作录制。', input_schema: { type: 'object', properties: { name: { type: 'string', description: '录制名称' }, initialUrl: { type: 'string', description: '起始 URL' }, steps: stepField }, required: ['name', 'steps'] } },
+    { name: 'update_recording', description: '更新已有录制的名称、起始 URL 或步骤。', input_schema: { type: 'object', properties: { id: { type: 'string', description: '录制 ID' }, name: { type: 'string', description: '新名称' }, initialUrl: { type: 'string', description: '新起始 URL' }, steps: stepField }, required: ['id'] } },
+    { name: 'delete_recording', description: '删除指定录制。', input_schema: { type: 'object', properties: { id: { type: 'string', description: '录制 ID' } }, required: ['id'] } },
+    { name: 'execute_recording', description: '执行指定录制。parameters 会替换步骤字符串中的 {{参数名}} 占位符。', input_schema: { type: 'object', properties: { id: { type: 'string', description: '录制 ID' }, tabId: tabIdField, parameters: { type: 'object', description: '自定义输入参数', properties: {} }, pauseOnError: { type: 'boolean', description: '出错时暂停，默认 true' }, retryCount: { type: 'number', description: '失败重试次数' } }, required: ['id'] } },
+  ]
+}
+
 /**
  * 创建真正的浏览器业务工具集。
  * @param _targetTabId 默认目标标签页 ID，由执行层兜底处理。
@@ -569,6 +600,7 @@ export function createBrowserTools(_targetTabId: string | null): ToolDefinition[
     ...createWorkspaceTools(),
     ...createDomQueryTools(tabIdField),
     ...createSkillTools(),
+    ...createRecordingTools(tabIdField),
     ...createUtilityTools(),
   ]
 }

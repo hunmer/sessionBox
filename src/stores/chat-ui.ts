@@ -22,10 +22,15 @@ export const useChatUIStore = defineStore('chat-ui', () => {
   const isPanelVisible = ref(localStorage.getItem(PANEL_VISIBLE_KEY) === '1')
   const targetTabId = ref<string | null>(localStorage.getItem(TARGET_TAB_KEY))
   const enabledTools = ref<Record<string, boolean>>(loadEnabledTools())
+  const providerManagerOpen = ref(false)
 
   function togglePanel() {
     isPanelVisible.value = !isPanelVisible.value
     localStorage.setItem(PANEL_VISIBLE_KEY, isPanelVisible.value ? '1' : '0')
+  }
+
+  function openProviderManager() {
+    providerManagerOpen.value = true
   }
 
   function setTargetTab(tabId: string | null) {
@@ -59,7 +64,9 @@ export const useChatUIStore = defineStore('chat-ui', () => {
     targetTabId,
     enabledTools,
     enabledToolNames,
+    providerManagerOpen,
     togglePanel,
+    openProviderManager,
     setTargetTab,
     toggleTool,
     isToolEnabled,

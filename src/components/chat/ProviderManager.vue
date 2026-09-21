@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Plus, Trash2, TestTube2, ChevronDown, Loader2 } from 'lucide-vue-next'
+import { Plus, Trash2, TestTube2, ChevronDown, Loader2, Pencil } from 'lucide-vue-next'
 import type { AIProvider, AIModel } from '@/types'
 
 const props = defineProps<{
@@ -38,6 +38,31 @@ const newModelName = ref('')
 const newModelMaxTokens = ref(4096)
 const newModelSupportsVision = ref(false)
 const newModelSupportsThinking = ref(false)
+
+// ===== 编辑供应商 =====
+const editingProviderId = ref<string | null>(null)
+const editForm = ref({ name: '', apiBase: '', apiKey: '' })
+
+function startEditProvider(provider: AIProvider) {
+  editingProviderId.value = provider.id
+  editForm.value = {
+    name: provider.name,
+    apiBase: provider.apiBase,
+    apiKey: provider.apiKey,
+  }
+  expandedProviderId.value = provider.id
+}
+
+async function handleSaveProviderEdit() {
+  const id = editingProviderId.value
+  if (!id || !editForm.value.name.trim() || !editForm.value.apiBase.trim()) return
+  await providerStore.updateProvider(id, {
+    name: editForm.value.name.trim(),
+    apiBase: editForm.value.apiBase.trim(),
+    apiKey: editForm.value.apiKey.trim(),
+  })
+  editingProviderId.value = null
+}
 
 async function handleAddProvider() {
   if (!newProviderName.value.trim() || !newProviderApiKey.value.trim()) return
@@ -158,6 +183,14 @@ async function handleToggleProvider(provider: AIProvider) {
                   variant="ghost"
                   size="icon"
                   class="h-6 w-6"
+                  @click="startEditProvider(provider)"
+                >
+                  <Pencil class="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-6 w-6"
                   @click="handleDeleteProvider(provider.id)"
                 >
                   <Trash2 class="h-3 w-3 text-destructive" />
@@ -165,6 +198,46 @@ async function handleToggleProvider(provider: AIProvider) {
               </div>
             </div>
             <CollapsibleContent>
+              <!-- 编辑供应商 -->
+              <div
+                v-if="editingProviderId === provider.id"
+                class="px-3 pb-3 space-y-2"
+              >
+                <Input
+                  v-model="editForm.name"
+                  placeholder="供应商名称 (如 Anthropic)"
+                  class="h-7 text-xs"
+                />
+                <Input
+                  v-model="editForm.apiBase"
+                  placeholder="API Base URL"
+                  class="h-7 text-xs"
+                />
+                <Input
+                  v-model="editForm.apiKey"
+                  type="password"
+                  placeholder="API Key"
+                  class="h-7 text-xs"
+                />
+                <div class="flex gap-1">
+                  <Button
+                    size="sm"
+                    class="h-7 text-xs"
+                    @click="handleSaveProviderEdit"
+                  >
+                    保存
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    class="h-7 text-xs"
+                    @click="editingProviderId = null"
+                  >
+                    取消
+                  </Button>
+                </div>
+              </div>
+              <template v-else>
               <div class="px-3 pb-2 space-y-1 text-xs text-muted-foreground">
                 <div>API Base: {{ provider.apiBase }}</div>
                 <div>模型数量: {{ provider.models.length }}</div>
@@ -245,6 +318,7 @@ async function handleToggleProvider(provider: AIProvider) {
                   <Plus class="h-3 w-3 mr-1" /> 添加模型
                 </Button>
               </div>
+              </template>
             </CollapsibleContent>
           </Collapsible>
         </div>

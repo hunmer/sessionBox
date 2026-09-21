@@ -1,6 +1,6 @@
 import { app, ipcMain, BrowserWindow, dialog, webContents } from 'electron'
 import { join } from 'path'
-import { mkdir, readdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, readdir, readFile, writeFile, unlink } from 'fs/promises'
 import {
   injectActionRecorder,
   startActionRecording,
@@ -17,6 +17,12 @@ let debuggerWindow: BrowserWindow | null = null
 let embeddedWcId: number | null = null
 let activePlayId: string | null = null
 
+function sendDebuggerEvent(channel: string, ...args: unknown[]) {
+  if (debuggerWindow && !debuggerWindow.isDestroyed()) debuggerWindow.webContents.send(channel, ...args)
+  const mainWindow = webviewManager.getMainWindow()
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(`on:${channel}`, ...args)
+}
+
 function getActionPresetDir(): string {
   return join(app.getPath('userData'), 'action-presets')
 }
@@ -27,6 +33,10 @@ function sanitizePresetName(name: string): string {
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
     .replace(/\s+/g, '-')
     .slice(0, 60) || 'action-preset'
+}
+
+function isValidPresetId(id: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(id)
 }
 
 export function registerDebuggerIpcHandlers(): void {
@@ -146,7 +156,7 @@ export function registerDebuggerIpcHandlers(): void {
   ipcMain.handle('debugger:start-action-record', async (_e, wcId: number, options?: { eventTypes?: any[] }) => {
     return startActionRecording(wcId, (step) => {
       if (debuggerWindow && !debuggerWindow.isDestroyed()) {
-        debuggerWindow.webContents.send('debugger:action-step', step)
+        sendDebuggerEvent('debugger:action-step', step)
       }
     }, { eventTypes: Array.isArray(options?.eventTypes) ? options.eventTypes as any : undefined })
   })
@@ -193,10 +203,10 @@ export function registerDebuggerIpcHandlers(): void {
       onState: (state) => {
         activePlayId = state.status === 'running' ? state.playId : activePlayId
         if (state.status !== 'running' && activePlayId === state.playId) activePlayId = null
-        debuggerWindow?.webContents.send('debugger:action-play-state', state)
+        sendDebuggerEvent('debugger:action-play-state', state)
       }
     }).catch((error) => {
-      debuggerWindow?.webContents.send('debugger:action-play-state', {
+      sendDebuggerEvent('debugger:action-play-state', {
         playId: activePlayId || '',
         runId: run.id,
         status: 'failed',
@@ -271,7 +281,37 @@ export function registerDebuggerIpcHandlers(): void {
     return items
   })
 
+  ipcMain.handle('debugger:update-action-preset', async (_e, id: string, patch: { name?: string; steps?: unknown[]; initialUrl?: string }) => {
+    if (!isValidPresetId(id)) return { success: false, error: '录制 ID 无效' }
+    const filePath = join(getActionPresetDir(), `${id}.json`)
+    try {
+      const parsed = JSON.parse(await readFile(filePath, 'utf-8'))
+      if (patch?.name !== undefined) parsed.name = String(patch.name).trim() || parsed.name
+      if (Array.isArray(patch?.steps)) {
+        parsed.steps = patch.steps
+        parsed.stepCount = patch.steps.length
+      }
+      if (patch?.initialUrl !== undefined) parsed.initialUrl = String(patch.initialUrl)
+      parsed.updatedAt = Date.now()
+      await writeFile(filePath, JSON.stringify(parsed, null, 2), 'utf-8')
+      return { success: true, item: { id: parsed.id || id, name: parsed.name, updatedAt: parsed.updatedAt, stepCount: parsed.stepCount || parsed.steps.length, initialUrl: parsed.initialUrl || '' } }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  })
+
+  ipcMain.handle('debugger:delete-action-preset', async (_e, id: string) => {
+    if (!isValidPresetId(id)) return { success: false, error: '录制 ID 无效' }
+    try {
+      await unlink(join(getActionPresetDir(), `${id}.json`))
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  })
+
   ipcMain.handle('debugger:load-action-preset', async (_e, id: string) => {
+    if (!isValidPresetId(id)) return { success: false, error: '录制 ID 无效' }
     const dir = getActionPresetDir()
     const filePath = join(dir, `${id}.json`)
 

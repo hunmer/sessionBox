@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import type { ChatStoreInstance } from '@/stores/chat'
 import { useAIProviderStore } from '@/stores/ai-provider'
 import { useChatUIStore } from '@/stores/chat-ui'
@@ -22,7 +22,6 @@ const props = withDefaults(defineProps<{
 
 const providerStore = useAIProviderStore()
 const uiStore = useChatUIStore()
-const showProviderManager = ref(false)
 
 const toolDisplayItems = computed<ToolDisplayItem[]>(() => {
   return BROWSER_TOOL_LIST.map((t) => ({
@@ -73,7 +72,7 @@ function handleEdit(messageId: string, newContent: string) {
         variant="ghost"
         size="icon"
         class="h-7 w-7"
-        @click="showProviderManager = true"
+        @click="uiStore.openProviderManager()"
       >
         <Settings class="h-4 w-4" />
       </Button>
@@ -125,9 +124,6 @@ function handleEdit(messageId: string, newContent: string) {
     />
 
     <!-- 供应商管理对话框 -->
-    <ProviderManager
-      v-if="!embedded"
-      v-model:open="showProviderManager"
-    />
+    <ProviderManager v-model:open="uiStore.providerManagerOpen" />
   </div>
 </template>

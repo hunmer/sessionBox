@@ -11,6 +11,7 @@ import {
 import {
   executeCreateTab, executeWindowTool, executeBrowserTool,
   executePageTool, executeSkillTool, executeInjectJs, cssEscape,
+  executeRecordingTool,
 } from './ai-proxy-tools'
 
 interface ProxyRequest {
@@ -456,6 +457,12 @@ export async function executeTool(
       case 'list_skills':
       case 'search_skill':
         return executeSkillTool(name, args)
+      case 'list_recordings':
+      case 'create_recording':
+      case 'update_recording':
+      case 'delete_recording':
+      case 'execute_recording':
+        return executeRecordingTool(name, args)
       case 'inject_js': return executeInjectJs(args)
       default:
         console.warn(`[ai-proxy executeTool] unknown tool: ${name}`)

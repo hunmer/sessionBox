@@ -251,7 +251,6 @@ function onChildrenReorder(reordered: PageItem[]) {
                   @click.stop
                 >
                   <span class="text-[10px] leading-none">{{ pageTabCount }}</span>
-                  <X class="w-3 h-3" />
                 </button>
               </PopoverTrigger>
               <PopoverContent
