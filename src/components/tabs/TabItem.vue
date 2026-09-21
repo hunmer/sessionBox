@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { X, Globe, Loader2, Snowflake, Volume2, VolumeX, Pin, PinOff } from 'lucide-vue-next'
 import {
   ContextMenu,
@@ -13,7 +13,6 @@ import type { Tab } from '@/types'
 import { useTabStore } from '@/stores/tab'
 import { useSplitStore } from '@/stores/split'
 import { usePageStore } from '@/stores/page'
-import { useContainerStore } from '@/stores/container'
 import { getDomain } from '@/lib/utils'
 import { extractNavigableDropUrl, hasSupportedExternalDrop } from '@/lib/external-drop'
 
@@ -26,7 +25,6 @@ const props = defineProps<{
 const tabStore = useTabStore()
 const splitStore = useSplitStore()
 const pageStore = usePageStore()
-const containerStore = useContainerStore()
 
 // 内部页面名称映射
 const internalPageNames: Record<string, string> = {
@@ -53,14 +51,11 @@ const pageTitle = computed(() => {
   if (title === page?.name) return ''
   return title
 })
-// 页面标识：【分组】页面名（通过 page -> group 链路）
+// 页面标识：页面名
 const pageLabel = computed(() => {
-  // 内部页面不显示分组·页面名
+  // 内部页面不显示页面名
   if (isInternalPage.value) return ''
-  const page = pageStore.getPage(props.tab.pageId)
-  if (!page) return ''
-  const group = containerStore.getGroup(page.groupId)
-  return group ? `${group.name}·${page.name}` : page.name
+  return pageStore.getPage(props.tab.pageId)?.name ?? ''
 })
 const isActive = computed(() => {
   if (splitStore.isSplitActive) {
@@ -69,8 +64,14 @@ const isActive = computed(() => {
 
   return tabStore.activeTabId === props.tab.id
 })
+// 仅图标模式：开启后未激活标签只显示网站图标
+const iconOnly = computed(() => tabStore.tabIconOnly && !isActive.value)
 const isLoading = computed(() => tabStore.navStates.get(props.tab.id)?.isLoading ?? false)
 const faviconUrl = computed(() => tabStore.favicons.get(props.tab.id))
+// 网站图标加载状态：加载中显示脉动占位，失败回退 Globe
+const faviconState = ref<'loading' | 'loaded' | 'error'>('loading')
+watch(faviconUrl, () => { faviconState.value = 'loading' })
+const showFaviconImg = computed(() => !!faviconUrl.value && faviconState.value !== 'error')
 const isFrozen = computed(() => tabStore.frozenTabIds.has(props.tab.id))
 const isPinned = computed(() => !!props.tab.pinned)
 const isMuted = computed(() => !!props.tab.muted)
@@ -258,8 +259,9 @@ onBeforeUnmount(clearTimers)
       <ContextMenu>
         <ContextMenuTrigger as-child>
           <div
-            class="group flex items-center gap-2 h-[30px] px-3 cursor-pointer transition-all select-none border rounded-xl"
+            class="group flex items-center gap-2 h-[30px] cursor-pointer transition-all select-none border rounded-xl"
             :class="[
+              iconOnly ? 'px-2' : 'px-3',
               vertical ? 'w-full' : '',
               isDropTarget
                 ? 'bg-accent/60 text-accent-foreground border-accent'
@@ -289,34 +291,43 @@ onBeforeUnmount(clearTimers)
               class="w-3.5 h-3.5 flex-shrink-0 text-blue-400"
             />
             <img
-              v-else-if="faviconUrl"
+              v-else-if="showFaviconImg"
               :src="faviconUrl"
               class="w-3.5 h-3.5 flex-shrink-0 rounded-sm"
+              :class="faviconState === 'loading' ? 'animate-pulse bg-primary/10' : ''"
+              @load="faviconState = 'loaded'"
+              @error="faviconState = 'error'"
             >
             <Globe
               v-else
               class="w-3.5 h-3.5 flex-shrink-0 opacity-50"
             />
             <span
+              v-if="!iconOnly"
               class="truncate text-xs"
               :class="vertical ? 'flex-1 min-w-0' : isPinned ? 'max-w-[100px]' : 'max-w-[120px]'"
             >{{ pageTitle || pageLabel || '新标签页' }}</span>
             <span
-              v-if="pageTitle && pageLabel && tabStore.tabPageLabelVisible"
+              v-if="!iconOnly && pageTitle && pageLabel && tabStore.tabPageLabelVisible"
               class="truncate text-[10px] text-muted-foreground/60 max-w-[60px] flex-shrink-0"
             >{{ pageLabel }}</span>
             <VolumeX
-              v-if="isMuted"
+              v-if="!iconOnly && isMuted"
               class="w-3 h-3 flex-shrink-0 text-muted-foreground"
             />
             <Pin
-              v-if="isPinned"
+              v-if="!iconOnly && isPinned"
               class="w-3 h-3 flex-shrink-0 text-muted-foreground"
             />
             <button
               v-if="!isPinned"
-              class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-secondary transition-opacity"
-              :class="vertical ? 'ml-auto' : ''"
+              class="flex-shrink-0 p-0.5 rounded-full hover:bg-secondary transition-opacity"
+              :class="[
+                vertical ? 'ml-auto' : '',
+                iconOnly
+                  ? 'hidden group-hover:inline-flex'
+                  : 'opacity-0 group-hover:opacity-100'
+              ]"
               @click="handleClose"
             >
               <X class="w-3 h-3" />

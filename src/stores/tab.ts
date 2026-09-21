@@ -16,6 +16,7 @@ export type TabGroupMode = 'none' | 'group' | 'account'
 const TAB_LAYOUT_KEY = 'sessionbox-tab-layout'
 const BOOKMARK_BAR_KEY = 'sessionbox-bookmark-bar-visible'
 const TAB_PAGE_LABEL_KEY = 'sessionbox-tab-page-label-visible'
+const TAB_ICON_ONLY_KEY = 'sessionbox-tab-icon-only'
 const TAB_GROUP_KEY = 'sessionbox-tab-group-mode'
 const ACTIVE_TAB_KEY = 'sessionbox-active-tab-id'
 const MAX_RECENTLY_CLOSED = 20
@@ -649,6 +650,12 @@ export const useTabStore = defineStore('tab', () => {
     tabPageLabelVisible.value = !tabPageLabelVisible.value
     localStorage.setItem(TAB_PAGE_LABEL_KEY, String(tabPageLabelVisible.value))
   }
+  // 标签外观：仅图标模式（未激活标签只显示网站图标）
+  const tabIconOnly = ref(localStorage.getItem(TAB_ICON_ONLY_KEY) === 'true')
+  function toggleTabIconOnly() {
+    tabIconOnly.value = !tabIconOnly.value
+    localStorage.setItem(TAB_ICON_ONLY_KEY, String(tabIconOnly.value))
+  }
 
   // -- 分组模式 --
   const tabGroupMode = ref<TabGroupMode>(loadTabGroupMode())
@@ -814,6 +821,7 @@ export const useTabStore = defineStore('tab', () => {
     sortedTabs, workspaceTabs, groupedWorkspaceTabs, activeTab, activeNavState, activeProxyInfo,
     isInternalPage, internalPagePath, tabLayout, toggleLayout, bookmarkBarVisible, toggleBookmarkBar,
     tabPageLabelVisible, toggleTabPageLabel,
+    tabIconOnly, toggleTabIconOnly,
     tabGroupEnabled, tabGroupMode, setTabGroupMode, setTabGroupFilter, clearTabGroupFilter,
     groupedSortedTabs, loadTabs, createTab, createTabForSite, closeTab, closeOtherTabs,
     closeLeftTabs, closeRightTabs, switchTab: switchTab_,

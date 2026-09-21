@@ -17,7 +17,10 @@ import {
   RotateCcw,
   Columns2,
   EyeOff,
-  Tags
+  Tags,
+  Layers,
+  Palette,
+  Image
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -150,28 +153,55 @@ function handleZoomReset() {
           class="size-4 text-primary"
         />
       </DropdownMenuItem>
-      <DropdownMenuItem
-        class="cursor-pointer"
-        @click="setGroupMode('group')"
-      >
-        <FolderOpen class="size-4 mr-2" />
-        <span class="flex-1">按分组名称分组</span>
-        <Check
-          v-if="tabStore.tabGroupMode === 'group'"
-          class="size-4 text-primary"
-        />
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        class="cursor-pointer"
-        @click="setGroupMode('account')"
-      >
-        <User class="size-4 mr-2" />
-        <span class="flex-1">按容器名称分组</span>
-        <Check
-          v-if="tabStore.tabGroupMode === 'account'"
-          class="size-4 text-primary"
-        />
-      </DropdownMenuItem>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger class="cursor-pointer">
+          <Layers class="size-4 mr-2" />
+          <span class="flex-1">标签分组</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent class="min-w-[170px]">
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="setGroupMode('group')"
+          >
+            <FolderOpen class="size-4 mr-2" />
+            <span class="flex-1">按分组名称分组</span>
+            <Check
+              v-if="tabStore.tabGroupMode === 'group'"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="setGroupMode('account')"
+          >
+            <User class="size-4 mr-2" />
+            <span class="flex-1">按容器名称分组</span>
+            <Check
+              v-if="tabStore.tabGroupMode === 'account'"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger class="cursor-pointer">
+          <Palette class="size-4 mr-2" />
+          <span class="flex-1">标签外观</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent class="min-w-[170px]">
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="tabStore.toggleTabIconOnly()"
+          >
+            <Image class="size-4 mr-2" />
+            <span class="flex-1">只显示图标</span>
+            <Check
+              v-if="tabStore.tabIconOnly"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
       <DropdownMenuSeparator />
       <DropdownMenuItem
         class="cursor-pointer"
