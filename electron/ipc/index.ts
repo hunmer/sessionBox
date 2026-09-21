@@ -167,6 +167,21 @@ function setAppleScriptShortcutIcon(shortcutPath: string, icon?: string, pageUrl
   }
 }
 
+/** 刷新 AppleScript 应用的 bundle 元数据，避免 Finder 复用默认脚本图标缓存。 */
+function refreshAppleScriptShortcutRegistration(shortcutPath: string): void {
+  const infoPath = join(shortcutPath, 'Contents', 'Info.plist')
+  const bundleId = `com.sessionbox.shortcut.${randomUUID()}`
+  const lsregisterPath = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister'
+  try {
+    execFileSync('/usr/libexec/PlistBuddy', ['-c', `Add :CFBundleIdentifier string ${bundleId}`, infoPath], { stdio: 'ignore' })
+    execFileSync('/usr/libexec/PlistBuddy', ['-c', 'Set :CFBundleIconFile applet.icns', infoPath], { stdio: 'ignore' })
+    execFileSync('/usr/bin/touch', [shortcutPath], { stdio: 'ignore' })
+    execFileSync(lsregisterPath, ['-f', shortcutPath], { stdio: 'ignore' })
+  } catch {
+    // 非 macOS 或系统工具不可用时不影响快捷方式本身使用
+  }
+}
+
 /** 将本地图标转换为 Windows 快捷方式可用的 ICO，失败时返回应用图标。 */
 function resolveShortcutIcon(icon?: string, pageUrl?: string): string {
   let iconFile = process.execPath.replace(/\\/g, '/')
@@ -219,6 +234,7 @@ function createDesktopShortcut(name: string, protocolUrl: string, icon?: string,
     const shortcutPath = getUniqueShortcutPath(desktopPath, name, '.app')
     createAppleScriptShortcut(shortcutPath, protocolUrl)
     setAppleScriptShortcutIcon(shortcutPath, icon, pageUrl)
+    refreshAppleScriptShortcutRegistration(shortcutPath)
     return shortcutPath
   }
 
