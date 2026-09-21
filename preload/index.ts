@@ -273,7 +273,9 @@ const api = {
     delete: (id: string): Promise<void> =>
       ipcRenderer.invoke('page:delete', id),
     reorder: (pageIds: string[]): Promise<void> =>
-      ipcRenderer.invoke('page:reorder', pageIds)
+      ipcRenderer.invoke('page:reorder', pageIds),
+    createDesktopShortcut: (pageId: string, mode: 'app' | 'window' | 'taskbar'): Promise<string> =>
+      ipcRenderer.invoke('page:createDesktopShortcut', pageId, mode)
   },
 
   proxy: {
@@ -466,6 +468,15 @@ const api = {
       ipcRenderer.invoke('theme:setNativeTheme', source),
     getNativeTheme: (): Promise<{ source: 'system' | 'light' | 'dark'; isDark: boolean }> =>
       ipcRenderer.invoke('theme:getNativeTheme'),
+  },
+
+  wallpaper: {
+    importOpenFile: (): Promise<{ id: string; name: string } | null> =>
+      ipcRenderer.invoke('wallpaper:importOpenFile'),
+    list: (): Promise<{ id: string; name: string }[]> =>
+      ipcRenderer.invoke('wallpaper:list'),
+    delete: (id: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('wallpaper:delete', id),
   },
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('openExternal', url),

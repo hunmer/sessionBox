@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useThemeStore, themePresets, THEME_VARS, createEmptyThemeVars } from '@/stores/theme'
-import { Sun, Moon, Check, Palette, Download, Upload, FileJson, Copy, RotateCcw } from 'lucide-vue-next'
+import { useWallpaperStore } from '@/stores/wallpaper'
+import { Sun, Moon, Check, Palette, Download, Upload, FileJson, Copy, RotateCcw, ImagePlus, X } from 'lucide-vue-next'
 import { useNotification } from '@/composables/useNotification'
 
 const themeStore = useThemeStore()
+const wallpaperStore = useWallpaperStore()
 const { success, error: showError } = useNotification()
 
 const activeView = ref<'presets' | 'custom'>('presets')
@@ -141,6 +143,26 @@ const previewPrimary = computed(() => extractVar('--primary') || (editMode.value
 const previewBackground = computed(() => extractVar('--background') || (editMode.value === 'dark' ? '#181e25' : '#ffffff'))
 const previewSidebar = computed(() => extractVar('--sidebar') || extractVar('--muted') || (editMode.value === 'dark' ? '#131920' : '#f8f9fa'))
 const previewForeground = computed(() => extractVar('--foreground') || (editMode.value === 'dark' ? '#e8eaed' : '#222222'))
+
+/** 上传壁纸（成功后自动选中） */
+async function importWallpaper() {
+  try {
+    const item = await wallpaperStore.importWallpaper()
+    if (item) success('壁纸已上传并应用')
+  } catch (e) {
+    showError('壁纸上传失败: ' + (e as Error).message)
+  }
+}
+
+/** 删除壁纸 */
+async function removeWallpaper(id: string) {
+  try {
+    await wallpaperStore.removeWallpaper(id)
+    success('壁纸已删除')
+  } catch (e) {
+    showError('删除失败: ' + (e as Error).message)
+  }
+}
 </script>
 
 <template>
@@ -387,6 +409,115 @@ const previewForeground = computed(() => extractVar('--foreground') || (editMode
               导出主题 (.zip)
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 壁纸 -->
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-medium">
+          壁纸
+        </h3>
+        <button
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs border border-border hover:bg-muted/50 transition-colors"
+          @click="importWallpaper"
+        >
+          <ImagePlus class="w-3.5 h-3.5" />
+          上传壁纸
+        </button>
+      </div>
+
+      <!-- 壁纸缩略图 -->
+      <div class="grid grid-cols-3 gap-3">
+        <!-- 无壁纸 -->
+        <button
+          class="rounded-lg border border-border overflow-hidden text-left transition-all hover:ring-2 hover:ring-ring/50"
+          :class="!wallpaperStore.selectedId ? 'ring-2 ring-primary' : ''"
+          @click="wallpaperStore.select('')"
+        >
+          <div class="h-16 bg-muted/40 flex items-center justify-center">
+            <span class="text-xs text-muted-foreground">无壁纸</span>
+          </div>
+          <div class="px-2.5 py-2 bg-card">
+            <div class="text-xs font-medium text-foreground">
+              默认底色
+            </div>
+            <div class="text-[10px] mt-0.5 text-muted-foreground">
+              恢复纯色外观
+            </div>
+          </div>
+        </button>
+
+        <div
+          v-for="w in wallpaperStore.wallpapers"
+          :key="w.id"
+          class="relative group"
+        >
+          <button
+            class="w-full rounded-lg border border-border overflow-hidden text-left transition-all hover:ring-2 hover:ring-ring/50"
+            :class="wallpaperStore.selectedId === w.id ? 'ring-2 ring-primary' : ''"
+            @click="wallpaperStore.select(w.id)"
+          >
+            <div
+              class="h-16 bg-cover bg-center bg-muted/30"
+              :style="{ backgroundImage: `url(wallpaper://${w.id})` }"
+            />
+            <div class="px-2.5 py-2 bg-card">
+              <div class="text-xs font-medium text-foreground truncate">
+                {{ w.name }}
+              </div>
+            </div>
+          </button>
+          <!-- 删除按钮（悬停显示） -->
+          <button
+            class="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+            title="删除壁纸"
+            @click.stop="removeWallpaper(w.id)"
+          >
+            <X class="w-3 h-3" />
+          </button>
+          <div
+            v-if="wallpaperStore.selectedId === w.id"
+            class="absolute top-1.5 left-1.5 z-10 w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
+          >
+            <Check class="w-2.5 h-2.5" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 模糊度 / 不透明度（选中壁纸后可调） -->
+      <div
+        v-if="wallpaperStore.activeWallpaper"
+        class="mt-3 space-y-3"
+      >
+        <div>
+          <div class="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span>模糊度</span>
+            <span class="tabular-nums">{{ wallpaperStore.blur }}px</span>
+          </div>
+          <input
+            v-model.number="wallpaperStore.blur"
+            type="range"
+            min="0"
+            max="40"
+            step="1"
+            class="w-full accent-primary"
+          >
+        </div>
+        <div>
+          <div class="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span>不透明度</span>
+            <span class="tabular-nums">{{ Math.round(wallpaperStore.opacity * 100) }}%</span>
+          </div>
+          <input
+            v-model.number="wallpaperStore.opacity"
+            type="range"
+            min="0.2"
+            max="1"
+            step="0.05"
+            class="w-full accent-primary"
+          >
         </div>
       </div>
     </div>

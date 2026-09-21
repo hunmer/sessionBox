@@ -1,6 +1,6 @@
 import { ipcMain, BrowserWindow, dialog, app, shell, nativeTheme, screen } from 'electron'
-import { join } from 'path'
-import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync, rmSync } from 'node:fs'
+import { join, basename, extname } from 'path'
+import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync, rmSync, readdirSync } from 'node:fs'
 import { execSync } from 'child_process'
 import { randomUUID } from 'node:crypto'
 import {
@@ -103,6 +103,46 @@ import { registerSiteDataIpc } from './site-data'
 /** 容器图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'container-icons')
 
+/** 为桌面快捷方式生成不覆盖已有文件的路径。 */
+function getUniqueShortcutPath(desktopPath: string, name: string): string {
+  const safeName = (name || 'SessionBox').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'SessionBox'
+  let path = join(desktopPath, `${safeName}.url`)
+  let index = 2
+  while (existsSync(path)) {
+    path = join(desktopPath, `${safeName} (${index++}).url`)
+  }
+  return path
+}
+
+/** 将本地图标转换为 Windows 快捷方式可用的 ICO，失败时返回应用图标。 */
+function resolveShortcutIcon(icon?: string): string {
+  let iconFile = process.execPath.replace(/\\/g, '/')
+  if (!icon?.startsWith('img:')) return iconFile
+
+  const imgName = icon.slice(4)
+  const imgPath = join(iconDir, imgName)
+  if (!existsSync(imgPath) || imgName.toLowerCase().endsWith('.svg')) return iconFile
+
+  const icoPath = join(iconDir, imgName.replace(/\.[^.]+$/, '.ico'))
+  if (!existsSync(icoPath)) {
+    try {
+      const psScript = `
+Add-Type -AssemblyName System.Drawing
+$img = [System.Drawing.Image]::FromFile('${imgPath}')
+$icon = [System.Drawing.Icon]::FromHandle($img.GetHicon())
+$stream = [System.IO.FileStream]::new('${icoPath}', 'Create')
+$icon.Save($stream)
+$stream.Close()
+$img.Dispose()`
+      const encoded = Buffer.from(psScript, 'utf16le').toString('base64')
+      execSync(`powershell -NoProfile -EncodedCommand ${encoded}`, { windowsHide: true, timeout: 5000 })
+    } catch {
+      return iconFile
+    }
+  }
+  return existsSync(icoPath) ? icoPath.replace(/\\/g, '/') : iconFile
+}
+
 // ====== 分组注册函数 ======
 
 /** 工作区 IPC */
@@ -170,7 +210,7 @@ function registerContainerIpc(): void {
     if (!container) throw new Error(`容器 ${containerId} 不存在`)
 
     const desktopPath = app.getPath('desktop')
-    const shortcutPath = join(desktopPath, `${container.name}.url`)
+    const shortcutPath = getUniqueShortcutPath(desktopPath, container.name)
     const protocolUrl = `sessionbox://openContainer?id=${container.id}`
 
     // 默认使用应用图标
@@ -287,6 +327,17 @@ function registerPageIpc(): void {
   ipcMain.handle('page:update', (_e, id: string, data: Partial<Omit<Page, 'id'>>) => updatePage(id, data))
   ipcMain.handle('page:delete', (_e, id: string) => deletePage(id))
   ipcMain.handle('page:reorder', (_e, pageIds: string[]) => reorderPages(pageIds))
+  ipcMain.handle('page:createDesktopShortcut', (_e, pageId: string, mode: 'app' | 'window' | 'taskbar') => {
+    const page = getPageById(pageId)
+    if (!page) throw new Error(`页面 ${pageId} 不存在`)
+    if (!['app', 'window', 'taskbar'].includes(mode)) throw new Error(`无效的打开模式: ${mode}`)
+    const shortcutPath = getUniqueShortcutPath(app.getPath('desktop'), page.name)
+    const payload = JSON.stringify({ action: 'openPage', pageId: page.id, mode })
+    const protocolUrl = `sessionbox://json?data=${encodeURIComponent(payload)}`
+    const content = ['[InternetShortcut]', `URL=${protocolUrl}`, `IconFile=${resolveShortcutIcon(page.icon)}`, 'IconIndex=0', ''].join('\r\n')
+    writeFileSync(shortcutPath, content, 'utf-8')
+    return shortcutPath
+  })
 }
 
 /** 书签 IPC（含导入导出） */
@@ -586,6 +637,46 @@ function registerThemeIpc(): void {
   })
 }
 
+/** 壁纸管理 IPC：图片存放在 userData/wallpapers/，通过 wallpaper:// 协议访问 */
+function registerWallpaperIpc(): void {
+  const WALLPAPER_EXTS = /\.(png|jpe?g|webp|gif|bmp|avif)$/i
+
+  const wallpaperDir = (): string => {
+    const dir = join(app.getPath('userData'), 'wallpapers')
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+    return dir
+  }
+
+  ipcMain.handle('wallpaper:list', () =>
+    readdirSync(wallpaperDir())
+      .filter(f => WALLPAPER_EXTS.test(f))
+      .map(f => ({ id: f, name: basename(f, extname(f)) }))
+  )
+
+  ipcMain.handle('wallpaper:importOpenFile', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return null
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: '选择壁纸图片',
+      filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif'] }],
+      properties: ['openFile']
+    })
+    if (canceled || filePaths.length === 0) return null
+    const src = filePaths[0]
+    const ext = extname(src).toLowerCase() || '.png'
+    const id = `wp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`
+    copyFileSync(src, join(wallpaperDir(), id))
+    return { id, name: basename(src, ext) }
+  })
+
+  ipcMain.handle('wallpaper:delete', (_e, id: string) => {
+    // 只接受纯文件名，防止目录穿越
+    const file = join(wallpaperDir(), basename(id))
+    if (existsSync(file)) unlinkSync(file)
+    return { success: true }
+  })
+}
+
 /** 搜索引擎 IPC */
 function registerSearchEngineIpc(): void {
   ipcMain.handle('searchEngine:list', () => listSearchEngines())
@@ -674,6 +765,7 @@ export function registerIpcHandlers(): void {
   registerAIProviderIpcHandlers()
   registerPasswordIpc()
   registerThemeIpc()
+  registerWallpaperIpc()
   registerSearchEngineIpc()
   registerSkillIpc()
   registerSystemIpc()

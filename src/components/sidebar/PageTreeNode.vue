@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, computed, ref, onBeforeUnmount, watch } from 'vue'
-import { ChevronRight, MoreHorizontal, X, Pencil, Trash2, Plus } from "lucide-vue-next"
+import { ChevronRight, MoreHorizontal, X, Pencil, Trash2, Plus, ExternalLink } from "lucide-vue-next"
 import draggable from 'vuedraggable'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import { usePageStore } from '@/stores/page'
@@ -21,6 +21,9 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
 } from "@/components/ui/context-menu"
 import {
   DropdownMenu,
@@ -28,6 +31,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { Page, Tab } from '@/types'
 import type { PageItem } from './page-tree'
@@ -49,6 +55,12 @@ const emit = defineEmits<{
 
 const pageStore = usePageStore()
 const tabStore = useTabStore()
+const api = window.api
+
+async function createDesktopShortcut(mode: 'app' | 'window' | 'taskbar') {
+  try { await api.page.createDesktopShortcut(props.pageItem.id, mode) }
+  catch (error) { console.error('创建页面快捷方式失败', error) }
+}
 
 // 该页面的标签页数量
 const pageTabCount = computed(() => pageTabs.value.length)
@@ -295,6 +307,14 @@ function onChildrenReorder(reordered: PageItem[]) {
                 <Pencil class="w-4 h-4 mr-2" />
                 编辑
               </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger><ExternalLink class="w-4 h-4 mr-2" />在桌面创建快捷方式</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem @click="createDesktopShortcut('app')">软件内</DropdownMenuItem>
+                  <DropdownMenuItem @click="createDesktopShortcut('window')">新窗口</DropdownMenuItem>
+                  <DropdownMenuItem @click="createDesktopShortcut('taskbar')">任务栏</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 class="text-destructive"
@@ -316,6 +336,14 @@ function onChildrenReorder(reordered: PageItem[]) {
           <Pencil class="w-4 h-4 mr-2" />
           编辑
         </ContextMenuItem>
+        <ContextMenuSub>
+          <ContextMenuSubTrigger><ExternalLink class="w-4 h-4 mr-2" />在桌面创建快捷方式</ContextMenuSubTrigger>
+          <ContextMenuSubContent>
+            <ContextMenuItem @click="createDesktopShortcut('app')">软件内</ContextMenuItem>
+            <ContextMenuItem @click="createDesktopShortcut('window')">新窗口</ContextMenuItem>
+            <ContextMenuItem @click="createDesktopShortcut('taskbar')">任务栏</ContextMenuItem>
+          </ContextMenuSubContent>
+        </ContextMenuSub>
         <ContextMenuSeparator />
         <ContextMenuItem
           class="text-destructive"

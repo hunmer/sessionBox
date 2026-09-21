@@ -28,6 +28,7 @@ import NewTabDialog from '@/components/tabs/NewTabDialog.vue'
 import CommandPaletteDialog from '@/components/command-palette/CommandPaletteDialog.vue'
 import ContainerSelectDialog from '@/components/containers/ContainerSelectDialog.vue'
 import { useSplitStore } from '@/stores/split'
+import { useWallpaperStore } from '@/stores/wallpaper'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
@@ -48,6 +49,7 @@ import type { TabImplementation } from '../preload'
 type ImmersiveEdge = 'top' | 'left' | 'right' | 'bottom'
 
 const containerStore = useContainerStore()
+const wallpaperStore = useWallpaperStore()
 const pageStore = usePageStore()
 const tabStore = useTabStore()
 const proxyStore = useProxyStore()
@@ -672,8 +674,27 @@ useIpcEvent('shortcut', (actionId) => {
   <TooltipProvider :delay-duration="300">
     <div
       class="relative h-screen w-screen overflow-hidden bg-backdrop text-foreground transition-all duration-150"
-      :class="isMaximized ? '' : 'rounded-lg border border-border/60 shadow-2xl dark:shadow-black/50'"
+      :class="[
+        isMaximized ? '' : 'rounded-lg border border-border/60 shadow-2xl dark:shadow-black/50',
+        // isolate 建立层叠上下文，让壁纸层(-z-10)压在窗口底色之上、所有内容之下
+        wallpaperStore.activeUrl ? 'isolate' : ''
+      ]"
     >
+      <!-- 壁纸层：模糊时略微放大，避免 blur 采样越界出现透明边缘 -->
+      <div
+        v-if="wallpaperStore.activeUrl"
+        class="absolute inset-0 -z-10 overflow-hidden pointer-events-none"
+      >
+        <div
+          class="absolute inset-0 bg-cover bg-center"
+          :style="{
+            backgroundImage: `url(${wallpaperStore.activeUrl})`,
+            filter: wallpaperStore.blur > 0 ? `blur(${wallpaperStore.blur}px)` : undefined,
+            opacity: wallpaperStore.opacity,
+            transform: wallpaperStore.blur > 0 ? 'scale(1.1)' : undefined
+          }"
+        />
+      </div>
       <!-- 全宽窗口悬浮拖拽条 -->
       <div
         class="absolute top-0 inset-x-0 h-[12px] z-50"

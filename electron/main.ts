@@ -6,7 +6,7 @@ import { migrateBookmarksAndPasswords } from './services/migration'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
-import { listExtensions, getWindowState, setWindowState, getDefaultWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled } from './services/store'
+import { listExtensions, getWindowState, setWindowState, getDefaultWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled, getPageById } from './services/store'
 import type { WindowState } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
 import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
@@ -68,6 +68,10 @@ protocol.registerSchemesAsPrivileged([
   {
     scheme: 'screenshot',
     privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
+  },
+  {
+    scheme: 'wallpaper',
+    privileges: { bypassCSP: true, stream: true, supportFetchAPI: true }
   }
 ])
 
@@ -90,6 +94,29 @@ function handleProtocolUrl(url: string): void {
         if (win.isMinimized()) win.restore()
         win.focus()
         win.webContents.send('open-container', containerId)
+      }
+    } else if (parsed.host === 'json') {
+      const rawData = parsed.searchParams.get('data')
+      if (!rawData) return
+      const data = JSON.parse(rawData) as { action?: unknown; pageId?: unknown; mode?: unknown }
+      if (data.action !== 'openPage' || typeof data.pageId !== 'string') return
+      const mode = data.mode
+      if (mode !== 'app' && mode !== 'window' && mode !== 'taskbar') return
+      const page = getPageById(data.pageId)
+      if (!page) return
+      if (mode === 'window') {
+        trayWindowManager.openInNewWindow(page)
+      } else if (mode === 'taskbar') {
+        const tray = trayManager.getTray?.()
+        if (tray) trayWindowManager.openAtTaskbar(tray, page, 'desktop')
+        else console.warn('[Main] tray 未就绪，无法打开任务栏页面')
+      } else {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (win) {
+          if (win.isMinimized()) win.restore()
+          win.focus()
+          win.webContents.send('on:tray:openInApp', page.id)
+        }
       }
     }
   } catch (e) {
@@ -361,6 +388,14 @@ if (!gotTheLock) {
       const filename = decodeURIComponent(request.url.replace('screenshot://', '')).replace(/\/+$/, '')
       if (!filename) return new Response('Bad request', { status: 400 })
       return net.fetch(`file://${join(screenshotDir, filename).replace(/\\/g, '/')}`)
+    })
+
+    // 注册 wallpaper:// 协议，从 userData/wallpapers/ 目录提供壁纸文件
+    const wallpaperDir = join(app.getPath('userData'), 'wallpapers')
+    protocol.handle('wallpaper', (request) => {
+      const filename = decodeURIComponent(request.url.replace('wallpaper://', '')).replace(/\/+$/, '')
+      if (!filename) return new Response('Bad request', { status: 400 })
+      return net.fetch(`file://${join(wallpaperDir, filename).replace(/\\/g, '/')}`)
     })
 
     // 注册 site-icon:// 协议，从本地缓存提供网站图标，缓存未命中时自动下载

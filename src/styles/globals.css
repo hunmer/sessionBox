@@ -33,11 +33,11 @@
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-brand: #1456f0;
   --color-brand-accent: #ea5ec1;
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-xs: max(0px, calc(var(--radius) - 6px));
+  --radius-sm: max(0px, calc(var(--radius) - 4px));
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 6px);
+  --radius-xl: calc(var(--radius) + 10px);
   --radius-pill: 9999px;
   --shadow-brand: 0 0 15px rgba(44, 30, 116, 0.16);
   --shadow-card: 0 4px 6px rgba(0, 0, 0, 0.08);
@@ -72,6 +72,11 @@
 }
 
 @layer base {
+  /* 基准圆角：主题预设（theme store）会用根元素内联样式覆盖此值 */
+  :root {
+    --radius: 10px;
+  }
+
   :root.light {
     --background: #ffffff;
     /* 浮动卡片布局的桌面底色：比卡片略深，衬托悬浮感 */

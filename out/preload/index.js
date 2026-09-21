@@ -108,7 +108,8 @@ const api = {
     create: (data) => electron.ipcRenderer.invoke("page:create", data),
     update: (id, data) => electron.ipcRenderer.invoke("page:update", id, data),
     delete: (id) => electron.ipcRenderer.invoke("page:delete", id),
-    reorder: (pageIds) => electron.ipcRenderer.invoke("page:reorder", pageIds)
+    reorder: (pageIds) => electron.ipcRenderer.invoke("page:reorder", pageIds),
+    createDesktopShortcut: (pageId, mode) => electron.ipcRenderer.invoke("page:createDesktopShortcut", pageId, mode)
   },
   proxy: {
     list: () => electron.ipcRenderer.invoke("proxy:list"),
@@ -235,6 +236,11 @@ const api = {
     exportSaveFile: (json) => electron.ipcRenderer.invoke("theme:exportSaveFile", json),
     setNativeTheme: (source) => electron.ipcRenderer.invoke("theme:setNativeTheme", source),
     getNativeTheme: () => electron.ipcRenderer.invoke("theme:getNativeTheme")
+  },
+  wallpaper: {
+    importOpenFile: () => electron.ipcRenderer.invoke("wallpaper:importOpenFile"),
+    list: () => electron.ipcRenderer.invoke("wallpaper:list"),
+    delete: (id) => electron.ipcRenderer.invoke("wallpaper:delete", id)
   },
   openExternal: (url) => electron.ipcRenderer.invoke("openExternal", url),
   searchEngine: {

@@ -8,6 +8,7 @@ import type { Page } from './store'
 
 class TrayManager {
   private tray: Tray | null = null
+  getTray(): Tray | null { return this.tray }
 
   init(mainWindow: BrowserWindow): void {
     const iconPath = this.getIconPath()
