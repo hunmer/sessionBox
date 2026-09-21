@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import draggable from 'vuedraggable'
-import { Bug, CheckCheck, Circle, Copy, GripVertical, Highlighter, Pencil, Play, Plus, RefreshCw, Save, Square, Trash2, X } from 'lucide-vue-next'
+import { Bug, CheckCheck, Circle, Copy, Globe, GripVertical, Highlighter, Pencil, Play, Plus, RefreshCw, Save, Square, Trash2, X } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,14 +14,18 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import BrowserViewPicker from '@/components/chat/BrowserViewPicker.vue'
 import { useChatUIStore } from '@/stores/chat-ui'
+import { useTabStore } from '@/stores/tab'
+import { getDomain, getFaviconUrl } from '@/lib/utils'
 
 interface DebugTab { tabId: string; title: string; url: string; webContentsId: number; partition?: string }
 interface ActionLocator { css?: string; text?: string; [key: string]: unknown }
 interface ActionStep { id: string; type: string; url?: string; payload?: Record<string, unknown>; locator?: ActionLocator; [key: string]: unknown }
 interface ActionRun { id: string; initialUrl: string; partition: string; startedAt: number; endedAt: number | null; steps: ActionStep[] }
+interface PresetItem { id: string; name: string; stepCount?: number; updatedAt?: number; initialUrl?: string }
 
 const api = window.api.debugger
 const chatUIStore = useChatUIStore()
+const tabStore = useTabStore()
 const tabs = ref<DebugTab[]>([])
 const targetTabId = ref<string | null>(null)
 const activeMode = ref<'record' | 'edit'>('record')
@@ -33,6 +37,9 @@ const recordedTypeFilters = ref<string[]>([])
 const highlightedStepId = ref<string | null>(null)
 const editorSteps = ref<ActionStep[]>([])
 const presetName = ref('')
+const presets = ref<PresetItem[]>([])
+const selectedPresetId = ref('')
+const saveDialogOpen = ref(false)
 const parameters = ref('{}')
 const editDialogOpen = ref(false)
 const editingStepIndex = ref(-1)
@@ -47,6 +54,7 @@ let highlightQueue = Promise.resolve()
 
 const targetTab = computed(() => tabs.value.find(tab => tab.tabId === targetTabId.value) || null)
 const targetWcId = computed(() => targetTab.value?.webContentsId || 0)
+const selectedPreset = computed(() => presets.value.find(item => item.id === selectedPresetId.value) || null)
 const recordedTypes = computed(() => [...new Set(recordedSteps.value.map(step => step.type))])
 const filteredRecordedSteps = computed(() => recordedTypeFilters.value.length === 0
   ? recordedSteps.value
@@ -66,6 +74,39 @@ async function refreshTabs() {
   if (!targetTabId.value || !tabs.value.some(tab => tab.tabId === targetTabId.value)) {
     targetTabId.value = tabs.value.find(tab => !tab.url?.startsWith('sessionbox://'))?.tabId || null
   }
+}
+
+/** 图标加载失败的预设 id，回退 Globe 图标 */
+const failedFaviconIds = reactive(new Set<string>())
+
+/** 按起始页面 URL 推导本地缓存 favicon */
+function presetFavicon(item: PresetItem): string {
+  if (failedFaviconIds.has(item.id)) return ''
+  const url = item.initialUrl || ''
+  if (!url.startsWith('http')) return ''
+  return getFaviconUrl(url, tabStore.faviconVersions.get(getDomain(url)))
+}
+
+async function refreshPresets() {
+  try {
+    presets.value = await api.listActionPresets()
+  } catch (error) {
+    console.warn('[debugger] 读取录制预设列表失败', error)
+  }
+}
+
+async function switchPreset(value: unknown) {
+  const id = typeof value === 'string' ? value : ''
+  selectedPresetId.value = id
+  if (!id) return
+  const loaded = await api.loadActionPreset(id)
+  if (!loaded?.success) return toast.error(loaded?.error || '读取录制预设失败')
+  const run = loaded.run as ActionRun | undefined
+  if (!run || !Array.isArray(run.steps)) return toast.error('录制预设内容无效')
+  currentRun.value = run
+  editorSteps.value = run.steps.map(cloneStep)
+  presetName.value = loaded.item?.name || ''
+  toast.success(`已切换到“${loaded.item?.name || id}”`)
 }
 
 async function startRecording() {
@@ -247,6 +288,11 @@ function buildEditorRun(): ActionRun {
   }
 }
 
+function openSaveDialog() {
+  if (!editorSteps.value.length) return toast.error('编辑列表为空')
+  saveDialogOpen.value = true
+}
+
 async function saveRun() {
   if (!editorSteps.value.length) return toast.error('编辑列表为空')
   if (!presetName.value.trim()) return toast.error('请输入方案名称')
@@ -257,6 +303,12 @@ async function saveRun() {
     console.info('[debugger] 保存录制方案结果', result)
     if (result?.success !== true) return toast.error(result?.error || '保存失败', { id: toastId })
     toast.success(`录制方案“${presetName.value.trim()}”已保存`, { id: toastId, duration: 3000 })
+    saveDialogOpen.value = false
+    await refreshPresets()
+    if (result.item?.id) {
+      selectedPresetId.value = result.item.id
+      presetName.value = result.item.name || presetName.value
+    }
   } catch (error) {
     console.error('[debugger] 保存录制方案异常', error)
     toast.error(`保存失败：${error instanceof Error ? error.message : String(error)}`, { id: toastId })
@@ -282,6 +334,7 @@ async function playRun() {
 
 onMounted(async () => {
   await refreshTabs()
+  void refreshPresets()
   removeStepListener = api.onActionStep((step: ActionStep) => recordedSteps.value.push(step))
 })
 watch([targetTabId, activeMode], clearStepHighlight)
@@ -368,8 +421,25 @@ onBeforeUnmount(() => {
 
       <TabsContent value="edit" class="mt-2 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
         <div class="flex gap-2 border-b px-3 pb-3">
-          <Input v-model="presetName" class="h-9 min-w-0 flex-1" placeholder="方案名称" />
-          <Button variant="outline" size="icon" class="h-9 w-9 shrink-0" title="保存方案" :disabled="!editorSteps.length" @click="saveRun"><Save class="h-4 w-4" /></Button>
+          <Select :model-value="selectedPresetId" @update:model-value="switchPreset">
+            <SelectTrigger class="h-9 min-w-0 flex-1" title="切换已保存的录制预设">
+              <template v-if="selectedPreset">
+                <img v-if="presetFavicon(selectedPreset)" :src="presetFavicon(selectedPreset)" class="size-4 shrink-0 rounded-sm object-contain" @error="failedFaviconIds.add(selectedPreset.id)">
+                <Globe v-else class="size-4 shrink-0 opacity-50" />
+                <span class="truncate">{{ selectedPreset.name }}</span>
+              </template>
+              <span v-else class="truncate text-muted-foreground">切换已保存的录制预设</span>
+            </SelectTrigger>
+            <SelectContent>
+              <div v-if="!presets.length" class="px-3 py-2 text-center text-xs text-muted-foreground">暂无已保存录制</div>
+              <SelectItem v-for="item in presets" :key="item.id" :value="item.id" class="gap-2 text-xs">
+                <img v-if="presetFavicon(item)" :src="presetFavicon(item)" class="size-3.5 shrink-0 rounded-sm object-contain" @error="failedFaviconIds.add(item.id)">
+                <Globe v-else class="size-3.5 shrink-0 opacity-50" />
+                <span class="truncate">{{ item.name }}（{{ item.stepCount ?? 0 }} 步）</span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" class="h-9 w-9 shrink-0" title="刷新预设列表" @click="refreshPresets"><RefreshCw class="h-4 w-4" /></Button>
         </div>
 
         <ScrollArea class="min-h-0 flex-1">
@@ -395,7 +465,10 @@ onBeforeUnmount(() => {
         </ScrollArea>
 
         <footer class="shrink-0 space-y-2 border-t p-3">
-          <Button class="w-full" :disabled="!editorSteps.length || !targetWcId" @click="playRun"><Play class="h-4 w-4" />执行编辑方案</Button>
+          <div class="flex gap-2">
+            <Button variant="outline" class="min-w-0 flex-1" :disabled="!editorSteps.length" @click="openSaveDialog"><Save class="h-4 w-4" />保存方案</Button>
+            <Button class="min-w-0 flex-1" :disabled="!editorSteps.length || !targetWcId" @click="playRun"><Play class="h-4 w-4" />执行方案</Button>
+          </div>
         </footer>
       </TabsContent>
     </Tabs>
@@ -411,6 +484,23 @@ onBeforeUnmount(() => {
           <div class="space-y-1"><label class="text-xs font-medium">Payload JSON</label><Textarea v-model="editingPayload" class="min-h-32 font-mono text-xs" /></div>
         </div>
         <DialogFooter><Button variant="outline" @click="editDialogOpen = false">取消</Button><Button @click="applyStepEdit">保存修改</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="saveDialogOpen">
+      <DialogContent class="w-[calc(100vw-32px)] max-w-md">
+        <DialogHeader><DialogTitle>保存录制预设</DialogTitle></DialogHeader>
+        <div class="space-y-3">
+          <div class="space-y-1">
+            <label class="text-xs font-medium">方案名称</label>
+            <Input v-model="presetName" class="h-9" placeholder="输入方案名称" @keyup.enter="saveRun" />
+          </div>
+          <p class="text-xs text-muted-foreground">将保存当前编辑列表中的 {{ editorSteps.length }} 个步骤</p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="saveDialogOpen = false">取消</Button>
+          <Button :disabled="!presetName.trim() || !editorSteps.length" @click="saveRun"><Save class="h-4 w-4" />保存</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   </div>

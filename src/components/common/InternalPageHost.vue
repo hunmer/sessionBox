@@ -5,6 +5,7 @@ import BookmarksPage from '@/components/bookmarks/BookmarksPage.vue'
 import HistoryPage from '@/components/history/HistoryPage.vue'
 import DownloadsPage from '@/components/download/DownloadsPage.vue'
 import PluginsPage from '@/components/plugins/PluginsPage.vue'
+import ExtensionsPage from '@/components/extensions/ExtensionsPage.vue'
 import PasswordsPage from '@/components/passwords/PasswordsPage.vue'
 
 defineProps<{
@@ -22,6 +23,7 @@ const INTERNAL_PAGES: Record<string, Component> = {
   history: markRaw(HistoryPage),
   downloads: markRaw(DownloadsPage),
   plugins: markRaw(PluginsPage),
+  extensions: markRaw(ExtensionsPage),
   passwords: markRaw(PasswordsPage)
 }
 

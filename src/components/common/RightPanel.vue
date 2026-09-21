@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Bug } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Circle } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -14,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { useTabStore } from '@/stores/tab'
 import ExtensionActionList from '@/components/toolbar/ExtensionActionList.vue'
-import ExtensionManager from '@/components/settings/ExtensionManager.vue'
 import BookmarkMiniPopover from './BookmarkMiniPopover.vue'
 import HistoryMiniPopover from './HistoryMiniPopover.vue'
 import DownloadMiniPopover from './DownloadMiniPopover.vue'
@@ -29,7 +28,6 @@ import { useChatUIStore } from '@/stores/chat-ui'
 
 const tabStore = useTabStore()
 const chatUIStore = useChatUIStore()
-const extensionManagerRef = ref<InstanceType<typeof ExtensionManager> | null>(null)
 
 const emit = defineEmits<{
   openSettings: [tab?: string]
@@ -222,7 +220,7 @@ function openFullPage(site: string) {
           <Popover v-model:open="debuggerOpen">
             <PopoverTrigger as-child>
               <Button variant="ghost" size="icon" class="h-8 w-8" title="网页调试与录制">
-                <Bug class="h-4 w-4" />
+                <Circle class="h-4 w-4" fill="currentColor" />
               </Button>
             </PopoverTrigger>
             <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="w-auto overflow-hidden p-0">
@@ -256,16 +254,10 @@ function openFullPage(site: string) {
       <!-- 区域三：设置 / 代理入口 -->
       <ResizablePanel :default-size="34">
         <div class="flex flex-col items-center justify-end gap-1 py-2 h-full">
-          <ExtensionActionList
-            vertical
-            @open-manager="extensionManagerRef?.open()"
-          />
+          <ExtensionActionList vertical />
         </div>
       </ResizablePanel>
     </ResizablePanelGroup>
-
-    <!-- 扩展管理对话框 -->
-    <ExtensionManager ref="extensionManagerRef" />
 
     <!-- 代理管理对话框 -->
     <ProxyDialog v-model:open="proxyDialogOpen" />

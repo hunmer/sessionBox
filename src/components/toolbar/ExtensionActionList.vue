@@ -2,10 +2,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { Loader2, Puzzle } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { useExtensionStore } from '@/stores/extension'
 import { usePageStore } from '@/stores/page'
 import { useContainerStore } from '@/stores/container'
 import { useTabStore } from '@/stores/tab'
+import ExtensionMiniPopover from '@/components/common/ExtensionMiniPopover.vue'
 
 const props = withDefaults(defineProps<{ vertical?: boolean }>(), { vertical: false })
 
@@ -15,7 +21,7 @@ const containerStore = useContainerStore()
 const tabStore = useTabStore()
 
 const isLoading = ref(false)
-const emit = defineEmits<{ 'open-manager': [] }>()
+const managerOpen = ref(false)
 
 const enabledExtensions = computed(() => extensionStore.extensions.filter((e) => e.enabled))
 
@@ -43,6 +49,11 @@ async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
     width: rect.width,
     height: rect.height
   })
+}
+
+function openExtensionsPage() {
+  managerOpen.value = false
+  tabStore.createTabForSite('sessionbox://extensions')
 }
 </script>
 
@@ -73,21 +84,31 @@ async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
       </span>
     </Button>
 
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-7 w-7"
-      :disabled="!tabStore.activeTabId"
-      @click="emit('open-manager')"
-    >
-      <Loader2
-        v-if="isLoading"
-        class="w-4 h-4 animate-spin"
-      />
-      <Puzzle
-        v-else
-        class="w-4 h-4"
-      />
-    </Button>
+    <Popover v-model:open="managerOpen">
+      <PopoverTrigger as-child>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-7 w-7"
+        >
+          <Loader2
+            v-if="isLoading"
+            class="w-4 h-4 animate-spin"
+          />
+          <Puzzle
+            v-else
+            class="w-4 h-4"
+          />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        :side="vertical ? 'left' : 'top'"
+        :side-offset="4"
+        :collision-padding="30"
+        class="p-0 w-auto overflow-hidden"
+      >
+        <ExtensionMiniPopover @open-full="openExtensionsPage" />
+      </PopoverContent>
+    </Popover>
   </div>
 </template>
