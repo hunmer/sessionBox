@@ -216,14 +216,27 @@ class WebviewManager {
   }
 
   attachWebview(tabId: string, webContentsId: number): boolean {
-    if (!this.mainWindow || this.tabImplementation !== 'webview') return false
+    if (!this.mainWindow || this.tabImplementation !== 'webview') {
+      console.warn('[WebviewManager] attachWebview rejected: implementation unavailable', { tabId, webContentsId })
+      return false
+    }
     if (this.views.has(tabId)) return true
 
     const request = this.requestedWebviews.get(tabId)
     const guest = webContents.fromId(webContentsId)
-    if (!request || !guest || guest.isDestroyed()) return false
+    if (!request || !guest || guest.isDestroyed()) {
+      console.warn('[WebviewManager] attachWebview deferred', {
+        tabId,
+        webContentsId,
+        hasRequest: !!request,
+        hasGuest: !!guest,
+        guestDestroyed: guest?.isDestroyed() ?? null
+      })
+      return false
+    }
 
     this.requestedWebviews.delete(tabId)
+    console.log('[WebviewManager] attachWebview accepted', { tabId, webContentsId, url: request.url })
     const view = new WebviewTabView(tabId, guest, this.mainWindow)
     this.initializeView(tabId, request.pageId, request.url, request.containerId, view)
     if (this.activeTabId === tabId) {
@@ -334,7 +347,9 @@ class WebviewManager {
         if (applyProxyPromise) await applyProxyPromise
         await this.refreshProxyInfo(tabId)
         await ensureExtensionsLoadedForContainer(containerId || null)
+        console.log('[WebviewManager] loadURL started', { tabId, url })
         await view.webContents.loadURL(url)
+        console.log('[WebviewManager] loadURL completed', { tabId, url: view.webContents.getURL() })
       } catch (error) {
         console.error(`[WebviewManager] loadURL failed for tab ${tabId}:`, error)
       }

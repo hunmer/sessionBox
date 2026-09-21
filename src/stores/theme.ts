@@ -15,6 +15,13 @@ const THEME_KEY = 'sessionbox-theme'
 const PRESET_KEY = 'sessionbox-theme-preset'
 const CUSTOM_PRESET_KEY = 'sessionbox-theme-custom'
 
+/** 预设变量写入后的回调（wallpaper store 注册，用于在预设之上重新叠加表面透明化） */
+let onPresetApplied: (() => void) | null = null
+
+export function setOnPresetApplied(fn: (() => void) | null) {
+  onPresetApplied = fn
+}
+
 // 主题预设需要覆盖的 CSS 变量列表
 export const THEME_VARS = [
   '--background', '--foreground', '--card', '--card-foreground',
@@ -344,19 +351,19 @@ export const useThemeStore = defineStore('theme', () => {
     const el = document.documentElement
     THEME_VARS.forEach(v => el.style.removeProperty(v))
 
+    let vars: Record<string, string> | undefined
     if (preset.value === 'custom') {
-      const vars = theme.value === 'dark' ? customTheme.value.dark : customTheme.value.light
-      Object.entries(vars).forEach(([k, v]) => {
-        if (v) el.style.setProperty(k, v)
-      })
-      return
+      vars = theme.value === 'dark' ? customTheme.value.dark : customTheme.value.light
+    } else {
+      const p = themePresets.find(t => t.key === preset.value)
+      if (p) vars = theme.value === 'dark' ? p.dark : p.light
     }
+    Object.entries(vars || {}).forEach(([k, v]) => {
+      if (v) el.style.setProperty(k, v)
+    })
 
-    const p = themePresets.find(t => t.key === preset.value)
-    if (p) {
-      const vars = theme.value === 'dark' ? p.dark : p.light
-      Object.entries(vars).forEach(([k, v]) => el.style.setProperty(k, v))
-    }
+    // 预设变量重写完毕，通知壁纸 store 重新叠加透明化（顺序确定性依赖于此）
+    onPresetApplied?.()
   }
 
   /** 同步 Electron nativeTheme，让 BrowserView/WebView 里的网页（含第三方站点）读取到相同的 prefers-color-scheme */

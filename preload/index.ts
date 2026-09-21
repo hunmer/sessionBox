@@ -274,7 +274,7 @@ const api = {
       ipcRenderer.invoke('page:delete', id),
     reorder: (pageIds: string[]): Promise<void> =>
       ipcRenderer.invoke('page:reorder', pageIds),
-    createDesktopShortcut: (pageId: string, mode: 'app' | 'window' | 'taskbar'): Promise<string> =>
+    createDesktopShortcut: (pageId: string, mode: 'app' | 'window' | 'taskbar-desktop' | 'taskbar-mobile'): Promise<string> =>
       ipcRenderer.invoke('page:createDesktopShortcut', pageId, mode)
   },
 

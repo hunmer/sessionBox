@@ -156,13 +156,13 @@ function handleSelectPage(pageId: string) {
 }
 
 /** 打开主页：始终新开标签并使用默认 session（不挂任何账号容器）；未配置时弹出设置对话框并定位到「常规」 */
-function openHomepage() {
+async function openHomepage() {
   const { url } = homepageStore.settings
   if (!url?.trim()) {
     emit('openSettings', 'general')
     return
   }
-  tabStore.createTabInDefaultSession(url)
+  await tabStore.createTabInDefaultSession(url.trim())
 }
 
 // navMain: 【主页】

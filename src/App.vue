@@ -680,18 +680,19 @@ useIpcEvent('shortcut', (actionId) => {
         wallpaperStore.activeUrl ? 'isolate' : ''
       ]"
     >
-      <!-- 壁纸层：模糊时略微放大，避免 blur 采样越界出现透明边缘 -->
+      <!-- 壁纸层 -->
       <div
         v-if="wallpaperStore.activeUrl"
         class="absolute inset-0 -z-10 overflow-hidden pointer-events-none"
       >
+        <!-- 模糊时图层向外扩 blur+4px：blur 采样越界产生的透明边缘被容器裁掉，
+             避免出现描边式透明带，也不需要放大图片 -->
         <div
-          class="absolute inset-0 bg-cover bg-center"
+          class="absolute bg-cover bg-center"
           :style="{
+            inset: wallpaperStore.blur > 0 ? `${-(wallpaperStore.blur + 4)}px` : '0',
             backgroundImage: `url(${wallpaperStore.activeUrl})`,
-            filter: wallpaperStore.blur > 0 ? `blur(${wallpaperStore.blur}px)` : undefined,
-            opacity: wallpaperStore.opacity,
-            transform: wallpaperStore.blur > 0 ? 'scale(1.1)' : undefined
+            filter: wallpaperStore.blur > 0 ? `blur(${wallpaperStore.blur}px)` : undefined
           }"
         />
       </div>

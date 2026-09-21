@@ -99,6 +99,7 @@ import { isDefaultBrowser, setDefaultBrowser } from '../services/default-browser
 import { listSkills, searchSkill, readSkill, writeSkill, deleteSkill } from '../services/skill-store'
 import { registerDebuggerIpcHandlers } from './debugger'
 import { registerSiteDataIpc } from './site-data'
+import { getCachedIconPath } from '../services/favicon-cache'
 
 /** 容器图标存储目录 */
 const iconDir = join(app.getPath('userData'), 'container-icons')
@@ -115,15 +116,30 @@ function getUniqueShortcutPath(desktopPath: string, name: string): string {
 }
 
 /** 将本地图标转换为 Windows 快捷方式可用的 ICO，失败时返回应用图标。 */
-function resolveShortcutIcon(icon?: string): string {
+function resolveShortcutIcon(icon?: string, pageUrl?: string): string {
   let iconFile = process.execPath.replace(/\\/g, '/')
-  if (!icon?.startsWith('img:')) return iconFile
+  if (!icon?.startsWith('img:')) {
+    try {
+      const domain = pageUrl ? new URL(pageUrl).hostname : ''
+      const cachedIcon = domain ? getCachedIconPath(domain) : null
+      if (cachedIcon) {
+        const converted = convertImageToIco(cachedIcon)
+        if (converted) return converted
+      }
+    } catch { /* 页面可能是 about:blank 或内部协议 */ }
+    return iconFile
+  }
 
   const imgName = icon.slice(4)
   const imgPath = join(iconDir, imgName)
   if (!existsSync(imgPath) || imgName.toLowerCase().endsWith('.svg')) return iconFile
 
-  const icoPath = join(iconDir, imgName.replace(/\.[^.]+$/, '.ico'))
+  const converted = convertImageToIco(imgPath)
+  return converted || iconFile
+}
+
+function convertImageToIco(imgPath: string): string | null {
+  const icoPath = join(iconDir, imgPath.split(/[\\/]/).pop()!.replace(/\.[^.]+$/, '.ico'))
   if (!existsSync(icoPath)) {
     try {
       const psScript = `
@@ -137,10 +153,10 @@ $img.Dispose()`
       const encoded = Buffer.from(psScript, 'utf16le').toString('base64')
       execSync(`powershell -NoProfile -EncodedCommand ${encoded}`, { windowsHide: true, timeout: 5000 })
     } catch {
-      return iconFile
+      return null
     }
   }
-  return existsSync(icoPath) ? icoPath.replace(/\\/g, '/') : iconFile
+  return existsSync(icoPath) ? icoPath.replace(/\\/g, '/') : null
 }
 
 // ====== 分组注册函数 ======
@@ -327,14 +343,14 @@ function registerPageIpc(): void {
   ipcMain.handle('page:update', (_e, id: string, data: Partial<Omit<Page, 'id'>>) => updatePage(id, data))
   ipcMain.handle('page:delete', (_e, id: string) => deletePage(id))
   ipcMain.handle('page:reorder', (_e, pageIds: string[]) => reorderPages(pageIds))
-  ipcMain.handle('page:createDesktopShortcut', (_e, pageId: string, mode: 'app' | 'window' | 'taskbar') => {
+  ipcMain.handle('page:createDesktopShortcut', (_e, pageId: string, mode: 'app' | 'window' | 'taskbar-desktop' | 'taskbar-mobile') => {
     const page = getPageById(pageId)
     if (!page) throw new Error(`页面 ${pageId} 不存在`)
-    if (!['app', 'window', 'taskbar'].includes(mode)) throw new Error(`无效的打开模式: ${mode}`)
+    if (!['app', 'window', 'taskbar-desktop', 'taskbar-mobile'].includes(mode)) throw new Error(`无效的打开模式: ${mode}`)
     const shortcutPath = getUniqueShortcutPath(app.getPath('desktop'), page.name)
     const payload = JSON.stringify({ action: 'openPage', pageId: page.id, mode })
     const protocolUrl = `sessionbox://json?data=${encodeURIComponent(payload)}`
-    const content = ['[InternetShortcut]', `URL=${protocolUrl}`, `IconFile=${resolveShortcutIcon(page.icon)}`, 'IconIndex=0', ''].join('\r\n')
+    const content = ['[InternetShortcut]', `URL=${protocolUrl}`, `IconFile=${resolveShortcutIcon(page.icon, page.url)}`, 'IconIndex=0', ''].join('\r\n')
     writeFileSync(shortcutPath, content, 'utf-8')
     return shortcutPath
   })

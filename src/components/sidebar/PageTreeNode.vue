@@ -57,7 +57,7 @@ const pageStore = usePageStore()
 const tabStore = useTabStore()
 const api = window.api
 
-async function createDesktopShortcut(mode: 'app' | 'window' | 'taskbar') {
+async function createDesktopShortcut(mode: 'app' | 'window' | 'taskbar-desktop' | 'taskbar-mobile') {
   try { await api.page.createDesktopShortcut(props.pageItem.id, mode) }
   catch (error) { console.error('创建页面快捷方式失败', error) }
 }
@@ -312,7 +312,8 @@ function onChildrenReorder(reordered: PageItem[]) {
                 <DropdownMenuSubContent>
                   <DropdownMenuItem @click="createDesktopShortcut('app')">软件内</DropdownMenuItem>
                   <DropdownMenuItem @click="createDesktopShortcut('window')">新窗口</DropdownMenuItem>
-                  <DropdownMenuItem @click="createDesktopShortcut('taskbar')">任务栏</DropdownMenuItem>
+                  <DropdownMenuItem @click="createDesktopShortcut('taskbar-mobile')">任务栏 - 手机视图</DropdownMenuItem>
+                  <DropdownMenuItem @click="createDesktopShortcut('taskbar-desktop')">任务栏 - 桌面视图</DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />
@@ -341,7 +342,8 @@ function onChildrenReorder(reordered: PageItem[]) {
           <ContextMenuSubContent>
             <ContextMenuItem @click="createDesktopShortcut('app')">软件内</ContextMenuItem>
             <ContextMenuItem @click="createDesktopShortcut('window')">新窗口</ContextMenuItem>
-            <ContextMenuItem @click="createDesktopShortcut('taskbar')">任务栏</ContextMenuItem>
+            <ContextMenuItem @click="createDesktopShortcut('taskbar-mobile')">任务栏 - 手机视图</ContextMenuItem>
+            <ContextMenuItem @click="createDesktopShortcut('taskbar-desktop')">任务栏 - 桌面视图</ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
         <ContextMenuSeparator />

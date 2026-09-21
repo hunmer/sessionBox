@@ -13,6 +13,9 @@ type WebviewElement = HTMLElement & { getWebContentsId: () => number }
 
 const views = ref<Record<string, WebviewSpec>>({})
 const elements = new Map<string, WebviewElement>()
+const attachedTabIds = new Set<string>()
+const attachingTabIds = new Set<string>()
+const attachRetryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const cleanups: Array<() => void> = []
 
 function addView(request: { tabId: string; partition: string; userAgent: string }) {
@@ -29,9 +32,48 @@ function bindElement(tabId: string, element: unknown) {
   if (!webview || elements.get(tabId) === webview) return
   elements.set(tabId, webview)
 
-  webview.addEventListener('did-attach', () => {
-    void window.api.tab.attachWebview(tabId, webview.getWebContentsId())
-  }, { once: true })
+  const attach = (attempt = 0) => {
+    if (attachedTabIds.has(tabId) || attachingTabIds.has(tabId) || elements.get(tabId) !== webview) return
+
+    try {
+      const webContentsId = webview.getWebContentsId()
+      if (webContentsId > 0) {
+        attachingTabIds.add(tabId)
+        console.log('[WebviewHost] attaching guest', { tabId, webContentsId, attempt })
+        void window.api.tab.attachWebview(tabId, webContentsId).then((attached) => {
+          attachingTabIds.delete(tabId)
+          if (attached) {
+            attachedTabIds.add(tabId)
+            const timer = attachRetryTimers.get(tabId)
+            if (timer) clearTimeout(timer)
+            attachRetryTimers.delete(tabId)
+            console.log('[WebviewHost] guest attached', { tabId, webContentsId })
+            return
+          }
+          scheduleRetry(attempt + 1)
+        }).catch((error) => {
+          attachingTabIds.delete(tabId)
+          console.error('[WebviewHost] attach guest failed', { tabId, webContentsId, error })
+          scheduleRetry(attempt + 1)
+        })
+        return
+      }
+    } catch {
+      // webview 尚未完成 attach，继续短时重试。
+    }
+
+    scheduleRetry(attempt + 1)
+  }
+
+  const scheduleRetry = (attempt: number) => {
+    if (attempt > 100 || attachedTabIds.has(tabId)) return
+    const timer = setTimeout(() => attach(attempt), 50)
+    attachRetryTimers.set(tabId, timer)
+  }
+
+  webview.addEventListener('did-attach', () => attach())
+  webview.addEventListener('dom-ready', () => attach())
+  attach()
 }
 
 onMounted(async () => {
@@ -49,6 +91,11 @@ onMounted(async () => {
       const { tabId } = payload as { tabId: string }
       delete views.value[tabId]
       elements.delete(tabId)
+      attachedTabIds.delete(tabId)
+      attachingTabIds.delete(tabId)
+      const timer = attachRetryTimers.get(tabId)
+      if (timer) clearTimeout(timer)
+      attachRetryTimers.delete(tabId)
     })
   )
 
@@ -59,6 +106,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   for (const cleanup of cleanups) cleanup()
+  for (const timer of attachRetryTimers.values()) clearTimeout(timer)
+  attachRetryTimers.clear()
 })
 </script>
 

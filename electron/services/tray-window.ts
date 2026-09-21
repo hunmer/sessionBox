@@ -114,7 +114,7 @@ class TrayWindowManager {
   }
 
   /** 创建新窗口打开指定页面 */
-  openInNewWindow(page: Page): BrowserWindow {
+  openInNewWindow(page: Page, showWindow = true): BrowserWindow {
     const containerId = page.containerId || ''
     const partition = containerId ? `persist:container-${containerId}` : undefined
     const saved = getTrayWindowSizes().newWindow
@@ -135,7 +135,7 @@ class TrayWindowManager {
     win.webContents.setUserAgent(getUserAgent(page.userAgent))
     installClientHintsRewrite(win.webContents.session)
     win.loadURL(page.url || 'about:blank')
-    win.once('ready-to-show', () => win.show())
+    if (showWindow) win.once('ready-to-show', () => win.show())
 
     this.trackWindow(win, 'newWindow')
     return win
@@ -146,7 +146,7 @@ class TrayWindowManager {
     tray: Tray,
     page: Page,
     mode: 'desktop' | 'mobile',
-    restore?: { id: string; position: { x: number; y: number }; startHidden: boolean }
+    restore?: { id?: string; position?: { x: number; y: number }; startHidden?: boolean }
   ): BrowserWindow {
     const containerId = page.containerId || ''
     const partition = containerId ? `persist:container-${containerId}` : undefined

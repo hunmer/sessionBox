@@ -507,13 +507,13 @@ async function removeWallpaper(id: string) {
         </div>
         <div>
           <div class="flex items-center justify-between text-xs text-muted-foreground mb-1">
-            <span>不透明度</span>
-            <span class="tabular-nums">{{ Math.round(wallpaperStore.opacity * 100) }}%</span>
+            <span>卡片不透明度</span>
+            <span class="tabular-nums">{{ Math.round(wallpaperStore.cardOpacity * 100) }}%</span>
           </div>
           <input
-            v-model.number="wallpaperStore.opacity"
+            v-model.number="wallpaperStore.cardOpacity"
             type="range"
-            min="0.2"
+            min="0.3"
             max="1"
             step="0.05"
             class="w-full accent-primary"

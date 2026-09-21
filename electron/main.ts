@@ -101,14 +101,14 @@ function handleProtocolUrl(url: string): void {
       const data = JSON.parse(rawData) as { action?: unknown; pageId?: unknown; mode?: unknown }
       if (data.action !== 'openPage' || typeof data.pageId !== 'string') return
       const mode = data.mode
-      if (mode !== 'app' && mode !== 'window' && mode !== 'taskbar') return
+      if (mode !== 'app' && mode !== 'window' && mode !== 'taskbar-desktop' && mode !== 'taskbar-mobile') return
       const page = getPageById(data.pageId)
       if (!page) return
       if (mode === 'window') {
-        trayWindowManager.openInNewWindow(page)
-      } else if (mode === 'taskbar') {
+        trayWindowManager.openInNewWindow(page, false)
+      } else if (mode === 'taskbar-desktop' || mode === 'taskbar-mobile') {
         const tray = trayManager.getTray?.()
-        if (tray) trayWindowManager.openAtTaskbar(tray, page, 'desktop')
+        if (tray) trayWindowManager.openAtTaskbar(tray, page, mode === 'taskbar-mobile' ? 'mobile' : 'desktop', { startHidden: true })
         else console.warn('[Main] tray 未就绪，无法打开任务栏页面')
       } else {
         const win = BrowserWindow.getAllWindows()[0]
