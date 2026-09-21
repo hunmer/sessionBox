@@ -1,5 +1,5 @@
 import { resolve } from 'path'
-import { existsSync, copyFileSync, mkdirSync, readdirSync } from 'node:fs'
+import { existsSync, copyFileSync, mkdirSync } from 'node:fs'
 import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
@@ -45,44 +45,6 @@ function copyChromeExtensionPreload() {
   }
 }
 
-// 自定义插件：在构建后复制 debugger-window.html 及其资源
-function copyDebuggerWindowHtml() {
-  return {
-    name: 'copy-debugger-window-html',
-    closeBundle() {
-      const destDir = resolve(__dirname, 'out/preload')
-      if (!existsSync(destDir)) {
-        mkdirSync(destDir, { recursive: true })
-      }
-
-      const htmlSrc = resolve(__dirname, 'electron/debugger-window.html')
-      if (existsSync(htmlSrc)) {
-        copyFileSync(htmlSrc, resolve(destDir, 'debugger-window.html'))
-      }
-
-      const replayHtmlSrc = resolve(__dirname, 'electron/debugger-replay.html')
-      if (existsSync(replayHtmlSrc)) {
-        copyFileSync(replayHtmlSrc, resolve(destDir, 'debugger-replay.html'))
-      }
-
-      const assetsDir = resolve(__dirname, 'electron/debugger-assets')
-      const destAssetsDir = resolve(destDir, 'debugger-assets')
-      if (existsSync(assetsDir)) {
-        if (!existsSync(destAssetsDir)) {
-          mkdirSync(destAssetsDir, { recursive: true })
-        }
-        for (const file of readdirSync(assetsDir)) {
-          if (file.startsWith('.')) continue
-          copyFileSync(resolve(assetsDir, file), resolve(destAssetsDir, file))
-        }
-        console.log('[copy-debugger-window-html] Copied HTML + assets to out/preload/')
-      } else {
-        console.warn('[copy-debugger-window-html] assets dir not found:', assetsDir)
-      }
-    }
-  }
-}
-
 export default defineConfig({
   main: {
     build: {
@@ -94,14 +56,12 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [copyChromeExtensionPreload(), copyDebuggerWindowHtml()],
+    plugins: [copyChromeExtensionPreload()],
     build: {
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'preload/index.ts'),
-          'floating-ball-preload': resolve(__dirname, 'electron/floating-ball-preload.ts'),
-          'debugger-preload': resolve(__dirname, 'electron/debugger-preload.ts'),
-          'debugger-replay-preload': resolve(__dirname, 'electron/debugger-replay-preload.ts')
+          'floating-ball-preload': resolve(__dirname, 'electron/floating-ball-preload.ts')
         }
       }
     }

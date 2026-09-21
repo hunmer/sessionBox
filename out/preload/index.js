@@ -414,7 +414,6 @@ const api = {
     delete: (name) => electron.ipcRenderer.invoke("skill:delete", name)
   },
   debugger: {
-    createWindow: () => electron.ipcRenderer.invoke("debugger:create-window"),
     getTabs: () => electron.ipcRenderer.invoke("debugger:get-tabs"),
     getActionRun: (wcId) => electron.ipcRenderer.invoke("debugger:get-action-run", wcId),
     clearActionSteps: (wcId) => electron.ipcRenderer.invoke("debugger:clear-action-steps", wcId),

@@ -705,7 +705,6 @@ const api = {
   },
 
   debugger: {
-    createWindow: (): Promise<any> => ipcRenderer.invoke('debugger:create-window'),
     getTabs: (): Promise<any[]> => ipcRenderer.invoke('debugger:get-tabs'),
     getActionRun: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:get-action-run', wcId),
     clearActionSteps: (wcId: number): Promise<any> => ipcRenderer.invoke('debugger:clear-action-steps', wcId),

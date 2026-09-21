@@ -1,23 +1,56 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ArrowRight, Play, Video } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useTabStore } from '@/stores/tab'
 
 interface Preset { id: string; name: string; stepCount: number; initialUrl?: string }
+interface DebugTab { tabId: string; title: string; url: string; webContentsId: number }
 const emit = defineEmits<{ 'open-full': [] }>()
+const tabStore = useTabStore()
 const presets = ref<Preset[]>([])
-const tabs = ref<any[]>([])
+const tabs = ref<DebugTab[]>([])
+
+function siteKey(url: string): string {
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '')
+    return host || ''
+  } catch {
+    return ''
+  }
+}
+
+const activeTab = computed(() => tabStore.activeTab)
+
+function matchesActiveSite(item: Preset): boolean {
+  const currentSite = siteKey(activeTab.value?.url || '')
+  const presetSite = siteKey(item.initialUrl || '')
+  return !!currentSite && !!presetSite && currentSite === presetSite
+}
+
+function disabledReason(item: Preset): string {
+  if (!activeTab.value || activeTab.value.url?.startsWith('sessionbox://')) return '请先打开网页标签页'
+  if (!item.initialUrl) return '录制没有起始网站信息'
+  if (!matchesActiveSite(item)) return `仅支持在 ${siteKey(item.initialUrl) || item.initialUrl} 网站执行`
+  return ''
+}
 
 onMounted(async () => {
   ;[presets.value, tabs.value] = await Promise.all([window.api.debugger.listActionPresets(), window.api.debugger.getTabs()])
 })
 
 async function execute(item: Preset) {
-  const target = tabs.value.find(tab => !String(tab.url).startsWith('sessionbox://'))
-  if (!target) return toast.error('没有可执行录制的网页标签页')
+  const reason = disabledReason(item)
+  if (reason) return toast.error(reason)
+  const currentTabId = tabStore.activeTabId
+  if (!currentTabId) return toast.error('没有当前网页标签页')
+  tabs.value = await window.api.debugger.getTabs()
+  const target = tabs.value.find(tab => tab.tabId === currentTabId)
+  if (!target) return toast.error('当前标签页尚未就绪，请稍后重试')
+  if (siteKey(target.url) !== siteKey(item.initialUrl)) return toast.error(disabledReason(item))
   const loaded = await window.api.debugger.loadActionPreset(item.id)
   if (!loaded?.success) return toast.error(loaded?.error || '读取录制失败')
   const result = await window.api.debugger.playActionRun(target.webContentsId, loaded.run)
@@ -33,8 +66,8 @@ async function execute(item: Preset) {
       <Button variant="ghost" size="sm" class="h-7 gap-1 text-xs text-primary" @click="emit('open-full')">打开调试面板<ArrowRight class="h-3 w-3" /></Button>
     </div>
     <ScrollArea class="h-72 border-t">
-      <button v-for="item in presets" :key="item.id" class="flex w-full items-center gap-2 border-b px-3 py-2 text-left hover:bg-muted/60" @click="execute(item)">
-        <Play class="h-3.5 w-3.5 shrink-0 text-primary" />
+      <button v-for="item in presets" :key="item.id" class="flex w-full items-center gap-2 border-b px-3 py-2 text-left hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!!disabledReason(item)" :title="disabledReason(item) || '在当前标签页执行'" @click="execute(item)">
+        <Play class="h-3.5 w-3.5 shrink-0" :class="disabledReason(item) ? 'text-muted-foreground' : 'text-primary'" />
         <span class="min-w-0 flex-1 truncate text-xs">{{ item.name }}</span>
         <Badge variant="secondary" class="text-[10px]">{{ item.stepCount }} 步</Badge>
       </button>

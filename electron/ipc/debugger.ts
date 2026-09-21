@@ -1,4 +1,4 @@
-import { app, ipcMain, BrowserWindow, dialog, webContents } from 'electron'
+import { app, ipcMain, dialog, webContents } from 'electron'
 import { join } from 'path'
 import { mkdir, readdir, readFile, writeFile, unlink } from 'fs/promises'
 import {
@@ -6,7 +6,6 @@ import {
   startActionRecording,
   stopActionRecording,
   getActionRun,
-  getActiveActionRuns,
   clearActionRunSteps,
   type ActionRun
 } from '../services/action-recorder'
@@ -14,12 +13,9 @@ import { playActionRun, stopActionPlay } from '../services/action-player'
 import { webviewManager } from '../services/webview-manager'
 import { getPageById, listTabs } from '../services/store'
 
-let debuggerWindow: BrowserWindow | null = null
-let embeddedWcId: number | null = null
 let activePlayId: string | null = null
 
 function sendDebuggerEvent(channel: string, ...args: unknown[]) {
-  if (debuggerWindow && !debuggerWindow.isDestroyed()) debuggerWindow.webContents.send(channel, ...args)
   const mainWindow = webviewManager.getMainWindow()
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(`on:${channel}`, ...args)
 }
@@ -68,50 +64,6 @@ export function registerDebuggerIpcHandlers(): void {
 
     return null
   }
-
-  ipcMain.handle('debugger:create-window', async () => {
-    if (debuggerWindow && !debuggerWindow.isDestroyed()) {
-      debuggerWindow.focus()
-      return { success: true }
-    }
-
-    debuggerWindow = new BrowserWindow({
-      width: 1000,
-      height: 700,
-      show: false,
-      autoHideMenuBar: true,
-      frame: false,
-      title: '调试工具',
-      webPreferences: {
-        preload: join(__dirname, '../preload/debugger-preload.js'),
-        sandbox: false,
-        webviewTag: true
-      }
-    })
-    debuggerWindow.maximize()
-    debuggerWindow.loadFile(join(__dirname, '../preload/debugger-window.html'))
-    debuggerWindow.once('ready-to-show', () => debuggerWindow?.show())
-
-    debuggerWindow.webContents.on('did-attach-webview', (_e, attachedWebContents) => {
-      embeddedWcId = attachedWebContents.id
-      console.log('[debugger-main] did-attach-webview, id:', embeddedWcId, 'url:', attachedWebContents.getURL())
-      debuggerWindow?.webContents.send('debugger:embedded-wcid', embeddedWcId)
-    })
-
-    debuggerWindow.on('closed', () => {
-      embeddedWcId = null
-      if (activePlayId) {
-        stopActionPlay(activePlayId)
-        activePlayId = null
-      }
-      for (const wcId of getActiveActionRuns()) {
-        stopActionRecording(wcId)
-      }
-      debuggerWindow = null
-    })
-
-    return { success: true }
-  })
 
   ipcMain.handle('debugger:get-tabs', () => {
     const manager = (global as any).__webviewManager as typeof webviewManager | undefined
@@ -272,7 +224,7 @@ export function registerDebuggerIpcHandlers(): void {
     const run = getActionRun(wcId)
     if (!run || run.steps.length === 0) return { success: false, error: '没有录制动作' }
 
-    const result = await dialog.showSaveDialog(debuggerWindow!, {
+    const result = await dialog.showSaveDialog({
       defaultPath: `action-run-${Date.now()}.json`,
       filters: [{ name: 'JSON', extensions: ['json'] }]
     })
@@ -449,26 +401,4 @@ export function registerDebuggerIpcHandlers(): void {
     return stopActionPlay(activePlayId)
   })
 
-  ipcMain.handle('debugger:load-url', async (_e, url: string) => {
-    if (!debuggerWindow || debuggerWindow.isDestroyed()) return { success: false, error: '调试窗口不存在' }
-    debuggerWindow.webContents.send('debugger:load-url', url)
-    return { success: true }
-  })
-
-  // 窗口控制
-  ipcMain.handle('debugger:window-minimize', () => { debuggerWindow?.minimize() })
-  ipcMain.handle('debugger:window-maximize', () => { debuggerWindow?.maximize() })
-  ipcMain.handle('debugger:window-close', () => { debuggerWindow?.close() })
-
-  ipcMain.handle('debugger:get-embedded-wcid', () => {
-    console.log('[debugger-main] get-embedded-wcid requested, returning:', embeddedWcId)
-    return embeddedWcId
-  })
-
-  ipcMain.handle('debugger:set-embedded-wcid', (_e, wcId: number | null) => {
-    embeddedWcId = typeof wcId === 'number' ? wcId : null
-    console.log('[debugger-main] set-embedded-wcid:', embeddedWcId)
-    debuggerWindow?.webContents.send('debugger:embedded-wcid', embeddedWcId)
-    return { success: true }
-  })
 }
