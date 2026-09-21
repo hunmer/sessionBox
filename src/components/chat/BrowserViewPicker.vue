@@ -14,6 +14,18 @@ import {
 
 const CURRENT_VALUE = '__current__'
 
+const props = withDefaults(defineProps<{
+  modelValue?: string | null
+  excludeInternal?: boolean
+}>(), {
+  modelValue: undefined,
+  excludeInternal: false,
+})
+
+const emit = defineEmits<{
+  'update:modelValue': [value: string | null]
+}>()
+
 const tabStore = useTabStore()
 const chatUIStore = useChatUIStore()
 
@@ -46,35 +58,45 @@ const currentTabLabel = computed(() => {
 watch(
   () => tabStore.tabs.map((t) => t.id),
   (tabIds) => {
-    const targetId = chatUIStore.targetTabId
+    const targetId = props.modelValue === undefined ? chatUIStore.targetTabId : props.modelValue
     if (targetId && !tabIds.includes(targetId)) {
-      chatUIStore.setTargetTab(null)
+      if (props.modelValue !== undefined) emit('update:modelValue', null)
+      else chatUIStore.setTargetTab(null)
     }
   }
 )
 
 /** trigger 中展示的标签：未指定目标时跟随激活标签页 */
 const displayTab = computed(() => {
-  if (!chatUIStore.targetTabId) return tabStore.activeTab
-  return tabStore.tabs.find((t) => t.id === chatUIStore.targetTabId) ?? tabStore.activeTab
+  const selectedId = props.modelValue === undefined ? chatUIStore.targetTabId : props.modelValue
+  if (!selectedId) return tabStore.activeTab
+  return tabStore.tabs.find((t) => t.id === selectedId) ?? tabStore.activeTab
 })
 
 /** trigger 中显示的文本 */
 const displayLabel = computed(() => {
-  if (!chatUIStore.targetTabId) {
+  const selectedId = props.modelValue === undefined ? chatUIStore.targetTabId : props.modelValue
+  if (!selectedId) {
     return currentTabLabel.value
   }
-  const tab = tabStore.tabs.find((t) => t.id === chatUIStore.targetTabId)
+  const tab = tabStore.tabs.find((t) => t.id === selectedId)
   return tab?.title || (tab ? getDomain(tab.url) : currentTabLabel.value)
 })
 
 function getCurrentValue(): string {
-  return chatUIStore.targetTabId ?? CURRENT_VALUE
+  const selectedId = props.modelValue === undefined ? chatUIStore.targetTabId : props.modelValue
+  return selectedId ?? CURRENT_VALUE
 }
 
 function handleChange(value: string): void {
-  chatUIStore.setTargetTab(value === CURRENT_VALUE ? null : value)
+  const selectedId = value === CURRENT_VALUE ? null : value
+  if (props.modelValue !== undefined) emit('update:modelValue', selectedId)
+  else chatUIStore.setTargetTab(selectedId)
 }
+
+const selectableTabs = computed(() => props.excludeInternal
+  ? tabStore.tabs.filter(tab => !tab.url?.startsWith('sessionbox://'))
+  : tabStore.tabs)
 </script>
 
 <template>
@@ -97,6 +119,7 @@ function handleChange(value: string): void {
     </SelectTrigger>
     <SelectContent>
       <SelectItem
+        v-if="!excludeInternal || !tabStore.activeTab?.url?.startsWith('sessionbox://')"
         :value="CURRENT_VALUE"
         class="text-xs"
       >
@@ -113,7 +136,7 @@ function handleChange(value: string): void {
         <span class="truncate">{{ currentTabLabel }}</span>
       </SelectItem>
       <SelectItem
-        v-for="tab in tabStore.tabs"
+        v-for="tab in selectableTabs"
         :key="tab.id"
         :value="tab.id"
         class="text-xs"

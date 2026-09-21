@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import BrowserViewPicker from '@/components/chat/BrowserViewPicker.vue'
 
 interface DebugTab { tabId: string; title: string; url: string; webContentsId: number }
 interface ActionStep { id: string; type: string; url?: string; payload?: Record<string, unknown>; locator?: { css?: string; text?: string } }
@@ -15,7 +15,7 @@ interface Preset { id: string; name: string; stepCount: number; initialUrl?: str
 
 const api = window.api.debugger
 const tabs = ref<DebugTab[]>([])
-const targetId = ref('')
+const targetTabId = ref<string | null>(null)
 const recording = ref(false)
 const steps = ref<ActionStep[]>([])
 const currentRun = ref<ActionRun | null>(null)
@@ -25,11 +25,11 @@ const selectedPresetId = ref('')
 const parameters = ref('{}')
 let removeStepListener: (() => void) | undefined
 
-const targetWcId = computed(() => Number(targetId.value) || 0)
+const targetWcId = computed(() => tabs.value.find(tab => tab.tabId === targetTabId.value)?.webContentsId || 0)
 
 async function refreshTabs() {
   tabs.value = await api.getTabs()
-  if (!targetId.value && tabs.value.length) targetId.value = String(tabs.value[0].webContentsId)
+  if (!targetTabId.value) targetTabId.value = tabs.value.find(tab => !tab.url?.startsWith('sessionbox://'))?.tabId || null
 }
 
 async function refreshPresets() { presets.value = await api.listActionPresets() }
@@ -121,12 +121,9 @@ onBeforeUnmount(() => removeStepListener?.())
     <div class="flex min-h-0 flex-1">
       <aside class="flex w-72 shrink-0 flex-col border-r">
         <div class="space-y-3 border-b p-3">
-          <Select v-model="targetId">
-            <SelectTrigger class="h-9"><SelectValue placeholder="选择目标页面" /></SelectTrigger>
-            <SelectContent><SelectItem v-for="tab in tabs" :key="tab.webContentsId" :value="String(tab.webContentsId)">{{ tab.title }}</SelectItem></SelectContent>
-          </Select>
+          <BrowserViewPicker v-model="targetTabId" exclude-internal />
           <div class="flex gap-2">
-            <Button class="flex-1" size="sm" :disabled="recording || !targetId" @click="startRecording"><Circle class="h-3.5 w-3.5" />开始录制</Button>
+            <Button class="flex-1" size="sm" :disabled="recording || !targetWcId" @click="startRecording"><Circle class="h-3.5 w-3.5" />开始录制</Button>
             <Button variant="destructive" size="sm" :disabled="!recording" @click="stopRecording"><Square class="h-3.5 w-3.5" />停止</Button>
           </div>
         </div>
@@ -158,7 +155,7 @@ onBeforeUnmount(() => removeStepListener?.())
         </ScrollArea>
         <footer class="flex shrink-0 items-center gap-2 border-t p-3">
           <Input v-model="parameters" class="h-9 flex-1 font-mono text-xs" placeholder='执行参数 JSON，例如 {"keyword":"测试"}' />
-          <Button :disabled="!currentRun || !targetId" @click="playRun"><Play class="h-4 w-4" />执行录制</Button>
+          <Button :disabled="!currentRun || !targetWcId" @click="playRun"><Play class="h-4 w-4" />执行录制</Button>
         </footer>
       </main>
     </div>

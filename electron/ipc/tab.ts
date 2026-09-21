@@ -32,23 +32,31 @@ export function registerTabIpcHandlers(): void {
     const order = tabs.reduce((max, t) => Math.max(max, t.order), -1) + 1
     const mainWindow = webviewManager.getMainWindow()
 
-    // 内部页面：检查是否已存在相同 URL 的 tab
-    if (url?.startsWith('sessionbox://')) {
+    const isInternalPage = url?.startsWith('sessionbox://')
+
+    // 内部页面不属于业务页面，不能继承当前页面的 pageId。
+    if (isInternalPage) {
+      pageId = null
       const existingTab = tabs.find((t) => t.url === url)
       if (existingTab) {
+        if (existingTab.pageId) {
+          existingTab.pageId = ''
+          updateTab(existingTab.id, { pageId: '' })
+        }
         mainWindow?.webContents.send('on:tab:activated', existingTab.id)
         return existingTab
       }
     }
 
     // 根据 URL 判断是否为内部页面，并设置标题
-    const isInternalPage = url?.startsWith('sessionbox://')
     // 内部页面标题映射
     const internalPageTitles: Record<string, string> = {
       'bookmarks': '书签管理',
       'history': '历史记录',
       'downloads': '下载管理',
       'passwords': '密码管理',
+      'plugins': '插件管理',
+      'debugger': '网页调试与录制',
     }
     const pageKey = isInternalPage ? url!.replace('sessionbox://', '') : null
     const internalPageTitle = pageKey ? (internalPageTitles[pageKey] || pageKey) : null

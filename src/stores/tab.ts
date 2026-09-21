@@ -236,8 +236,13 @@ async function createTabForSiteAction(
   pageId?: string,
   targetPaneId?: string | null
 ) {
-  const resolvedPageId = pageId || findPageInActiveWorkspace()
+  const isInternalPage = url.startsWith('sessionbox://')
+  const resolvedPageId = isInternalPage ? null : (pageId || findPageInActiveWorkspace())
   const tab = await api.tab.create(resolvedPageId, url)
+  if (isInternalPage) {
+    const existingIndex = ctx.tabs.value.findIndex((item) => item.id === tab.id)
+    if (existingIndex !== -1) ctx.tabs.value[existingIndex] = tab
+  }
   await nextTick()
   await activateCreatedTab(ctx, tab.id, targetPaneId)
   return tab

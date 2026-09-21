@@ -470,7 +470,10 @@ export async function startActionRecording(
     steps: []
   }
 
-  const listener = (_event: Electron.Event, _level: number, message: string) => {
+  const listener = (_event: Electron.Event, levelOrDetails: unknown, legacyMessage?: string) => {
+    const message = typeof levelOrDetails === 'object' && levelOrDetails !== null
+      ? String((levelOrDetails as { message?: unknown }).message ?? '')
+      : String(legacyMessage ?? '')
     if (!message.startsWith(ACTION_PREFIX)) return
     const json = message.slice(ACTION_PREFIX.length)
     if (json.length > MAX_STEP_SIZE) return
