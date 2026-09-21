@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ArrowRight, Globe, Play, Video } from 'lucide-vue-next'
+import { ArrowRight, Globe, Play, Trash2, Video } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useTabStore } from '@/stores/tab'
 import { getFaviconUrl } from '@/lib/utils'
 
@@ -16,6 +26,9 @@ const tabStore = useTabStore()
 const presets = ref<Preset[]>([])
 const tabs = ref<DebugTab[]>([])
 const showHidden = ref(false)
+const deleteTarget = ref<Preset | null>(null)
+const deleteDialogOpen = ref(false)
+const deleting = ref(false)
 
 function siteKey(url: string): string {
   try {
@@ -64,6 +77,29 @@ async function execute(item: Preset) {
   if (result?.success === false) return toast.error(result.error || '执行失败')
   toast.success(`正在执行“${item.name}”`)
 }
+
+function requestDelete(item: Preset) {
+  deleteTarget.value = item
+  deleteDialogOpen.value = true
+}
+
+async function confirmDelete() {
+  const item = deleteTarget.value
+  if (!item || deleting.value) return
+  deleting.value = true
+  try {
+    const result = await window.api.debugger.deleteActionPreset(item.id)
+    if (result?.success !== true) return toast.error(result?.error || '删除录制失败')
+    presets.value = presets.value.filter(preset => preset.id !== item.id)
+    deleteDialogOpen.value = false
+    deleteTarget.value = null
+    toast.success(`已删除“${item.name}”`)
+  } catch (error) {
+    toast.error(`删除录制失败：${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    deleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -77,14 +113,33 @@ async function execute(item: Preset) {
       <label for="recording-show-hidden" class="cursor-pointer text-xs text-muted-foreground">展示已隐藏</label>
     </div>
     <ScrollArea class="h-72 border-t">
-      <button v-for="item in visiblePresets" :key="item.id" class="flex w-full items-center gap-2 border-b px-3 py-2 text-left hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!!disabledReason(item)" :title="disabledReason(item) || '在当前标签页执行'" @click="execute(item)">
-        <img v-if="item.initialUrl" :src="getFaviconUrl(item.initialUrl)" alt="" class="h-4 w-4 shrink-0 rounded-sm" @error="($event.target as HTMLImageElement).style.display = 'none'">
-        <Globe v-else class="h-4 w-4 shrink-0 text-muted-foreground" />
-        <Play class="h-3.5 w-3.5 shrink-0" :class="disabledReason(item) ? 'text-muted-foreground' : 'text-primary'" />
-        <span class="min-w-0 flex-1 truncate text-xs">{{ item.name }}</span>
-        <Badge variant="secondary" class="text-[10px]">{{ item.stepCount }} 步</Badge>
-      </button>
+      <div v-for="item in visiblePresets" :key="item.id" class="flex items-center border-b hover:bg-muted/60">
+        <button class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left disabled:cursor-not-allowed disabled:opacity-50" :disabled="!!disabledReason(item)" :title="disabledReason(item) || '在当前标签页执行'" @click="execute(item)">
+          <img v-if="item.initialUrl" :src="getFaviconUrl(item.initialUrl)" alt="" class="h-4 w-4 shrink-0 rounded-sm" @error="($event.target as HTMLImageElement).style.display = 'none'">
+          <Globe v-else class="h-4 w-4 shrink-0 text-muted-foreground" />
+          <Play class="h-3.5 w-3.5 shrink-0" :class="disabledReason(item) ? 'text-muted-foreground' : 'text-primary'" />
+          <span class="min-w-0 flex-1 truncate text-xs">{{ item.name }}</span>
+          <Badge variant="secondary" class="text-[10px]">{{ item.stepCount }} 步</Badge>
+        </button>
+        <Button variant="ghost" size="icon" class="mr-1 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" title="删除录制" @click="requestDelete(item)">
+          <Trash2 class="h-3.5 w-3.5" />
+        </Button>
+      </div>
       <div v-if="!visiblePresets.length" class="flex h-40 items-center justify-center text-xs text-muted-foreground">{{ presets.length ? '没有可在当前网站执行的录制' : '暂无已保存录制' }}</div>
     </ScrollArea>
+    <AlertDialog v-model:open="deleteDialogOpen">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>确认删除录制？</AlertDialogTitle>
+          <AlertDialogDescription>将永久删除“{{ deleteTarget?.name }}”，此操作不可撤销。</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel :disabled="deleting">取消</AlertDialogCancel>
+          <AlertDialogAction class="bg-destructive text-destructive-foreground hover:bg-destructive/90" :disabled="deleting" @click="confirmDelete">
+            {{ deleting ? '删除中...' : '删除' }}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>

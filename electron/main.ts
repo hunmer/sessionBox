@@ -83,8 +83,15 @@ if (process.platform === 'win32') {
 }
 
 /** 处理 sessionbox:// 协议 URL */
+const pendingProtocolUrls: string[] = []
+
 function handleProtocolUrl(url: string): void {
   try {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win || win.webContents.isLoading()) {
+      pendingProtocolUrls.push(url)
+      return
+    }
     const parsed = new URL(url)
     if (parsed.host === 'openContainer') {
       const containerId = parsed.searchParams.get('id')
@@ -105,18 +112,15 @@ function handleProtocolUrl(url: string): void {
       const page = getPageById(data.pageId)
       if (!page) return
       if (mode === 'window') {
-        trayWindowManager.openInNewWindow(page, false)
+        trayWindowManager.openInNewWindow(page, true)
       } else if (mode === 'taskbar-desktop' || mode === 'taskbar-mobile') {
         const tray = trayManager.getTray?.()
         if (tray) trayWindowManager.openAtTaskbar(tray, page, mode === 'taskbar-mobile' ? 'mobile' : 'desktop', { startHidden: true })
         else console.warn('[Main] tray 未就绪，无法打开任务栏页面')
       } else {
-        const win = BrowserWindow.getAllWindows()[0]
-        if (win) {
-          if (win.isMinimized()) win.restore()
-          win.focus()
-          win.webContents.send('on:tray:openInApp', page.id)
-        }
+        if (win.isMinimized()) win.restore()
+        win.focus()
+        win.webContents.send('on:tray:openInApp', page.id)
       }
     }
   } catch (e) {
@@ -320,11 +324,10 @@ if (!gotTheLock) {
 
     // 首次启动时处理协议 URL（例如从桌面快捷方式启动）
     const protocolUrl = process.argv.find((arg) => arg.startsWith('sessionbox://'))
-    if (protocolUrl) {
-      mainWindow.webContents.once('did-finish-load', () => {
-        handleProtocolUrl(protocolUrl)
-      })
-    }
+    mainWindow.webContents.once('did-finish-load', () => {
+      if (protocolUrl) handleProtocolUrl(protocolUrl)
+      while (pendingProtocolUrls.length > 0) handleProtocolUrl(pendingProtocolUrls.shift()!)
+    })
 
     // 首次启动时处理外部 http/https 链接（默认浏览器功能）
     const externalUrl = process.argv.find((arg) => arg.startsWith('http://') || arg.startsWith('https://'))

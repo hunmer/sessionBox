@@ -136,6 +136,28 @@ end tell
   }
 }
 
+/** 将网页或自定义图标写入 AppleScript 应用包。失败时保留系统默认图标。 */
+function setAppleScriptShortcutIcon(shortcutPath: string, icon?: string, pageUrl?: string): void {
+  let sourcePath: string | null = null
+  if (icon?.startsWith('img:')) {
+    const customPath = join(iconDir, icon.slice(4))
+    if (existsSync(customPath)) sourcePath = customPath
+  }
+  if (!sourcePath && pageUrl) {
+    try {
+      sourcePath = getCachedIconPath(new URL(pageUrl).hostname)
+    } catch { /* 忽略无效或内部页面 URL */ }
+  }
+  if (!sourcePath) return
+
+  const iconPath = join(shortcutPath, 'Contents', 'Resources', 'applet.icns')
+  try {
+    execFileSync('sips', ['-s', 'format', 'icns', sourcePath, '--out', iconPath], { timeout: 10000, stdio: 'ignore' })
+  } catch {
+    // favicon 格式不受 sips 支持时，保留 osacompile 的默认图标
+  }
+}
+
 /** 将本地图标转换为 Windows 快捷方式可用的 ICO，失败时返回应用图标。 */
 function resolveShortcutIcon(icon?: string, pageUrl?: string): string {
   let iconFile = process.execPath.replace(/\\/g, '/')
@@ -187,6 +209,7 @@ function createDesktopShortcut(name: string, protocolUrl: string, icon?: string,
   if (process.platform === 'darwin') {
     const shortcutPath = getUniqueShortcutPath(desktopPath, name, '.app')
     createAppleScriptShortcut(shortcutPath, protocolUrl)
+    setAppleScriptShortcutIcon(shortcutPath, icon, pageUrl)
     return shortcutPath
   }
 
