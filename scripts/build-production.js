@@ -7,7 +7,13 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const projectRoot = path.join(__dirname, '..')
 const electronDistPath = path.join(projectRoot, 'node_modules', 'electron', 'dist')
-const electronExePath = path.join(electronDistPath, 'electron.exe')
+// 各平台 Electron 可执行文件路径
+const electronExePath =
+  process.platform === 'win32'
+    ? path.join(electronDistPath, 'electron.exe')
+    : process.platform === 'darwin'
+      ? path.join(electronDistPath, 'Electron.app', 'Contents', 'MacOS', 'Electron')
+      : path.join(electronDistPath, 'electron')
 
 // 解析命令行参数
 const args = process.argv.slice(2)
@@ -73,6 +79,42 @@ function ensureElectronRuntime() {
   }
 }
 
+// 判断是否为更新分发产物 (win: .exe/.zip/latest.yml; mac: .dmg/.zip/.blockmap/latest-mac.yml)
+const isUpdateArtifact = (file) =>
+  file === 'latest.yml' ||
+  file === 'latest-mac.yml' ||
+  ['.exe', '.dmg', '.zip', '.blockmap'].some((ext) => file.endsWith(ext))
+
+// 更新文件目录: 环境变量优先，其次按平台默认 (macOS 需先挂载 SMB 共享)
+function detectUpdateDir() {
+  if (process.env.SESSIONBOX_UPDATE_DIR) return process.env.SESSIONBOX_UPDATE_DIR
+  if (process.platform === 'win32') return '\\\\192.168.1.200\\web\\sessionbox_updates'
+  // macOS/Linux: 探测已挂载 SMB 共享中的 sessionbox_updates
+  if (fs.existsSync('/Volumes')) {
+    for (const vol of fs.readdirSync('/Volumes')) {
+      for (const rel of ['sessionbox_updates', path.join('web', 'sessionbox_updates')]) {
+        const candidate = path.join('/Volumes', vol, rel)
+        if (fs.existsSync(candidate)) return candidate
+      }
+    }
+  }
+  return null
+}
+
+// 校验打包配置引用的资源 (extraResources from 目录 / 平台图标)，缺失时给出明确错误
+function validatePackagingResources(builderConfig) {
+  const config = JSON.parse(fs.readFileSync(path.join(projectRoot, builderConfig), 'utf-8'))
+  const missing = []
+  for (const res of config.extraResources || []) {
+    if (res.from && !fs.existsSync(path.join(projectRoot, res.from))) missing.push(res.from)
+  }
+  const icon = process.platform === 'darwin' ? config.mac?.icon : config.win?.icon
+  if (icon && !fs.existsSync(path.join(projectRoot, icon))) missing.push(icon)
+  if (missing.length) {
+    throw new Error(`缺少打包资源: ${missing.join(', ')} (配置: ${builderConfig})`)
+  }
+}
+
 ;(async () => {
   try {
     const version = getVersion()
@@ -124,6 +166,7 @@ function ensureElectronRuntime() {
 
     // 根据模式选择配置文件
     const builderConfig = mode === 'local' ? 'electron-builder-local.json' : 'electron-builder.json'
+    validatePackagingResources(builderConfig)
 
     console.log(`\n🔨 打包 Electron 应用 (配置: ${builderConfig})...`)
     execSync(`npx electron-builder --config ${builderConfig}`, {
@@ -131,41 +174,38 @@ function ensureElectronRuntime() {
       cwd: projectRoot
     })
 
-    // local 模式: 复制更新文件到 SMB 目录
+    // local 模式: 复制更新文件到更新服务器目录
     if (mode === 'local') {
-      console.log('\n📂 复制更新文件到 SMB 目录...')
-      const smbPath = '\\\\192.168.1.200\\web\\sessionbox_updates'
-
-      try {
-        // 确保 SMB 目录存在
-        if (!fs.existsSync(smbPath)) {
-          fs.mkdirSync(smbPath, { recursive: true })
-        }
-
-        // 清理旧文件
-        const oldFiles = fs.readdirSync(smbPath)
-        for (const file of oldFiles) {
-          if (file.endsWith('.exe') || file.endsWith('.zip') || file === 'latest.yml') {
-            const oldFilePath = path.join(smbPath, file)
-            fs.unlinkSync(oldFilePath)
-            console.log(`  已删除旧文件: ${file}`)
+      const updateDir = detectUpdateDir()
+      if (!updateDir) {
+        console.log('\n⚠️  未找到更新目录，跳过复制')
+        console.log('   Windows: 确保可访问 \\\\192.168.1.200\\web\\sessionbox_updates')
+        console.log('   macOS:   先在 Finder 挂载 SMB (smb://192.168.1.200/web)，或设置环境变量 SESSIONBOX_UPDATE_DIR')
+      } else {
+        console.log(`\n📂 复制更新文件到: ${updateDir}`)
+        try {
+          // 清理旧更新产物
+          const oldFiles = fs.readdirSync(updateDir)
+          for (const file of oldFiles) {
+            if (isUpdateArtifact(file)) {
+              fs.unlinkSync(path.join(updateDir, file))
+              console.log(`  已删除旧文件: ${file}`)
+            }
           }
-        }
 
-        // 复制新文件
-        const newFiles = fs.readdirSync(distAppPath)
-        for (const file of newFiles) {
-          if (file.endsWith('.exe') || file.endsWith('.zip') || file === 'latest.yml') {
-            const srcFile = path.join(distAppPath, file)
-            const destFile = path.join(smbPath, file)
-            fs.copyFileSync(srcFile, destFile)
-            console.log(`  已复制: ${file}`)
+          // 复制新更新产物
+          const newFiles = fs.readdirSync(distAppPath)
+          for (const file of newFiles) {
+            if (isUpdateArtifact(file)) {
+              fs.copyFileSync(path.join(distAppPath, file), path.join(updateDir, file))
+              console.log(`  已复制: ${file}`)
+            }
           }
+          console.log('  ✓ 更新文件复制完成')
+        } catch (error) {
+          console.log(`  ⚠️  无法访问更新目录: ${updateDir} (${error.message})`)
+          console.log('  跳过文件复制，构建仍然成功')
         }
-        console.log('  ✓ 更新文件复制完成')
-      } catch (error) {
-        console.log(`  ⚠️  无法访问 SMB 目录: ${smbPath}`)
-        console.log('  跳过文件复制，构建仍然成功')
       }
     }
 
@@ -186,7 +226,7 @@ function ensureElectronRuntime() {
       console.log('   请手动创建 GitHub Release 并上传以下文件:')
       const files = fs.readdirSync(distAppPath)
       for (const file of files) {
-        if (file.endsWith('.exe') || file.endsWith('.zip') || file === 'latest.yml') {
+        if (isUpdateArtifact(file)) {
           console.log(`   - ${file}`)
         }
       }
@@ -195,18 +235,21 @@ function ensureElectronRuntime() {
   } catch (error) {
     console.error('\n❌ 构建失败:', error.message)
 
-    // 错误恢复: 还原开发环境依赖
+    // 错误恢复: 还原开发环境依赖（当前 node_modules 可能是步骤3/4生成的生产版）
     const nodeModulesPath = path.join(projectRoot, 'node_modules')
     const backupPath = path.join(projectRoot, 'node_modules.dev')
 
-    if (fs.existsSync(backupPath) && !fs.existsSync(nodeModulesPath)) {
+    if (fs.existsSync(backupPath)) {
       console.log('🔄 恢复开发环境依赖...')
       try {
+        if (fs.existsSync(nodeModulesPath)) {
+          await forceRemove(nodeModulesPath)
+        }
         await safeRename(backupPath, nodeModulesPath)
         console.log('✓ 开发环境已恢复')
       } catch (restoreError) {
         console.error('⚠️  自动恢复失败,请手动执行:')
-        console.error(`   mv "${backupPath}" "${nodeModulesPath}"`)
+        console.error(`   rm -rf "${nodeModulesPath}" && mv "${backupPath}" "${nodeModulesPath}"`)
       }
     }
 
