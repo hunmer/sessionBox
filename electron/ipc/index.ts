@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog, app, shell, nativeTheme, screen } from 'electron'
+import { ipcMain, BrowserWindow, dialog, app, shell, nativeTheme, screen, nativeImage } from 'electron'
 import { join, basename, extname } from 'path'
 import { copyFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync, rmSync, readdirSync } from 'node:fs'
 import { execFileSync, execSync } from 'child_process'
@@ -152,29 +152,38 @@ function setAppleScriptShortcutIcon(shortcutPath: string, icon?: string, pageUrl
 
   const iconPath = join(shortcutPath, 'Contents', 'Resources', 'applet.icns')
   const iconsetPath = join(app.getPath('temp'), `sessionbox-icon-${randomUUID()}.iconset`)
+  const normalizedIconPath = join(app.getPath('temp'), `sessionbox-icon-${randomUUID()}.png`)
   try {
+    const image = nativeImage.createFromPath(sourcePath)
+    const iconSourcePath = image.isEmpty() ? sourcePath : normalizedIconPath
+    if (!image.isEmpty()) writeFileSync(normalizedIconPath, image.toPNG())
     mkdirSync(iconsetPath, { recursive: true })
     const iconSizes = [16, 32, 128, 256, 512]
     for (const size of iconSizes) {
-      execFileSync('sips', ['--resampleHeightWidth', String(size), String(size), sourcePath, '--out', join(iconsetPath, `icon_${size}x${size}.png`)], { timeout: 10000, stdio: 'ignore' })
-      execFileSync('sips', ['--resampleHeightWidth', String(size * 2), String(size * 2), sourcePath, '--out', join(iconsetPath, `icon_${size}x${size}@2x.png`)], { timeout: 10000, stdio: 'ignore' })
+      execFileSync('sips', ['--resampleHeightWidth', String(size), String(size), iconSourcePath, '--out', join(iconsetPath, `icon_${size}x${size}.png`)], { timeout: 10000, stdio: 'ignore' })
+      execFileSync('sips', ['--resampleHeightWidth', String(size * 2), String(size * 2), iconSourcePath, '--out', join(iconsetPath, `icon_${size}x${size}@2x.png`)], { timeout: 10000, stdio: 'ignore' })
     }
     execFileSync('iconutil', ['-c', 'icns', iconsetPath, '-o', iconPath], { timeout: 10000, stdio: 'ignore' })
   } catch {
     // favicon 格式不受 sips 支持时，保留 osacompile 的默认图标
   } finally {
     if (existsSync(iconsetPath)) rmSync(iconsetPath, { recursive: true, force: true })
+    if (existsSync(normalizedIconPath)) unlinkSync(normalizedIconPath)
   }
 }
 
 /** 刷新 AppleScript 应用的 bundle 元数据，避免 Finder 复用默认脚本图标缓存。 */
 function refreshAppleScriptShortcutRegistration(shortcutPath: string): void {
   const infoPath = join(shortcutPath, 'Contents', 'Info.plist')
+  const defaultAssetCatalogPath = join(shortcutPath, 'Contents', 'Resources', 'Assets.car')
   const bundleId = `com.sessionbox.shortcut.${randomUUID()}`
   const lsregisterPath = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister'
   try {
+    if (existsSync(defaultAssetCatalogPath)) rmSync(defaultAssetCatalogPath, { force: true })
+    execFileSync('/usr/libexec/PlistBuddy', ['-c', 'Delete :CFBundleIconName', infoPath], { stdio: 'ignore' })
     execFileSync('/usr/libexec/PlistBuddy', ['-c', `Add :CFBundleIdentifier string ${bundleId}`, infoPath], { stdio: 'ignore' })
     execFileSync('/usr/libexec/PlistBuddy', ['-c', 'Set :CFBundleIconFile applet.icns', infoPath], { stdio: 'ignore' })
+    execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', shortcutPath], { stdio: 'ignore' })
     execFileSync('/usr/bin/touch', [shortcutPath], { stdio: 'ignore' })
     execFileSync(lsregisterPath, ['-f', shortcutPath], { stdio: 'ignore' })
   } catch {
