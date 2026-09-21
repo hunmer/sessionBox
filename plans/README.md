@@ -10,6 +10,8 @@
 | [002](002-tab-enter-leave.md) | 标签页进出场动画（新建展开 / 关闭收起） | HIGH | DONE（2026-09-21 执行，未提交） | 001 |
 | [003](003-button-press-feedback.md) | 按钮按压反馈（active 缩放）+ 收敛 transition-all | HIGH | DONE（2026-09-21 执行，未提交） | 001（弱依赖，可独立） |
 | [004](004-tabitem-transitions-icon-collapse.md) | TabItem 过渡收敛 + 只显示图标平滑折叠 | MEDIUM | DONE（2026-09-21 执行，未提交） | 001，建议在 002 后 |
+| [005](005-collapsible-height-animation.md) | Collapsible 展开/收起高度动画（7 处使用方零改动） | MEDIUM | DONE（2026-09-21 执行，未提交） | 001 |
+| [006](006-tabitem-size-changes.md) | TabItem 芯片尺寸变化动画（图标进出/固定切换/间隙残留）+ 修复 003 漏 scale | MEDIUM | DONE（2026-09-21 执行，未提交） | 001、004 |
 
 **推荐顺序：001 → 003 → 002 → 004。** 理由：001 是一行引入却点亮全应用 15 个组件的既有动画意图，且建立后续计划引用的 `--ease-out` 令牌；003 是单行改动全应用生效；002 是本次「给标签 UI 加动画」的核心诉求，改动面稍大放在基础设施就绪后；004 与 002 同区域，最后做便于一次性 feel check。
 

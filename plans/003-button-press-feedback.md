@@ -28,12 +28,14 @@ export const buttonVariants = cva(
 ```ts
 /* target */
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-150 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,scale,opacity] duration-150 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
 ```
 
+> 执行备注（2026-09-21）：初版清单漏了 `scale`——Tailwind v4 的 `active:scale-[0.97]` 作用于独立 `scale` 属性（非 `transform`），缺它则按压缩放瞬切无过渡。已在执行中修正，上表与下方 Steps 为最终值。
+
 要点：
-- `transition-all` → 显式属性清单（颜色类 + `box-shadow`（focus ring）+ `transform`（按压缩放）+ `opacity`（disabled））。
+- `transition-all` → 显式属性清单（颜色类 + `box-shadow`（focus ring）+ `transform`/`scale`（按压缩放）+ `opacity`（disabled））。
 - 新增 `duration-150 ease-out`：默认 transition 时长 150ms 配强 ease-out（001 覆盖后的令牌曲线）。
 - 新增 `active:scale-[0.97]`：按压时 3% 缩小，松手回弹。`disabled:pointer-events-none` 已保证禁用按钮不会触发。
 
@@ -44,7 +46,7 @@ export const buttonVariants = cva(
 ## Steps
 
 1. **`src/components/ui/button/index.ts:7`**：把基类字符串中的 `transition-all` 替换为
-   `transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-150 ease-out active:scale-[0.97]`
+   `transition-[color,background-color,border-color,box-shadow,transform,scale,opacity] duration-150 ease-out active:scale-[0.97]`
    （即 Problem 中 current → target 的完整字符串，其余内容一字不动）。
 
 ## Boundaries

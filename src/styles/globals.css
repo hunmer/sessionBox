@@ -49,6 +49,26 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   /* 强 ease-in-out：屏幕内移动/变形 */
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* Collapsible 展开/收起：高度 0 ↔ 实测高度（reka-ui 注入的变量） */
+  --animate-collapsible-down: collapsible-down 200ms var(--ease-out);
+  --animate-collapsible-up: collapsible-up 200ms var(--ease-out);
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--reka-collapsible-content-height);
+    }
+  }
+  @keyframes collapsible-up {
+    from {
+      height: var(--reka-collapsible-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
 }
 
 @layer base {
@@ -231,15 +251,16 @@ img {
   }
 }
 
-/* ====== 标签文字折叠动画（plans/004）====== */
+/* ====== 标签文字折叠动画（plans/004，006 补 margin 抵消间隙）====== */
 .tab-label-enter-active,
 .tab-label-leave-active {
-  transition: max-width 200ms var(--ease-out), opacity 150ms var(--ease-out);
+  transition: max-width 200ms var(--ease-out), opacity 150ms var(--ease-out), margin-left 200ms var(--ease-out);
 }
 .tab-label-enter-from,
 .tab-label-leave-to {
   max-width: 0;
   opacity: 0;
+  margin-left: -0.5rem; /* 抵消 flex gap-2，净宽收放到 0 */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -249,10 +270,31 @@ img {
   }
 }
 
+/* ====== 标签内部图标/按钮尺寸过渡（plans/006）====== */
+.tab-icon-enter-active,
+.tab-icon-leave-active {
+  transition: max-width 150ms var(--ease-out), opacity 150ms var(--ease-out), margin-left 150ms var(--ease-out);
+}
+.tab-icon-enter-from,
+.tab-icon-leave-to {
+  max-width: 0;
+  opacity: 0;
+  margin-left: -0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-icon-enter-active,
+  .tab-icon-leave-active {
+    transition: opacity 150ms var(--ease-out);
+  }
+}
+
 /* 减弱动态效果：弹层的缩放/位移动画近零时长，hover 颜色等 transition 反馈保留 */
 @media (prefers-reduced-motion: reduce) {
   .animate-in,
-  .animate-out {
+  .animate-out,
+  .animate-collapsible-down,
+  .animate-collapsible-up {
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
   }

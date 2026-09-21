@@ -146,6 +146,14 @@ export interface TrayWindowSizes {
   mobile: { width: number; height: number }
 }
 
+export interface FloatingBallState {
+  id: string
+  pageId: string
+  mode: 'desktop' | 'mobile'
+  x: number
+  y: number
+}
+
 // 密码/笔记字段
 export interface PasswordField {
   id: string
@@ -225,6 +233,7 @@ interface StoreSchema {
   splitStates: Record<string, SplitLayoutData>
   splitSchemes: SavedSplitSchemeData[]
   trayWindowSizes: TrayWindowSizes
+  floatingBallStates: FloatingBallState[]
   updateSources: UpdateSource[]
   activeUpdateSourceId: string
   snifferDomains: string[]
@@ -260,6 +269,7 @@ const defaults: StoreSchema = {
     desktop: { width: 480, height: 270 },
     mobile: { width: 270, height: 480 }
   },
+  floatingBallStates: [],
   updateSources: [
     { id: 'github', name: 'GitHub', type: 'github', owner: 'hunmer', repo: 'sessionBox' }
   ],
@@ -868,6 +878,22 @@ export function updateTrayWindowSize(
   const sizes = getTrayWindowSizes()
   sizes[type] = size
   store.set('trayWindowSizes', sizes)
+}
+
+// ====== 任务栏窗口悬浮图标 ======
+
+export function getFloatingBallStates(): FloatingBallState[] {
+  return store.get('floatingBallStates', defaults.floatingBallStates)
+}
+
+export function setFloatingBallState(state: FloatingBallState): void {
+  const states = getFloatingBallStates().filter(item => item.id !== state.id)
+  states.push(state)
+  store.set('floatingBallStates', states)
+}
+
+export function removeFloatingBallState(id: string): void {
+  store.set('floatingBallStates', getFloatingBallStates().filter(item => item.id !== id))
 }
 
 // ====== 更新源操作 ======

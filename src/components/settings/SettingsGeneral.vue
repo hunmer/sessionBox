@@ -1,17 +1,42 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { Camera } from 'lucide-vue-next'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { useNotification } from '@/composables/useNotification'
+import { useContainerStore } from '@/stores/container'
 import { useHomepageStore, type HomepageOpenMethod } from '@/stores/homepage'
+import { useUserProfileStore } from '@/stores/userProfile'
+import { useWorkspaceStore } from '@/stores/workspace'
 
+const containerStore = useContainerStore()
+const workspaceStore = useWorkspaceStore()
 const homepageStore = useHomepageStore()
+const userStore = useUserProfileStore()
 const notify = useNotification()
 const isDefaultBrowser = ref(false)
 const minimizeOnClose = ref(true)
 const isWindows = navigator.userAgent.includes('Windows')
 let defaultBrowserPollTimer: ReturnType<typeof setInterval> | null = null
 let defaultBrowserPollStopTimer: ReturnType<typeof setTimeout> | null = null
+
+/** 上传自定义头像，复用容器图标上传接口 */
+async function handleUploadAvatar() {
+  const result = await window.api.container.uploadIcon()
+  if (result) {
+    userStore.updateProfile({ avatar: result })
+  }
+}
+
+function handleNameChange(e: Event) {
+  const val = (e.target as HTMLInputElement).value
+  userStore.updateProfile({ name: val })
+}
 
 function stopDefaultBrowserPolling() {
   if (defaultBrowserPollTimer) {
@@ -88,7 +113,49 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
 </script>
 
 <template>
-  <h3 class="text-sm font-medium mb-3">
+  <!-- 用户信息 -->
+  <h3 class="text-sm font-medium mb-4">
+    用户信息
+  </h3>
+
+  <!-- 头像 -->
+  <div class="flex items-center gap-4 mb-6">
+    <div
+      class="relative group cursor-pointer"
+      @click="handleUploadAvatar"
+    >
+      <Avatar class="h-16 w-16 rounded-full">
+        <AvatarImage
+          v-if="userStore.avatarSrc"
+          :src="userStore.avatarSrc"
+        />
+        <AvatarFallback class="rounded-full text-xl">
+          {{ userStore.isEmojiAvatar ? userStore.profile.avatar : userStore.avatarFallback }}
+        </AvatarFallback>
+      </Avatar>
+      <div
+        class="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <Camera class="w-5 h-5 text-white" />
+      </div>
+    </div>
+    <div class="text-xs text-muted-foreground">
+      点击头像上传自定义图片
+    </div>
+  </div>
+
+  <!-- 名称 -->
+  <div>
+    <label class="text-xs text-muted-foreground mb-1 block">用户名称</label>
+    <Input
+      :model-value="userStore.profile.name"
+      placeholder="输入用户名称"
+      @change="handleNameChange"
+    />
+  </div>
+
+  <!-- 主页设置 -->
+  <h3 class="text-sm font-medium mb-3 mt-6">
     主页设置
   </h3>
   <div class="space-y-3">
@@ -133,6 +200,7 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
     </div>
   </div>
 
+  <!-- 默认浏览器 -->
   <h3 class="text-sm font-medium mb-3 mt-6">
     默认浏览器
   </h3>
@@ -163,6 +231,7 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
     如果系统“默认应用”的 Web 浏览器列表里没有 SessionBox，重新安装此版本后会自动补齐浏览器注册信息。
   </p>
 
+  <!-- 窗口行为 -->
   <h3 class="text-sm font-medium mb-3 mt-6">
     窗口行为
   </h3>
@@ -185,5 +254,72 @@ const openMethodOptions: { value: HomepageOpenMethod; label: string }[] = [
         :class="minimizeOnClose ? 'translate-x-4' : 'translate-x-0'"
       />
     </button>
+  </div>
+
+  <!-- 外部链接 -->
+  <h3 class="text-sm font-medium mb-3 mt-6">
+    外部链接
+  </h3>
+  <div class="space-y-4">
+    <!-- 每次打开都询问 -->
+    <div class="flex items-center justify-between">
+      <div>
+        <label class="text-xs text-muted-foreground">每次打开都询问</label>
+        <p class="text-xs text-muted-foreground/60 mt-0.5">
+          从外部打开链接时弹出容器选择对话框
+        </p>
+      </div>
+      <Switch
+        :model-value="containerStore.askContainerOnOpen"
+        @update:model-value="containerStore.setAskContainerOnOpen($event)"
+      />
+    </div>
+
+    <!-- 默认打开容器 -->
+    <div>
+      <label class="text-xs text-muted-foreground mb-1 block">默认打开容器</label>
+      <Select
+        :model-value="containerStore.defaultContainerId"
+        @update:model-value="containerStore.setDefaultContainer($event)"
+      >
+        <SelectTrigger class="w-full">
+          <SelectValue placeholder="选择容器" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem
+            v-for="c in containerStore.containers"
+            :key="c.id"
+            :value="c.id"
+          >
+            {{ c.icon }} {{ c.name }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+
+    <!-- 默认打开工作区 -->
+    <div>
+      <label class="text-xs text-muted-foreground mb-1 block">默认打开工作区</label>
+      <Select
+        :model-value="containerStore.defaultWorkspaceId"
+        @update:model-value="containerStore.setDefaultWorkspaceId($event)"
+      >
+        <SelectTrigger class="w-full">
+          <SelectValue placeholder="选择工作区" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__active__">
+            当前激活工作区
+          </SelectItem>
+          <SelectItem
+            v-for="w in workspaceStore.sortedWorkspaces"
+            :key="w.id"
+            :value="w.id"
+          >
+            {{ w.title }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
   </div>
 </template>

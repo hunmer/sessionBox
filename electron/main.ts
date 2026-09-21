@@ -142,7 +142,7 @@ if (!gotTheLock) {
       console.error('[Main] Failed to stop MCP server:', error)
     })
     pluginManager.shutdown()
-    trayWindowManager.destroyAll()
+    trayWindowManager.destroyAll(true)
   })
 
   // 主窗口最小尺寸（默认 1280x800）

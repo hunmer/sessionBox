@@ -254,6 +254,18 @@ async function createTabWithUrlAction(
   return tab
 }
 
+// pageId 传 null 且 containerId 传空串 → 主进程按无页面模式走默认 partition（不挂任何账号容器的 session）
+async function createTabInDefaultSessionAction(
+  ctx: TabStoreContext,
+  url: string,
+  targetPaneId?: string | null
+) {
+  const tab = await api.tab.create(null, url, '', useWorkspaceStore().activeWorkspaceId)
+  await nextTick()
+  await activateCreatedTab(ctx, tab.id, targetPaneId)
+  return tab
+}
+
 async function activateNextTabAfterClose(
   ctx: TabStoreContext,
    
@@ -514,6 +526,10 @@ function registerLifecycleListeners(ctx: TabStoreContext) {
     ctx.activeTabId.value = tabId as string
     fetchZoomLevelAction(ctx, tabId as string)
   })
+
+  api.on('tab:focused', (tabId: unknown) => {
+    ctx.activeTabId.value = tabId as string
+  })
 }
 
 function registerMetadataListeners(ctx: TabStoreContext) {
@@ -666,6 +682,10 @@ export const useTabStore = defineStore('tab', () => {
   function toggleLayout() {
     tabLayout.value = tabLayout.value === 'horizontal' ? 'vertical' : 'horizontal'
     localStorage.setItem(TAB_LAYOUT_KEY, tabLayout.value)
+  }
+  function setTabLayout(layout: TabLayout) {
+    tabLayout.value = layout
+    localStorage.setItem(TAB_LAYOUT_KEY, layout)
   }
   const bookmarkBarVisible = ref(localStorage.getItem(BOOKMARK_BAR_KEY) !== 'false')
   function toggleBookmarkBar() {
@@ -846,7 +866,7 @@ export const useTabStore = defineStore('tab', () => {
   return {
     tabs, activeTabId, tabGroupFilterId, navStates, favicons, faviconVersions, frozenTabIds, closingTabIds,
     sortedTabs, workspaceTabs, groupedWorkspaceTabs, activeTab, activeNavState, activeProxyInfo,
-    isInternalPage, internalPagePath, tabLayout, toggleLayout, bookmarkBarVisible, toggleBookmarkBar,
+    isInternalPage, internalPagePath, tabLayout, toggleLayout, setTabLayout, bookmarkBarVisible, toggleBookmarkBar,
     tabPageLabelVisible, toggleTabPageLabel,
     tabIconOnly, toggleTabIconOnly,
     tabGroupEnabled, tabGroupMode, setTabGroupMode, setTabGroupFilter, clearTabGroupFilter,

@@ -13,7 +13,7 @@ import type { Tab } from '@/types'
 import { useTabStore } from '@/stores/tab'
 import { useSplitStore } from '@/stores/split'
 import { usePageStore } from '@/stores/page'
-import { getDomain } from '@/lib/utils'
+import { getDomain, getFaviconUrl } from '@/lib/utils'
 import { extractNavigableDropUrl, hasSupportedExternalDrop } from '@/lib/external-drop'
 
 const props = defineProps<{
@@ -67,7 +67,14 @@ const isActive = computed(() => {
 // 仅图标模式：开启后未激活标签只显示网站图标
 const iconOnly = computed(() => tabStore.tabIconOnly && !isActive.value)
 const isLoading = computed(() => tabStore.navStates.get(props.tab.id)?.isLoading ?? false)
-const faviconUrl = computed(() => tabStore.favicons.get(props.tab.id))
+const faviconUrl = computed(() => {
+  // 已加载的标签使用页面报告的图标
+  const loaded = tabStore.favicons.get(props.tab.id)
+  if (loaded) return loaded
+  // 未加载的标签也按 URL 推导图标（本地缓存，未命中由主进程自动下载）
+  if (!props.tab.url?.startsWith('http')) return ''
+  return getFaviconUrl(props.tab.url, tabStore.faviconVersions.get(getDomain(props.tab.url)))
+})
 // 网站图标加载状态：加载中显示脉动占位，失败回退 Globe
 const faviconState = ref<'loading' | 'loaded' | 'error'>('loading')
 watch(faviconUrl, () => { faviconState.value = 'loading' })
@@ -305,7 +312,7 @@ onBeforeUnmount(clearTimers)
             <Transition name="tab-label">
               <span
                 v-if="!iconOnly"
-                class="truncate text-xs"
+                class="truncate text-xs transition-[max-width] duration-200 ease-out"
                 :class="vertical ? 'flex-1 min-w-0' : isPinned ? 'max-w-[100px]' : 'max-w-[120px]'"
               >{{ pageTitle || pageLabel || '新标签页' }}</span>
             </Transition>
@@ -315,27 +322,33 @@ onBeforeUnmount(clearTimers)
                 class="truncate text-[10px] text-muted-foreground/60 max-w-[60px] flex-shrink-0"
               >{{ pageLabel }}</span>
             </Transition>
-            <VolumeX
-              v-if="!iconOnly && isMuted"
-              class="w-3 h-3 flex-shrink-0 text-muted-foreground"
-            />
-            <Pin
-              v-if="!iconOnly && isPinned"
-              class="w-3 h-3 flex-shrink-0 text-muted-foreground"
-            />
-            <button
-              v-if="!isPinned"
-              class="flex-shrink-0 p-0.5 rounded-full hover:bg-secondary transition-opacity"
-              :class="[
-                vertical ? 'ml-auto' : '',
-                iconOnly
-                  ? 'hidden group-hover:inline-flex'
-                  : 'opacity-0 group-hover:opacity-100'
-              ]"
-              @click="handleClose"
-            >
-              <X class="w-3 h-3" />
-            </button>
+            <Transition name="tab-icon">
+              <VolumeX
+                v-if="!iconOnly && isMuted"
+                class="w-3 h-3 flex-shrink-0 text-muted-foreground"
+              />
+            </Transition>
+            <Transition name="tab-icon">
+              <Pin
+                v-if="!iconOnly && isPinned"
+                class="w-3 h-3 flex-shrink-0 text-muted-foreground"
+              />
+            </Transition>
+            <Transition name="tab-icon">
+              <button
+                v-if="!isPinned"
+                class="flex-shrink-0 p-0.5 rounded-full hover:bg-secondary transition-opacity"
+                :class="[
+                  vertical ? 'ml-auto' : '',
+                  iconOnly
+                    ? 'hidden group-hover:inline-flex'
+                    : 'opacity-0 group-hover:opacity-100'
+                ]"
+                @click="handleClose"
+              >
+                <X class="w-3 h-3" />
+              </button>
+            </Transition>
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent class="w-48">

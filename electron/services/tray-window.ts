@@ -1,13 +1,23 @@
 // electron/services/tray-window.ts
-import { BrowserWindow, Tray, screen } from 'electron'
-import { getTrayWindowSizes, updateTrayWindowSize } from './store'
+import { app, BrowserWindow, ipcMain, Tray, screen } from 'electron'
+import { join } from 'path'
+import {
+  getFloatingBallStates,
+  getTrayWindowSizes,
+  listPages,
+  removeFloatingBallState,
+  setFloatingBallState,
+  updateTrayWindowSize
+} from './store'
 import type { Page, TrayWindowSizes } from './store'
 import { getUserAgent, getMobileUserAgent, installClientHintsRewrite } from '../utils/user-agent'
+import { fetchAndCacheFavicon, getCachedIconPath } from './favicon-cache'
 
 type TrayWindowType = keyof TrayWindowSizes
 
 interface TaskbarWindowEntry {
   win: BrowserWindow
+  floatingBall: BrowserWindow | null
   page: Page
   mode: 'desktop' | 'mobile'
   id: string
@@ -29,6 +39,55 @@ class TrayWindowManager {
   private windows = new Set<BrowserWindow>()
   private taskbarWindows = new Map<string, TaskbarWindowEntry>()
   private nextId = 0
+  private preserveStatesOnDestroy = false
+  private dragState: { ball: BrowserWindow; startCursor: { x: number; y: number }; startWindow: { x: number; y: number }; moved: boolean } | null = null
+
+  constructor() {
+    ipcMain.on('floating-ball:pointer', (event, data: { type: string; x: number; y: number }) => {
+      const entry = [...this.taskbarWindows.values()].find(item => item.floatingBall?.webContents === event.sender)
+      const ball = entry?.floatingBall
+      if (!entry || !ball || ball.isDestroyed()) return
+
+      if (data.type === 'pointer-down') {
+        const [x, y] = ball.getPosition()
+        this.dragState = { ball, startCursor: { x: data.x, y: data.y }, startWindow: { x, y }, moved: false }
+      } else if (data.type === 'pointer-move' && this.dragState?.ball === ball) {
+        const x = this.dragState.startWindow.x + data.x - this.dragState.startCursor.x
+        const y = this.dragState.startWindow.y + data.y - this.dragState.startCursor.y
+        if (Math.abs(data.x - this.dragState.startCursor.x) > 2 || Math.abs(data.y - this.dragState.startCursor.y) > 2) {
+          this.dragState.moved = true
+        }
+        const position = this.clampFloatingBallPosition({ x, y }, 56)
+        ball.setPosition(position.x, position.y)
+      } else if (data.type === 'pointer-up' && this.dragState?.ball === ball) {
+        const moved = this.dragState.moved
+        this.dragState = null
+        if (!moved) {
+          this.showTaskbarWindow(entry.id)
+        } else {
+          const { x, y } = ball.getBounds()
+          setFloatingBallState({ id: entry.id, pageId: entry.page.id, mode: entry.mode, x, y })
+        }
+      }
+    })
+  }
+
+  /** 恢复上次退出时仍隐藏在悬浮图标中的任务栏窗口。 */
+  restoreFloatingBalls(tray: Tray): void {
+    const pages = listPages()
+    for (const state of getFloatingBallStates()) {
+      const page = pages.find(item => item.id === state.pageId)
+      if (!page) {
+        removeFloatingBallState(state.id)
+        continue
+      }
+      this.openAtTaskbar(tray, page, state.mode, {
+        id: state.id,
+        position: { x: state.x, y: state.y },
+        startHidden: true
+      })
+    }
+  }
 
   /** 创建新窗口打开指定页面 */
   openInNewWindow(page: Page): BrowserWindow {
@@ -59,7 +118,12 @@ class TrayWindowManager {
   }
 
   /** 创建贴近任务栏的窗口 */
-  openAtTaskbar(tray: Tray, page: Page, mode: 'desktop' | 'mobile'): BrowserWindow {
+  openAtTaskbar(
+    tray: Tray,
+    page: Page,
+    mode: 'desktop' | 'mobile',
+    restore?: { id: string; position: { x: number; y: number }; startHidden: boolean }
+  ): BrowserWindow {
     const containerId = page.containerId || ''
     const partition = containerId ? `persist:container-${containerId}` : undefined
     const saved = getTrayWindowSizes()[mode]
@@ -90,17 +154,23 @@ class TrayWindowManager {
     installClientHintsRewrite(win.webContents.session)
 
     win.loadURL(page.url || 'about:blank')
-    win.once('ready-to-show', () => win.show())
+    win.once('ready-to-show', () => {
+      if (!restore?.startHidden) win.show()
+    })
 
-    const id = `taskbar-${this.nextId++}`
-    const entry: TaskbarWindowEntry = { win, page, mode, id }
+    const id = restore?.id ?? `taskbar-${Date.now()}-${this.nextId++}`
+    const entry: TaskbarWindowEntry = { win, floatingBall: null, page, mode, id }
 
     // 失焦自动隐藏（不关闭）
     win.on('blur', () => {
-      if (!win.isDestroyed()) win.hide()
+      if (!win.isDestroyed()) {
+        win.hide()
+        this.showFloatingBall(entry)
+      }
     })
 
     win.on('closed', () => {
+      this.closeFloatingBall(entry, this.preserveStatesOnDestroy)
       this.taskbarWindows.delete(id)
     })
 
@@ -113,6 +183,7 @@ class TrayWindowManager {
     win.on('resize', saveSize)
 
     this.taskbarWindows.set(id, entry)
+    if (restore?.startHidden) this.showFloatingBall(entry, restore.position)
     return win
   }
 
@@ -131,6 +202,7 @@ class TrayWindowManager {
   showTaskbarWindow(id: string): void {
     const entry = this.taskbarWindows.get(id)
     if (entry && !entry.win.isDestroyed()) {
+      this.closeFloatingBall(entry)
       entry.win.show()
       entry.win.focus()
     }
@@ -141,6 +213,8 @@ class TrayWindowManager {
     const entry = this.taskbarWindows.get(id)
     if (entry) {
       this.taskbarWindows.delete(id)
+      this.closeFloatingBall(entry)
+      removeFloatingBallState(id)
       if (!entry.win.isDestroyed()) {
         entry.win.destroy()
       }
@@ -195,7 +269,8 @@ class TrayWindowManager {
   }
 
   /** 销毁所有窗口（普通 + 任务栏） */
-  destroyAll(): void {
+  destroyAll(preserveFloatingBalls = false): void {
+    this.preserveStatesOnDestroy = preserveFloatingBalls
     for (const win of this.windows) {
       if (!win.isDestroyed()) {
         win.destroy()
@@ -204,11 +279,134 @@ class TrayWindowManager {
     this.windows.clear()
 
     for (const [, entry] of this.taskbarWindows) {
+      this.closeFloatingBall(entry, preserveFloatingBalls)
       if (!entry.win.isDestroyed()) {
         entry.win.destroy()
       }
     }
     this.taskbarWindows.clear()
+  }
+
+  /** 创建失焦后的桌面悬浮球。悬浮球本身使用 Chromium 原生拖拽区域。 */
+  private showFloatingBall(entry: TaskbarWindowEntry, savedPosition?: { x: number; y: number }): void {
+    if (entry.floatingBall && !entry.floatingBall.isDestroyed()) {
+      entry.floatingBall.showInactive()
+      return
+    }
+
+    const bounds = entry.win.getBounds()
+    const ballSize = 56
+    const defaultPosition = {
+      x: bounds.x + Math.max(0, Math.round((bounds.width - ballSize) / 2)),
+      y: bounds.y + Math.max(0, Math.round((bounds.height - ballSize) / 2))
+    }
+    const position = this.clampFloatingBallPosition(savedPosition ?? defaultPosition, ballSize)
+    const ball = new BrowserWindow({
+      width: ballSize,
+      height: ballSize,
+      x: position.x,
+      y: position.y,
+      frame: false,
+      transparent: true,
+      resizable: false,
+      movable: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      show: false,
+      webPreferences: {
+        preload: join(__dirname, '../preload/floating-ball-preload.js'),
+        sandbox: false
+      }
+    })
+
+    entry.floatingBall = ball
+    ball.setAlwaysOnTop(true, 'floating')
+    ball.on('closed', () => {
+      if (entry.floatingBall === ball) entry.floatingBall = null
+    })
+    const savePosition = throttle(() => {
+      if (ball.isDestroyed()) return
+      const { x, y } = ball.getBounds()
+      setFloatingBallState({ id: entry.id, pageId: entry.page.id, mode: entry.mode, x, y })
+    }, 300)
+    ball.on('move', savePosition)
+    setFloatingBallState({
+      id: entry.id,
+      pageId: entry.page.id,
+      mode: entry.mode,
+      x: position.x,
+      y: position.y
+    })
+    this.loadFloatingBallHtml(ball, entry.page)
+    ball.once('ready-to-show', () => {
+      if (!ball.isDestroyed()) ball.showInactive()
+    })
+  }
+
+  private closeFloatingBall(entry: TaskbarWindowEntry, preserveState = false): void {
+    const ball = entry.floatingBall
+    entry.floatingBall = null
+    if (preserveState && ball && !ball.isDestroyed()) {
+      const { x, y } = ball.getBounds()
+      setFloatingBallState({ id: entry.id, pageId: entry.page.id, mode: entry.mode, x, y })
+    }
+    if (!preserveState) removeFloatingBallState(entry.id)
+    if (ball && !ball.isDestroyed()) ball.close()
+  }
+
+  private async loadFloatingBallHtml(ball: BrowserWindow, page: Page): Promise<void> {
+    const appIconPath = app.isPackaged
+      ? join(process.resourcesPath, 'icon.png')
+      : join(__dirname, '../../resources/icon.png')
+    let domain = ''
+    try {
+      domain = new URL(page.url).hostname
+    } catch {
+      // 页面 URL 无效时使用应用图标。
+    }
+    const cachedIconPath = domain ? getCachedIconPath(domain) : null
+    this.setFloatingBallContent(ball, cachedIconPath ?? appIconPath)
+
+    if (!domain || cachedIconPath) return
+    const faviconPath = await fetchAndCacheFavicon(domain)
+    if (ball.isDestroyed() || faviconPath.endsWith('unknow.ico')) return
+    const faviconUrl = `file:///${faviconPath.replace(/\\/g, '/')}`
+    ball.webContents.executeJavaScript(
+      `document.getElementById('icon').src=${JSON.stringify(faviconUrl)}`
+    ).catch(() => undefined)
+  }
+
+  private setFloatingBallContent(ball: BrowserWindow, iconPath: string): void {
+    if (ball.isDestroyed()) return
+    const iconUrl = `file:///${iconPath.replace(/\\/g, '/')}`
+    ball.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(this.getFloatingBallHtml(iconUrl))}`)
+  }
+
+  private clampFloatingBallPosition(position: { x: number; y: number }, size: number): { x: number; y: number } {
+    const display = screen.getDisplayNearestPoint(position)
+    const { workArea } = display
+    return {
+      x: Math.max(workArea.x, Math.min(position.x, workArea.x + workArea.width - size)),
+      y: Math.max(workArea.y, Math.min(position.y, workArea.y + workArea.height - size))
+    }
+  }
+
+  private getFloatingBallHtml(iconUrl: string): string {
+    return `<!doctype html><html><head><meta charset="utf-8"><style>
+      html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
+      a{box-sizing:border-box;display:flex;width:100%;height:100%;align-items:center;justify-content:center;
+        border:2px solid rgba(255,255,255,.9);border-radius:50%;background:#fff;
+        box-shadow:0 3px 12px rgba(0,0,0,.35);text-decoration:none;
+        user-select:none;cursor:pointer}
+      img{width:38px;height:38px;object-fit:contain;border-radius:8px;pointer-events:none}
+      body{padding:3px}
+      a:hover{background:#f3f4f6}
+    </style></head><body><a id="ball" aria-label="恢复窗口"><img id="icon" src="${iconUrl}"></a><script>
+      const ball=document.getElementById('ball');let down=false;
+      ball.addEventListener('mousedown',e=>{if(e.button!==0)return;down=true;window.floatingBall.send('pointer-down',e.screenX,e.screenY);e.preventDefault()});
+      document.addEventListener('mousemove',e=>{if(down)window.floatingBall.send('pointer-move',e.screenX,e.screenY)});
+      document.addEventListener('mouseup',e=>{if(!down)return;down=false;window.floatingBall.send('pointer-up',e.screenX,e.screenY)});
+    </script></body></html>`
   }
 }
 

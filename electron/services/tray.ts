@@ -30,6 +30,7 @@ class TrayManager {
 
     this.tray = new Tray(icon)
     this.tray.setToolTip('SessionBox')
+    trayWindowManager.restoreFloatingBalls(this.tray)
 
     // 双击打开主窗口（恢复默认位置和默认大小）
     this.tray.on('double-click', () => {
@@ -197,7 +198,6 @@ class TrayManager {
       {
         label: '退出',
         click: () => {
-          trayWindowManager.destroyAll()
           app.quit()
         }
       }

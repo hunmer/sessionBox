@@ -132,6 +132,7 @@ export function setupEventForwarding(
     const entry = views.get(tabId)
     if (!entry || !canSend()) return
     entry.lastActiveAt = Date.now()
+    win.webContents.send('on:tab:focused', tabId)
   })
 
   // 右键菜单

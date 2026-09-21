@@ -99,6 +99,7 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'preload/index.ts'),
+          'floating-ball-preload': resolve(__dirname, 'electron/floating-ball-preload.ts'),
           'debugger-preload': resolve(__dirname, 'electron/debugger-preload.ts'),
           'debugger-replay-preload': resolve(__dirname, 'electron/debugger-replay-preload.ts')
         }

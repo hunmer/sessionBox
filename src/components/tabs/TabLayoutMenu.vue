@@ -135,123 +135,6 @@ function handleZoomReset() {
       align="end"
       class="w-48"
     >
-      <DropdownMenuItem
-        class="cursor-pointer"
-        @click="tabStore.toggleLayout()"
-      >
-        <PanelTop
-          v-if="direction === 'vertical'"
-          class="size-4 mr-2"
-        />
-        <PanelLeft
-          v-else
-          class="size-4 mr-2"
-        />
-        <span class="flex-1">{{ direction === 'vertical' ? '水平布局' : '侧边栏布局' }}</span>
-        <Check
-          v-if="(direction === 'vertical' && tabStore.tabLayout === 'horizontal') || (direction === 'horizontal' && tabStore.tabLayout === 'vertical')"
-          class="size-4 text-primary"
-        />
-      </DropdownMenuItem>
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger class="cursor-pointer">
-          <Layers class="size-4 mr-2" />
-          <span class="flex-1">标签分组</span>
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent class="min-w-[170px]">
-          <DropdownMenuItem
-            class="cursor-pointer"
-            @click="setGroupMode('group')"
-          >
-            <FolderOpen class="size-4 mr-2" />
-            <span class="flex-1">按分组名称分组</span>
-            <Check
-              v-if="tabStore.tabGroupMode === 'group'"
-              class="size-4 text-primary"
-            />
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            class="cursor-pointer"
-            @click="setGroupMode('account')"
-          >
-            <User class="size-4 mr-2" />
-            <span class="flex-1">按容器名称分组</span>
-            <Check
-              v-if="tabStore.tabGroupMode === 'account'"
-              class="size-4 text-primary"
-            />
-          </DropdownMenuItem>
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger class="cursor-pointer">
-          <Palette class="size-4 mr-2" />
-          <span class="flex-1">标签外观</span>
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent class="min-w-[170px]">
-          <DropdownMenuItem
-            class="cursor-pointer"
-            @click="tabStore.toggleTabIconOnly()"
-          >
-            <Image class="size-4 mr-2" />
-            <span class="flex-1">只显示图标</span>
-            <Check
-              v-if="tabStore.tabIconOnly"
-              class="size-4 text-primary"
-            />
-          </DropdownMenuItem>
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        class="cursor-pointer"
-        @click="tabStore.toggleBookmarkBar()"
-      >
-        <Bookmark class="size-4 mr-2" />
-        <span class="flex-1">快捷网站栏</span>
-        <Check
-          v-if="tabStore.bookmarkBarVisible"
-          class="size-4 text-primary"
-        />
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        class="cursor-pointer"
-        @click="tabStore.toggleTabPageLabel()"
-      >
-        <Tags class="size-4 mr-2" />
-        <span class="flex-1">标签页面标识</span>
-        <Check
-          v-if="tabStore.tabPageLabelVisible"
-          class="size-4 text-primary"
-        />
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        class="cursor-pointer"
-        :disabled="!tabStore.activeTabId"
-        @click="toggleBookmark"
-      >
-        <Star
-          class="size-4 mr-2"
-          :class="isBookmarked && 'text-yellow-500 fill-yellow-500'"
-        />
-        <span class="flex-1">{{ isBookmarked ? '取消收藏' : '收藏此页' }}</span>
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        class="cursor-pointer"
-        :disabled="!tabStore.activeTabId"
-        @click="passwordDialogOpen = true"
-      >
-        <KeyRound class="size-4 mr-2" />
-        <span class="flex-1">密码/笔记</span>
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        class="cursor-pointer"
-        :disabled="!tabStore.activeTabId"
-        @click="openDevTools"
-      >
-        <Code2 class="size-4 mr-2" />
-        <span class="flex-1">开发者工具</span>
-      </DropdownMenuItem>
       <DropdownMenuSub>
         <DropdownMenuSubTrigger
           class="cursor-pointer"
@@ -296,16 +179,145 @@ function handleZoomReset() {
           <SplitMenuContent />
         </DropdownMenuSubContent>
       </DropdownMenuSub>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger class="cursor-pointer">
+          <PanelLeft class="size-4 mr-2" />
+          <span class="flex-1">标签布局</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent class="min-w-[150px]">
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="tabStore.setTabLayout('horizontal')"
+          >
+            <PanelTop class="size-4 mr-2" />
+            <span class="flex-1">横向</span>
+            <Check
+              v-if="tabStore.tabLayout === 'horizontal'"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="tabStore.setTabLayout('vertical')"
+          >
+            <PanelLeft class="size-4 mr-2" />
+            <span class="flex-1">纵向</span>
+            <Check
+              v-if="tabStore.tabLayout === 'vertical'"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger class="cursor-pointer">
+          <Layers class="size-4 mr-2" />
+          <span class="flex-1">标签分组</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent class="min-w-[170px]">
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="setGroupMode('group')"
+          >
+            <FolderOpen class="size-4 mr-2" />
+            <span class="flex-1">按分组名称分组</span>
+            <Check
+              v-if="tabStore.tabGroupMode === 'group'"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="setGroupMode('account')"
+          >
+            <User class="size-4 mr-2" />
+            <span class="flex-1">按容器名称分组</span>
+            <Check
+              v-if="tabStore.tabGroupMode === 'account'"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger class="cursor-pointer">
+          <Palette class="size-4 mr-2" />
+          <span class="flex-1">外观</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent class="min-w-[170px]">
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="tabStore.toggleTabIconOnly()"
+          >
+            <Image class="size-4 mr-2" />
+            <span class="flex-1">只显示图标</span>
+            <Check
+              v-if="tabStore.tabIconOnly"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="tabStore.toggleTabPageLabel()"
+          >
+            <Tags class="size-4 mr-2" />
+            <span class="flex-1">标签页面标识</span>
+            <Check
+              v-if="tabStore.tabPageLabelVisible"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="tabStore.toggleBookmarkBar()"
+          >
+            <Bookmark class="size-4 mr-2" />
+            <span class="flex-1">快捷网站栏</span>
+            <Check
+              v-if="tabStore.bookmarkBarVisible"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="toggleImmersiveMode"
+          >
+            <EyeOff class="size-4 mr-2" />
+            <span class="flex-1">沉浸模式</span>
+            <Check
+              v-if="immersiveMode"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+      <DropdownMenuSeparator />
       <DropdownMenuItem
         class="cursor-pointer"
-        @click="toggleImmersiveMode"
+        :disabled="!tabStore.activeTabId"
+        @click="toggleBookmark"
       >
-        <EyeOff class="size-4 mr-2" />
-        <span class="flex-1">沉浸模式</span>
-        <Check
-          v-if="immersiveMode"
-          class="size-4 text-primary"
+        <Star
+          class="size-4 mr-2"
+          :class="isBookmarked && 'text-yellow-500 fill-yellow-500'"
         />
+        <span class="flex-1">{{ isBookmarked ? '取消收藏' : '收藏此页' }}</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        class="cursor-pointer"
+        :disabled="!tabStore.activeTabId"
+        @click="passwordDialogOpen = true"
+      >
+        <KeyRound class="size-4 mr-2" />
+        <span class="flex-1">密码/笔记</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        class="cursor-pointer"
+        :disabled="!tabStore.activeTabId"
+        @click="openDevTools"
+      >
+        <Code2 class="size-4 mr-2" />
+        <span class="flex-1">开发者工具</span>
       </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
