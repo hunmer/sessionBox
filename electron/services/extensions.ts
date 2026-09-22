@@ -3,7 +3,7 @@ import { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import type { BrowserWindow, Session } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { join } from 'node:path'
 import {
   deleteTab as deleteStoredTab,
   listContainers,
@@ -84,58 +84,6 @@ function extensionRequestsUserScripts(extensionPath: string): boolean {
     return [...(manifest.permissions ?? []), ...(manifest.optional_permissions ?? [])].includes('userScripts')
   } catch {
     return false
-  }
-}
-
-function configureTampermonkeyCompatibility(extensionPath: string): void {
-  const manifestPath = join(extensionPath, 'manifest.json')
-  const backgroundPath = join(extensionPath, 'background.js')
-  if (!existsSync(manifestPath) || !existsSync(backgroundPath)) return
-  try {
-    if (basename(extensionPath) !== 'gcalenpjmijncebpfijmoaglllgpjagf') return
-
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
-      content_scripts?: Array<{ js?: string[] } & Record<string, unknown>>
-    }
-    const contentScripts = manifest.content_scripts ?? []
-    const probeFilename = 'sessionbox-tampermonkey-probe.js'
-    const probePath = join(extensionPath, probeFilename)
-    if (!existsSync(probePath)) {
-      writeFileSync(
-        probePath,
-        "console.info('[SessionBox][Tampermonkey] content script loaded', { url: location.href, runtime: Boolean(chrome.runtime?.id) })\n",
-        'utf8'
-      )
-    }
-
-    const contentScript = contentScripts.find((script) => script.js?.includes('content.js'))
-    let manifestChanged = false
-    if (contentScript) {
-      const scripts = contentScript.js ?? (contentScript.js = [])
-      if (!scripts.includes(probeFilename)) {
-        scripts.unshift(probeFilename)
-        manifestChanged = true
-      }
-    } else {
-      contentScripts.push({
-        matches: ['<all_urls>'],
-        js: [probeFilename, 'content.js'],
-        run_at: 'document_start',
-        all_frames: true
-      })
-      manifest.content_scripts = contentScripts
-      manifestChanged = true
-    }
-    if (manifestChanged) {
-      writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8')
-      console.info('[Extensions] Updated Tampermonkey content script manifest entry')
-    }
-
-    const source = readFileSync(backgroundPath, 'utf8')
-    const patched = source.replace('runtime_content_mode:"userscripts"', 'runtime_content_mode:"content"')
-    if (patched !== source) writeFileSync(backgroundPath, patched, 'utf8')
-  } catch (error) {
-    console.warn('[Extensions] Failed to apply Tampermonkey compatibility mode:', error)
   }
 }
 
@@ -319,7 +267,6 @@ async function loadExtensionIntoContainer(
   const loadTask = (async () => {
     await getExtensionsForContainer(containerId).whenReady()
     console.info('[Extensions] extension API preload is ready', { partitionKey })
-    configureTampermonkeyCompatibility(extension.path)
 
     const loadedExt = await browserSession.loadExtension(extension.path)
     const userScriptsEnabled = extensionRequestsUserScripts(extension.path)
@@ -421,19 +368,34 @@ export function getExtensionInfo(
 
 /**
  * 打开扩展的 browser action popup。
- * @param containerId partition 对应的容器 ID，null 为默认 session
  * @param extensionAppId 应用级扩展 ID（Extension.id）
  * @param anchorRect 弹出窗口的锚点位置
  */
 export function openExtensionBrowserActionPopup(
-  containerId: string | null,
   extensionAppId: string,
   anchorRect: { x: number; y: number; width: number; height: number; alignment?: string }
 ): void {
+  const activeTabId = webviewManager.getActiveTabId()
+  if (!activeTabId) {
+    console.warn('[Extensions] Cannot open browser action popup without an active tab')
+    return
+  }
+
+  const activeWebContents = webviewManager.getWebContents(activeTabId)
+  const activeTab = webviewManager.getViewInfo(activeTabId)
+  if (!activeWebContents || !activeTab) {
+    console.warn('[Extensions] Active tab is not available for browser action popup', { activeTabId })
+    return
+  }
+
+  const containerId = activeTab.containerId || null
   const partitionKey = getPartitionKey(containerId)
-  const ext = extensionsMap.get(partitionKey)
+  const ext = ElectronChromeExtensions.fromSession(activeWebContents.session)
   if (!ext) {
-    console.warn('[Extensions] No ElectronChromeExtensions instance for partition:', partitionKey)
+    console.warn('[Extensions] No ElectronChromeExtensions instance for active tab session:', {
+      activeTabId,
+      partitionKey
+    })
     return
   }
 
@@ -441,16 +403,22 @@ export function openExtensionBrowserActionPopup(
   const extension = listExtensions().find((e) => e.id === extensionAppId)
   if (!extension) return
 
-  const browserSession = getSessionForContainer(containerId)
+  const browserSession = activeWebContents.session
   const electronExt = browserSession.extensions.getAllExtensions().find(
     (e) => e.path === extension.path
   )
-  if (!electronExt) return
+  if (!electronExt) {
+    console.warn('[Extensions] Extension is not loaded in the active tab session', {
+      activeTabId,
+      containerId,
+      extensionAppId
+    })
+    return
+  }
 
-  const tabId = webviewManager.getActiveTabIdByContainer(containerId)
   ;(ext as any).api.browserAction.openPopup(
     { extension: { id: electronExt.id } } as any,
-    { anchorRect, tabId: tabId ?? undefined, alignment: anchorRect.alignment }
+    { anchorRect, tabId: activeWebContents.id, alignment: anchorRect.alignment }
   )
 }
 

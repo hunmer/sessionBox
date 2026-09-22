@@ -2,25 +2,10 @@
 
 const childProcess = require('child_process')
 const path = require('path')
-const unknownFlags = []
 
 require('colors')
 const pass = '✓'.green
 const fail = '✗'.red
-
-const args = require('minimist')(process.argv, {
-  string: ['target'],
-  unknown: (arg) => unknownFlags.push(arg),
-})
-
-const unknownArgs = []
-for (const flag of unknownFlags) {
-  unknownArgs.push(flag)
-  const onlyFlag = flag.replace(/^-+/, '')
-  if (args[onlyFlag]) {
-    unknownArgs.push(args[onlyFlag])
-  }
-}
 
 async function main() {
   await runElectronTests()
@@ -53,7 +38,7 @@ async function runElectronTests() {
 
 async function runMainProcessElectronTests() {
   let exe = require('electron')
-  const runnerArgs = ['spec', ...unknownArgs.slice(2)]
+  const runnerArgs = ['spec', ...process.argv.slice(2).filter((arg) => arg !== '--')]
 
   // Fix issue in CI
   // "The SUID sandbox helper binary was found, but is not configured correctly."

@@ -123,6 +123,44 @@ function reloadActiveTab() {
   if (tabStore.activeTabId) tabStore.reload(tabStore.activeTabId)
 }
 
+// 状态栏 URL 点击进入编辑
+const isEditingStatusBarUrl = ref(false)
+const statusBarUrlDraft = ref('')
+const statusBarUrlInput = ref<HTMLInputElement | null>(null)
+
+async function startEditStatusBarUrl() {
+  if (!tabStore.activeTabId) return
+  statusBarUrlDraft.value = tabStore.activeTab?.url || ''
+  isEditingStatusBarUrl.value = true
+  await nextTick()
+  statusBarUrlInput.value?.focus()
+  statusBarUrlInput.value?.select()
+}
+
+// 已带协议（https:、file:、sessionbox: 等）直接使用；localhost/IP/域名形态补 https://
+function normalizeUrlInput(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed) return ''
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) return trimmed
+  if (/^(localhost|\d{1,3}(\.\d{1,3}){3})(:\d+)?(\/|$)/.test(trimmed) || /^[\w-]+(\.[\w-]+)+/.test(trimmed)) {
+    return `https://${trimmed}`
+  }
+  return trimmed
+}
+
+function commitStatusBarUrl() {
+  if (!isEditingStatusBarUrl.value) return
+  isEditingStatusBarUrl.value = false
+  const tab = tabStore.activeTab
+  if (!tab) return
+  const url = normalizeUrlInput(statusBarUrlDraft.value)
+  if (url && url !== tab.url) tabStore.navigate(tab.id, url)
+}
+
+function cancelStatusBarUrl() {
+  isEditingStatusBarUrl.value = false
+}
+
 async function handleDetectProxy(): Promise<void> {
   if (!tabStore.activeTabId || !tabStore.activeProxyInfo?.enabled) return
   if (tabStore.activeProxyInfo?.status === 'checking') return
@@ -856,7 +894,7 @@ useIpcEvent('shortcut', (actionId) => {
                   class="absolute bottom-[3px] inset-x-0 z-20"
                 >
                   <div class="h-6 w-full border-t bg-background/95 backdrop-blur-sm px-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                    <div class="flex items-center gap-2 min-w-0">
+                    <div class="flex-1 flex items-center gap-2 min-w-0">
                       <!-- 刷新/加载中 -->
                       <Button
                         variant="ghost"
@@ -875,7 +913,21 @@ useIpcEvent('shortcut', (actionId) => {
                           class="w-3 h-3"
                         />
                       </Button>
-                      <span class="truncate">
+                      <input
+                        v-if="isEditingStatusBarUrl"
+                        ref="statusBarUrlInput"
+                        v-model="statusBarUrlDraft"
+                        class="flex-1 min-w-0 h-5 px-1 rounded-sm bg-transparent border border-border text-[11px] text-foreground outline-none"
+                        spellcheck="false"
+                        @keyup.enter="commitStatusBarUrl"
+                        @keyup.esc="cancelStatusBarUrl"
+                        @blur="commitStatusBarUrl"
+                      >
+                      <span
+                        v-else
+                        class="truncate cursor-text"
+                        @click="startEditStatusBarUrl"
+                      >
                         {{ tabStore.activeTab?.url || '就绪' }}
                       </span>
                     </div>

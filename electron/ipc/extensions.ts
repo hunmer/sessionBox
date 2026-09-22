@@ -327,11 +327,10 @@ export function registerExtensionHandlers(): void {
     'extension:openBrowserActionPopup',
     async (
       _event,
-      containerId: string | null,
       extensionId: string,
       anchorRect: { x: number; y: number; width: number; height: number; alignment?: string }
     ): Promise<void> => {
-      openExtensionBrowserActionPopup(containerId, extensionId, anchorRect)
+      openExtensionBrowserActionPopup(extensionId, anchorRect)
     }
   )
 }

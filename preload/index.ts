@@ -417,10 +417,9 @@ const api = {
       ipcRenderer.invoke('extension:update', id, data),
     getLoaded: (): Promise<string[]> => ipcRenderer.invoke('extension:getLoaded'),
     openBrowserActionPopup: (
-      containerId: string | null,
       extensionId: string,
       anchorRect: { x: number; y: number; width: number; height: number; alignment?: string }
-    ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', containerId, extensionId, anchorRect),
+    ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', extensionId, anchorRect),
     completeTabCreate: (
       requestId: string,
       result: { tabId?: string; error?: string }

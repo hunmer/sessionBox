@@ -44,6 +44,9 @@ export class PopupView extends EventEmitter {
   private destroyed: boolean = false
   private hidden: boolean = true
   private alignment?: string
+  private initialSizeApplied: boolean = false
+  private pendingPreferredSize?: Electron.Size
+  private preferredSizeTimer?: ReturnType<typeof setTimeout>
 
   /** Preferred size changes are only received in Electron v12+ */
   private usingPreferredSize = supportsPreferredSize()
@@ -130,6 +133,10 @@ export class PopupView extends EventEmitter {
     if (this.destroyed) return
 
     this.destroyed = true
+    if (this.preferredSizeTimer) {
+      clearTimeout(this.preferredSizeTimer)
+      this.preferredSizeTimer = undefined
+    }
 
     d(`destroying ${this.extensionId}`)
 
@@ -275,11 +282,23 @@ export class PopupView extends EventEmitter {
 
   private updatePreferredSize = (event: Electron.Event, size: Electron.Size) => {
     d('updatePreferredSize', size)
-    this.usingPreferredSize = true
-    this.setSize(size)
-    this.updatePosition()
+    if (this.initialSizeApplied || this.destroyed) return
 
-    // Wait to reveal popup until it's sized and positioned correctly
-    if (this.hidden) this.show()
+    this.usingPreferredSize = true
+    this.pendingPreferredSize = size
+    if (this.preferredSizeTimer) clearTimeout(this.preferredSizeTimer)
+
+    // Resizing a popup can add/remove its scrollbar, which emits another
+    // preferred-size event and otherwise creates an endless resize loop.
+    this.preferredSizeTimer = setTimeout(() => {
+      this.preferredSizeTimer = undefined
+      if (this.destroyed || this.initialSizeApplied || !this.pendingPreferredSize) return
+
+      this.setSize(this.pendingPreferredSize)
+      this.updatePosition()
+      this.initialSizeApplied = true
+      this.pendingPreferredSize = undefined
+      if (this.hidden) this.show()
+    }, 32)
   }
 }

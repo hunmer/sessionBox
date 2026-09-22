@@ -132,8 +132,34 @@ const escapePattern = (pattern: string) => pattern.replace(/[\\^$+?.()|[\]{}]/g,
  */
 export const matchesPattern = (pattern: string, url: string) => {
   if (pattern === '<all_urls>') return true
-  const regexp = new RegExp(`^${pattern.split('*').map(escapePattern).join('.*')}$`)
-  return url.match(regexp)
+
+  const match = pattern.match(/^(\*|http|https|file|ftp):\/\/([^/]*)(\/.*)$/)
+  if (!match) return false
+
+  try {
+    const [, scheme, hostPattern, pathPattern] = match
+    const parsed = new URL(url)
+    const actualScheme = parsed.protocol.slice(0, -1)
+    if (scheme === '*') {
+      if (actualScheme !== 'http' && actualScheme !== 'https') return false
+    } else if (actualScheme !== scheme) {
+      return false
+    }
+
+    const hostname = parsed.hostname.toLowerCase()
+    const host = hostPattern.toLowerCase()
+    const hostMatches =
+      host === '*' ||
+      host === hostname ||
+      (host.startsWith('*.') && (hostname === host.slice(2) || hostname.endsWith(host.slice(1))))
+    if (!hostMatches) return false
+
+    const path = `${parsed.pathname}${parsed.search}`
+    const pathRegexp = new RegExp(`^${pathPattern.split('*').map(escapePattern).join('.*')}$`)
+    return pathRegexp.test(path)
+  } catch {
+    return false
+  }
 }
 
 export const matchesTitlePattern = (pattern: string, title: string) => {

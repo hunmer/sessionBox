@@ -1,103 +1,353 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { ipcMain } from 'electron'
+import { dirname, join, resolve, sep } from 'node:path'
+import type { ExtensionContext } from '../context'
 import type { ExtensionEvent } from '../router'
 import { matchesPattern } from './common'
 
 type UserScript = chrome.userScripts.RegisteredUserScript & {
-  matches?: string[]
+  allFrames?: boolean
+  excludeGlobs?: string[]
   excludeMatches?: string[]
   includeGlobs?: string[]
-  excludeGlobs?: string[]
+  matches?: string[]
+  runAt?: 'document_start' | 'document_end' | 'document_idle'
+  world?: 'MAIN' | 'USER_SCRIPT'
+  worldId?: string
+}
+
+type WorldProperties = {
+  csp?: string
+  messaging?: boolean
+  worldId?: string
+}
+
+export type DocumentUserScript = {
+  code: string
+  extensionId: string
+  runAt: 'document_start' | 'document_end' | 'document_idle'
+  scriptId: string
+  world: 'MAIN' | 'USER_SCRIPT'
+  worldCsp?: string
+  worldId: number
+  worldName: string
+  worldOrigin: string
+}
+
+type ExtensionScripts = {
+  extension: Electron.Extension
+  scripts: Map<string, UserScript>
+  worlds: Map<string, WorldProperties>
+}
+
+type PersistedExtensionScripts = {
+  scripts: UserScript[]
+  worlds: Record<string, WorldProperties>
+}
+
+type PersistedUserScripts = {
+  version: 1
+  extensions: Record<string, PersistedExtensionScripts>
+}
+
+const documentStartChannel = 'crx-user-scripts:document-start'
+const executionChannel = 'crx-user-scripts:execution'
+const instances = new WeakMap<Electron.Session, UserScriptsAPI>()
+let documentStartHandlerInstalled = false
+
+function matchesGlob(pattern: string, url: string): boolean {
+  const expression = pattern
+    .replace(/[|\\{}()[\]^$+?.]/g, '\\$&')
+    .replace(/\*/g, '.*')
+  return new RegExp(`^${expression}$`).test(url)
 }
 
 function matchesScript(script: UserScript, url: string): boolean {
   const matches = script.matches ?? ['<all_urls>']
   if (!matches.some((pattern) => matchesPattern(pattern, url))) return false
   if (script.excludeMatches?.some((pattern) => matchesPattern(pattern, url))) return false
+  if (script.includeGlobs?.length && !script.includeGlobs.some((pattern) => matchesGlob(pattern, url))) {
+    return false
+  }
+  if (script.excludeGlobs?.some((pattern) => matchesGlob(pattern, url))) return false
   return true
 }
 
-export class UserScriptsAPI {
-  private scripts = new Map<string, Map<string, UserScript>>()
-  private nextWorldId = 1000
+function createWorldId(extensionId: string, worldId: string): number {
+  let hash = 0
+  for (const character of `${extensionId}:${worldId}`) {
+    hash = (hash * 31 + character.charCodeAt(0)) | 0
+  }
+  // Keep away from Electron's reserved context-isolation world (999).
+  return 1_000_000 + (hash >>> 0) % 1_000_000_000
+}
 
-  constructor(private ctx: { store: any }) {
-    const handle = (ctx as any).router.apiHandler()
+function getScriptCode(extension: Electron.Extension, script: UserScript): string {
+  return (script.js ?? [])
+    .flatMap((item: any) => {
+      if (typeof item.code === 'string') return [item.code]
+      if (typeof item.file !== 'string') return []
+
+      const filePath = resolve(extension.path, item.file)
+      if (!filePath.startsWith(`${extension.path}${sep}`)) return []
+      try {
+        return [readFileSync(filePath, 'utf8')]
+      } catch (error) {
+        console.warn('[electron-chrome-extensions] unable to read user script file', {
+          extensionId: extension.id,
+          scriptId: script.id,
+          file: item.file,
+          message: error instanceof Error ? error.message : String(error)
+        })
+        return []
+      }
+    })
+    .join('\n')
+}
+
+export class UserScriptsAPI {
+  private scripts = new Map<string, ExtensionScripts>()
+
+  constructor(private ctx: ExtensionContext) {
+    const handle = ctx.router.apiHandler()
     handle('userScripts.register', this.register)
     handle('userScripts.unregister', this.unregister)
     handle('userScripts.update', this.update)
     handle('userScripts.getScripts', this.getScripts)
     handle('userScripts.configureWorld', this.configureWorld)
-    this.ctx.store.on('tab-added', (tab: Electron.WebContents) => {
-      this.attachTab(tab)
+
+    instances.set(ctx.session, this)
+    this.installDocumentStartHandler()
+    this.restoreLoadedExtensions()
+    this.observeExtensions()
+  }
+
+  private getStorageFilePath(): string | undefined {
+    const storagePath = this.ctx.session.getStoragePath()
+    return storagePath ? join(storagePath, 'electron-chrome-extensions', 'user-scripts.json') : undefined
+  }
+
+  private readPersistedScripts(): PersistedUserScripts {
+    const filePath = this.getStorageFilePath()
+    if (!filePath || !existsSync(filePath)) return { version: 1, extensions: {} }
+
+    try {
+      const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as Partial<PersistedUserScripts>
+      if (parsed.version !== 1 || !parsed.extensions || typeof parsed.extensions !== 'object') {
+        return { version: 1, extensions: {} }
+      }
+      return { version: 1, extensions: parsed.extensions }
+    } catch (error) {
+      console.warn('[electron-chrome-extensions] unable to read persisted user scripts', {
+        filePath,
+        message: error instanceof Error ? error.message : String(error)
+      })
+      return { version: 1, extensions: {} }
+    }
+  }
+
+  private persistExtension(extensionId: string): void {
+    const filePath = this.getStorageFilePath()
+    if (!filePath) return
+
+    const persisted = this.readPersistedScripts()
+    const target = this.scripts.get(extensionId)
+    if (!target) {
+      delete persisted.extensions[extensionId]
+    } else {
+      persisted.extensions[extensionId] = {
+        scripts: [...target.scripts.values()],
+        worlds: Object.fromEntries(target.worlds)
+      }
+    }
+
+    try {
+      mkdirSync(dirname(filePath), { recursive: true })
+      writeFileSync(filePath, JSON.stringify(persisted), 'utf8')
+    } catch (error) {
+      console.warn('[electron-chrome-extensions] unable to persist user scripts', {
+        extensionId,
+        filePath,
+        message: error instanceof Error ? error.message : String(error)
+      })
+    }
+  }
+
+  private restoreExtension(extension: Electron.Extension): void {
+    const saved = this.readPersistedScripts().extensions[extension.id]
+    if (!saved) return
+
+    const target = this.getExtensionScripts(extension)
+    target.scripts.clear()
+    target.worlds.clear()
+    target.worlds.set('default', {})
+
+    for (const script of saved.scripts ?? []) {
+      if (script.id) target.scripts.set(script.id, script)
+    }
+    for (const [worldId, properties] of Object.entries(saved.worlds ?? {})) {
+      target.worlds.set(worldId, properties)
+    }
+
+    console.info('[electron-chrome-extensions] restored persisted user scripts', {
+      extensionId: extension.id,
+      scriptCount: target.scripts.size,
+      storagePath: this.getStorageFilePath()
     })
   }
 
-  private attachTab(tab: Electron.WebContents): void {
-    const run = () => {
-      if (tab.isDestroyed()) return
-      const url = tab.getURL()
-      for (const scripts of this.scripts.values()) {
-        for (const script of scripts.values()) {
-          if (!matchesScript(script, url)) continue
-          const code = (script.js ?? []).map((item: any) => item.code).filter(Boolean).join('\n')
-          if (!code) continue
-          console.info('[electron-chrome-extensions] injecting user script', {
-            extensionId: [...this.scripts.entries()].find(([, scripts]) => scripts.has(script.id!))?.[0],
-            scriptId: script.id,
-            url
-          })
-          void tab.executeJavaScriptInIsolatedWorld(this.nextWorldId++, [{ code }], false).catch((error) => {
-            console.warn('[electron-chrome-extensions] user script injection failed', {
-              scriptId: script.id,
-              message: error instanceof Error ? error.message : String(error)
-            })
-          })
-        }
-      }
-    }
-    tab.on('did-finish-load', run)
-    run()
+  private restoreLoadedExtensions(): void {
+    const sessionExtensions = this.ctx.session.extensions || this.ctx.session
+    sessionExtensions.getAllExtensions().forEach((extension) => this.restoreExtension(extension))
   }
 
-  private getExtensionScripts(extensionId: string): Map<string, UserScript> {
-    let scripts = this.scripts.get(extensionId)
+  private observeExtensions(): void {
+    const sessionExtensions = this.ctx.session.extensions || this.ctx.session
+    sessionExtensions.on('extension-loaded', (_event, extension) => this.restoreExtension(extension))
+    sessionExtensions.on('extension-unloaded', (_event, extension) => this.scripts.delete(extension.id))
+  }
+
+  private installDocumentStartHandler(): void {
+    if (documentStartHandlerInstalled) return
+    documentStartHandlerInstalled = true
+    ipcMain.on(documentStartChannel, (event, details: { url?: string; topFrame?: boolean }) => {
+      const api = instances.get(event.sender.session)
+      event.returnValue = api?.getDocumentScripts(details.url ?? '', details.topFrame === true) ?? []
+    })
+    ipcMain.on(executionChannel, (event, details: Record<string, unknown>) => {
+      const api = instances.get(event.sender.session)
+      if (!api) return
+      console.info('[electron-chrome-extensions] user script execution', details)
+    })
+  }
+
+  private getExtensionScripts(extension: Electron.Extension): ExtensionScripts {
+    let scripts = this.scripts.get(extension.id)
     if (!scripts) {
-      scripts = new Map()
-      this.scripts.set(extensionId, scripts)
+      scripts = {
+        extension,
+        scripts: new Map(),
+        worlds: new Map([['default', {}]])
+      }
+      this.scripts.set(extension.id, scripts)
     }
     return scripts
   }
 
-  register = async (event: ExtensionEvent, scripts: UserScript[]): Promise<UserScript[]> => {
+  getDocumentScripts(url: string, topFrame: boolean): DocumentUserScript[] {
+    if (!url) return []
+
+    const result: DocumentUserScript[] = []
+    for (const [extensionId, extensionScripts] of this.scripts) {
+      for (const script of extensionScripts.scripts.values()) {
+        if (!script.allFrames && !topFrame) continue
+        if (!matchesScript(script, url)) continue
+
+        const code = getScriptCode(extensionScripts.extension, script)
+        if (!code) continue
+
+        const configuredWorldId = script.worldId ?? 'default'
+        const world = script.world ?? 'USER_SCRIPT'
+        const worldProperties = extensionScripts.worlds.get(configuredWorldId) ?? {}
+        result.push({
+          code: `${code}\nvoid 0\n//# sourceURL=chrome-extension://${extensionId}/${encodeURIComponent(script.id ?? 'user-script')}.user-script.js`,
+          extensionId,
+          runAt: script.runAt ?? 'document_idle',
+          scriptId: script.id!,
+          world,
+          worldCsp: worldProperties.csp,
+          worldId: createWorldId(extensionId, configuredWorldId),
+          worldName: `Chrome USER_SCRIPT: ${extensionId}/${configuredWorldId}`,
+          worldOrigin: `chrome-extension://${extensionId}`
+        })
+      }
+    }
+
+    result.sort((left, right) => {
+      if (left.extensionId !== right.extensionId) {
+        return left.extensionId.localeCompare(right.extensionId)
+      }
+      return left.scriptId.localeCompare(right.scriptId, 'en', { numeric: true })
+    })
+
+    console.info('[electron-chrome-extensions] user scripts resolved for document', {
+      url,
+      topFrame,
+      registeredExtensions: this.scripts.size,
+      scripts: result.map((script) => ({
+        extensionId: script.extensionId,
+        scriptId: script.scriptId,
+        runAt: script.runAt,
+        world: script.world
+      }))
+    })
+    return result
+  }
+
+  register = async (event: ExtensionEvent, scripts: UserScript[]): Promise<void> => {
     const extensionId = event.extension.id
-    const target = this.getExtensionScripts(extensionId)
-    const registered = scripts.map((script) => ({
-      ...script,
-      id: script.id || `${extensionId}-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    }))
-    registered.forEach((script) => target.set(script.id!, script))
+    const target = this.getExtensionScripts(event.extension)
+    if (scripts.some((script) => !script.id || script.id.startsWith('_'))) {
+      throw new Error('User script IDs must be non-empty and cannot start with "_"')
+    }
+    if (scripts.some((script) => !script.js?.length || !script.matches?.length)) {
+      throw new Error('User scripts require non-empty js and matches arrays')
+    }
+    const ids = new Set(scripts.map((script) => script.id!))
+    if (ids.size !== scripts.length || scripts.some((script) => target.scripts.has(script.id!))) {
+      throw new Error('A user script with this ID is already registered')
+    }
+    scripts.forEach((script) => target.scripts.set(script.id!, { ...script }))
+    this.persistExtension(extensionId)
     console.info('[electron-chrome-extensions] user scripts registered', {
       extensionId,
-      scriptIds: registered.map((script) => script.id)
+      scripts: scripts.map((script) => ({
+        id: script.id,
+        runAt: script.runAt ?? 'document_idle',
+        world: script.world ?? 'USER_SCRIPT',
+        worldId: script.worldId ?? 'default',
+        sources: script.js?.map((item: any) => item.file || (item.code ? 'inline' : 'unknown'))
+      }))
     })
-    for (const tab of this.ctx.store.tabs) this.attachTab(tab)
-    return registered
   }
 
-  unregister = async (event: ExtensionEvent, details: { ids: string[] }): Promise<void> => {
-    const target = this.getExtensionScripts(event.extension.id)
-    for (const id of details.ids) target.delete(id)
+  unregister = async (event: ExtensionEvent, details: { ids?: string[] }): Promise<void> => {
+    const target = this.getExtensionScripts(event.extension)
+    if (!details.ids) {
+      target.scripts.clear()
+      this.persistExtension(event.extension.id)
+      return
+    }
+    for (const id of details.ids) target.scripts.delete(id)
+    this.persistExtension(event.extension.id)
   }
 
-  update = async (event: ExtensionEvent, scripts: UserScript[]): Promise<UserScript[]> => {
-    const target = this.getExtensionScripts(event.extension.id)
-    const updated = scripts.map((script) => ({ ...target.get(script.id!)!, ...script }))
-    updated.forEach((script) => target.set(script.id!, script))
-    return updated
+  update = async (event: ExtensionEvent, scripts: UserScript[]): Promise<void> => {
+    const target = this.getExtensionScripts(event.extension)
+    if (scripts.some((update) => !update.id || !target.scripts.has(update.id))) {
+      throw new Error('Cannot update an unknown user script')
+    }
+    const updated = scripts.map((update) => ({ ...target.scripts.get(update.id!)!, ...update }))
+    updated.forEach((script) => target.scripts.set(script.id!, script))
+    this.persistExtension(event.extension.id)
   }
 
-  getScripts = async (event: ExtensionEvent): Promise<UserScript[]> => {
-    return [...this.getExtensionScripts(event.extension.id).values()]
+  getScripts = async (event: ExtensionEvent, filter?: { ids?: string[] }): Promise<UserScript[]> => {
+    const scripts = [...this.getExtensionScripts(event.extension).scripts.values()]
+    return filter?.ids ? scripts.filter((script) => filter.ids!.includes(script.id!)) : scripts
   }
 
-  configureWorld = async (): Promise<void> => {}
+  configureWorld = async (event: ExtensionEvent, properties: WorldProperties): Promise<void> => {
+    const worldId = properties.worldId ?? 'default'
+    if (worldId.startsWith('_')) throw new Error('User script world IDs starting with "_" are reserved')
+    const target = this.getExtensionScripts(event.extension)
+    target.worlds.set(worldId, { ...properties, worldId })
+    this.persistExtension(event.extension.id)
+    console.info('[electron-chrome-extensions] user script world configured', {
+      extensionId: event.extension.id,
+      worldId,
+      hasCsp: typeof properties.csp === 'string',
+      messaging: properties.messaging === true
+    })
+  }
 }

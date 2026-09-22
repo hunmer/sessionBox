@@ -95,13 +95,12 @@ app
 
     await cleanupTestSessions()
 
-    const argv = require('yargs')
-      .boolean('ci')
-      .array('files')
-      .string('g')
-      .alias('g', 'grep')
-      .boolean('i')
-      .alias('i', 'invert').argv
+    const argv = require('minimist')(process.argv.slice(2), {
+      boolean: ['ci', 'i', 'invert'],
+      string: ['g', 'grep'],
+      alias: { g: 'grep', i: 'invert' }
+    })
+    if (typeof argv.files === 'string') argv.files = [argv.files]
 
     const Mocha = require('mocha')
     const mochaOptions = {}
@@ -138,6 +137,7 @@ app
     if (argv.grep) mocha.grep(argv.grep)
     if (argv.invert) mocha.invert()
 
+    const requestedFiles = argv.files?.map((file) => file.replace(/\\/g, '/'))
     const filter = (file) => {
       if (!/-spec\.[tj]s$/.test(file)) {
         return false
@@ -153,7 +153,8 @@ app
       }
 
       const baseElectronDir = path.resolve(__dirname, '..')
-      if (argv.files && !argv.files.includes(path.relative(baseElectronDir, file))) {
+      const relativeFile = path.relative(baseElectronDir, file).replace(/\\/g, '/')
+      if (requestedFiles && !requestedFiles.includes(relativeFile)) {
         return false
       }
 

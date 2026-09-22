@@ -8,29 +8,18 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useExtensionStore } from '@/stores/extension'
-import { usePageStore } from '@/stores/page'
-import { useContainerStore } from '@/stores/container'
 import { useTabStore } from '@/stores/tab'
 import ExtensionMiniPopover from '@/components/common/ExtensionMiniPopover.vue'
 
 const props = withDefaults(defineProps<{ vertical?: boolean }>(), { vertical: false })
 
 const extensionStore = useExtensionStore()
-const pageStore = usePageStore()
-const containerStore = useContainerStore()
 const tabStore = useTabStore()
 
 const isLoading = ref(false)
 const managerOpen = ref(false)
 
 const enabledExtensions = computed(() => extensionStore.extensions.filter((e) => e.enabled))
-
-const currentContainerId = computed(() => {
-  const pageId = tabStore.activeTab?.pageId
-  if (!pageId) return null
-  const page = pageStore.getPage(pageId)
-  return page?.containerId ?? null
-})
 
 onMounted(async () => {
   if (extensionStore.extensions.length === 0) {
@@ -43,7 +32,7 @@ onMounted(async () => {
 async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
-  await window.api.extension.openBrowserActionPopup(currentContainerId.value, extensionId, {
+  await window.api.extension.openBrowserActionPopup(extensionId, {
     x: rect.left,
     y: rect.top,
     width: rect.width,

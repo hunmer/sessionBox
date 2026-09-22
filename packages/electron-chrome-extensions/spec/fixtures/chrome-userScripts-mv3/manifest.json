@@ -1,0 +1,10 @@
+{
+  "name": "chrome-userScripts-mv3",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "permissions": ["userScripts"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
