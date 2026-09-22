@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { ipcMain } from 'electron'
 import { dirname, join, resolve, sep } from 'node:path'
@@ -30,7 +29,6 @@ export type DocumentUserScript = {
   scriptId: string
   world: 'MAIN' | 'USER_SCRIPT'
   worldCsp?: string
-  worldMessaging: boolean
   worldId: number
   worldName: string
   worldOrigin: string
@@ -67,26 +65,8 @@ type InitializationWaiter = {
 
 const documentStartChannel = 'crx-user-scripts:document-start'
 const executionChannel = 'crx-user-scripts:execution'
-const sendMessageChannel = 'crx-user-scripts:send-message'
-const connectChannel = 'crx-user-scripts:connect'
-const responseChannel = 'crx-user-scripts:response'
-const portMessageChannel = 'crx-user-scripts:port-message'
-const portDisconnectChannel = 'crx-user-scripts:port-disconnect'
 const instances = new WeakMap<Electron.Session, UserScriptsAPI>()
 let documentStartHandlerInstalled = false
-
-type PendingMessage = {
-  sender: Electron.WebContents
-  worldId: number
-  timer: ReturnType<typeof setTimeout>
-  resolve: (response: unknown) => void
-}
-
-type UserScriptPort = {
-  extensionId: string
-  sender: Electron.WebContents
-  worldId: number
-}
 
 function matchesGlob(pattern: string, url: string): boolean {
   const expression = pattern
@@ -144,8 +124,6 @@ function getScriptCode(extension: Electron.Extension, script: UserScript): strin
 export class UserScriptsAPI {
   private scripts = new Map<string, ExtensionScripts>()
   private initializationWaiters = new Map<string, InitializationWaiter>()
-  private pendingMessages = new Map<string, PendingMessage>()
-  private ports = new Map<string, UserScriptPort>()
 
   constructor(private ctx: ExtensionContext) {
     const handle = ctx.router.apiHandler()
@@ -384,26 +362,6 @@ export class UserScriptsAPI {
       return scripts
     }
     ipcMain.handle(documentStartChannel, getDocumentScripts)
-    ipcMain.handle(sendMessageChannel, (event, details) => {
-      const api = instances.get(event.sender.session)
-      return api?.sendUserScriptMessage(event, details) ?? undefined
-    })
-    ipcMain.on(connectChannel, (event, details) => {
-      const api = instances.get(event.sender.session)
-      api?.connectUserScriptPort(event, details)
-    })
-    ipcMain.on(responseChannel, (event, details) => {
-      const api = instances.get(event.sender.session)
-      api?.resolveUserScriptMessage(details)
-    })
-    ipcMain.on(portMessageChannel, (event, details) => {
-      const api = instances.get(event.sender.session)
-      api?.forwardUserScriptPortMessage(event, details)
-    })
-    ipcMain.on(portDisconnectChannel, (event, details) => {
-      const api = instances.get(event.sender.session)
-      api?.disconnectUserScriptPort(event, details)
-    })
     ipcMain.on(executionChannel, (event, details: Record<string, unknown>) => {
       const api = instances.get(event.sender.session)
       if (!api) return
@@ -450,7 +408,6 @@ export class UserScriptsAPI {
           scriptId: script.id!,
         world,
         worldCsp: worldProperties.csp,
-        worldMessaging: worldProperties.messaging === true,
         worldId: createWorldId(extensionId, configuredWorldId),
           worldName: `Chrome USER_SCRIPT: ${extensionId}/${configuredWorldId}`,
           worldOrigin: `chrome-extension://${extensionId}`
@@ -558,125 +515,4 @@ export class UserScriptsAPI {
     })
   }
 
-  private isMessagingWorld(extensionId: string, worldId: number): boolean {
-    const target = this.scripts.get(extensionId)
-    if (!target) return false
-    for (const [configuredWorldId, properties] of target.worlds) {
-      if (properties.messaging === true && createWorldId(extensionId, configuredWorldId) === worldId) {
-        return true
-      }
-    }
-    return false
-  }
-
-  private getWorkerScope(extensionId: string): string {
-    return `chrome-extension://${extensionId}/`
-  }
-
-  private getUserScriptSender(event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent) {
-    const sender = event.sender
-    return {
-      url: sender.getURL(),
-      frameId: 0,
-      tab: { id: sender.id }
-    }
-  }
-
-  private async sendUserScriptMessage(
-    event: Electron.IpcMainInvokeEvent,
-    details: { extensionId?: string; worldId?: number; message?: unknown }
-  ): Promise<unknown> {
-    const extensionId = typeof details?.extensionId === 'string' ? details.extensionId : ''
-    const worldId = typeof details?.worldId === 'number' ? details.worldId : 0
-    if (!extensionId || !this.isMessagingWorld(extensionId, worldId)) return undefined
-
-    const requestId = randomUUID()
-    const response = new Promise<unknown>((resolve) => {
-      const timer = setTimeout(() => {
-        this.pendingMessages.delete(requestId)
-        resolve(undefined)
-      }, 2_000)
-      this.pendingMessages.set(requestId, { sender: event.sender, worldId, timer, resolve })
-    })
-
-    this.ctx.router.sendEvent(extensionId, 'runtime.onUserScriptMessage', {
-      requestId,
-      message: details.message,
-      sender: this.getUserScriptSender(event)
-    })
-    return response
-  }
-
-  private resolveUserScriptMessage(details: { requestId?: string; response?: unknown }): void {
-    if (typeof details?.requestId !== 'string') return
-    const pending = this.pendingMessages.get(details.requestId)
-    if (!pending) return
-    clearTimeout(pending.timer)
-    this.pendingMessages.delete(details.requestId)
-    pending.resolve(details.response)
-  }
-
-  private connectUserScriptPort(
-    event: Electron.IpcMainEvent,
-    details: { extensionId?: string; worldId?: number; portId?: string; name?: string }
-  ): void {
-    const extensionId = typeof details?.extensionId === 'string' ? details.extensionId : ''
-    const worldId = typeof details?.worldId === 'number' ? details.worldId : 0
-    const portId = typeof details?.portId === 'string' ? details.portId : ''
-    if (!extensionId || !portId || !this.isMessagingWorld(extensionId, worldId)) return
-
-    this.ports.set(portId, { extensionId, sender: event.sender, worldId })
-    this.ctx.router.sendEvent(extensionId, 'runtime.onUserScriptConnect', {
-      portId,
-      name: typeof details.name === 'string' ? details.name : '',
-      sender: this.getUserScriptSender(event)
-    })
-  }
-
-  private forwardUserScriptPortMessage(
-    event: Electron.IpcMainEvent | Electron.IpcMainServiceWorkerEvent,
-    details: { portId?: string; message?: unknown }
-  ): void {
-    const portId = typeof details?.portId === 'string' ? details.portId : ''
-    const port = this.ports.get(portId)
-    if (!port) return
-
-    if (event.type === 'service-worker') {
-      if (event.serviceWorker.scope !== this.getWorkerScope(port.extensionId)) return
-      if (!port.sender.isDestroyed()) {
-        port.sender.send(portMessageChannel, {
-          portId,
-          worldId: port.worldId,
-          message: details.message
-        })
-      }
-      return
-    }
-
-    if (event.sender !== port.sender) return
-    const scope = this.getWorkerScope(port.extensionId)
-    void this.ctx.session.serviceWorkers.startWorkerForScope(scope).then((worker) => {
-      worker.send(portMessageChannel, { portId, message: details.message })
-    })
-  }
-
-  private disconnectUserScriptPort(
-    event: Electron.IpcMainEvent | Electron.IpcMainServiceWorkerEvent,
-    details: { portId?: string }
-  ): void {
-    const portId = typeof details?.portId === 'string' ? details.portId : ''
-    const port = this.ports.get(portId)
-    if (!port) return
-    if (event.type === 'service-worker') {
-      if (event.serviceWorker.scope !== this.getWorkerScope(port.extensionId)) return
-      if (!port.sender.isDestroyed()) port.sender.send(portDisconnectChannel, { portId, worldId: port.worldId })
-    } else if (event.sender !== port.sender) {
-      return
-    } else {
-      void this.ctx.session.serviceWorkers.startWorkerForScope(this.getWorkerScope(port.extensionId)).then((worker) => {
-        worker.send(portDisconnectChannel, { portId })
-      })
-    }
-    this.ports.delete(portId)
-  }
 }

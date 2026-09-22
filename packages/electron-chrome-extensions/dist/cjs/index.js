@@ -2831,17 +2831,11 @@ var PermissionsAPI = class {
 };
 
 // src/browser/api/user-scripts.ts
-var import_node_crypto2 = require("node:crypto");
 var import_node_fs4 = require("node:fs");
 var import_electron11 = require("electron");
 var import_node_path2 = require("node:path");
 var documentStartChannel = "crx-user-scripts:document-start";
 var executionChannel = "crx-user-scripts:execution";
-var sendMessageChannel = "crx-user-scripts:send-message";
-var connectChannel = "crx-user-scripts:connect";
-var responseChannel = "crx-user-scripts:response";
-var portMessageChannel = "crx-user-scripts:port-message";
-var portDisconnectChannel = "crx-user-scripts:port-disconnect";
 var instances = /* @__PURE__ */ new WeakMap();
 var documentStartHandlerInstalled = false;
 function matchesGlob(pattern, url) {
@@ -2891,8 +2885,6 @@ var UserScriptsAPI = class {
     this.ctx = ctx;
     __publicField(this, "scripts", /* @__PURE__ */ new Map());
     __publicField(this, "initializationWaiters", /* @__PURE__ */ new Map());
-    __publicField(this, "pendingMessages", /* @__PURE__ */ new Map());
-    __publicField(this, "ports", /* @__PURE__ */ new Map());
     __publicField(this, "register", async (event, scripts) => {
       const extensionId = event.extension.id;
       const target = this.getExtensionScripts(event.extension);
@@ -3168,26 +3160,6 @@ var UserScriptsAPI = class {
       return scripts;
     };
     import_electron11.ipcMain.handle(documentStartChannel, getDocumentScripts);
-    import_electron11.ipcMain.handle(sendMessageChannel, (event, details) => {
-      const api = instances.get(event.sender.session);
-      return api?.sendUserScriptMessage(event, details) ?? void 0;
-    });
-    import_electron11.ipcMain.on(connectChannel, (event, details) => {
-      const api = instances.get(event.sender.session);
-      api?.connectUserScriptPort(event, details);
-    });
-    import_electron11.ipcMain.on(responseChannel, (event, details) => {
-      const api = instances.get(event.sender.session);
-      api?.resolveUserScriptMessage(details);
-    });
-    import_electron11.ipcMain.on(portMessageChannel, (event, details) => {
-      const api = instances.get(event.sender.session);
-      api?.forwardUserScriptPortMessage(event, details);
-    });
-    import_electron11.ipcMain.on(portDisconnectChannel, (event, details) => {
-      const api = instances.get(event.sender.session);
-      api?.disconnectUserScriptPort(event, details);
-    });
     import_electron11.ipcMain.on(executionChannel, (event, details) => {
       const api = instances.get(event.sender.session);
       if (!api) return;
@@ -3231,7 +3203,6 @@ void 0
           scriptId: script.id,
           world,
           worldCsp: worldProperties.csp,
-          worldMessaging: worldProperties.messaging === true,
           worldId: createWorldId(extensionId, configuredWorldId),
           worldName: `Chrome USER_SCRIPT: ${extensionId}/${configuredWorldId}`,
           worldOrigin: `chrome-extension://${extensionId}`
@@ -3256,103 +3227,6 @@ void 0
       }))
     });
     return result;
-  }
-  isMessagingWorld(extensionId, worldId) {
-    const target = this.scripts.get(extensionId);
-    if (!target) return false;
-    for (const [configuredWorldId, properties] of target.worlds) {
-      if (properties.messaging === true && createWorldId(extensionId, configuredWorldId) === worldId) {
-        return true;
-      }
-    }
-    return false;
-  }
-  getWorkerScope(extensionId) {
-    return `chrome-extension://${extensionId}/`;
-  }
-  getUserScriptSender(event) {
-    const sender = event.sender;
-    return {
-      url: sender.getURL(),
-      frameId: 0,
-      tab: { id: sender.id }
-    };
-  }
-  async sendUserScriptMessage(event, details) {
-    const extensionId = typeof details?.extensionId === "string" ? details.extensionId : "";
-    const worldId = typeof details?.worldId === "number" ? details.worldId : 0;
-    if (!extensionId || !this.isMessagingWorld(extensionId, worldId)) return void 0;
-    const requestId = (0, import_node_crypto2.randomUUID)();
-    const response = new Promise((resolve2) => {
-      const timer = setTimeout(() => {
-        this.pendingMessages.delete(requestId);
-        resolve2(void 0);
-      }, 2e3);
-      this.pendingMessages.set(requestId, { sender: event.sender, worldId, timer, resolve: resolve2 });
-    });
-    this.ctx.router.sendEvent(extensionId, "runtime.onUserScriptMessage", {
-      requestId,
-      message: details.message,
-      sender: this.getUserScriptSender(event)
-    });
-    return response;
-  }
-  resolveUserScriptMessage(details) {
-    if (typeof details?.requestId !== "string") return;
-    const pending = this.pendingMessages.get(details.requestId);
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.pendingMessages.delete(details.requestId);
-    pending.resolve(details.response);
-  }
-  connectUserScriptPort(event, details) {
-    const extensionId = typeof details?.extensionId === "string" ? details.extensionId : "";
-    const worldId = typeof details?.worldId === "number" ? details.worldId : 0;
-    const portId = typeof details?.portId === "string" ? details.portId : "";
-    if (!extensionId || !portId || !this.isMessagingWorld(extensionId, worldId)) return;
-    this.ports.set(portId, { extensionId, sender: event.sender, worldId });
-    this.ctx.router.sendEvent(extensionId, "runtime.onUserScriptConnect", {
-      portId,
-      name: typeof details.name === "string" ? details.name : "",
-      sender: this.getUserScriptSender(event)
-    });
-  }
-  forwardUserScriptPortMessage(event, details) {
-    const portId = typeof details?.portId === "string" ? details.portId : "";
-    const port = this.ports.get(portId);
-    if (!port) return;
-    if (event.type === "service-worker") {
-      if (event.serviceWorker.scope !== this.getWorkerScope(port.extensionId)) return;
-      if (!port.sender.isDestroyed()) {
-        port.sender.send(portMessageChannel, {
-          portId,
-          worldId: port.worldId,
-          message: details.message
-        });
-      }
-      return;
-    }
-    if (event.sender !== port.sender) return;
-    const scope = this.getWorkerScope(port.extensionId);
-    void this.ctx.session.serviceWorkers.startWorkerForScope(scope).then((worker) => {
-      worker.send(portMessageChannel, { portId, message: details.message });
-    });
-  }
-  disconnectUserScriptPort(event, details) {
-    const portId = typeof details?.portId === "string" ? details.portId : "";
-    const port = this.ports.get(portId);
-    if (!port) return;
-    if (event.type === "service-worker") {
-      if (event.serviceWorker.scope !== this.getWorkerScope(port.extensionId)) return;
-      if (!port.sender.isDestroyed()) port.sender.send(portDisconnectChannel, { portId, worldId: port.worldId });
-    } else if (event.sender !== port.sender) {
-      return;
-    } else {
-      void this.ctx.session.serviceWorkers.startWorkerForScope(this.getWorkerScope(port.extensionId)).then((worker) => {
-        worker.send(portDisconnectChannel, { portId });
-      });
-    }
-    this.ports.delete(portId);
   }
 };
 
