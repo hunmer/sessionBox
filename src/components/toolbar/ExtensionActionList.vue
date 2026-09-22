@@ -74,7 +74,7 @@ function openExtensionsPage() {
       <img
         v-if="ext.icon"
         :src="`extension-icon://${ext.id}`"
-        class="w-5 h-5 object-contain"
+        class="w-5 h-5 p-0.5 object-contain"
       >
       <span
         v-else

@@ -16,11 +16,18 @@ const opening = ref(false)
 async function openInChrome() {
   if (opening.value) return
   const url = tabStore.tabs.find((tab) => tab.id === props.tabId)?.url
-  if (!url) return
+  if (!url) {
+    notify.error('无法获取当前扩展页面地址')
+    return
+  }
 
   opening.value = true
+  const loadingId = notify.loading('正在安装 Chrome 扩展...')
   try {
     const extension = await window.api.extension.installFromWebStore(url)
+    if (!extension?.name) {
+      throw new Error('安装服务未返回扩展信息')
+    }
     await extensionStore.init()
     await extensionStore.refreshLoadedExtensions()
     notify.success(`扩展「${extension.name}」已安装并启用`)
@@ -30,6 +37,7 @@ async function openInChrome() {
       description: error instanceof Error ? error.message : String(error)
     })
   } finally {
+    notify.dismiss(loadingId)
     opening.value = false
   }
 }
