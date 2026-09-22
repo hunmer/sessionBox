@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { EventEmitter } from 'node:events';
 import { ChromeExtensionImpl } from './impl';
 import { License } from './license';

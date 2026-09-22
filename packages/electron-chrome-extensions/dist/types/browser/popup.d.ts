@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { EventEmitter } from 'node:events';
 import { BrowserWindow, Session } from 'electron';
 export interface PopupAnchorRect {

@@ -1,3 +1,5 @@
+/// <reference types="chrome" />
+/// <reference types="chrome" />
 export interface TabContents extends Electron.WebContents {
     favicon?: string;
 }

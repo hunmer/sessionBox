@@ -1,3 +1,4 @@
+/// <reference types="chrome" />
 export type IpcEvent = Electron.IpcMainEvent | Electron.IpcMainServiceWorkerEvent;
 export type IpcInvokeEvent = Electron.IpcMainInvokeEvent | Electron.IpcMainServiceWorkerInvokeEvent;
 export type IpcAnyEvent = IpcEvent | IpcInvokeEvent;

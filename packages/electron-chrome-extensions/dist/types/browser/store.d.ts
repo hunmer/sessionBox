@@ -1,3 +1,5 @@
+/// <reference types="chrome" />
+/// <reference types="node" />
 import { EventEmitter } from 'node:events';
 import { ContextMenuType } from './api/common';
 import { ChromeExtensionImpl } from './impl';
@@ -18,8 +20,8 @@ export declare class ExtensionStore extends EventEmitter {
     tabToWindow: WeakMap<Electron.WebContents, Electron.BaseWindow>;
     /** Map of windows to their active tab. */
     private windowToActiveTab;
-    tabDetailsCache: Map<number, chrome.tabs.Tab>;
-    windowDetailsCache: Map<number, chrome.windows.Window>;
+    tabDetailsCache: Map<number, Partial<chrome.tabs.Tab>>;
+    windowDetailsCache: Map<number, Partial<chrome.windows.Window>>;
     urlOverrides: Record<string, string>;
     constructor(impl: ChromeExtensionImpl);
     getWindowById(windowId: number): Electron.BaseWindow | undefined;

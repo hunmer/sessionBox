@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { EventEmitter } from 'node:events';
 import { ExtensionRouter } from './router';
 import { ExtensionStore } from './store';

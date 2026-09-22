@@ -1,3 +1,4 @@
+/// <reference types="chrome" />
 import type { ExtensionContext } from '../context';
 import type { ExtensionEvent } from '../router';
 type UserScript = chrome.userScripts.RegisteredUserScript & {

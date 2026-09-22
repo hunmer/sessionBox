@@ -1,3 +1,4 @@
+/// <reference types="chrome" />
 /** App-specific implementation details for extensions. */
 export interface ChromeExtensionImpl {
     createTab?(details: chrome.tabs.CreateProperties): Promise<[Electron.WebContents, Electron.BaseWindow]>;

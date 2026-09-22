@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { EventEmitter } from 'node:events';
 import { ExtensionContext } from '../context';
 export declare class RuntimeAPI extends EventEmitter {
