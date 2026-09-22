@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "chrome-userScripts-alert-mv3",
+  "version": "1.0.0",
+  "description": "\u7528\u4e8e\u6d4b\u8bd5\u6269\u5c55\u5bfc\u5165\u3001popup \u548c userscript \u7684\u6700\u5c0f Chrome \u6269\u5c55\u3002",
+  "permissions": [
+    "userScripts"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

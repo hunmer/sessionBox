@@ -2,12 +2,19 @@
   "manifest_version": 3,
   "name": "SessionBox Popup Demo",
   "version": "1.0.0",
-  "description": "用于测试扩展导入和 popup 展示的最小 Chrome 扩展。",
+  "description": "用于测试扩展导入、popup 和 userscript 的最小 Chrome 扩展。",
   "action": {
     "default_title": "SessionBox Demo",
     "default_popup": "popup.html"
   },
   "permissions": [
-    "storage"
-  ]
+    "storage",
+    "userScripts"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
 }

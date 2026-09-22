@@ -4,11 +4,44 @@
 
 继续提高本地 `packages/electron-chrome-extensions` 的通用 MV3 兼容性，重点让 Tampermonkey Beta 的 `chrome.userScripts` 注入、popup、当前 Tab/Session 关联稳定工作。禁止按 Tampermonkey 扩展 ID、百度域名或 Tampermonkey 源码做特判。
 
-仓库状态：`master`，HEAD `b3a8dee`。工作区有未提交修改，先执行 `git status --short` 与 `git diff` 阅读现状，不要覆盖用户已有改动。
+仓库状态：`master`，HEAD `e62e0db`。工作区有未提交修改，先执行 `git status --short` 与 `git diff` 阅读现状，不要覆盖用户已有改动。
 
-## 本轮结论
+当前未提交修改包括：
 
-网页黑屏和 renderer 崩溃已解决。根因不是 Tampermonkey 两段脚本并发，也不是 CSP 内容，而是 `createWorldId()` 生成了超过 Blink 合法范围的隔离 world ID。
+- `test-assets/chrome-popup-demo/manifest.json`
+- `test-assets/chrome-popup-demo/background.js`
+- `test-assets/chrome-popup-demo/userscript.js`
+- `test-assets/chrome-popup-demo/README.md`
+- `packages/electron-chrome-extensions/spec/chrome-userScripts-alert-spec.ts`
+- `packages/electron-chrome-extensions/spec/fixtures/chrome-userScripts-alert-mv3/`
+
+## 本轮新增结论：最小 MV3 userscript 基线已通过
+
+在继续分析真实 Tampermonkey 前，已先建立一个不依赖 Tampermonkey 黑盒的最小 MV3 扩展基线。测试扩展由 service worker 调用 `chrome.userScripts.register()`，使用 `matches: ['<all_urls>']`、`runAt: 'document_start'`、`world: 'USER_SCRIPT'`，注入页面脚本：
+
+```js
+document.documentElement.dataset.sessionBoxPopupDemoUserscript = 'before-alert'
+alert(1)
+document.documentElement.dataset.sessionBoxPopupDemoUserscript = 'after-alert'
+```
+
+对应文件：
+
+- `test-assets/chrome-popup-demo/manifest.json`
+- `test-assets/chrome-popup-demo/background.js`
+- `test-assets/chrome-popup-demo/userscript.js`
+- `test-assets/chrome-popup-demo/README.md`
+
+新增独立 fixture 和测试：
+
+- `packages/electron-chrome-extensions/spec/fixtures/chrome-userScripts-alert-mv3/`
+- `packages/electron-chrome-extensions/spec/chrome-userScripts-alert-spec.ts`
+
+测试通过 CDP `Page.javascriptDialogOpening` 捕获真实弹窗，确认 `type: 'alert'`、`message: '1'`，再自动关闭并确认 `Page.javascriptDialogClosed` 与 `after-alert` marker。BrowserWindow 与 WebContentsView 两种宿主均通过。
+
+应用实际使用的 Electron `38.8.6` 已验证通过；扩展包自身测试解析到的 Electron `44.4.3` 也通过。此前“userscript 能执行但 alert 可能只是不可见”的假设已被最小 MV3 基线排除：当前宿主确实能触发并关闭原生 JavaScript dialog。后续才进入真实 Tampermonkey 差异分析。
+
+## 已解决的核心兼容性问题
 
 - Blink 要求 embedder world ID 位于 `[1, 1 << 29)`。
 - Tampermonkey `default` world 的旧 ID 是 `798557731`，超过上限 `536870912`。
@@ -56,16 +89,20 @@ let ...;
 
 以下命令通过：
 
-```powershell
-pnpm run build:extensions
-
-$env:TS_NODE_COMPILER_OPTIONS = '{"module":"CommonJS"}'
-pnpm -C "packages/electron-chrome-extensions" test -- --files "spec/chrome-userScripts-spec.ts"
+```sh
+TS_NODE_COMPILER_OPTIONS='{"module":"CommonJS"}' NODE_OPTIONS='--no-experimental-strip-types' pnpm -C "packages/electron-chrome-extensions" test -- --grep 'chrome.userScripts'
 ```
 
-结果：`3 pass, 0 fail`。新增 `limit-probe-0` world 在旧算法下会生成 `698117655`，回归测试现在能带 CSP 正常执行，确保不会再次越过 Blink 上限。
+结果：`6 pass, 0 fail`，包括：
 
-真实 Tampermonkey 集成测试是临时文件，已删除，避免把依赖本机 AppData 的测试提交进仓库。扩展当前位于：
+- 现有 3 项 MV3 userScripts 回归
+- 新增 alert fixture 与 demo 文件一致性检查
+- BrowserWindow 中由 MV3 userScript 触发 `alert(1)`
+- WebContentsView 中由 MV3 userScript 触发 `alert(1)`
+
+同一组 `chrome.userScripts` 测试也使用 SessionBox 应用实际的 Electron `38.8.6` 运行通过；扩展包默认测试解析到 Electron `44.4.3`，同样通过。静态验证包括 manifest JSON、demo/fixture JavaScript `node --check` 与 `git diff --check`。
+
+`test-assets/chrome-popup-demo/README.md` 已记录人工验收：重新导入并启用扩展，打开普通 HTTP/HTTPS 页面，应看到内容为 `1` 的弹窗；关闭后页面 marker 应为 `after-alert`。
 
 ```text
 C:/Users/Administrator/AppData/Roaming/session-box/extensions/webstore/gcalenpjmijncebpfijmoaglllgpjagf
@@ -95,10 +132,10 @@ Invoke-RestMethod -Method Get `
 
 ## 建议接手顺序
 
-1. 先重跑构建和 `chrome-userScripts-spec.ts`，确认当前基线。
-2. 用一个最小 MV3 测试扩展验证自定义 `USER_SCRIPT` world 内 `chrome.runtime.id` 和双向 messaging，不先用 Tampermonkey调试。
-3. 在 renderer 侧实现通用 USER_SCRIPT API bridge，并增加自动化回归。
-4. 再用真实 Tampermonkey 验证 `content.js` 不报错、popup 能识别当前活动 Tab、用户脚本能执行。
+1. 先重跑 `chrome.userScripts` alert 基线和现有 MV3 回归，确认 `alert(1)` 与 `after-alert` marker 仍通过。
+2. 用一个最小 MV3 测试扩展验证自定义 `USER_SCRIPT` world 内 `chrome.runtime.id` 和双向 messaging，不先用 Tampermonkey 调试。
+3. 在 renderer 侧实现通用 USER_SCRIPT API bridge，并增加自动化回归；当前真实 Tampermonkey `content.js` 的首个已知失败是 `globalThis.chrome`/`chrome.runtime.id` 缺失。
+4. 再用真实 Tampermonkey 验证 `content.js` 不报错、popup 能识别当前活动 Tab、用户脚本能执行；此时比较它与最小 MV3 基线的差异。
 5. 最后检查 `git diff --check`，并通过 procm 重启开发进程。
 
 ## Suggested Skills
