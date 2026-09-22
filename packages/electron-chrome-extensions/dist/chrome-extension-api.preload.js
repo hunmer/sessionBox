@@ -37,6 +37,16 @@ var removeExtensionListener = (extensionId, name, callback) => {
 // src/renderer/index.ts
 var shouldLogExtensionApi = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "1";
 var injectExtensionAPIs = () => {
+  if (process.type === "service-worker") {
+    const runtime = globalThis.chrome?.runtime;
+    console.info("[electron-chrome-extensions] service worker API injection started", {
+      contextIsolated: process.contextIsolated,
+      hasChrome: Boolean(globalThis.chrome),
+      hasRuntime: Boolean(runtime),
+      hasOnInstalled: Boolean(runtime?.onInstalled),
+      onInstalledAddListener: typeof runtime?.onInstalled?.addListener
+    });
+  }
   const invokeExtension = async function(extensionId, fnName, options = {}, ...args) {
     const callback = typeof args[args.length - 1] === "function" ? args.pop() : void 0;
     if (shouldLogExtensionApi) {
@@ -620,6 +630,96 @@ function report(script, status, error) {
     ...error ? { error: error instanceof Error ? error.message : String(error) } : {}
   });
 }
+function createUserScriptRuntimePrelude(extensionId) {
+  const serializedId = JSON.stringify(extensionId);
+  return `
+(() => {
+  const root = globalThis
+  const chrome = root.chrome || (root.chrome = {})
+  const runtime = chrome.runtime || (chrome.runtime = {})
+  const createEvent = () => {
+    const listeners = []
+    return {
+      addListener(listener) {
+        if (typeof listener === 'function' && !listeners.includes(listener)) listeners.push(listener)
+      },
+      removeListener(listener) {
+        const index = listeners.indexOf(listener)
+        if (index >= 0) listeners.splice(index, 1)
+      },
+      hasListener(listener) {
+        return listeners.includes(listener)
+      },
+      hasListeners() {
+        return listeners.length > 0
+      },
+      emit(...args) {
+        listeners.slice().forEach((listener) => listener(...args))
+      }
+    }
+  }
+  const noopAsync = (...args) => {
+    const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] : undefined
+    if (callback) queueMicrotask(() => callback())
+    return Promise.resolve()
+  }
+  if (runtime.id === undefined) {
+    Object.defineProperty(runtime, 'id', { value: ${serializedId}, enumerable: true })
+  }
+  if (typeof runtime.getURL !== 'function') {
+    runtime.getURL = (path = '') => 'chrome-extension://' + ${serializedId} + '/' + String(path).replace(/^\\//, '')
+  }
+  if (typeof runtime.getManifest !== 'function') runtime.getManifest = () => ({})
+  if (typeof runtime.getPlatformInfo !== 'function') {
+    runtime.getPlatformInfo = (callback) => {
+      const result = { os: 'mac', arch: 'arm', nacl_arch: 'arm' }
+      if (typeof callback === 'function') queueMicrotask(() => callback(result))
+      return Promise.resolve(result)
+    }
+  }
+  if (typeof runtime.sendMessage !== 'function') {
+    runtime.sendMessage = (...args) => {
+      const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] : undefined
+      if (callback) queueMicrotask(() => callback())
+      return Promise.resolve()
+    }
+  }
+  if (typeof runtime.connect !== 'function') {
+    runtime.connect = (connectInfo = {}) => {
+      let disconnected = false
+      const port = {
+        name: typeof connectInfo === 'string' ? connectInfo : String(connectInfo?.name || ''),
+        onMessage: createEvent(),
+        onDisconnect: createEvent(),
+        onError: createEvent(),
+        postMessage() {},
+        disconnect() {
+          if (disconnected) return
+          disconnected = true
+          port.onDisconnect.emit(port)
+        }
+      }
+      return port
+    }
+  }
+  if (!('lastError' in runtime)) {
+    Object.defineProperty(runtime, 'lastError', { value: undefined, enumerable: true })
+  }
+  for (const name of ['onMessage', 'onConnect', 'onInstalled', 'onUserScriptMessage', 'onUserScriptConnect']) {
+    if (!runtime[name]) runtime[name] = createEvent()
+  }
+  const extension = chrome.extension || (chrome.extension = {})
+  if (!('inIncognitoContext' in extension)) {
+    Object.defineProperty(extension, 'inIncognitoContext', { value: false, enumerable: true })
+  }
+  if (typeof extension.getURL !== 'function') extension.getURL = runtime.getURL
+  const offscreen = chrome.offscreen || (chrome.offscreen = {})
+  if (typeof offscreen.createDocument !== 'function') offscreen.createDocument = noopAsync
+  if (typeof offscreen.closeDocument !== 'function') offscreen.closeDocument = noopAsync
+  root.chrome = chrome
+})();
+`;
+}
 async function executeBatch(scripts) {
   const batches = /* @__PURE__ */ new Map();
   for (const script of scripts) {
@@ -668,7 +768,10 @@ async function executeBatch(scripts) {
         report(script, "started");
         await reportExecution(
           script,
-          import_electron3.webFrame.executeJavaScriptInIsolatedWorld(first.worldId, [{ code: script.code }])
+          import_electron3.webFrame.executeJavaScriptInIsolatedWorld(first.worldId, [{
+            code: `${createUserScriptRuntimePrelude(first.extensionId)}
+${script.code}`
+          }])
         );
       }
     } catch (error) {

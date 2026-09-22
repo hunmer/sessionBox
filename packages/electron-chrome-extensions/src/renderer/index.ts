@@ -4,6 +4,17 @@ import { addExtensionListener, removeExtensionListener } from './event'
 const shouldLogExtensionApi = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === '1'
 
 export const injectExtensionAPIs = () => {
+  if (process.type === 'service-worker') {
+    const runtime = (globalThis as any).chrome?.runtime
+    console.info('[electron-chrome-extensions] service worker API injection started', {
+      contextIsolated: process.contextIsolated,
+      hasChrome: Boolean((globalThis as any).chrome),
+      hasRuntime: Boolean(runtime),
+      hasOnInstalled: Boolean(runtime?.onInstalled),
+      onInstalledAddListener: typeof runtime?.onInstalled?.addListener,
+    })
+  }
+
   interface ExtensionMessageOptions {
     noop?: boolean
     defaultResponse?: any

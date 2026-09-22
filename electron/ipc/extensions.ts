@@ -16,6 +16,7 @@ import {
   openExtensionBrowserActionPopup,
   unloadExtensionFromAllContainers
 } from '../services/extensions'
+import { url } from 'node:inspector'
 
 /**
  * 从扩展目录的 manifest.json 读取图标路径，返回绝对路径。
@@ -190,7 +191,7 @@ export function registerExtensionHandlers(): void {
       response = await net.fetch(downloadUrl)
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
-      throw new Error(`下载扩展网络请求失败：${reason}`)
+      throw new Error(`下载扩展网络请求失败：${reason}, url: ${url}`)
     }
     if (!response.ok) {
       throw new Error(`下载扩展失败（HTTP ${response.status}）`)

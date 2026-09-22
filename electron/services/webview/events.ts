@@ -66,6 +66,22 @@ export function setupEventForwarding(
     return { action: 'deny' }
   })
 
+  // Keep guest-page script failures in the persistent procm log. Electron's
+  // executeJavaScript APIs otherwise collapse the original exception into a
+  // generic "Script failed to execute" rejection.
+  wc.on('console-message', (details: any) => {
+    if (details.level !== 'error') return
+    console.error('[WebviewManager] guest console', {
+      tabId,
+      webContentsId: wc.id,
+      url: wc.getURL(),
+      level: details.level,
+      message: details.message,
+      line: details.lineNumber,
+      sourceId: details.sourceId
+    })
+  })
+
   wc.on('will-navigate', (event, url) => {
     if (!isWebUrl(url)) event.preventDefault()
   })

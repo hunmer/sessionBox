@@ -17,9 +17,9 @@ describe('chrome.userScripts', () => {
     for (let attempt = 0; attempt < 10; attempt += 1) {
       await browser.webContents.loadURL(`${server.getUrl()}?attempt=${attempt}`)
       const executed = await browser.webContents.executeJavaScript(
-        "document.documentElement.dataset.chromeUserScriptsMv3Probe"
+        "document.documentElement.dataset.chromeUserScriptsMv3Probe === 'executed' && document.documentElement.dataset.chromeUserScriptsMv3RuntimeId === 'executed' && document.documentElement.dataset.chromeUserScriptsMv3RuntimeConnect === 'executed'"
       )
-      if (executed === 'executed') return
+      if (executed === true) return
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
 
@@ -35,6 +35,7 @@ describe('chrome.userScripts', () => {
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const probes = await browser.webContents.executeJavaScript(`[
         document.documentElement.dataset.chromeUserScriptsMv3Probe,
+        document.documentElement.dataset.chromeUserScriptsMv3RuntimeConnect,
         document.documentElement.dataset.chromeUserScriptsMv3ProbeSecond,
         document.documentElement.dataset.chromeUserScriptsMv3PendingProbe,
         document.documentElement.dataset.chromeUserScriptsMv3WorldLimitProbe

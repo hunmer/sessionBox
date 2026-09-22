@@ -23,6 +23,7 @@ export type DocumentUserScript = {
     scriptId: string;
     world: 'MAIN' | 'USER_SCRIPT';
     worldCsp?: string;
+    worldMessaging: boolean;
     worldId: number;
     worldName: string;
     worldOrigin: string;
@@ -36,6 +37,8 @@ export declare class UserScriptsAPI {
     private ctx;
     private scripts;
     private initializationWaiters;
+    private pendingMessages;
+    private ports;
     constructor(ctx: ExtensionContext);
     private getStorageFilePath;
     private readPersistedScripts;
@@ -59,5 +62,13 @@ export declare class UserScriptsAPI {
         ids?: string[];
     }) => Promise<UserScript[]>;
     configureWorld: (event: ExtensionEvent, properties: WorldProperties) => Promise<void>;
+    private isMessagingWorld;
+    private getWorkerScope;
+    private getUserScriptSender;
+    private sendUserScriptMessage;
+    private resolveUserScriptMessage;
+    private connectUserScriptPort;
+    private forwardUserScriptPortMessage;
+    private disconnectUserScriptPort;
 }
 export {};
