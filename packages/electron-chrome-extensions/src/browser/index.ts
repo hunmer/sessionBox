@@ -21,6 +21,7 @@ import { checkLicense, License } from './license'
 import { readLoadedExtensionManifest } from './manifest'
 import { PermissionsAPI } from './api/permissions'
 import { UserScriptsAPI } from './api/user-scripts'
+import type { UserScriptsInitialization } from './api/user-scripts'
 import { resolvePartition } from './partition'
 
 function checkVersion() {
@@ -181,6 +182,11 @@ export class ElectronChromeExtensions extends EventEmitter {
   /** Resolves after extension preload scripts are registered for the session. */
   whenReady(): Promise<void> {
     return this.preloadReady
+  }
+
+  /** Wait for an MV3 extension's initial chrome.userScripts registration. */
+  whenUserScriptsReady(extensionId: string, timeoutMs?: number): Promise<UserScriptsInitialization> {
+    return this.api.userScripts.waitForExtensionInitialization(extensionId, timeoutMs)
   }
 
   private listenForExtensions() {

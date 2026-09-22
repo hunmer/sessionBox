@@ -255,6 +255,7 @@ async function loadExtensionIntoContainer(
     if (extension.userScriptsEnabled && extension.electronExtensionId) {
       enableUserScriptsInProfile(getProfilePreferencesPath(containerId), extension.electronExtensionId)
     }
+    await waitForUserScriptsInitialization(containerId, extension, existingLoadedId)
     return existingLoadedId
   }
 
@@ -284,6 +285,7 @@ async function loadExtensionIntoContainer(
       icon: extension.icon
     })
 
+    await waitForUserScriptsInitialization(containerId, extension, loadedExt.id)
     return loadedExt.id
   })()
 
@@ -296,6 +298,29 @@ async function loadExtensionIntoContainer(
   }
 }
 
+async function waitForUserScriptsInitialization(
+  containerId: string | null | undefined,
+  extension: Extension,
+  electronExtensionId: string
+): Promise<void> {
+  // The persisted flag may come from an older install before userScripts was
+  // detected. Re-read the manifest so a stale `false` cannot skip the barrier.
+  const usesUserScripts = extension.userScriptsEnabled === true || extensionRequestsUserScripts(extension.path)
+  if (!usesUserScripts) return
+
+  const initialization = await getExtensionsForContainer(containerId).whenUserScriptsReady(
+    electronExtensionId,
+    10_000
+  )
+  console.info('[Extensions] user scripts initialization barrier completed', {
+    partitionKey: getPartitionKey(containerId),
+    extensionId: extension.id,
+    electronExtensionId,
+    state: initialization.state,
+    scriptCount: initialization.scriptCount
+  })
+}
+
 /**
  * 确保某个 partition 已加载全部全局扩展。
  */
@@ -303,9 +328,19 @@ export async function ensureExtensionsLoadedForContainer(
   containerId?: string | null
 ): Promise<void> {
   const enabledExtensions = getEnabledExtensions()
+  console.info('[Extensions] session initialization started', {
+    partitionKey: getPartitionKey(containerId),
+    storagePath: getSessionForContainer(containerId).getStoragePath(),
+    extensionIds: enabledExtensions.map((extension) => extension.id)
+  })
   for (const extension of enabledExtensions) {
     await loadExtensionIntoContainer(containerId, extension)
   }
+  console.info('[Extensions] session initialization completed', {
+    partitionKey: getPartitionKey(containerId),
+    storagePath: getSessionForContainer(containerId).getStoragePath(),
+    extensionIds: enabledExtensions.map((extension) => extension.id)
+  })
 }
 
 /**

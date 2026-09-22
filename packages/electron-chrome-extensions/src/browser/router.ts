@@ -32,6 +32,7 @@ const getHostFromEvent = (event: IpcAnyEvent) => {
 }
 
 const d = debug('electron-chrome-extensions:router')
+const shouldLogExtensionWorkerConsole = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === '1'
 
 const DEFAULT_SESSION = '_self'
 
@@ -248,16 +249,35 @@ export class ExtensionRouter {
       }
     })
 
+    session.serviceWorkers.on('console-message' as any, (_event: any, details: any) => {
+      if (!shouldLogExtensionWorkerConsole) return
+
+      console.info('[electron-chrome-extensions] extension service worker console', {
+        sessionStoragePath: session.getStoragePath(),
+        message: details?.message,
+        source: details?.sourceId ?? details?.source,
+        line: details?.lineNumber ?? details?.line,
+        url: details?.url
+      })
+    })
+
     session.serviceWorkers.on(
       'running-status-changed' as any,
       ({ runningStatus, versionId }: any) => {
-        if (runningStatus !== 'starting') return
-
         const serviceWorker = (session as any).serviceWorkers.getWorkerFromVersionID(versionId)
         if (!serviceWorker) return
 
         const { scope } = serviceWorker
         if (!scope.startsWith('chrome-extension:')) return
+
+        console.info('[electron-chrome-extensions] extension service worker lifecycle', {
+          sessionStoragePath: session.getStoragePath(),
+          scope,
+          versionId,
+          runningStatus
+        })
+
+        if (runningStatus !== 'starting') return
 
         if (this.extensionHosts.has(serviceWorker)) {
           d('%s running status changed to %s', scope, runningStatus)
@@ -362,6 +382,16 @@ export class ExtensionRouter {
     const eventSession = getSessionFromEvent(event)
     const eventSessionExtensions = eventSession.extensions || eventSession
     const handler = this.getHandler(handlerName)
+
+    if (handlerName.startsWith('userScripts.')) {
+      console.info('[electron-chrome-extensions] userScripts IPC received', {
+        handlerName,
+        eventType: event.type,
+        extensionId,
+        sessionStoragePath: eventSession.getStoragePath(),
+        senderUrl: event.type === 'frame' ? getHostUrl(event.sender) : event.serviceWorker?.scope
+      })
+    }
 
     if (eventSession !== session && !handler.allowRemote) {
       throw new Error(`${handlerName} does not support calling from a remote session`)

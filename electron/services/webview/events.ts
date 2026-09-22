@@ -106,6 +106,17 @@ export function setupEventForwarding(
     }
   }
 
+  wc.on('did-start-navigation', (_event, url, isInPlace, isMainFrame) => {
+    if (!isMainFrame) return
+    console.info('[WebviewManager] navigation committed to renderer', {
+      tabId,
+      webContentsId: wc.id,
+      sessionStoragePath: wc.session.getStoragePath(),
+      url,
+      isInPlace
+    })
+  })
+
   wc.on('did-navigate', (_event, url) => {
     const entry = views.get(tabId)
     if (entry && !isGoogleAuthUrl(url)) entry.lastNonAuthUrl = url
@@ -127,9 +138,34 @@ export function setupEventForwarding(
 
   wc.on('did-start-loading', () => onNavState())
   wc.on('did-stop-loading', () => onNavState())
-  wc.on('did-fail-load', () => {})
-  wc.on('render-process-gone', () => {})
-  wc.on('did-finish-load', () => {})
+  wc.on('did-finish-load', () => {
+    console.info('[WebviewManager] navigation finished', {
+      tabId,
+      webContentsId: wc.id,
+      sessionStoragePath: wc.session.getStoragePath(),
+      url: wc.getURL()
+    })
+  })
+  wc.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame) return
+    console.error('[WebviewManager] navigation failed', {
+      tabId,
+      webContentsId: wc.id,
+      sessionStoragePath: wc.session.getStoragePath(),
+      errorCode,
+      errorDescription,
+      validatedURL
+    })
+  })
+  wc.on('render-process-gone', (_event, details) => {
+    console.error('[WebviewManager] render process gone', {
+      tabId,
+      webContentsId: wc.id,
+      sessionStoragePath: wc.session.getStoragePath(),
+      reason: details.reason,
+      exitCode: details.exitCode
+    })
+  })
 
   wc.on('page-favicon-updated', async (_event, favicons) => {
     if (favicons.length > 0 && canSend()) {

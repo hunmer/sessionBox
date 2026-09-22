@@ -1,6 +1,7 @@
 import { ipcRenderer } from 'electron'
 
 const formatIpcName = (name: string) => `crx-${name}`
+const shouldLogExtensionEvents = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === '1'
 
 const listenerMap = new Map<string, number>()
 
@@ -15,7 +16,7 @@ export const addExtensionListener = (extensionId: string, name: string, callback
   listenerMap.set(name, listenerCount + 1)
 
   ipcRenderer.addListener(formatIpcName(name), function (event, ...args) {
-    if (process.env.NODE_ENV === 'development') {
+    if (shouldLogExtensionEvents) {
       console.log(name, '(result)', ...args)
     }
     callback(...args)

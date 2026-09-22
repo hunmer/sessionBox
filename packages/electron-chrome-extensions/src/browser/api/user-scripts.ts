@@ -50,6 +50,19 @@ type PersistedUserScripts = {
   extensions: Record<string, PersistedExtensionScripts>
 }
 
+export type UserScriptsInitialization = {
+  extensionId: string
+  scriptCount: number
+  state: 'registered' | 'restored' | 'timed-out'
+}
+
+type InitializationWaiter = {
+  settled?: UserScriptsInitialization
+  waiters: Set<(result: UserScriptsInitialization) => void>
+  workerStarted: boolean
+  settlementTimer?: ReturnType<typeof setTimeout>
+}
+
 const documentStartChannel = 'crx-user-scripts:document-start'
 const executionChannel = 'crx-user-scripts:execution'
 const instances = new WeakMap<Electron.Session, UserScriptsAPI>()
@@ -107,6 +120,7 @@ function getScriptCode(extension: Electron.Extension, script: UserScript): strin
 
 export class UserScriptsAPI {
   private scripts = new Map<string, ExtensionScripts>()
+  private initializationWaiters = new Map<string, InitializationWaiter>()
 
   constructor(private ctx: ExtensionContext) {
     const handle = ctx.router.apiHandler()
@@ -194,6 +208,7 @@ export class UserScriptsAPI {
       scriptCount: target.scripts.size,
       storagePath: this.getStorageFilePath()
     })
+    this.settleInitialization(extension.id, 'restored')
   }
 
   private restoreLoadedExtensions(): void {
@@ -207,17 +222,150 @@ export class UserScriptsAPI {
     sessionExtensions.on('extension-unloaded', (_event, extension) => this.scripts.delete(extension.id))
   }
 
+  private getInitializationWaiter(extensionId: string): InitializationWaiter {
+    let waiter = this.initializationWaiters.get(extensionId)
+    if (!waiter) {
+      waiter = { waiters: new Set(), workerStarted: false }
+      this.initializationWaiters.set(extensionId, waiter)
+    }
+    return waiter
+  }
+
+  private settleInitialization(
+    extensionId: string,
+    state: UserScriptsInitialization['state']
+  ): UserScriptsInitialization {
+    const waiter = this.getInitializationWaiter(extensionId)
+    if (waiter.settlementTimer) {
+      clearTimeout(waiter.settlementTimer)
+      waiter.settlementTimer = undefined
+    }
+    const existing = waiter.settled
+    if (existing && state !== 'registered') return existing
+
+    const result: UserScriptsInitialization = {
+      extensionId,
+      scriptCount: this.scripts.get(extensionId)?.scripts.size ?? 0,
+      state
+    }
+    waiter.settled = result
+    waiter.waiters.forEach((resolve) => resolve(result))
+    waiter.waiters.clear()
+    console.info('[electron-chrome-extensions] user scripts initialization settled', result)
+    return result
+  }
+
+  private scheduleInitializationSettlement(extensionId: string): void {
+    const waiter = this.getInitializationWaiter(extensionId)
+    if (waiter.settlementTimer) clearTimeout(waiter.settlementTimer)
+
+    // MV3 extensions may register their initial scripts in several sequential
+    // calls. Wait for a short quiet period so navigation observes the complete
+    // registration batch rather than only the first call.
+    waiter.settlementTimer = setTimeout(() => {
+      waiter.settlementTimer = undefined
+      this.settleInitialization(extensionId, 'registered')
+    }, 50)
+  }
+
+  async waitForExtensionInitialization(
+    extensionId: string,
+    timeoutMs = 10_000
+  ): Promise<UserScriptsInitialization> {
+    const existingScripts = this.scripts.get(extensionId)?.scripts.size ?? 0
+    const waiter = this.getInitializationWaiter(extensionId)
+    if (waiter.settled?.state === 'registered') return waiter.settled
+
+    // chrome.userScripts registrations survive service worker termination. Once
+    // restored into this Session, they are safe to inject before the worker
+    // performs an optional refresh/update cycle.
+    if (existingScripts > 0) {
+      const scope = `chrome-extension://${extensionId}/`
+      if (!waiter.workerStarted) {
+        waiter.workerStarted = true
+        void this.ctx.session.serviceWorkers.startWorkerForScope(scope).then(
+          () => console.info('[electron-chrome-extensions] MV3 worker started for restored user scripts', {
+            extensionId,
+            scope
+          }),
+          (error) => console.warn('[electron-chrome-extensions] unable to start MV3 worker for restored user scripts', {
+            extensionId,
+            scope,
+            message: error instanceof Error ? error.message : String(error)
+          })
+        )
+      }
+      return this.settleInitialization(extensionId, 'restored')
+    }
+
+    if (!waiter.workerStarted || waiter.settled?.state === 'restored') {
+      waiter.workerStarted = true
+      waiter.settled = undefined
+      const scope = `chrome-extension://${extensionId}/`
+      console.info('[electron-chrome-extensions] waiting for MV3 user scripts initialization', {
+        extensionId,
+        scope,
+        timeoutMs,
+        storagePath: this.getStorageFilePath()
+      })
+      void this.ctx.session.serviceWorkers.startWorkerForScope(scope).then(
+        () => console.info('[electron-chrome-extensions] MV3 worker started for user scripts initialization', {
+          extensionId,
+          scope
+        }),
+        (error) => console.warn('[electron-chrome-extensions] unable to start MV3 worker for user scripts initialization', {
+          extensionId,
+          scope,
+          message: error instanceof Error ? error.message : String(error)
+        })
+      )
+    }
+
+    return await new Promise<UserScriptsInitialization>((resolve) => {
+      const timer = setTimeout(() => {
+        waiter.waiters.delete(onSettled)
+        const result = {
+          extensionId,
+          scriptCount: this.scripts.get(extensionId)?.scripts.size ?? 0,
+          state: 'timed-out' as const
+        }
+        console.warn('[electron-chrome-extensions] user scripts initialization timed out', {
+          ...result,
+          storagePath: this.getStorageFilePath()
+        })
+        resolve(result)
+      }, timeoutMs)
+      const onSettled = (result: UserScriptsInitialization) => {
+        clearTimeout(timer)
+        resolve(result)
+      }
+      waiter.waiters.add(onSettled)
+    })
+  }
+
   private installDocumentStartHandler(): void {
     if (documentStartHandlerInstalled) return
     documentStartHandlerInstalled = true
     ipcMain.on(documentStartChannel, (event, details: { url?: string; topFrame?: boolean }) => {
       const api = instances.get(event.sender.session)
-      event.returnValue = api?.getDocumentScripts(details.url ?? '', details.topFrame === true) ?? []
+      const scripts = api?.getDocumentScripts(details.url ?? '', details.topFrame === true) ?? []
+      console.info('[electron-chrome-extensions] document user scripts query', {
+        webContentsId: event.sender.id,
+        sessionStoragePath: event.sender.session.getStoragePath(),
+        url: details.url ?? '',
+        topFrame: details.topFrame === true,
+        scriptCount: scripts.length
+      })
+      event.returnValue = scripts
     })
     ipcMain.on(executionChannel, (event, details: Record<string, unknown>) => {
       const api = instances.get(event.sender.session)
       if (!api) return
-      console.info('[electron-chrome-extensions] user script execution', details)
+      console.info('[electron-chrome-extensions] user script execution', {
+        webContentsId: event.sender.id,
+        sessionStoragePath: event.sender.session.getStoragePath(),
+        ...details
+      })
     })
   }
 
@@ -299,6 +447,7 @@ export class UserScriptsAPI {
     }
     scripts.forEach((script) => target.scripts.set(script.id!, { ...script }))
     this.persistExtension(extensionId)
+    this.scheduleInitializationSettlement(extensionId)
     console.info('[electron-chrome-extensions] user scripts registered', {
       extensionId,
       scripts: scripts.map((script) => ({
@@ -330,11 +479,22 @@ export class UserScriptsAPI {
     const updated = scripts.map((update) => ({ ...target.scripts.get(update.id!)!, ...update }))
     updated.forEach((script) => target.scripts.set(script.id!, script))
     this.persistExtension(event.extension.id)
+    this.scheduleInitializationSettlement(event.extension.id)
+    console.info('[electron-chrome-extensions] user scripts updated', {
+      extensionId: event.extension.id,
+      scriptIds: scripts.map((script) => script.id)
+    })
   }
 
   getScripts = async (event: ExtensionEvent, filter?: { ids?: string[] }): Promise<UserScript[]> => {
     const scripts = [...this.getExtensionScripts(event.extension).scripts.values()]
-    return filter?.ids ? scripts.filter((script) => filter.ids!.includes(script.id!)) : scripts
+    const result = filter?.ids ? scripts.filter((script) => filter.ids!.includes(script.id!)) : scripts
+    console.info('[electron-chrome-extensions] user scripts queried', {
+      extensionId: event.extension.id,
+      filterIds: filter?.ids ?? null,
+      scriptCount: result.length
+    })
+    return result
   }
 
   configureWorld = async (event: ExtensionEvent, properties: WorldProperties): Promise<void> => {

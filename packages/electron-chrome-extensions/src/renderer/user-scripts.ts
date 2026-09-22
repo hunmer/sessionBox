@@ -3,6 +3,7 @@ import type { DocumentUserScript } from '../browser/api/user-scripts'
 
 const documentStartChannel = 'crx-user-scripts:document-start'
 const executionChannel = 'crx-user-scripts:execution'
+const executionTimeoutMs = 5_000
 
 function canInjectHere(): boolean {
   try {
@@ -34,13 +35,30 @@ function executeBatch(scripts: DocumentUserScript[]): void {
 
   for (const scriptsInWorld of batches.values()) {
     const first = scriptsInWorld[0]
-    scriptsInWorld.forEach((script) => report(script, 'started'))
+    const reportExecution = (script: DocumentUserScript, execution: Promise<unknown>) => {
+      let timedOut = false
+      const timeout = setTimeout(() => {
+        timedOut = true
+        report(script, 'failed', new Error(`User script execution did not settle within ${executionTimeoutMs}ms`))
+      }, executionTimeoutMs)
 
-    const complete = () => scriptsInWorld.forEach((script) => report(script, 'completed'))
-    const fail = (error: unknown) => scriptsInWorld.forEach((script) => report(script, 'failed', error))
+      void execution.then(
+        () => {
+          clearTimeout(timeout)
+          if (!timedOut) report(script, 'completed')
+        },
+        (error) => {
+          clearTimeout(timeout)
+          if (!timedOut) report(script, 'failed', error)
+        }
+      )
+    }
+
     if (first.world === 'MAIN') {
-      const source = scriptsInWorld.map((script) => script.code).join('\n')
-      void webFrame.executeJavaScript(source).then(complete, fail)
+      for (const script of scriptsInWorld) {
+        report(script, 'started')
+        reportExecution(script, webFrame.executeJavaScript(script.code))
+      }
       continue
     }
 
@@ -56,22 +74,29 @@ function executeBatch(scripts: DocumentUserScript[]): void {
           name: first.worldName
         })
       }
-      void webFrame.executeJavaScriptInIsolatedWorld(
-        first.worldId,
-        scriptsInWorld.map((script) => ({ code: script.code }))
-      ).then(complete, fail)
+      for (const script of scriptsInWorld) {
+        report(script, 'started')
+        reportExecution(
+          script,
+          webFrame.executeJavaScriptInIsolatedWorld(first.worldId, [{ code: script.code }])
+        )
+      }
     } catch (error) {
-      fail(error)
+      scriptsInWorld.forEach((script) => report(script, 'failed', error))
     }
   }
 }
 
 function schedule(runAt: DocumentUserScript['runAt'], scripts: DocumentUserScript[]): void {
   if (runAt === 'document_start') {
-    // Calling webFrame.executeJavaScriptInIsolatedWorld while Electron is
-    // still evaluating the frame preload can stall the initial navigation.
-    // Defer to a subsequent task so Chromium can commit the document first.
-    setTimeout(() => executeBatch(scripts), 0)
+    // Electron does not expose Chromium's native userScripts injection hook.
+    // Running arbitrary extension code from the frame preload can stall the
+    // navigation, so use the first stable page lifecycle point instead.
+    if (document.readyState === 'complete') {
+      executeBatch(scripts)
+    } else {
+      addEventListener('load', () => executeBatch(scripts), { once: true })
+    }
   } else if (runAt === 'document_end') {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => executeBatch(scripts), { once: true })

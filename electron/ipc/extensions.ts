@@ -103,18 +103,6 @@ function getCompatibilityWarnings(manifest: { permissions?: string[] }): string[
   return (manifest.permissions ?? []).filter((permission) => unsupportedPermissions.has(permission))
 }
 
-function configureTampermonkeyCompatibility(extensionPath: string, storeExtensionId: string): void {
-  if (storeExtensionId !== 'gcalenpjmijncebpfijmoaglllgpjagf') return
-
-  const backgroundPath = join(extensionPath, 'background.js')
-  if (!existsSync(backgroundPath)) return
-  const source = readFileSync(backgroundPath, 'utf8')
-  const patched = source.replace('runtime_content_mode:"userscripts"', 'runtime_content_mode:"content"')
-  if (patched !== source) {
-    writeFileSync(backgroundPath, patched, 'utf8')
-  }
-}
-
 /**
  * 注册扩展相关 IPC 处理器。
  */
@@ -242,10 +230,8 @@ export function registerExtensionHandlers(): void {
       short_name?: string
       permissions?: string[]
     }
-    configureTampermonkeyCompatibility(extensionRoot, extensionId)
     const extensionName = resolveExtensionMessage(extensionRoot, manifest.name || manifest.short_name || extensionId)
-    const userScriptsEnabled =
-      extensionId !== 'gcalenpjmijncebpfijmoaglllgpjagf' && (manifest.permissions ?? []).includes('userScripts')
+    const userScriptsEnabled = (manifest.permissions ?? []).includes('userScripts')
     const extension = existing || createExtension({
       name: extensionName,
       path: extensionRoot,

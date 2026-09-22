@@ -1,6 +1,8 @@
 import { ipcRenderer, contextBridge, webFrame } from 'electron'
 import { addExtensionListener, removeExtensionListener } from './event'
 
+const shouldLogExtensionApi = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === '1'
+
 export const injectExtensionAPIs = () => {
   interface ExtensionMessageOptions {
     noop?: boolean
@@ -16,7 +18,7 @@ export const injectExtensionAPIs = () => {
   ) {
     const callback = typeof args[args.length - 1] === 'function' ? args.pop() : undefined
 
-    if (process.env.NODE_ENV === 'development') {
+    if (shouldLogExtensionApi) {
       console.log(fnName, args)
     }
 
@@ -40,7 +42,7 @@ export const injectExtensionAPIs = () => {
       result = undefined
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (shouldLogExtensionApi) {
       console.log(fnName, '(result)', result)
     }
 
@@ -515,6 +517,10 @@ export const injectExtensionAPIs = () => {
         factory: (base) => {
           return {
             ...base,
+            // Electron dispatches the native event every time an extension is
+            // loaded into a Session. The bridge emits this event only for a
+            // real install or manifest version change instead.
+            onInstalled: new ExtensionEvent('runtime.onInstalled'),
             connectNative: (application: string) => {
               const port = new NativePort()
               const receive = port._receive.bind(port)
@@ -682,11 +688,6 @@ export const injectExtensionAPIs = () => {
     delete (globalThis as any).electron
 
     Object.freeze(chrome)
-    console.info('[electron-chrome-extensions] extension APIs injected', {
-      extensionId,
-      tabsCreate: typeof chrome.tabs?.create,
-    })
-
     void 0 // no return
   }
 

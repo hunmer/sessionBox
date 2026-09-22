@@ -80,9 +80,10 @@ function bindElement(tabId: string, element: unknown) {
     attachRetryTimers.set(tabId, timer)
   }
 
-  webview.addEventListener('did-attach', () => attach())
+  // The guest always starts at about:blank. Wait for that initial navigation
+  // to finish before handing it to the main process, otherwise it can abort
+  // a deferred extension-aware navigation and leave the tab blank.
   webview.addEventListener('dom-ready', () => attach())
-  attach()
 }
 
 onMounted(async () => {

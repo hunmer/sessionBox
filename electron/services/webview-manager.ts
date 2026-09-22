@@ -48,6 +48,8 @@ class WebviewManager {
   private frozenTabUrls = new Map<string, FrozenTabInfo>()
   private pendingViews = new Map<string, PendingViewInfo>()
   private requestedWebviews = new Map<string, PendingViewInfo>()
+  // 每个 tab 只允许最新一次导航在 Session 初始化完成后继续执行。
+  private navigationRequests = new Map<string, number>()
   private webContentsWaiters = new Map<
     string,
     Set<{
@@ -383,6 +385,14 @@ class WebviewManager {
     extensions.addTab(view.webContents, this.mainWindow)
     this.resolveWebContentsWaiters(tabId, view.webContents)
 
+    console.info('[WebviewManager] extension session attached to tab', {
+      tabId,
+      webContentsId: view.webContents.id,
+      containerId: containerId || null,
+      sessionStoragePath: view.webContents.session.getStoragePath(),
+      url
+    })
+
     // 恢复缩放偏好
     const savedZoom = getZoomPreference(pageId)
     if (savedZoom !== undefined && savedZoom !== 0) {
@@ -393,12 +403,15 @@ class WebviewManager {
       try {
         if (applyProxyPromise) await applyProxyPromise
         await this.refreshProxyInfo(tabId)
-        await ensureExtensionsLoadedForContainer(containerId || null)
-        console.log('[WebviewManager] loadURL started', { tabId, url })
-        await view.webContents.loadURL(url)
-        console.log('[WebviewManager] loadURL completed', { tabId, url: view.webContents.getURL() })
+        await this.loadURLWhenExtensionsReady(entry, url, 'initial')
       } catch (error) {
-        console.error(`[WebviewManager] loadURL failed for tab ${tabId}:`, error)
+        console.error('[WebviewManager] initial navigation setup failed', {
+          tabId,
+          webContentsId: view.webContents.id,
+          containerId: containerId || null,
+          url,
+          message: error instanceof Error ? error.message : String(error)
+        })
       }
     })()
 
@@ -483,6 +496,7 @@ class WebviewManager {
     }
 
     this.views.delete(tabId)
+    this.navigationRequests.delete(tabId)
 
     try {
       const extensions = getExtensionsForContainer(entry.containerId || null)
@@ -625,6 +639,94 @@ class WebviewManager {
 
   // ====== 导航 ======
 
+  private nextNavigationRequest(tabId: string): number {
+    const requestId = (this.navigationRequests.get(tabId) ?? 0) + 1
+    this.navigationRequests.set(tabId, requestId)
+    return requestId
+  }
+
+  private async runWhenExtensionsReady(
+    entry: ViewEntry,
+    trigger: 'initial' | 'navigate' | 'reload' | 'force-reload',
+    operation: () => Promise<void> | void
+  ): Promise<void> {
+    const { tabId, containerId } = entry
+    const webContents = entry.view.webContents
+    const requestId = this.nextNavigationRequest(tabId)
+    const details = {
+      tabId,
+      requestId,
+      trigger,
+      webContentsId: webContents.id,
+      containerId: containerId || null,
+      sessionStoragePath: webContents.session.getStoragePath()
+    }
+
+    try {
+      console.info('[WebviewManager] waiting for extension session initialization', details)
+      await ensureExtensionsLoadedForContainer(containerId || null)
+
+      if (webContents.isDestroyed() || this.navigationRequests.get(tabId) !== requestId) {
+        console.info('[WebviewManager] navigation skipped after extension session initialization', details)
+        return
+      }
+
+      console.info('[WebviewManager] extension session initialization ready for navigation', details)
+      await operation()
+    } catch (error) {
+      console.error('[WebviewManager] navigation failed after extension session initialization', {
+        ...details,
+        message: error instanceof Error ? error.message : String(error)
+      })
+    }
+  }
+
+  private async loadURLWhenExtensionsReady(
+    entry: ViewEntry,
+    url: string,
+    trigger: 'initial' | 'navigate'
+  ): Promise<void> {
+    const webContents = entry.view.webContents
+    await this.runWhenExtensionsReady(entry, trigger, async () => {
+      console.info('[WebviewManager] loadURL started', {
+        tabId: entry.tabId,
+        trigger,
+        webContentsId: webContents.id,
+        containerId: entry.containerId || null,
+        sessionStoragePath: webContents.session.getStoragePath(),
+        url
+      })
+      await webContents.loadURL(url)
+      console.info('[WebviewManager] loadURL completed', {
+        tabId: entry.tabId,
+        trigger,
+        webContentsId: webContents.id,
+        containerId: entry.containerId || null,
+        sessionStoragePath: webContents.session.getStoragePath(),
+        url: webContents.getURL()
+      })
+    })
+  }
+
+  private async reloadWhenExtensionsReady(
+    entry: ViewEntry,
+    trigger: 'reload' | 'force-reload'
+  ): Promise<void> {
+    const webContents = entry.view.webContents
+    await this.runWhenExtensionsReady(entry, trigger, () => {
+      console.info('[WebviewManager] reload started', {
+        tabId: entry.tabId,
+        trigger,
+        webContentsId: webContents.id,
+        containerId: entry.containerId || null,
+        sessionStoragePath: webContents.session.getStoragePath(),
+        url: webContents.getURL()
+      })
+      if (trigger === 'force-reload') webContents.reloadIgnoringCache()
+      else webContents.reload()
+    })
+  }
+
   navigate(tabId: string, url: string): void {
     if (url.startsWith('sessionbox://')) return
     const pending = this.pendingViews.get(tabId)
@@ -633,7 +735,7 @@ class WebviewManager {
       return
     }
     const entry = this.views.get(tabId)
-    if (entry) void entry.view.webContents.loadURL(url)
+    if (entry) void this.loadURLWhenExtensionsReady(entry, url, 'navigate')
   }
 
   goBack(tabId: string): void {
@@ -652,13 +754,15 @@ class WebviewManager {
 
   reload(tabId: string): void {
     const entry = this.views.get(tabId)
-    if (entry) entry.view.webContents.reload()
+    if (entry && !entry.view.webContents.isDestroyed()) {
+      void this.reloadWhenExtensionsReady(entry, 'reload')
+    }
   }
 
   forceReload(tabId: string): void {
     const entry = this.views.get(tabId)
     if (entry && !entry.view.webContents.isDestroyed()) {
-      entry.view.webContents.reloadIgnoringCache()
+      void this.reloadWhenExtensionsReady(entry, 'force-reload')
     }
   }
 
