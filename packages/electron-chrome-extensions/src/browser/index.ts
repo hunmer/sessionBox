@@ -20,6 +20,7 @@ import { ExtensionRouter } from './router'
 import { checkLicense, License } from './license'
 import { readLoadedExtensionManifest } from './manifest'
 import { PermissionsAPI } from './api/permissions'
+import { UserScriptsAPI } from './api/user-scripts'
 import { resolvePartition } from './partition'
 
 function checkVersion() {
@@ -119,6 +120,7 @@ export class ElectronChromeExtensions extends EventEmitter {
   }
 
   private ctx: ExtensionContext
+  private preloadReady: Promise<void>
 
   private api: {
     browserAction: BrowserActionAPI
@@ -127,6 +129,7 @@ export class ElectronChromeExtensions extends EventEmitter {
     cookies: CookiesAPI
     notifications: NotificationsAPI
     permissions: PermissionsAPI
+    userScripts: UserScriptsAPI
     runtime: RuntimeAPI
     tabs: TabsAPI
     webNavigation: WebNavigationAPI
@@ -164,6 +167,7 @@ export class ElectronChromeExtensions extends EventEmitter {
       cookies: new CookiesAPI(this.ctx),
       notifications: new NotificationsAPI(this.ctx),
       permissions: new PermissionsAPI(this.ctx),
+      userScripts: new UserScriptsAPI(this.ctx),
       runtime: new RuntimeAPI(this.ctx),
       tabs: new TabsAPI(this.ctx),
       webNavigation: new WebNavigationAPI(this.ctx),
@@ -171,7 +175,12 @@ export class ElectronChromeExtensions extends EventEmitter {
     }
 
     this.listenForExtensions()
-    this.prependPreload(opts.modulePath)
+    this.preloadReady = this.prependPreload(opts.modulePath)
+  }
+
+  /** Resolves after extension preload scripts are registered for the session. */
+  whenReady(): Promise<void> {
+    return this.preloadReady
   }
 
   private listenForExtensions() {
@@ -187,12 +196,12 @@ export class ElectronChromeExtensions extends EventEmitter {
     const preloadPath = resolvePreloadPath(modulePath)
 
     if ('registerPreloadScript' in session) {
-      session.registerPreloadScript({
+      await session.registerPreloadScript({
         id: 'crx-mv2-preload',
         type: 'frame',
         filePath: preloadPath,
       })
-      session.registerPreloadScript({
+      await session.registerPreloadScript({
         id: 'crx-mv3-preload',
         type: 'service-worker',
         filePath: preloadPath,

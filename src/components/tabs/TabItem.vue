@@ -340,7 +340,7 @@ onBeforeUnmount(clearTimers)
             <Transition name="tab-icon">
               <button
                 v-if="!isPinned"
-                class="flex-shrink-0 p-0.5 rounded-full hover:bg-secondary transition-opacity"
+                class="flex-shrink-0 p-0.5 rounded-full transition-opacity"
                 :class="[
                   vertical ? 'ml-auto' : '',
                   iconOnly

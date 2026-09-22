@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Loader2, Plus, Puzzle, RefreshCw, Trash2 } from 'lucide-vue-next'
+import { Loader2, Plus, Puzzle, RefreshCw, Store, Trash2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { useExtensionStore } from '@/stores/extension'
+import { useTabStore } from '@/stores/tab'
 
 const extensionStore = useExtensionStore()
+const tabStore = useTabStore()
+
+const CHROME_WEB_STORE_URL = 'https://chromewebstore.google.com/'
+
+function openWebStore() {
+  tabStore.createTabInDefaultSession(CHROME_WEB_STORE_URL)
+}
 
 const isLoading = ref(false)
 const error = ref<string | null>(null)
@@ -87,6 +95,15 @@ async function deleteExtensionItem(extensionId: string) {
         {{ enabledCount }}/{{ extensionStore.extensions.length }} 已启用
       </span>
       <div class="flex-1" />
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 text-xs gap-1"
+        @click="openWebStore"
+      >
+        <Store class="w-3.5 h-3.5" />
+        扩展商店
+      </Button>
       <Button
         variant="ghost"
         size="sm"

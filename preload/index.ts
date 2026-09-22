@@ -420,7 +420,11 @@ const api = {
       containerId: string | null,
       extensionId: string,
       anchorRect: { x: number; y: number; width: number; height: number; alignment?: string }
-    ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', containerId, extensionId, anchorRect)
+    ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', containerId, extensionId, anchorRect),
+    completeTabCreate: (
+      requestId: string,
+      result: { tabId?: string; error?: string }
+    ): Promise<boolean> => ipcRenderer.invoke('extension:complete-tab-create', requestId, result)
   },
 
   window: {

@@ -28,9 +28,9 @@ async function openInChrome() {
     if (!extension?.name) {
       throw new Error('安装服务未返回扩展信息')
     }
+    notify.success(`扩展「${extension.name}」已安装并启用`)
     await extensionStore.init()
     await extensionStore.refreshLoadedExtensions()
-    notify.success(`扩展「${extension.name}」已安装并启用`)
     if (extension.compatibilityWarnings?.length) {
       notify.warning({
         title: '部分扩展权限不受 Electron 支持',
@@ -72,8 +72,7 @@ async function openInChrome() {
       @click.stop="openInChrome"
     >
       <Loader2 v-if="opening" class="mr-1 size-3 animate-spin" />
-      <ExternalLink v-else class="mr-1 size-3" />
-      在 Chrome 中安装
+      安装到 SessionBox
     </Button>
     <Button
       size="icon-sm"

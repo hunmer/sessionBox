@@ -480,6 +480,17 @@ export const injectExtensionAPIs = () => {
         },
       },
 
+      userScripts: {
+        factory: (base) => ({
+          ...base,
+          register: invokeExtension('userScripts.register'),
+          unregister: invokeExtension('userScripts.unregister'),
+          update: invokeExtension('userScripts.update'),
+          getScripts: invokeExtension('userScripts.getScripts'),
+          configureWorld: invokeExtension('userScripts.configureWorld'),
+        }),
+      },
+
       privacy: {
         factory: (base) => {
           return {
@@ -651,17 +662,30 @@ export const injectExtensionAPIs = () => {
       // Allow APIs to opt-out of being available in this context.
       if (api.shouldInject && !api.shouldInject()) return
 
-      Object.defineProperty(chrome, apiName, {
-        value: api.factory(baseApi),
-        enumerable: true,
-        configurable: true,
-      })
+      const extensionApi = api.factory(baseApi)
+
+      // Electron exposes native API namespaces as objects. Extend them in
+      // place so extension code that captured `chrome` before this preload
+      // still observes the SessionBox-provided methods (notably tabs.create).
+      if (baseApi && (typeof baseApi === 'object' || typeof baseApi === 'function')) {
+        Object.assign(baseApi, extensionApi)
+      } else {
+        Object.defineProperty(chrome, apiName, {
+          value: extensionApi,
+          enumerable: true,
+          configurable: true,
+        })
+      }
     })
 
     // Remove access to internals
     delete (globalThis as any).electron
 
     Object.freeze(chrome)
+    console.info('[electron-chrome-extensions] extension APIs injected', {
+      extensionId,
+      tabsCreate: typeof chrome.tabs?.create,
+    })
 
     void 0 // no return
   }

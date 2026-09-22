@@ -1,15 +1,13 @@
 import { app, session } from 'electron'
 import { ElectronChromeExtensions } from 'electron-chrome-extensions'
-import type { BrowserWindow, Session, WebContents } from 'electron'
+import type { BrowserWindow, Session } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import {
-  createTab as createStoredTab,
   deleteTab as deleteStoredTab,
-  getContainerById,
   listContainers,
   listExtensions,
-  listTabs,
   type Extension,
   updateExtension
 } from './store'
@@ -32,6 +30,21 @@ const extensionInfoMap = new Map<string, { name: string; icon?: string }>()
 
 // 避免同一 partition 并发重复加载同一个扩展。
 const pendingLoads = new Map<string, Promise<string>>()
+
+type RendererTabCreateRequest = {
+  requestId: string
+  url: string
+  containerId: string
+  active: boolean
+}
+
+type PendingRendererTabCreate = {
+  resolve: (tabId: string) => void
+  reject: (error: Error) => void
+  timer: ReturnType<typeof setTimeout>
+}
+
+const pendingRendererTabCreates = new Map<string, PendingRendererTabCreate>()
 
 function getPartitionKey(containerId?: string | null): PartitionKey {
   return containerId ? `persist:container-${containerId}` : defaultPartitionKey
@@ -71,6 +84,58 @@ function extensionRequestsUserScripts(extensionPath: string): boolean {
     return [...(manifest.permissions ?? []), ...(manifest.optional_permissions ?? [])].includes('userScripts')
   } catch {
     return false
+  }
+}
+
+function configureTampermonkeyCompatibility(extensionPath: string): void {
+  const manifestPath = join(extensionPath, 'manifest.json')
+  const backgroundPath = join(extensionPath, 'background.js')
+  if (!existsSync(manifestPath) || !existsSync(backgroundPath)) return
+  try {
+    if (basename(extensionPath) !== 'gcalenpjmijncebpfijmoaglllgpjagf') return
+
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      content_scripts?: Array<{ js?: string[] } & Record<string, unknown>>
+    }
+    const contentScripts = manifest.content_scripts ?? []
+    const probeFilename = 'sessionbox-tampermonkey-probe.js'
+    const probePath = join(extensionPath, probeFilename)
+    if (!existsSync(probePath)) {
+      writeFileSync(
+        probePath,
+        "console.info('[SessionBox][Tampermonkey] content script loaded', { url: location.href, runtime: Boolean(chrome.runtime?.id) })\n",
+        'utf8'
+      )
+    }
+
+    const contentScript = contentScripts.find((script) => script.js?.includes('content.js'))
+    let manifestChanged = false
+    if (contentScript) {
+      const scripts = contentScript.js ?? (contentScript.js = [])
+      if (!scripts.includes(probeFilename)) {
+        scripts.unshift(probeFilename)
+        manifestChanged = true
+      }
+    } else {
+      contentScripts.push({
+        matches: ['<all_urls>'],
+        js: [probeFilename, 'content.js'],
+        run_at: 'document_start',
+        all_frames: true
+      })
+      manifest.content_scripts = contentScripts
+      manifestChanged = true
+    }
+    if (manifestChanged) {
+      writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8')
+      console.info('[Extensions] Updated Tampermonkey content script manifest entry')
+    }
+
+    const source = readFileSync(backgroundPath, 'utf8')
+    const patched = source.replace('runtime_content_mode:"userscripts"', 'runtime_content_mode:"content"')
+    if (patched !== source) writeFileSync(backgroundPath, patched, 'utf8')
+  } catch (error) {
+    console.warn('[Extensions] Failed to apply Tampermonkey compatibility mode:', error)
   }
 }
 
@@ -125,26 +190,35 @@ async function unloadElectronExtension(
   browserSession.extensions.removeExtension(electronExtensionId)
 }
 
-function getInitialExtensionTabTitle(
-  partitionKey: string,
-  url?: string,
-  fallbackTitle?: string
-): string {
-  if (!url) {
-    return fallbackTitle || '新标签页'
-  }
+function requestRendererTabCreate(
+  mainWindow: BrowserWindow,
+  request: Omit<RendererTabCreateRequest, 'requestId'>
+): Promise<string> {
+  const requestId = randomUUID()
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pendingRendererTabCreates.delete(requestId)
+      reject(new Error('Timed out waiting for tabStore to create extension tab'))
+    }, 10_000)
+    pendingRendererTabCreates.set(requestId, { resolve, reject, timer })
+    mainWindow.webContents.send('on:extension:tab:create', { requestId, ...request })
+  })
+}
 
-  if (url.startsWith('chrome-extension://')) {
-    try {
-      const { host } = new URL(url)
-      const extensionInfo = getExtensionInfo(partitionKey, host)
-      return extensionInfo?.name || '扩展页面'
-    } catch {
-      return '扩展页面'
-    }
+export function completeRendererTabCreate(
+  requestId: string,
+  result: { tabId?: string; error?: string }
+): boolean {
+  const pending = pendingRendererTabCreates.get(requestId)
+  if (!pending) return false
+  pendingRendererTabCreates.delete(requestId)
+  clearTimeout(pending.timer)
+  if (result.error || !result.tabId) {
+    pending.reject(new Error(result.error || 'tabStore did not return a tab ID'))
+  } else {
+    pending.resolve(result.tabId)
   }
-
-  return fallbackTitle || url
+  return true
 }
 
 function createExtensionsInstance(
@@ -155,37 +229,26 @@ function createExtensionsInstance(
     license: extensionRuntimeLicense,
     session: browserSession,
     async createTab(details) {
+      console.info('[Extensions] tabs.create requested', {
+        containerId: containerId || null,
+        url: details.url,
+        active: details.active
+      })
 
       const mainWindow = webviewManager.getMainWindow()
       if (!mainWindow || mainWindow.isDestroyed()) {
         throw new Error('Main window is not available')
       }
 
-      const resolvedContainerId = containerId || null
-      const partitionKey = getPartitionKey(resolvedContainerId)
-      const container = resolvedContainerId ? getContainerById(resolvedContainerId) : undefined
       const tabUrl = details.url || 'https://www.baidu.com'
-      const order = listTabs().reduce((max, tab) => Math.max(max, tab.order), -1) + 1
-
-      const tab = createStoredTab({
-        pageId: '',
-        title: getInitialExtensionTabTitle(partitionKey, details.url, container?.name),
+      const tabId = await requestRendererTabCreate(mainWindow, {
         url: tabUrl,
-        order
+        containerId: containerId || '',
+        active: details.active !== false
       })
+      const webContents = await webviewManager.waitForWebContents(tabId)
 
-      const webContents = webviewManager.createView(tab.id, '', tabUrl, resolvedContainerId || undefined)
-      if (!webContents) {
-        deleteStoredTab(tab.id)
-        throw new Error('Failed to create extension tab webContents')
-      }
-
-      mainWindow.webContents.send('on:tab:created', tab)
-
-      if (details.active !== false) {
-        webviewManager.switchView(tab.id)
-      }
-
+      console.info('[Extensions] tabs.create completed through tabStore', { tabId, url: tabUrl })
       return [webContents, mainWindow]
     },
     selectTab(webContents) {
@@ -254,7 +317,9 @@ async function loadExtensionIntoContainer(
   }
 
   const loadTask = (async () => {
-    getExtensionsForContainer(containerId)
+    await getExtensionsForContainer(containerId).whenReady()
+    console.info('[Extensions] extension API preload is ready', { partitionKey })
+    configureTampermonkeyCompatibility(extension.path)
 
     const loadedExt = await browserSession.loadExtension(extension.path)
     const userScriptsEnabled = extensionRequestsUserScripts(extension.path)

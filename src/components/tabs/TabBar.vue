@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, type ComponentPublicInstance } from 'vue'
-import { Plus, Minus, Square, X, Copy, PanelLeftClose, PanelLeftOpen, ChevronRight, ArrowLeft, ArrowRight, RotateCw, Loader2 } from 'lucide-vue-next'
+import { Plus, Minus, Square, X, Copy, PanelLeftClose, PanelLeftOpen, ChevronRight, ArrowLeft, ArrowRight } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import draggable from 'vuedraggable'
 import TabLayoutMenu from './TabLayoutMenu.vue'
@@ -58,10 +58,6 @@ function goBack() {
 
 function goForward() {
   if (tabStore.activeTabId) tabStore.goForward(tabStore.activeTabId)
-}
-
-function reload() {
-  if (tabStore.activeTabId) tabStore.reload(tabStore.activeTabId)
 }
 
 // 分组折叠状态
@@ -165,23 +161,6 @@ function handleNavigateUrl(url: string) {
       @click="goForward"
     >
       <ArrowRight class="w-3.5 h-3.5" />
-    </Button>
-
-    <!-- 刷新/加载中 -->
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      class="h-7 w-7 flex-shrink-0 rounded-full"
-      @click="reload"
-    >
-      <Loader2
-        v-if="navState.isLoading"
-        class="w-3.5 h-3.5 animate-spin"
-      />
-      <RotateCw
-        v-else
-        class="w-3.5 h-3.5"
-      />
     </Button>
 
     <!-- 标签列表 - 分组模式（每个 tab 独立可拖拽） -->

@@ -497,9 +497,40 @@ async function openExternalUrlInContainerAction(
   await activateCreatedTab(ctx, tab.id)
 }
 
+async function createExtensionTabAction(
+  ctx: TabStoreContext,
+  url: string,
+  containerId: string,
+  active: boolean
+) {
+  const workspaceId = useWorkspaceStore().activeWorkspaceId
+  const tab = await api.tab.create(null, url, containerId, workspaceId)
+  await nextTick()
+  if (active) await activateCreatedTab(ctx, tab.id)
+  return tab
+}
+
 // ====== IPC 事件注册 ======
 
 function registerLifecycleListeners(ctx: TabStoreContext) {
+  api.on('extension:tab:create', async (request: unknown) => {
+    const { requestId, url, containerId, active } = request as {
+      requestId?: string
+      url?: string
+      containerId?: string
+      active?: boolean
+    }
+    if (!requestId || !url) return
+    try {
+      const tab = await createExtensionTabAction(ctx, url, containerId || '', active !== false)
+      await api.extension.completeTabCreate(requestId, { tabId: tab.id })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('[TabStore] failed to create extension tab', { requestId, url, message })
+      await api.extension.completeTabCreate(requestId, { error: message })
+    }
+  })
+
   api.on('tab:created', (tab: unknown) => {
     const nextTab = tab as Tab
     if (!ctx.tabs.value.some((item) => item.id === nextTab.id)) {

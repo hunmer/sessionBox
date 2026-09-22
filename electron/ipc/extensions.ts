@@ -10,6 +10,7 @@ import {
   updateExtension
 } from '../services/store'
 import {
+  completeRendererTabCreate,
   getLoadedExtensionIds,
   loadExtensionForAllContainers,
   openExtensionBrowserActionPopup,
@@ -102,10 +103,28 @@ function getCompatibilityWarnings(manifest: { permissions?: string[] }): string[
   return (manifest.permissions ?? []).filter((permission) => unsupportedPermissions.has(permission))
 }
 
+function configureTampermonkeyCompatibility(extensionPath: string, storeExtensionId: string): void {
+  if (storeExtensionId !== 'gcalenpjmijncebpfijmoaglllgpjagf') return
+
+  const backgroundPath = join(extensionPath, 'background.js')
+  if (!existsSync(backgroundPath)) return
+  const source = readFileSync(backgroundPath, 'utf8')
+  const patched = source.replace('runtime_content_mode:"userscripts"', 'runtime_content_mode:"content"')
+  if (patched !== source) {
+    writeFileSync(backgroundPath, patched, 'utf8')
+  }
+}
+
 /**
  * 注册扩展相关 IPC 处理器。
  */
 export function registerExtensionHandlers(): void {
+  ipcMain.handle(
+    'extension:complete-tab-create',
+    (_event, requestId: string, result: { tabId?: string; error?: string }) =>
+      completeRendererTabCreate(requestId, result)
+  )
+
   ipcMain.handle('extension:list', async (): Promise<Extension[]> => {
     const extensions = listExtensions()
     // 为缺少图标的扩展自动填充（兼容已有数据）
@@ -223,19 +242,24 @@ export function registerExtensionHandlers(): void {
       short_name?: string
       permissions?: string[]
     }
+    configureTampermonkeyCompatibility(extensionRoot, extensionId)
     const extensionName = resolveExtensionMessage(extensionRoot, manifest.name || manifest.short_name || extensionId)
+    const userScriptsEnabled =
+      extensionId !== 'gcalenpjmijncebpfijmoaglllgpjagf' && (manifest.permissions ?? []).includes('userScripts')
     const extension = existing || createExtension({
       name: extensionName,
       path: extensionRoot,
       enabled: true,
-      icon: readExtensionIcon(extensionRoot)
+      icon: readExtensionIcon(extensionRoot),
+      userScriptsEnabled
     })
     if (existing) {
       const icon = readExtensionIcon(extensionRoot)
-      updateExtension(existing.id, { name: extensionName, enabled: true, icon })
+      updateExtension(existing.id, { name: extensionName, enabled: true, icon, userScriptsEnabled })
       extension.name = extensionName
       extension.enabled = true
       extension.icon = icon
+      extension.userScriptsEnabled = userScriptsEnabled
     }
     await loadExtensionForAllContainers(extension)
     return {
@@ -243,6 +267,7 @@ export function registerExtensionHandlers(): void {
       name: extensionName,
       enabled: true,
       icon: readExtensionIcon(extensionRoot),
+      userScriptsEnabled,
       compatibilityWarnings: getCompatibilityWarnings(manifest)
     }
   })

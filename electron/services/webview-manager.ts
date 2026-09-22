@@ -48,6 +48,14 @@ class WebviewManager {
   private frozenTabUrls = new Map<string, FrozenTabInfo>()
   private pendingViews = new Map<string, PendingViewInfo>()
   private requestedWebviews = new Map<string, PendingViewInfo>()
+  private webContentsWaiters = new Map<
+    string,
+    Set<{
+      resolve: (webContents: Electron.WebContents) => void
+      reject: (error: Error) => void
+      timer: ReturnType<typeof setTimeout>
+    }>
+  >()
   private _freezeMinutes = 0
   private aria2Enabled = false
   private snifferEnabled = new Map<string, boolean>()
@@ -373,6 +381,7 @@ class WebviewManager {
 
     const extensions = getExtensionsForContainer(containerId || null)
     extensions.addTab(view.webContents, this.mainWindow)
+    this.resolveWebContentsWaiters(tabId, view.webContents)
 
     // 恢复缩放偏好
     const savedZoom = getZoomPreference(pageId)
@@ -398,6 +407,34 @@ class WebviewManager {
   registerPendingView(tabId: string, pageId: string, containerId: string, url: string, lastNonAuthUrl?: string): void {
     if (url.startsWith('sessionbox://')) return
     this.pendingViews.set(tabId, { url, pageId, containerId, lastNonAuthUrl })
+  }
+
+  async waitForWebContents(tabId: string, timeoutMs = 10_000): Promise<Electron.WebContents> {
+    const existing = this.getWebContents(tabId)
+    if (existing && !existing.isDestroyed()) return existing
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const waiters = this.webContentsWaiters.get(tabId)
+        waiters?.delete(waiter)
+        if (waiters?.size === 0) this.webContentsWaiters.delete(tabId)
+        reject(new Error(`Timed out waiting for tab ${tabId} WebContents`))
+      }, timeoutMs)
+      const waiter = { resolve, reject, timer }
+      const waiters = this.webContentsWaiters.get(tabId) ?? new Set()
+      waiters.add(waiter)
+      this.webContentsWaiters.set(tabId, waiters)
+    })
+  }
+
+  private resolveWebContentsWaiters(tabId: string, webContents: Electron.WebContents): void {
+    const waiters = this.webContentsWaiters.get(tabId)
+    if (!waiters) return
+    this.webContentsWaiters.delete(tabId)
+    for (const waiter of waiters) {
+      clearTimeout(waiter.timer)
+      waiter.resolve(webContents)
+    }
   }
 
   private ensureViewReady(tabId: string): ViewEntry | null {

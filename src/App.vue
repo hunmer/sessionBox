@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, nextTick, ref, watch, computed } from 'vue'
-import { Info } from 'lucide-vue-next'
+import { Info, Loader2, RotateCw } from 'lucide-vue-next'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { Progress } from '@/components/ui/progress'
@@ -116,6 +116,11 @@ function syncWebContentsViewVisibility() {
 
 function handleBeforeUnload() {
   void splitStore.persistState()
+}
+
+// 刷新当前激活标签页（状态栏左侧按钮）
+function reloadActiveTab() {
+  if (tabStore.activeTabId) tabStore.reload(tabStore.activeTabId)
 }
 
 async function handleDetectProxy(): Promise<void> {
@@ -851,9 +856,29 @@ useIpcEvent('shortcut', (actionId) => {
                   class="absolute bottom-[3px] inset-x-0 z-20"
                 >
                   <div class="h-6 w-full border-t bg-background/95 backdrop-blur-sm px-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                    <span class="truncate">
-                      {{ tabStore.activeTab?.url || '就绪' }}
-                    </span>
+                    <div class="flex items-center gap-2 min-w-0">
+                      <!-- 刷新/加载中 -->
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-5 w-5 shrink-0 rounded-sm text-muted-foreground"
+                        :disabled="!tabStore.activeTabId"
+                        @mousedown.prevent
+                        @click="reloadActiveTab"
+                      >
+                        <Loader2
+                          v-if="tabStore.activeNavState.isLoading"
+                          class="w-3 h-3 animate-spin"
+                        />
+                        <RotateCw
+                          v-else
+                          class="w-3 h-3"
+                        />
+                      </Button>
+                      <span class="truncate">
+                        {{ tabStore.activeTab?.url || '就绪' }}
+                      </span>
+                    </div>
                     <div class="flex items-center gap-2 shrink-0 min-w-0 max-w-[45%]">
                       <template v-if="tabStore.activeProxyInfo">
                         <Switch

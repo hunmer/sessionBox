@@ -34,6 +34,9 @@ const preloadConfig = createConfig({
   entryPoints: ['src/preload.ts'],
   outfile: 'dist/chrome-extension-api.preload.js',
   platform: 'node',
+  // executeInMainWorld serializes this code. Keep native class fields so it
+  // does not depend on esbuild helpers outside the serialized function.
+  target: 'esnext',
   external,
   sourcemap: false,
 })
