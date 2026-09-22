@@ -1,6 +1,7 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { app, BrowserWindow, dialog, ipcMain, net } from 'electron'
+import AdmZip from 'adm-zip'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { join, normalize, relative } from 'node:path'
 import {
   createExtension,
   deleteExtension,
@@ -131,6 +132,72 @@ export function registerExtensionHandlers(): void {
     })
   })
 
+  ipcMain.handle('extension:installFromWebStore', async (_event, storeUrl: string): Promise<Extension> => {
+    const extensionId = parseChromeWebStoreExtensionId(storeUrl)
+    const downloadUrl =
+      `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=120.0.0.0&acceptformat=crx2,crx3&x=id%3D${extensionId}%26installsource%3Dondemand%26uc`
+    let response: Awaited<ReturnType<typeof net.fetch>>
+    try {
+      response = await net.fetch(downloadUrl)
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      throw new Error(`下载扩展网络请求失败：${reason}`)
+    }
+    if (!response.ok) {
+      throw new Error(`下载扩展失败（HTTP ${response.status}）`)
+    }
+
+    const extensionRoot = join(app.getPath('userData'), 'extensions', 'webstore', extensionId)
+    const archive = Buffer.from(await response.arrayBuffer())
+    const zipData = extractCrxZip(archive)
+    const zip = new AdmZip(zipData)
+    const entries = zip.getEntries()
+    if (!entries.some((entry) => entry.entryName === 'manifest.json')) {
+      throw new Error('下载的文件不是有效的 Chrome 扩展')
+    }
+
+    const existing = listExtensions().find((extension) => extension.path === extensionRoot)
+    if (existing) {
+      await unloadExtensionFromAllContainers(existing.id)
+    }
+
+    rmSync(extensionRoot, { recursive: true, force: true })
+    mkdirSync(extensionRoot, { recursive: true })
+    for (const entry of entries) {
+      const target = normalize(join(extensionRoot, entry.entryName))
+      if (relative(extensionRoot, target).startsWith('..')) {
+        throw new Error('扩展压缩包包含非法路径')
+      }
+      if (entry.isDirectory) {
+        mkdirSync(target, { recursive: true })
+      } else {
+        mkdirSync(join(target, '..'), { recursive: true })
+        writeFileSync(target, entry.getData())
+      }
+    }
+
+    const manifest = JSON.parse(readFileSync(join(extensionRoot, 'manifest.json'), 'utf8')) as {
+      name?: string
+      short_name?: string
+    }
+    const extensionName = manifest.name || manifest.short_name || extensionId
+    const extension = existing || createExtension({
+      name: extensionName,
+      path: extensionRoot,
+      enabled: true,
+      icon: readExtensionIcon(extensionRoot)
+    })
+    if (existing) {
+      const icon = readExtensionIcon(extensionRoot)
+      updateExtension(existing.id, { name: extensionName, enabled: true, icon })
+      extension.name = extensionName
+      extension.enabled = true
+      extension.icon = icon
+    }
+    await loadExtensionForAllContainers(extension)
+    return { ...extension, name: extensionName, enabled: true, icon: readExtensionIcon(extensionRoot) }
+  })
+
   ipcMain.handle('extension:load', async (_event, extensionId: string): Promise<void> => {
     const extension = listExtensions().find((item) => item.id === extensionId)
     if (!extension) {
@@ -188,4 +255,42 @@ export function registerExtensionHandlers(): void {
       openExtensionBrowserActionPopup(containerId, extensionId, anchorRect)
     }
   )
+}
+
+function parseChromeWebStoreExtensionId(storeUrl: string): string {
+  let parsed: URL
+  try {
+    parsed = new URL(storeUrl)
+  } catch {
+    throw new Error('无效的 Chrome Web Store 地址')
+  }
+
+  if (parsed.hostname.toLowerCase() !== 'chromewebstore.google.com') {
+    throw new Error('只支持 Chrome Web Store 扩展页面')
+  }
+
+  const pathParts = parsed.pathname.split('/').filter(Boolean)
+  const id = pathParts[0] === 'detail' ? pathParts[2] : parsed.searchParams.get('id')
+  if (!id || !/^[a-z]{32}$/.test(id)) {
+    throw new Error('无法从页面地址识别扩展 ID')
+  }
+  return id
+}
+
+function extractCrxZip(buffer: Buffer): Buffer {
+  if (buffer.subarray(0, 4).toString('ascii') !== 'Cr24') {
+    throw new Error('下载的文件不是有效的 CRX 扩展包')
+  }
+
+  const version = buffer.readUInt32LE(4)
+  if (version === 2) {
+    const publicKeyLength = buffer.readUInt32LE(8)
+    const signatureLength = buffer.readUInt32LE(12)
+    return buffer.subarray(16 + publicKeyLength + signatureLength)
+  }
+  if (version === 3) {
+    const headerLength = buffer.readUInt32LE(8)
+    return buffer.subarray(12 + headerLength)
+  }
+  throw new Error(`不支持的 CRX 版本：${version}`)
 }

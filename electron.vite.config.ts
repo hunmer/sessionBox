@@ -90,7 +90,17 @@ export default defineConfig({
       }),
       tailwindcss(),
       // 仅开发环境启用 Vue DevTools
-      ...(isProduction ? [] : [vueDevTools({ launchEditor: getEditor() })])
+      ...(isProduction
+        ? []
+        : [
+            vueDevTools({
+              launchEditor: getEditor(),
+              componentInspector: {
+                // 组件审查器切换键，默认 control-shift
+                toggleComboKey: 'control-alt-d'
+              }
+            })
+          ])
     ],
     build: {
       rollupOptions: {

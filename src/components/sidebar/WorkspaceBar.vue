@@ -4,6 +4,7 @@ import { Plus, X, MoreHorizontal } from 'lucide-vue-next'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import WorkspaceDialog from './WorkspaceDialog.vue'
+import WorkspaceIcon from './WorkspaceIcon.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useTabStore } from '@/stores/tab'
 import { usePageStore } from '@/stores/page'
@@ -46,11 +47,11 @@ function openEdit(ws: Workspace) {
   dialogOpen.value = true
 }
 
-async function handleSave(data: { title: string; color: string }) {
+async function handleSave(data: { title: string; color: string; icon: string }) {
   if (editingWorkspace.value) {
     await workspaceStore.updateWorkspace(editingWorkspace.value.id, data)
   } else {
-    const ws = await workspaceStore.createWorkspace(data.title, data.color)
+    const ws = await workspaceStore.createWorkspace(data.title, data.color, data.icon)
     workspaceStore.activate(ws.id)
   }
 }
@@ -81,7 +82,7 @@ async function handleDelete(ws: Workspace) {
           @click="workspaceStore.activate(ws.id)"
           @contextmenu.prevent="!workspaceStore.isDefaultWorkspace(ws.id) && openEdit(ws)"
         >
-          {{ ws.title.charAt(0) }}
+          <WorkspaceIcon :icon="ws.icon" :fallback="ws.title.charAt(0)" />
         </button>
         <!-- 标签数量 badge -->
         <span
@@ -131,7 +132,7 @@ async function handleDelete(ws: Workspace) {
               class="relative w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-white mb-1"
               :style="{ backgroundColor: ws.color }"
             >
-              {{ ws.title.charAt(0) }}
+              <WorkspaceIcon :icon="ws.icon" :fallback="ws.title.charAt(0)" />
               <!-- 标签数量 badge -->
               <span
                 v-if="getWorkspaceTabCount(ws.id) > 0"
@@ -202,7 +203,7 @@ async function handleDelete(ws: Workspace) {
           :style="{ backgroundColor: ws.color }"
           @click="workspaceStore.activate(ws.id)"
         >
-          {{ ws.title.charAt(0) }}
+          <WorkspaceIcon :icon="ws.icon" :fallback="ws.title.charAt(0)" />
           <!-- 标签数量 badge -->
           <span
             v-if="getWorkspaceTabCount(ws.id) > 0"

@@ -23,6 +23,7 @@ export interface Workspace {
   color: string
   order: number
   isDefault?: boolean
+  icon?: string
 }
 
 export interface Group {
@@ -309,7 +310,7 @@ export function listWorkspaces(): Workspace[] {
   return getCollection('workspaces').sort((a, b) => a.order - b.order)
 }
 
-export function createWorkspace(title: string, color: string): Workspace {
+export function createWorkspace(title: string, color: string, icon?: string): Workspace {
   const workspaces = getCollection('workspaces')
   const workspace: Workspace = {
     id: randomUUID(),
@@ -317,6 +318,7 @@ export function createWorkspace(title: string, color: string): Workspace {
     color,
     order: workspaces.length
   }
+  if (icon) workspace.icon = icon
   workspaces.push(workspace)
   setCollection('workspaces', workspaces)
   try { pluginEventBus.emit('workspace:created', workspace) } catch {}

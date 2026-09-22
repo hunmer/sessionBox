@@ -39,8 +39,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     workspaces.value = await api.workspace.list()
   }
 
-  async function createWorkspace(title: string, color: string) {
-    const workspace = await api.workspace.create(title, color)
+  async function createWorkspace(title: string, color: string, icon?: string) {
+    const workspace = await api.workspace.create(title, color, icon)
     workspaces.value.push(workspace)
     return workspace
   }

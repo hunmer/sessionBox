@@ -31,6 +31,8 @@ const shortcutsInGroup = computed(() => {
 // 录制状态
 const recordingId = ref<string | null>(null)
 const recordedKeys = ref<string[]>([])
+// 当前按住的修饰键（accelerator 部分，如 ['CmdOrCtrl', 'Shift']），用于纯修饰键组合录制
+const recordedMods = ref<string[]>([])
 
 // 冲突确认状态
 const conflictDialogOpen = ref(false)
@@ -101,6 +103,7 @@ async function onKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     recordingId.value = null
     recordedKeys.value = []
+    recordedMods.value = []
     return
   }
 
@@ -108,12 +111,19 @@ async function onKeyDown(e: KeyboardEvent) {
     const id = recordingId.value
     recordingId.value = null
     recordedKeys.value = []
+    recordedMods.value = []
     await store.clearShortcut(id)
     return
   }
 
   if (isModifier(e)) {
-    recordedKeys.value = acceleratorToParts(keyToAcceleratorPart(e))
+    // 实时显示当前按住的修饰键组合（keyToAcceleratorPart 不处理纯修饰键，这里单独生成）
+    const mods: string[] = []
+    if (e.ctrlKey || e.metaKey) mods.push('CmdOrCtrl')
+    if (e.altKey) mods.push('Alt')
+    if (e.shiftKey) mods.push('Shift')
+    recordedMods.value = mods
+    recordedKeys.value = acceleratorToParts(mods.join('+'))
     return
   }
 
@@ -125,13 +135,28 @@ async function onKeyDown(e: KeyboardEvent) {
     return
   }
 
+  await finishRecording(accelerator)
+}
+
+/** 纯修饰键组合录制：松开修饰键时确认（期间按了普通键则走 onKeyDown 的普通键路径） */
+async function onKeyUp(e: KeyboardEvent) {
+  if (!recordingId.value || !isModifier(e)) return
+  if (recordedMods.value.length < 2) return
+  e.preventDefault()
+  await finishRecording(recordedMods.value.join('+'))
+}
+
+/** 以指定 accelerator 结束录制并保存 */
+async function finishRecording(accelerator: string) {
   const id = recordingId.value
+  if (!id) return
   const item = store.shortcuts.find(s => s.id === id)
   const isGlobal = item?.global ?? false
 
   const result = await store.updateShortcut(id, accelerator, isGlobal)
   recordingId.value = null
   recordedKeys.value = []
+  recordedMods.value = []
 
   if (result.conflictId) {
     conflictMessage.value = `${result.error}，是否覆盖？`
@@ -173,6 +198,7 @@ async function onGlobalChange(id: string, value: boolean) {
 function startRecording(id: string) {
   recordingId.value = id
   recordedKeys.value = []
+  recordedMods.value = []
 }
 
 onMounted(() => {
@@ -182,10 +208,12 @@ onMounted(() => {
     }
   })
   window.addEventListener('keydown', onKeyDown, true)
+  window.addEventListener('keyup', onKeyUp, true)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown, true)
+  window.removeEventListener('keyup', onKeyUp, true)
 })
 </script>
 
@@ -293,7 +321,7 @@ onUnmounted(() => {
     </Tabs>
 
     <p class="text-xs text-muted-foreground/60 mt-1">
-      点击快捷键区域录入 · Delete 清空 · Escape 取消
+      点击快捷键区域录入 · Delete 清空 · Escape 取消 · 仅按住 ≥2 个修饰键（如 Ctrl+Shift）后松开即录入纯修饰键组合（不支持全局）
     </p>
 
     <!-- 冲突覆盖确认对话框 -->

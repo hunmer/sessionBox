@@ -188,12 +188,13 @@ const workspaceSwitcherItems = computed(() => {
     logo: Tag,
     plan: '',
     color: w.color,
+    icon: w.icon,
   }))
 })
 </script>
 
 <template>
-  <div class="flex h-full w-full flex-col border-r-0 bg-sidebar text-sidebar-foreground overflow-hidden">
+  <div class="flex h-full w-full flex-col border-r-0 bg-background text-sidebar-foreground overflow-hidden">
     <SidebarHeader class="shrink-0">
       <WorkspaceSwitcher
         :workspaces="workspaceSwitcherItems"

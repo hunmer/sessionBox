@@ -9,6 +9,7 @@ import type { Page } from '@/types'
 import NewTabDialog from './NewTabDialog.vue'
 import SplitLayoutTree from './SplitLayoutTree.vue'
 import ExternalAuthBanner from './ExternalAuthBanner.vue'
+import ChromeExtensionInstallBanner from './ChromeExtensionInstallBanner.vue'
 
 const splitStore = useSplitStore()
 const tabStore = useTabStore()
@@ -19,6 +20,7 @@ const showAddDialog = ref(false)
 const pendingAddTabPaneId = ref<string | null>(null)
 const fullscreenPaneId = ref<string | null>(null)
 const dismissedAuthUrls = ref<Record<string, string>>({})
+const dismissedChromeStoreUrls = ref<Record<string, string>>({})
 
 const paneMap = computed<Record<string, SplitPane | undefined>>(() =>
   Object.fromEntries(splitStore.activePanes.map((pane) => [pane.id, pane]))
@@ -51,10 +53,28 @@ function isGoogleAuthUrl(url?: string): boolean {
   }
 }
 
+function isChromeExtensionUrl(url?: string): boolean {
+  if (!url) return false
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:'
+      && parsed.hostname.toLowerCase() === 'chromewebstore.google.com'
+      && parsed.pathname.startsWith('/detail/')
+  } catch {
+    return false
+  }
+}
+
 function shouldShowAuthBanner(tabId?: string | null): boolean {
   if (!tabId) return false
   const url = tabStore.tabs.find((tab) => tab.id === tabId)?.url
   return isGoogleAuthUrl(url) && dismissedAuthUrls.value[tabId] !== url
+}
+
+function shouldShowChromeExtensionBanner(tabId?: string | null): boolean {
+  if (!tabId) return false
+  const url = tabStore.tabs.find((tab) => tab.id === tabId)?.url
+  return isChromeExtensionUrl(url) && dismissedChromeStoreUrls.value[tabId] !== url
 }
 
 function dismissAuthBanner(tabId: string) {
@@ -64,14 +84,33 @@ function dismissAuthBanner(tabId: string) {
   nextTick(() => sendPaneBounds())
 }
 
+function dismissChromeExtensionBanner(tabId: string) {
+  const url = tabStore.tabs.find((tab) => tab.id === tabId)?.url
+  if (!url) return
+  dismissedChromeStoreUrls.value = { ...dismissedChromeStoreUrls.value, [tabId]: url }
+  nextTick(() => sendPaneBounds())
+}
+
 const activeAuthTabId = computed(() =>
   !splitStore.isSplitActive && shouldShowAuthBanner(tabStore.activeTabId) ? tabStore.activeTabId : null
+)
+
+const activeChromeExtensionTabId = computed(() =>
+  !splitStore.isSplitActive && shouldShowChromeExtensionBanner(tabStore.activeTabId)
+    ? tabStore.activeTabId
+    : null
 )
 
 const googleAuthTabIds = computed(() =>
   splitStore.activePanes
     .map((pane) => pane.activeTabId)
     .filter((tabId): tabId is string => !!tabId && shouldShowAuthBanner(tabId))
+)
+
+const chromeExtensionTabIds = computed(() =>
+  splitStore.activePanes
+    .map((pane) => pane.activeTabId)
+    .filter((tabId): tabId is string => !!tabId && shouldShowChromeExtensionBanner(tabId))
 )
 
 const displayNode = computed<SplitNode | null>(() => {
@@ -263,7 +302,7 @@ watch(
     splitStore.manualAdjustEnabled,
     splitStore.activePanes.map((pane) => {
       const tab = tabStore.tabs.find((item) => item.id === pane.activeTabId)
-      return `${pane.activeTabId || ''}:${tab?.url || ''}:${dismissedAuthUrls.value[pane.activeTabId || ''] || ''}`
+      return `${pane.activeTabId || ''}:${tab?.url || ''}:${dismissedAuthUrls.value[pane.activeTabId || ''] || ''}:${dismissedChromeStoreUrls.value[pane.activeTabId || ''] || ''}`
     }).join(',')
   ],
   () => {
@@ -343,10 +382,16 @@ onUnmounted(() => {
       class="absolute inset-x-0 top-0 z-20"
       @dismiss="dismissAuthBanner(activeAuthTabId)"
     />
+    <ChromeExtensionInstallBanner
+      v-if="activeChromeExtensionTabId"
+      :tab-id="activeChromeExtensionTabId"
+      class="absolute inset-x-0 top-0 z-20"
+      @dismiss="dismissChromeExtensionBanner(activeChromeExtensionTabId)"
+    />
     <div
       id="webview-container"
       class="absolute inset-x-0 bottom-0"
-      :class="activeAuthTabId ? 'top-9' : 'top-0'"
+      :class="activeAuthTabId || activeChromeExtensionTabId ? 'top-9' : 'top-0'"
     />
   </div>
 
@@ -363,6 +408,7 @@ onUnmounted(() => {
           :dragging-pane-id="draggingPaneId"
           :preview="preview"
           :google-auth-tab-ids="googleAuthTabIds"
+          :chrome-extension-tab-ids="chromeExtensionTabIds"
           @pane-click="handlePaneClick"
           @request-add-tab="handleRequestAddTab"
           @branch-layout="handleBranchLayout"
@@ -375,6 +421,7 @@ onUnmounted(() => {
           @pane-remove="handlePaneRemove"
           @pane-close-tab="handlePaneCloseTab"
           @dismiss-auth="dismissAuthBanner"
+          @dismiss-chrome-extension="dismissChromeExtensionBanner"
         />
       </div>
       <NewTabDialog

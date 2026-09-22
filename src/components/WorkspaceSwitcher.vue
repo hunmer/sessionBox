@@ -20,6 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 
 import WorkspaceDialog from './sidebar/WorkspaceDialog.vue'
+import WorkspaceIcon from './sidebar/WorkspaceIcon.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
@@ -34,6 +35,7 @@ const props = defineProps<{
     logo: Component
     plan: string
     color?: string
+    icon?: string
   }[]
   collapsed?: boolean
 }>()
@@ -90,17 +92,18 @@ function handleEditWorkspace(workspace: typeof props.workspaces[0]) {
       id: workspace.id,
       title: workspace.name,
       color: workspace.color || '#3b82f6',
+      icon: workspace.icon,
       order: 0,
     }
   menuOpen.value = false
   dialogOpen.value = true
 }
 
-async function handleSave(data: { title: string; color: string }) {
+async function handleSave(data: { title: string; color: string; icon: string }) {
   if (editingWorkspace.value) {
     await workspaceStore.updateWorkspace(editingWorkspace.value.id, data)
   } else {
-    await workspaceStore.createWorkspace(data.title, data.color)
+    await workspaceStore.createWorkspace(data.title, data.color, data.icon)
   }
 }
 
@@ -129,14 +132,14 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
             :class="collapsed ? '!p-1.5' : ''"
           >
             <div
-              class="flex aspect-square items-center justify-center rounded-md"
+              class="flex aspect-square items-center justify-center rounded-md text-white"
               :class="collapsed ? 'size-6' : 'size-5'"
               :style="{ backgroundColor: activeWorkspaceInfo.color || '#3b82f6' }"
             >
-              <component
-                :is="activeWorkspaceInfo.logo"
-                :class="collapsed ? 'size-4' : 'size-3'"
-                class="text-white"
+              <WorkspaceIcon
+                :icon="activeWorkspaceInfo.icon"
+                :fallback-icon="activeWorkspaceInfo.logo"
+                :fallback="activeWorkspaceInfo.name.charAt(0)"
               />
             </div>
             <span
@@ -165,12 +168,13 @@ function handleSelectWorkspace(workspace: typeof props.workspaces[0]) {
             @click="handleSelectWorkspace(workspace)"
           >
             <div
-              class="flex size-6 items-center justify-center rounded-md"
+              class="flex size-6 items-center justify-center rounded-md text-white"
               :style="{ backgroundColor: workspace.color || '#6b7280' }"
             >
-              <component
-                :is="workspace.logo"
-                class="size-4 shrink-0 text-white"
+              <WorkspaceIcon
+                :icon="workspace.icon"
+                :fallback-icon="workspace.logo"
+                :fallback="workspace.name.charAt(0)"
               />
             </div>
             <span class="truncate flex-1">{{ workspace.name }}</span>

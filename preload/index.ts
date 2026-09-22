@@ -31,6 +31,7 @@ export interface Workspace {
   color: string
   order: number
   isDefault?: boolean
+  icon?: string
 }
 
 export interface Group {
@@ -236,8 +237,8 @@ export interface ChatCompletionParams {
 const api = {
   workspace: {
     list: (): Promise<Workspace[]> => ipcRenderer.invoke('workspace:list'),
-    create: (title: string, color: string): Promise<Workspace> =>
-      ipcRenderer.invoke('workspace:create', title, color),
+    create: (title: string, color: string, icon?: string): Promise<Workspace> =>
+      ipcRenderer.invoke('workspace:create', title, color, icon),
     update: (id: string, data: Partial<Omit<Workspace, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('workspace:update', id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('workspace:delete', id),
@@ -400,6 +401,8 @@ const api = {
   extension: {
     list: (): Promise<Extension[]> => ipcRenderer.invoke('extension:list'),
     select: (): Promise<Extension | null> => ipcRenderer.invoke('extension:select'),
+    installFromWebStore: (url: string): Promise<Extension> =>
+      ipcRenderer.invoke('extension:installFromWebStore', url),
     load: (extensionId: string): Promise<void> =>
       ipcRenderer.invoke('extension:load', extensionId),
     unload: (extensionId: string): Promise<void> =>

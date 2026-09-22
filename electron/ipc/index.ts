@@ -264,7 +264,7 @@ function createDesktopShortcut(name: string, protocolUrl: string, icon?: string,
 /** 工作区 IPC */
 function registerWorkspaceIpc(): void {
   ipcMain.handle('workspace:list', () => listWorkspaces())
-  ipcMain.handle('workspace:create', (_e, title: string, color: string) => createWorkspace(title, color))
+  ipcMain.handle('workspace:create', (_e, title: string, color: string, icon?: string) => createWorkspace(title, color, icon))
   ipcMain.handle('workspace:update', (_e, id: string, data: Partial<Omit<Workspace, 'id'>>) =>
     updateWorkspace(id, data)
   )

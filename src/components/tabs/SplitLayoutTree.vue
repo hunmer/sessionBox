@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import type { SplitDropPosition, SplitNode, SplitPane } from '@/types'
 import ExternalAuthBanner from './ExternalAuthBanner.vue'
+import ChromeExtensionInstallBanner from './ChromeExtensionInstallBanner.vue'
 
 defineOptions({
   name: 'SplitLayoutTree'
@@ -20,6 +21,7 @@ const props = withDefaults(defineProps<{
   draggingPaneId: string | null
   preview: { targetPaneId: string; position: SplitDropPosition } | null
   googleAuthTabIds: string[]
+  chromeExtensionTabIds: string[]
   branchPath?: number[]
 }>(), {
   branchPath: () => [],
@@ -40,6 +42,7 @@ const emit = defineEmits<{
   'pane-close-tab': [paneId: string]
   'pane-remove': [paneId: string]
   'dismiss-auth': [tabId: string]
+  'dismiss-chrome-extension': [tabId: string]
 }>()
 
 const pane = computed(() =>
@@ -59,6 +62,10 @@ const hasActiveTab = computed(() => !!pane.value?.activeTabId)
 const authTabId = computed(() => {
   const tabId = pane.value?.activeTabId
   return tabId && props.googleAuthTabIds.includes(tabId) ? tabId : null
+})
+const chromeExtensionTabId = computed(() => {
+  const tabId = pane.value?.activeTabId
+  return tabId && props.chromeExtensionTabIds.includes(tabId) ? tabId : null
 })
 const canRemovePane = computed(() => Object.keys(props.paneMap).length > 1)
 const previewPosition = computed(() => {
@@ -99,6 +106,7 @@ function hotspotClass(position: SplitDropPosition): string {
             :dragging-pane-id="draggingPaneId"
             :preview="preview"
             :google-auth-tab-ids="googleAuthTabIds"
+            :chrome-extension-tab-ids="chromeExtensionTabIds"
             :branch-path="[...branchPath, index]"
             @pane-click="emit('pane-click', $event)"
             @request-add-tab="emit('request-add-tab', $event)"
@@ -112,6 +120,7 @@ function hotspotClass(position: SplitDropPosition): string {
             @pane-close-tab="emit('pane-close-tab', $event)"
             @pane-remove="emit('pane-remove', $event)"
             @dismiss-auth="emit('dismiss-auth', $event)"
+            @dismiss-chrome-extension="emit('dismiss-chrome-extension', $event)"
           />
         </ResizablePanel>
         <ResizableHandle v-if="index < node.children.length - 1" />
@@ -195,11 +204,18 @@ function hotspotClass(position: SplitDropPosition): string {
       :class="manualAdjustEnabled ? 'top-9' : 'top-0'"
       @dismiss="emit('dismiss-auth', authTabId)"
     />
+    <ChromeExtensionInstallBanner
+      v-if="chromeExtensionTabId"
+      :tab-id="chromeExtensionTabId"
+      class="absolute inset-x-0 z-20"
+      :class="manualAdjustEnabled ? 'top-9' : 'top-0'"
+      @dismiss="emit('dismiss-chrome-extension', chromeExtensionTabId)"
+    />
 
     <div
       :id="`webview-pane-content-${node.paneId}`"
       class="absolute inset-x-0 bottom-0"
-      :style="{ top: `${(manualAdjustEnabled ? 36 : 0) + (authTabId ? 36 : 0)}px` }"
+      :style="{ top: `${(manualAdjustEnabled ? 36 : 0) + (authTabId || chromeExtensionTabId ? 36 : 0)}px` }"
     >
       <div
         v-if="!pane?.activeTabId"

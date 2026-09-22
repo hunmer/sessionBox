@@ -25,6 +25,7 @@ export interface Workspace {
   color: string
   order: number
   isDefault?: boolean // 默认工作区标记
+  icon?: string // 工作区图标（emoji / lucide:xxx / img:xxx）
 }
 
 // 分组

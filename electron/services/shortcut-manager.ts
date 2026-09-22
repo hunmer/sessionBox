@@ -99,6 +99,13 @@ export function getMergedBindings(): ShortcutBinding[] {
   })
 }
 
+/** 判断 accelerator 是否为纯修饰键组合（如 CmdOrCtrl+Shift） */
+export function isModifierOnlyAccelerator(accelerator: string): boolean {
+  if (!accelerator) return false
+  const modifierSet = new Set(['CmdOrCtrl', 'Control', 'Command', 'CommandOrControl', 'Meta', 'Super', 'Alt', 'AltGr', 'Shift'])
+  return accelerator.split('+').every(p => modifierSet.has(p))
+}
+
 /** 注册所有标记为全局的快捷键 */
 export function registerGlobalShortcuts(): void {
   // 先清除所有已注册的
@@ -107,6 +114,8 @@ export function registerGlobalShortcuts(): void {
   const bindings = getMergedBindings()
   for (const binding of bindings) {
     if (!binding.enabled || !binding.global || !binding.accelerator) continue
+    // Electron globalShortcut 不支持纯修饰键组合
+    if (isModifierOnlyAccelerator(binding.accelerator)) continue
 
     try {
       globalShortcut.register(binding.accelerator, () => {
@@ -157,6 +166,11 @@ export function updateShortcutBinding(id: string, accelerator: string, isGlobal:
     }
   }
 
+  // 纯修饰键组合依赖按键序列监听，Electron globalShortcut 无法注册
+  if (isGlobal && isModifierOnlyAccelerator(accelerator)) {
+    return { success: false, error: '纯修饰键组合不支持全局注册，请取消勾选「全局」' }
+  }
+
   // 保存到 store
   const bindings = getShortcutBindings()
   const idx = bindings.findIndex(b => b.id === id)
@@ -194,9 +208,13 @@ export function inputEventToAccelerator(input: Electron.Input): string | null {
   const key = input.key
   if (!key) return null
 
-  // 忽略单独修饰键
   const modifierKeys = ['Control', 'Alt', 'Shift', 'Meta']
-  if (modifierKeys.includes(key)) return null
+  if (modifierKeys.includes(key)) {
+    // 纯修饰键组合（如 Ctrl+Shift）：按下修饰键瞬间所有目标修饰键均已按下即触发。
+    // 长按修饰键产生的重复事件不算新触发；单个修饰键过于易误触，要求至少 2 个。
+    if (input.isAutoRepeat) return null
+    return parts.length >= 2 ? parts.join('+') : null
+  }
 
   // 特殊键映射
   const keyMap: Record<string, string> = {

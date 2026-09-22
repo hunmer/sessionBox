@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import IconSelector from '@/components/common/IconSelector.vue'
 import type { Workspace } from '@/types'
 
 const PRESET_COLORS = [
@@ -23,18 +24,20 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  save: [data: { title: string; color: string }]
+  save: [data: { title: string; color: string; icon: string }]
   delete: []
 }>()
 
 const title = ref('')
 const color = ref('#3b82f6')
+const icon = ref('')
 const confirmDeleteOpen = ref(false)
 
 watch(() => props.open, (val) => {
   if (val) {
     title.value = props.workspace?.title ?? ''
     color.value = props.workspace?.color ?? '#3b82f6'
+    icon.value = props.workspace?.icon ?? ''
     confirmDeleteOpen.value = false
   }
 })
@@ -42,7 +45,7 @@ watch(() => props.open, (val) => {
 function handleSave() {
   const trimmed = title.value.trim()
   if (!trimmed) return
-  emit('save', { title: trimmed, color: color.value })
+  emit('save', { title: trimmed, color: color.value, icon: icon.value })
   emit('update:open', false)
 }
 
@@ -67,6 +70,13 @@ function handleConfirmDelete() {
         <DialogTitle>{{ workspace ? '编辑工作区' : '新建工作区' }}</DialogTitle>
       </DialogHeader>
       <div class="py-2 flex flex-col gap-3">
+        <div class="flex justify-center">
+          <IconSelector
+            v-model="icon"
+            :size="64"
+            emoji-class="text-2xl"
+          />
+        </div>
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-muted-foreground">工作区名称</label>
           <Input
