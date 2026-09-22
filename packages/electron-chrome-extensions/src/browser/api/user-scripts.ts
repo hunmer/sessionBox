@@ -91,8 +91,11 @@ function createWorldId(extensionId: string, worldId: string): number {
   for (const character of `${extensionId}:${worldId}`) {
     hash = (hash * 31 + character.charCodeAt(0)) | 0
   }
-  // Keep away from Electron's reserved context-isolation world (999).
-  return 1_000_000 + (hash >>> 0) % 1_000_000_000
+  // Blink reserves embedder world IDs to [1, 1 << 29). Start above
+  // Electron's context-isolation world (999) and stay inside that range.
+  const firstWorldId = 1_000_000
+  const worldIdLimit = 1 << 29
+  return firstWorldId + (hash >>> 0) % (worldIdLimit - firstWorldId)
 }
 
 function getScriptCode(extension: Electron.Extension, script: UserScript): string {
@@ -346,7 +349,7 @@ export class UserScriptsAPI {
   private installDocumentStartHandler(): void {
     if (documentStartHandlerInstalled) return
     documentStartHandlerInstalled = true
-    ipcMain.on(documentStartChannel, (event, details: { url?: string; topFrame?: boolean }) => {
+    const getDocumentScripts = (event: Electron.IpcMainInvokeEvent, details: { url?: string; topFrame?: boolean }) => {
       const api = instances.get(event.sender.session)
       const scripts = api?.getDocumentScripts(details.url ?? '', details.topFrame === true) ?? []
       console.info('[electron-chrome-extensions] document user scripts query', {
@@ -356,8 +359,9 @@ export class UserScriptsAPI {
         topFrame: details.topFrame === true,
         scriptCount: scripts.length
       })
-      event.returnValue = scripts
-    })
+      return scripts
+    }
+    ipcMain.handle(documentStartChannel, getDocumentScripts)
     ipcMain.on(executionChannel, (event, details: Record<string, unknown>) => {
       const api = instances.get(event.sender.session)
       if (!api) return

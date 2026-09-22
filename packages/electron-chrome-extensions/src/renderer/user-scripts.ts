@@ -24,7 +24,7 @@ function report(script: DocumentUserScript, status: 'started' | 'completed' | 'f
   })
 }
 
-function executeBatch(scripts: DocumentUserScript[]): void {
+async function executeBatch(scripts: DocumentUserScript[]): Promise<void> {
   const batches = new Map<string, DocumentUserScript[]>()
   for (const script of scripts) {
     const key = `${script.world}:${script.extensionId}:${script.worldId}`
@@ -35,29 +35,30 @@ function executeBatch(scripts: DocumentUserScript[]): void {
 
   for (const scriptsInWorld of batches.values()) {
     const first = scriptsInWorld[0]
-    const reportExecution = (script: DocumentUserScript, execution: Promise<unknown>) => {
-      let timedOut = false
-      const timeout = setTimeout(() => {
-        timedOut = true
-        report(script, 'failed', new Error(`User script execution did not settle within ${executionTimeoutMs}ms`))
-      }, executionTimeoutMs)
-
-      void execution.then(
-        () => {
-          clearTimeout(timeout)
-          if (!timedOut) report(script, 'completed')
-        },
-        (error) => {
-          clearTimeout(timeout)
-          if (!timedOut) report(script, 'failed', error)
-        }
-      )
+    const reportExecution = async (script: DocumentUserScript, execution: Promise<unknown>) => {
+      let timeout: ReturnType<typeof setTimeout> | undefined
+      try {
+        await Promise.race([
+          execution,
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error(`User script execution did not settle within ${executionTimeoutMs}ms`)),
+              executionTimeoutMs
+            )
+          })
+        ])
+        report(script, 'completed')
+      } catch (error) {
+        report(script, 'failed', error)
+      } finally {
+        if (timeout) clearTimeout(timeout)
+      }
     }
 
     if (first.world === 'MAIN') {
       for (const script of scriptsInWorld) {
         report(script, 'started')
-        reportExecution(script, webFrame.executeJavaScript(script.code))
+        await reportExecution(script, webFrame.executeJavaScript(script.code))
       }
       continue
     }
@@ -76,7 +77,7 @@ function executeBatch(scripts: DocumentUserScript[]): void {
       }
       for (const script of scriptsInWorld) {
         report(script, 'started')
-        reportExecution(
+        await reportExecution(
           script,
           webFrame.executeJavaScriptInIsolatedWorld(first.worldId, [{ code: script.code }])
         )
@@ -93,20 +94,20 @@ function schedule(runAt: DocumentUserScript['runAt'], scripts: DocumentUserScrip
     // Running arbitrary extension code from the frame preload can stall the
     // navigation, so use the first stable page lifecycle point instead.
     if (document.readyState === 'complete') {
-      executeBatch(scripts)
+      void executeBatch(scripts)
     } else {
-      addEventListener('load', () => executeBatch(scripts), { once: true })
+      addEventListener('load', () => void executeBatch(scripts), { once: true })
     }
   } else if (runAt === 'document_end') {
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => executeBatch(scripts), { once: true })
+      document.addEventListener('DOMContentLoaded', () => void executeBatch(scripts), { once: true })
     } else {
-      executeBatch(scripts)
+      void executeBatch(scripts)
     }
   } else if (document.readyState === 'complete') {
-    executeBatch(scripts)
+    void executeBatch(scripts)
   } else {
-    addEventListener('load', () => executeBatch(scripts), { once: true })
+    addEventListener('load', () => void executeBatch(scripts), { once: true })
   }
 }
 
@@ -114,15 +115,26 @@ function schedule(runAt: DocumentUserScript['runAt'], scripts: DocumentUserScrip
 export function injectUserScriptsAtDocumentStart(): void {
   if (process.type !== 'renderer' || !canInjectHere()) return
 
-  const scripts = ipcRenderer.sendSync(documentStartChannel, {
-    url: location.href,
-    topFrame: window.top === window
-  }) as DocumentUserScript[]
-  const byRunAt = new Map<DocumentUserScript['runAt'], DocumentUserScript[]>()
-  for (const script of scripts) {
-    const group = byRunAt.get(script.runAt) ?? []
-    group.push(script)
-    byRunAt.set(script.runAt, group)
+  const resolveAndSchedule = () => {
+    void ipcRenderer
+      .invoke(documentStartChannel, {
+        url: location.href,
+        topFrame: window.top === window
+      })
+      .then((scripts: DocumentUserScript[]) => {
+        const byRunAt = new Map<DocumentUserScript['runAt'], DocumentUserScript[]>()
+        for (const script of scripts) {
+          const group = byRunAt.get(script.runAt) ?? []
+          group.push(script)
+          byRunAt.set(script.runAt, group)
+        }
+        for (const [runAt, scriptsAtRunAt] of byRunAt) schedule(runAt, scriptsAtRunAt)
+      })
+      .catch((error) => {
+        console.error('[electron-chrome-extensions] unable to resolve document user scripts', error)
+      })
   }
-  for (const [runAt, scriptsAtRunAt] of byRunAt) schedule(runAt, scriptsAtRunAt)
+
+  if (document.readyState === 'complete') resolveAndSchedule()
+  else addEventListener('load', resolveAndSchedule, { once: true })
 }

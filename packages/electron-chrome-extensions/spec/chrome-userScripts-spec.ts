@@ -29,14 +29,15 @@ describe('chrome.userScripts', () => {
   it('waits for MV3 user script initialization before the first navigation', async () => {
     const initialization = await browser.extensions.whenUserScriptsReady(browser.extension.id)
     expect(initialization.state).to.be.oneOf(['registered', 'restored'])
-    expect(initialization.scriptCount).to.equal(3)
+    expect(initialization.scriptCount).to.equal(4)
 
     await browser.webContents.loadURL(`${server.getUrl()}?barrier=1`)
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const probes = await browser.webContents.executeJavaScript(`[
         document.documentElement.dataset.chromeUserScriptsMv3Probe,
         document.documentElement.dataset.chromeUserScriptsMv3ProbeSecond,
-        document.documentElement.dataset.chromeUserScriptsMv3PendingProbe
+        document.documentElement.dataset.chromeUserScriptsMv3PendingProbe,
+        document.documentElement.dataset.chromeUserScriptsMv3WorldLimitProbe
       ]`)
       if (probes.every((probe: string | undefined) => probe === 'executed')) return
       await new Promise((resolve) => setTimeout(resolve, 50))
