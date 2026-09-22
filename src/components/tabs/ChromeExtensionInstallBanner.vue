@@ -31,6 +31,22 @@ async function openInChrome() {
     await extensionStore.init()
     await extensionStore.refreshLoadedExtensions()
     notify.success(`扩展「${extension.name}」已安装并启用`)
+    if (extension.compatibilityWarnings?.length) {
+      notify.warning({
+        title: '部分扩展权限不受 Electron 支持',
+        description: extension.compatibilityWarnings.join('、')
+      })
+    }
+    if (extension.userScriptsEnabled) {
+      notify.warning({
+        title: '需要重启以启用用户脚本',
+        description: 'Tampermonkey 等扩展将在重启后获得用户脚本权限。',
+        action: {
+          label: '立即重启',
+          onClick: () => window.api.extension.restartForUserScripts()
+        }
+      })
+    }
   } catch (error) {
     notify.error({
       title: '安装扩展失败',

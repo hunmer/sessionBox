@@ -55,6 +55,53 @@ function readExtensionIcon(extensionPath: string): string | undefined {
   }
 }
 
+function resolveExtensionMessage(extensionPath: string, value: string): string {
+  const match = /^__MSG_(.+)__$/i.exec(value)
+  if (!match) return value
+
+  const locales = ['zh_CN', 'zh', 'en_US', 'en']
+  for (const locale of locales) {
+    const messagesPath = join(extensionPath, '_locales', locale, 'messages.json')
+    if (!existsSync(messagesPath)) continue
+    try {
+      const messages = JSON.parse(readFileSync(messagesPath, 'utf8')) as Record<string, { message?: string }>
+      const message = messages[match[1]]?.message
+      if (message) return message
+    } catch {
+      // Ignore malformed optional locale files and try the next locale.
+    }
+  }
+  return value
+}
+
+function readExtensionName(extensionPath: string, fallback = 'Unknown Extension'): string {
+  const manifestPath = join(extensionPath, 'manifest.json')
+  if (!existsSync(manifestPath)) return fallback
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      name?: string
+      short_name?: string
+    }
+    const rawName = manifest.name || manifest.short_name || fallback
+    return resolveExtensionMessage(extensionPath, rawName)
+  } catch {
+    return fallback
+  }
+}
+
+function getCompatibilityWarnings(manifest: { permissions?: string[] }): string[] {
+  const unsupportedPermissions = new Set([
+    'webRequestBlocking',
+    'notifications',
+    'webNavigation',
+    'contextMenus',
+    'chrome://favicon/',
+    'cookies',
+    'downloads'
+  ])
+  return (manifest.permissions ?? []).filter((permission) => unsupportedPermissions.has(permission))
+}
+
 /**
  * 注册扩展相关 IPC 处理器。
  */
@@ -63,6 +110,11 @@ export function registerExtensionHandlers(): void {
     const extensions = listExtensions()
     // 为缺少图标的扩展自动填充（兼容已有数据）
     for (const ext of extensions) {
+      const name = readExtensionName(ext.path, ext.name)
+      if (name !== ext.name) {
+        ext.name = name
+        updateExtension(ext.id, { name })
+      }
       if (!ext.icon) {
         const icon = readExtensionIcon(ext.path)
         if (icon) {
@@ -99,17 +151,7 @@ export function registerExtensionHandlers(): void {
       throw new Error('所选目录不是有效的 Chrome 扩展，缺少 manifest.json')
     }
 
-    let extensionName = 'Unknown Extension'
-    try {
-      const manifestContent = readFileSync(manifestPath, 'utf-8')
-      const manifest = JSON.parse(manifestContent) as {
-        name?: string
-        short_name?: string
-      }
-      extensionName = manifest.name || manifest.short_name || extensionName
-    } catch (error) {
-      console.error('[Extension IPC] Failed to read manifest:', error)
-    }
+    const extensionName = readExtensionName(extensionPath)
 
     const existedExtension = listExtensions().find((extension) => extension.path === extensionPath)
     if (existedExtension) {
@@ -179,8 +221,9 @@ export function registerExtensionHandlers(): void {
     const manifest = JSON.parse(readFileSync(join(extensionRoot, 'manifest.json'), 'utf8')) as {
       name?: string
       short_name?: string
+      permissions?: string[]
     }
-    const extensionName = manifest.name || manifest.short_name || extensionId
+    const extensionName = resolveExtensionMessage(extensionRoot, manifest.name || manifest.short_name || extensionId)
     const extension = existing || createExtension({
       name: extensionName,
       path: extensionRoot,
@@ -195,7 +238,18 @@ export function registerExtensionHandlers(): void {
       extension.icon = icon
     }
     await loadExtensionForAllContainers(extension)
-    return { ...extension, name: extensionName, enabled: true, icon: readExtensionIcon(extensionRoot) }
+    return {
+      ...extension,
+      name: extensionName,
+      enabled: true,
+      icon: readExtensionIcon(extensionRoot),
+      compatibilityWarnings: getCompatibilityWarnings(manifest)
+    }
+  })
+
+  ipcMain.handle('extension:restartForUserScripts', async (): Promise<void> => {
+    app.relaunch()
+    app.exit(0)
   })
 
   ipcMain.handle('extension:load', async (_event, extensionId: string): Promise<void> => {
@@ -250,7 +304,7 @@ export function registerExtensionHandlers(): void {
       _event,
       containerId: string | null,
       extensionId: string,
-      anchorRect: { x: number; y: number; width: number; height: number }
+      anchorRect: { x: number; y: number; width: number; height: number; alignment?: string }
     ): Promise<void> => {
       openExtensionBrowserActionPopup(containerId, extensionId, anchorRect)
     }

@@ -94,6 +94,9 @@ export interface Extension {
   path: string  // 扩展目录路径
   enabled: boolean
   icon?: string
+  electronExtensionId?: string
+  userScriptsEnabled?: boolean
+  compatibilityWarnings?: string[]
 }
 
 // 窗口状态

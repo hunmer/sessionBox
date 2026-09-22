@@ -15,9 +15,12 @@ async function start(browser: ExternalAuthBrowser) {
   if (syncing.value) return
   syncing.value = browser
   const phase = pendingBrowser.value === browser ? 'complete' : 'start'
+  const operationId = crypto.randomUUID()
+  console.info('[ExternalAuth]', { event: 'renderer-invoke', operationId, tabId: props.tabId, browser, phase })
   const loadingId = notify.loading(phase === 'complete' ? '正在同步登录结果...' : '正在启动外部浏览器...')
   try {
-    const result = await window.api.tab.syncExternalAuth(props.tabId, browser, phase)
+    const result = await window.api.tab.syncExternalAuth(props.tabId, browser, phase, operationId)
+    console.info('[ExternalAuth]', { event: 'renderer-result', operationId, result })
     if (result.ok && result.pending) {
       pendingBrowser.value = browser
       notify.info('请在外部浏览器完成登录并关闭窗口，然后同步登录结果')
@@ -28,6 +31,7 @@ async function start(browser: ExternalAuthBrowser) {
       notify.error({ title: '外部登录同步失败', description: result.error })
     }
   } catch (error) {
+    console.error('[ExternalAuth]', { event: 'renderer-error', operationId, error: error instanceof Error ? error.message : String(error) })
     notify.error({
       title: '外部登录同步失败',
       description: error instanceof Error ? error.message : String(error)

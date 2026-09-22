@@ -1,9 +1,16 @@
 const packageJson = require('./package.json')
-const { createConfig, build, EXTERNAL_BASE } = require('../../build/esbuild/esbuild.config.base')
+const { build } = require('esbuild')
 
 console.log(`building ${packageJson.name}`)
 
-const external = [...EXTERNAL_BASE, 'electron-chrome-extensions/preload']
+const external = ['electron', 'debug', 'electron-chrome-extensions/preload']
+const createConfig = (options) => ({
+  bundle: true,
+  target: 'es2020',
+  sourcemap: true,
+  ...options,
+  external,
+})
 
 const browserConfig = createConfig({
   entryPoints: ['src/index.ts'],
@@ -26,7 +33,7 @@ build(browserESMConfig)
 const preloadConfig = createConfig({
   entryPoints: ['src/preload.ts'],
   outfile: 'dist/chrome-extension-api.preload.js',
-  platform: 'browser',
+  platform: 'node',
   external,
   sourcemap: false,
 })

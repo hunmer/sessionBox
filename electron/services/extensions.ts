@@ -1,6 +1,8 @@
-import { session } from 'electron'
+import { app, session } from 'electron'
 import { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import type { BrowserWindow, Session, WebContents } from 'electron'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   createTab as createStoredTab,
   deleteTab as deleteStoredTab,
@@ -8,7 +10,8 @@ import {
   listContainers,
   listExtensions,
   listTabs,
-  type Extension
+  type Extension,
+  updateExtension
 } from './store'
 import { webviewManager } from './webview-manager'
 
@@ -57,6 +60,53 @@ function getAllTargetContainerIds(): Array<string | null> {
 
 function getEnabledExtensions(): Extension[] {
   return listExtensions().filter((extension) => extension.enabled)
+}
+
+function extensionRequestsUserScripts(extensionPath: string): boolean {
+  try {
+    const manifest = JSON.parse(readFileSync(join(extensionPath, 'manifest.json'), 'utf8')) as {
+      permissions?: string[]
+      optional_permissions?: string[]
+    }
+    return [...(manifest.permissions ?? []), ...(manifest.optional_permissions ?? [])].includes('userScripts')
+  } catch {
+    return false
+  }
+}
+
+function getProfilePreferencesPath(containerId?: string | null): string {
+  return containerId
+    ? join(app.getPath('userData'), 'Partitions', `container-${containerId}`, 'Preferences')
+    : join(app.getPath('userData'), 'Preferences')
+}
+
+function enableUserScriptsInProfile(preferencesPath: string, electronExtensionId: string): void {
+  if (!existsSync(preferencesPath)) return
+  try {
+    const preferences = JSON.parse(readFileSync(preferencesPath, 'utf8')) as Record<string, any>
+    const settings = preferences.extensions ??= {}
+    const extensionSettings = settings.settings ??= {}
+    const extension = extensionSettings[electronExtensionId] ??= {}
+    if (extension.user_scripts_enabled === true) return
+    extension.user_scripts_enabled = true
+    writeFileSync(preferencesPath, JSON.stringify(preferences), 'utf8')
+  } catch (error) {
+    console.warn('[Extensions] Failed to enable user scripts preference:', preferencesPath, error)
+  }
+}
+
+/**
+ * Electron does not expose Chromium's developerPrivate API. Seed the Chromium
+ * preference before any extension session is initialized on the next launch.
+ */
+export function prepareUserScriptPreferences(): void {
+  for (const extension of getEnabledExtensions()) {
+    if (!extension.userScriptsEnabled || !extension.electronExtensionId) continue
+    enableUserScriptsInProfile(getProfilePreferencesPath(null), extension.electronExtensionId)
+    for (const container of listContainers()) {
+      enableUserScriptsInProfile(getProfilePreferencesPath(container.id), extension.electronExtensionId)
+    }
+  }
 }
 
 function getLoadedElectronExtensionId(
@@ -191,6 +241,9 @@ async function loadExtensionIntoContainer(
       name: extension.name,
       icon: extension.icon
     })
+    if (extension.userScriptsEnabled && extension.electronExtensionId) {
+      enableUserScriptsInProfile(getProfilePreferencesPath(containerId), extension.electronExtensionId)
+    }
     return existingLoadedId
   }
 
@@ -204,6 +257,15 @@ async function loadExtensionIntoContainer(
     getExtensionsForContainer(containerId)
 
     const loadedExt = await browserSession.loadExtension(extension.path)
+    const userScriptsEnabled = extensionRequestsUserScripts(extension.path)
+    if (extension.electronExtensionId !== loadedExt.id || extension.userScriptsEnabled !== userScriptsEnabled) {
+      extension.electronExtensionId = loadedExt.id
+      extension.userScriptsEnabled = userScriptsEnabled
+      updateExtension(extension.id, {
+        electronExtensionId: loadedExt.id,
+        userScriptsEnabled
+      })
+    }
     loadedMap.set(extension.id, loadedExt.id)
     extensionInfoMap.set(`${partitionKey}:${loadedExt.id}`, {
       name: extension.name,
@@ -301,7 +363,7 @@ export function getExtensionInfo(
 export function openExtensionBrowserActionPopup(
   containerId: string | null,
   extensionAppId: string,
-  anchorRect: { x: number; y: number; width: number; height: number }
+  anchorRect: { x: number; y: number; width: number; height: number; alignment?: string }
 ): void {
   const partitionKey = getPartitionKey(containerId)
   const ext = extensionsMap.get(partitionKey)
@@ -323,7 +385,7 @@ export function openExtensionBrowserActionPopup(
   const tabId = webviewManager.getActiveTabIdByContainer(containerId)
   ;(ext as any).api.browserAction.openPopup(
     { extension: { id: electronExt.id } } as any,
-    { anchorRect, tabId: tabId ?? undefined }
+    { anchorRect, tabId: tabId ?? undefined, alignment: anchorRect.alignment }
   )
 }
 

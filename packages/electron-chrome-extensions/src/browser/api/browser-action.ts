@@ -494,7 +494,14 @@ export class BrowserActionAPI {
     })
   }
 
-  private openPopup = (event: ExtensionEvent, options?: chrome.action.OpenPopupOptions) => {
+  private openPopup = (
+    event: ExtensionEvent,
+    options?: chrome.action.OpenPopupOptions & {
+      anchorRect?: ActivateDetails['anchorRect']
+      tabId?: number
+      alignment?: string
+    },
+  ) => {
     const window =
       typeof options?.windowId === 'number'
         ? this.ctx.store.getWindowById(options.windowId)
@@ -507,15 +514,16 @@ export class BrowserActionAPI {
     const activeTab = this.ctx.store.getActiveTabFromWindow(window)
     if (!activeTab) return
 
-    const [width] = window.getSize()
-    const anchorSize = 64
-
     this.activateClick({
       eventType: 'click',
       extensionId: event.extension.id,
-      tabId: activeTab?.id,
-      // TODO(mv3): get anchor position
-      anchorRect: { x: width - anchorSize, y: 0, width: anchorSize, height: anchorSize },
+      tabId: typeof options?.tabId === 'number' ? options.tabId : activeTab.id,
+      anchorRect: options?.anchorRect ?? (() => {
+        const [width] = window.getSize()
+        const anchorSize = 64
+        return { x: width - anchorSize, y: 0, width: anchorSize, height: anchorSize }
+      })(),
+      alignment: options?.alignment,
     })
   }
 

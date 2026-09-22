@@ -128,6 +128,9 @@ export interface Extension {
   path: string
   enabled: boolean
   icon?: string
+  electronExtensionId?: string
+  userScriptsEnabled?: boolean
+  compatibilityWarnings?: string[]
 }
 
 // 快捷键条目
@@ -334,8 +337,9 @@ const api = {
     syncExternalAuth: (
       tabId: string,
       browser: ExternalAuthBrowser,
-      phase: 'start' | 'complete'
-    ): Promise<ExternalAuthResult> => ipcRenderer.invoke('tab:sync-external-auth', tabId, browser, phase),
+      phase: 'start' | 'complete',
+      operationId?: string
+    ): Promise<ExternalAuthResult> => ipcRenderer.invoke('tab:sync-external-auth', tabId, browser, phase, operationId),
     attachWebview: (tabId: string, webContentsId: number): Promise<boolean> =>
       ipcRenderer.invoke('tab:attach-webview', tabId, webContentsId),
     listRequestedWebviews: (): Promise<Array<{ tabId: string; partition: string; userAgent: string }>> =>
@@ -403,6 +407,7 @@ const api = {
     select: (): Promise<Extension | null> => ipcRenderer.invoke('extension:select'),
     installFromWebStore: (url: string): Promise<Extension> =>
       ipcRenderer.invoke('extension:installFromWebStore', url),
+    restartForUserScripts: (): Promise<void> => ipcRenderer.invoke('extension:restartForUserScripts'),
     load: (extensionId: string): Promise<void> =>
       ipcRenderer.invoke('extension:load', extensionId),
     unload: (extensionId: string): Promise<void> =>
@@ -414,7 +419,7 @@ const api = {
     openBrowserActionPopup: (
       containerId: string | null,
       extensionId: string,
-      anchorRect: { x: number; y: number; width: number; height: number }
+      anchorRect: { x: number; y: number; width: number; height: number; alignment?: string }
     ): Promise<void> => ipcRenderer.invoke('extension:openBrowserActionPopup', containerId, extensionId, anchorRect)
   },
 

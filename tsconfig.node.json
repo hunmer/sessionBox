@@ -13,5 +13,6 @@
     "types": ["electron-vite/node"],
     "skipLibCheck": true
   },
-  "include": ["electron/**/*", "preload/**/*", "electron.vite.config.ts", "src/lib/agent/tools.ts"]
+  "include": ["electron/**/*", "preload/**/*", "electron.vite.config.ts", "src/lib/agent/tools.ts"],
+  "exclude": ["electron/**/*.test.ts"]
 }

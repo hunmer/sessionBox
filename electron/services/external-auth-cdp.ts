@@ -1,7 +1,9 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, type CookiesSetDetails, type Session } from 'electron'
+import { isGoogleLoginHost } from './external-auth-domains'
+import { parseWindowsProcessIds, windowsProcessTreeKillArgs } from './external-auth-process'
 
 export type ExternalAuthBrowser = 'chrome' | 'edge'
 
@@ -48,25 +50,43 @@ interface CdpCookieParam {
   sameSite?: 'Strict' | 'Lax' | 'None'
 }
 
-const GOOGLE_AUTH_HOSTS = [
-  'accounts.google.com',
-  'accounts.google.cn',
-  'google.com',
-  'googleusercontent.com',
-  'gstatic.com'
-]
-
 const visibleBrowserProcesses = new Map<string, ChildProcess>()
 
-function isGoogleHost(hostname: string): boolean {
-  const host = hostname.toLowerCase()
-  return GOOGLE_AUTH_HOSTS.some((domain) => host === domain || host.endsWith(`.${domain}`))
+function writeExternalAuthLog(event: string, context: Record<string, unknown>): void {
+  try {
+    appendFileSync(
+      join(app.getPath('userData'), 'external-auth.log'),
+      `${JSON.stringify({ timestamp: new Date().toISOString(), event, ...context })}\n`,
+      'utf8'
+    )
+  } catch {
+    // 登录同步不能因诊断日志写入失败而中断。
+  }
+}
+
+function describeAuthUrl(value?: string): string | undefined {
+  if (!value) return undefined
+  try {
+    const url = new URL(value)
+    return `${url.origin}${url.pathname}${url.search ? `?${[...url.searchParams.keys()].join(',')}` : ''}`
+  } catch {
+    return 'invalid-url'
+  }
+}
+
+function summarizeCookieDomains(cookies: CdpCookie[]): Array<{ domain: string; count: number }> {
+  const counts = new Map<string, number>()
+  for (const cookie of cookies) {
+    const domain = cookie.domain.replace(/^\./, '').toLowerCase()
+    counts.set(domain, (counts.get(domain) || 0) + 1)
+  }
+  return [...counts.entries()].map(([domain, count]) => ({ domain, count })).sort((a, b) => b.count - a.count)
 }
 
 function isCompletionUrl(url: string): boolean {
   try {
     const parsed = new URL(url)
-    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !isGoogleHost(parsed.hostname)
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !isGoogleLoginHost(parsed.hostname)
   } catch {
     return false
   }
@@ -176,7 +196,61 @@ function launchDedicatedBrowser(
 
 async function stopVisibleBrowser(profileDir: string): Promise<void> {
   const child = visibleBrowserProcesses.get(profileDir)
-  if (child && child.exitCode === null && !child.killed) child.kill('SIGTERM')
+  if (child && child.exitCode === null && !child.killed) {
+    if (process.platform === 'win32' && child.pid) {
+      try {
+        execFileSync('taskkill.exe', windowsProcessTreeKillArgs(child.pid), {
+          stdio: 'ignore',
+          timeout: 5000,
+          windowsHide: true
+        })
+        writeExternalAuthLog('browser-process-tree-stopped', { profileDir, pid: child.pid })
+      } catch (error) {
+        writeExternalAuthLog('browser-process-tree-stop-failed', {
+          profileDir,
+          pid: child.pid,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      }
+    } else {
+      child.kill('SIGTERM')
+    }
+  }
+
+  if (process.platform === 'win32') {
+    try {
+      const output = execFileSync('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        '$needle="--user-data-dir=$env:SESSIONBOX_PROFILE"; Get-CimInstance Win32_Process | Where-Object { $_.Name -match "^(chrome|msedge)[.]exe$" -and $_.CommandLine -like "*$needle*" } | Select-Object -ExpandProperty ProcessId'
+      ], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 5000,
+        windowsHide: true,
+        env: { ...process.env, SESSIONBOX_PROFILE: profileDir }
+      })
+      for (const pid of parseWindowsProcessIds(output)) {
+        if (pid === process.pid || pid === child?.pid) continue
+        try {
+          execFileSync('taskkill.exe', windowsProcessTreeKillArgs(pid), {
+            stdio: 'ignore',
+            timeout: 5000,
+            windowsHide: true
+          })
+          writeExternalAuthLog('orphan-browser-process-tree-stopped', { profileDir, pid })
+        } catch {
+          // 进程可能在枚举后刚好退出。
+        }
+      }
+    } catch (error) {
+      writeExternalAuthLog('orphan-browser-process-scan-failed', {
+        profileDir,
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+  }
 
   if (process.platform !== 'win32') {
     try {
@@ -196,6 +270,8 @@ async function stopVisibleBrowser(profileDir: string): Promise<void> {
   while (child?.exitCode === null && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
+  // Windows 终止进程树后，Chromium 还可能短暂持有 Profile 锁；给 Cookies/Preferences 一个落盘窗口。
+  if (process.platform === 'win32') await new Promise((resolve) => setTimeout(resolve, 800))
   visibleBrowserProcesses.delete(profileDir)
 }
 
@@ -215,15 +291,27 @@ async function waitForEndpoint(
 
 async function openCdpEndpoint(browser: ExternalAuthBrowser, profileDir: string): Promise<string | null> {
   const existing = await findEndpoint(browser, profileDir)
-  if (existing) return existing
+  if (existing) {
+    writeExternalAuthLog('cdp-endpoint-existing', { browser, profileDir, endpoint: existing })
+    return existing
+  }
 
   const activePortPath = join(profileDir, 'DevToolsActivePort')
   try {
     if (existsSync(activePortPath)) unlinkSync(activePortPath)
   } catch { /* 启动时会再次覆盖 */ }
 
-  if (!launchDedicatedBrowser(browser, profileDir, 'about:blank', true)) return null
-  return waitForEndpoint(browser, profileDir)
+  if (!launchDedicatedBrowser(browser, profileDir, 'about:blank', true)) {
+    writeExternalAuthLog('cdp-launch-failed', { browser, profileDir })
+    return null
+  }
+  const endpoint = await waitForEndpoint(browser, profileDir)
+  writeExternalAuthLog(endpoint ? 'cdp-endpoint-ready' : 'cdp-endpoint-timeout', {
+    browser,
+    profileDir,
+    endpoint: endpoint || undefined
+  })
+  return endpoint
 }
 
 class CdpClient {
@@ -232,27 +320,62 @@ class CdpClient {
   private pending = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void }>()
   private listeners = new Set<(message: any) => void>()
 
+  constructor(private readonly context: Record<string, unknown> = {}) {}
+
   async connect(url: string): Promise<void> {
+    writeExternalAuthLog('cdp-connect-start', this.context)
     await new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(url)
       this.socket = socket
-      socket.addEventListener('open', () => resolve(), { once: true })
-      socket.addEventListener('error', () => reject(new Error('无法连接浏览器调试通道')), { once: true })
+      const timer = setTimeout(() => {
+        socket.close()
+        writeExternalAuthLog('cdp-connect-timeout', this.context)
+        reject(new Error('连接浏览器调试通道超时'))
+      }, 5000)
+      socket.addEventListener('open', () => {
+        clearTimeout(timer)
+        writeExternalAuthLog('cdp-connect-open', this.context)
+        resolve()
+      }, { once: true })
+      socket.addEventListener('error', () => {
+        clearTimeout(timer)
+        writeExternalAuthLog('cdp-connect-error', this.context)
+        reject(new Error('无法连接浏览器调试通道'))
+      }, { once: true })
       socket.addEventListener('message', (event) => this.handleMessage(event.data))
       socket.addEventListener('close', () => {
+        writeExternalAuthLog('cdp-closed', this.context)
         this.rejectAll(new Error('浏览器调试通道已关闭'))
         for (const listener of this.listeners) listener({ method: 'Session.closed' })
       })
     })
   }
 
-  send<T = any>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+  send<T = any>(method: string, params: Record<string, unknown> = {}, timeoutMs = 5000): Promise<T> {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error('浏览器调试通道未连接'))
     }
     const id = this.nextId++
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject })
+      const startedAt = Date.now()
+      writeExternalAuthLog('cdp-command-start', { ...this.context, id, method, timeoutMs, parameterNames: Object.keys(params) })
+      const timer = setTimeout(() => {
+        this.pending.delete(id)
+        writeExternalAuthLog('cdp-command-timeout', { ...this.context, id, method, elapsedMs: Date.now() - startedAt })
+        reject(new Error(`浏览器调试命令超时: ${method}`))
+      }, timeoutMs)
+      this.pending.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer)
+          writeExternalAuthLog('cdp-command-success', { ...this.context, id, method, elapsedMs: Date.now() - startedAt })
+          resolve(value)
+        },
+        reject: (error) => {
+          clearTimeout(timer)
+          writeExternalAuthLog('cdp-command-failed', { ...this.context, id, method, elapsedMs: Date.now() - startedAt, error: error.message })
+          reject(error)
+        }
+      })
       this.socket!.send(JSON.stringify({ id, method, params }))
     })
   }
@@ -297,10 +420,10 @@ async function openAuthTarget(endpoint: string): Promise<DevToolsTarget | null> 
   return fetchJson<DevToolsTarget>(`${endpoint}/json/new?${encodeURIComponent('about:blank')}`, { method: 'PUT' }, 3000)
 }
 
-async function closeCdpBrowser(endpoint: string): Promise<void> {
+async function closeCdpBrowser(endpoint: string, context: Record<string, unknown> = {}): Promise<void> {
   const version = await fetchJson<DevToolsVersion>(`${endpoint}/json/version`)
   if (!version?.webSocketDebuggerUrl) return
-  const client = new CdpClient()
+  const client = new CdpClient(context)
   try {
     await client.connect(version.webSocketDebuggerUrl)
     await client.send('Browser.close')
@@ -339,12 +462,18 @@ function toElectronCookie(cookie: CdpCookie): CookiesSetDetails {
   return details
 }
 
-async function importCookies(targetSession: Session, cookies: CdpCookie[], hostnames: Set<string>): Promise<number> {
+async function importCookies(
+  targetSession: Session,
+  cookies: CdpCookie[],
+  hostnames: Set<string>,
+  context: Record<string, unknown>
+): Promise<number> {
   const selected = cookies.filter((cookie) =>
-    !isGoogleHost(cookie.domain.replace(/^\./, ''))
+    !isGoogleLoginHost(cookie.domain.replace(/^\./, ''))
     && [...hostnames].some((hostname) => cookieMatchesHost(cookie.domain, hostname))
   )
   let imported = 0
+  writeExternalAuthLog('cookies-selected', { ...context, selected: selected.length, hostnames: [...hostnames] })
   for (const cookie of selected) {
     try {
       await targetSession.cookies.set(toElectronCookie(cookie))
@@ -358,6 +487,7 @@ async function importCookies(targetSession: Session, cookies: CdpCookie[], hostn
     }
   }
   if (imported > 0) await targetSession.cookies.flushStore()
+  writeExternalAuthLog('cookies-imported', { ...context, imported })
   return imported
 }
 
@@ -411,7 +541,7 @@ function resolveTargetHostnames(authUrl: string, originalSiteUrl?: string): Set<
 async function seedTargetCookies(client: CdpClient, targetSession: Session, seedUrl: string | null): Promise<void> {
   if (!seedUrl) return
   const parsed = new URL(seedUrl)
-  if (isGoogleHost(parsed.hostname)) return
+  if (isGoogleLoginHost(parsed.hostname)) return
   const cookies = (await targetSession.cookies.get({})).filter((cookie) =>
     cookieMatchesHost(cookie.domain || parsed.hostname, parsed.hostname)
   )
@@ -441,12 +571,17 @@ export async function startExternalBrowserAuth(
   authUrl: string,
   targetSession: Session,
   containerId: string,
-  originalSiteUrl?: string
+  originalSiteUrl?: string,
+  operationId?: string
 ): Promise<ExternalAuthResult> {
   const profileDir = getProfileDir(browser, containerId)
+  const context = { operationId, phase: 'start', browser, profileDir }
+  writeExternalAuthLog('start', { ...context, authUrl: describeAuthUrl(authUrl), originalSiteUrl: describeAuthUrl(originalSiteUrl) })
   await stopVisibleBrowser(profileDir)
+  writeExternalAuthLog('visible-browser-stopped', context)
   const endpoint = await openCdpEndpoint(browser, profileDir)
   if (!endpoint) {
+    writeExternalAuthLog('failed', { ...context, error: 'cdp-endpoint-unavailable' })
     return {
       ok: false,
       error: '无法准备外部登录 Profile，请关闭该容器已打开的外部浏览器后重试。'
@@ -454,25 +589,30 @@ export async function startExternalBrowserAuth(
   }
 
   const target = await openAuthTarget(endpoint)
+  writeExternalAuthLog('auth-target', { ...context, endpoint, targetId: target?.id, targetUrl: describeAuthUrl(target?.url) })
   if (!target?.webSocketDebuggerUrl) return { ok: false, error: '无法准备外部登录页面' }
 
-  const client = new CdpClient()
+  const client = new CdpClient(context)
   try {
     await client.connect(target.webSocketDebuggerUrl)
+    writeExternalAuthLog('cdp-connected', context)
     await Promise.all([client.send('Page.enable'), client.send('Network.enable')])
     const seedUrl = resolveSeedUrl(authUrl, originalSiteUrl)
+    writeExternalAuthLog('seed-resolved', { ...context, seedUrl: describeAuthUrl(seedUrl) })
     await seedTargetCookies(client, targetSession, seedUrl)
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   } finally {
     client.close()
-    await closeCdpBrowser(endpoint)
+    await closeCdpBrowser(endpoint, context)
   }
 
   await new Promise((resolve) => setTimeout(resolve, 500))
   if (!launchDedicatedBrowser(browser, profileDir, authUrl, false)) {
+    writeExternalAuthLog('failed', { ...context, error: 'visible-browser-launch-failed' })
     return { ok: false, error: `未找到${browser === 'chrome' ? ' Chrome' : ' Edge'}浏览器` }
   }
+  writeExternalAuthLog('pending', context)
   return { ok: true, pending: true }
 }
 
@@ -481,34 +621,51 @@ export async function completeExternalBrowserAuth(
   authUrl: string,
   targetSession: Session,
   containerId: string,
-  originalSiteUrl?: string
+  originalSiteUrl?: string,
+  operationId?: string
 ): Promise<ExternalAuthResult> {
   const profileDir = getProfileDir(browser, containerId)
+  const context = { operationId, phase: 'complete', browser, profileDir }
+  writeExternalAuthLog('start', { ...context, authUrl: describeAuthUrl(authUrl), originalSiteUrl: describeAuthUrl(originalSiteUrl) })
   await stopVisibleBrowser(profileDir)
+  writeExternalAuthLog('visible-browser-stopped', context)
   const endpoint = await openCdpEndpoint(browser, profileDir)
   if (!endpoint) {
+    writeExternalAuthLog('failed', { ...context, error: 'cdp-endpoint-unavailable' })
     return { ok: false, error: '无法读取登录结果，请先关闭外部登录浏览器后重试。' }
   }
 
   const target = await openAuthTarget(endpoint)
-  if (!target?.webSocketDebuggerUrl) return { ok: false, error: '无法读取外部登录 Profile' }
+  if (!target?.webSocketDebuggerUrl) {
+    writeExternalAuthLog('failed', { ...context, error: 'auth-target-unavailable' })
+    return { ok: false, error: '无法读取外部登录 Profile' }
+  }
 
-  const client = new CdpClient()
+  const client = new CdpClient(context)
   try {
     await client.connect(target.webSocketDebuggerUrl)
+    writeExternalAuthLog('cdp-connected', context)
     await client.send('Network.enable')
     const result = await client.send<{ cookies: CdpCookie[] }>('Network.getAllCookies')
+    writeExternalAuthLog('cookies-read', { ...context, count: result.cookies?.length || 0, domains: summarizeCookieDomains(result.cookies || []) })
     const seedUrl = resolveSeedUrl(authUrl, originalSiteUrl)
     const hostnames = resolveTargetHostnames(authUrl, originalSiteUrl)
-    const cookieCount = await importCookies(targetSession, result.cookies || [], hostnames)
+    writeExternalAuthLog('target-hostnames', { ...context, seedUrl: describeAuthUrl(seedUrl), hostnames: [...hostnames] })
+    const cookieCount = await importCookies(targetSession, result.cookies || [], hostnames, context)
     if (cookieCount === 0) {
       return { ok: false, error: '没有找到目标网站的登录 Cookie，请确认登录已完成并关闭外部浏览器。' }
     }
+    writeExternalAuthLog('complete', { ...context, cookieCount, finalUrl: describeAuthUrl(seedUrl) })
     return { ok: true, cookieCount, finalUrl: seedUrl || undefined }
   } catch (error) {
+    writeExternalAuthLog('failed', {
+      ...context,
+      error: error instanceof Error ? error.message : String(error)
+    })
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   } finally {
     client.close()
-    await closeCdpBrowser(endpoint)
+    await closeCdpBrowser(endpoint, context)
+    writeExternalAuthLog('complete-cleanup', context)
   }
 }

@@ -47,7 +47,8 @@ async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
     x: rect.left,
     y: rect.top,
     width: rect.width,
-    height: rect.height
+    height: rect.height,
+    alignment: props.vertical ? 'top right' : undefined
   })
 }
 

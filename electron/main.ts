@@ -6,6 +6,7 @@ import { migrateBookmarksAndPasswords } from './services/migration'
 import { registerIpcHandlers } from './ipc'
 import { registerDownloadIpcHandlers } from './ipc/download'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
+import { prepareUserScriptPreferences } from './services/extensions'
 import { listExtensions, getWindowState, setWindowState, getDefaultWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled, getPageById } from './services/store'
 import type { WindowState } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
@@ -345,6 +346,7 @@ if (!gotTheLock) {
   }
 
   app.whenReady().then(() => {
+    prepareUserScriptPreferences()
     electronApp.setAppUserModelId('com.session-box')
 
     // 默认 session 的 Client Hints 改写（容器分区的在各视图创建时安装）

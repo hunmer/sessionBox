@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { BrowserWindow, Session } from 'electron'
+import { BrowserWindow, screen, Session } from 'electron'
 import { getAllWindows } from './api/common'
 import debug from 'debug'
 
@@ -237,6 +237,11 @@ export class PopupView extends EventEmitter {
     // Convert to ints
     x = Math.floor(x)
     y = Math.floor(y)
+
+    const display = screen.getDisplayNearestPoint({ x, y })
+    const workArea = display.workArea
+    x = Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - viewBounds.width))
+    y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - viewBounds.height))
 
     const position = { x, y }
     d(`updatePosition`, position)

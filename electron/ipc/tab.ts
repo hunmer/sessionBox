@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, shell } from 'electron'
+import { app, ipcMain, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import {
   listTabs,
@@ -19,29 +19,84 @@ import {
   startExternalBrowserAuth,
   type ExternalAuthBrowser
 } from '../services/external-auth-cdp'
+import { appendFileSync } from 'node:fs'
+
+function describeAuthUrl(value?: string): string | undefined {
+  if (!value) return undefined
+  try {
+    const url = new URL(value)
+    return `${url.origin}${url.pathname}${url.search ? `?${[...url.searchParams.keys()].join(',')}` : ''}`
+  } catch {
+    return 'invalid-url'
+  }
+}
+
+function writeExternalAuthIpcLog(event: string, context: Record<string, unknown>): void {
+  try {
+    appendFileSync(
+      join(app.getPath('userData'), 'external-auth.log'),
+      `${JSON.stringify({ timestamp: new Date().toISOString(), source: 'ipc', event, ...context })}\n`,
+      'utf8'
+    )
+  } catch { /* 调试日志失败不能影响认证流程 */ }
+}
 
 async function handleExternalAuthSync(
   _event: Electron.IpcMainInvokeEvent,
   tabId: string,
   browser: ExternalAuthBrowser,
-  phase: 'start' | 'complete'
+  phase: 'start' | 'complete',
+  operationId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 ) {
+  const startedAt = Date.now()
+  writeExternalAuthIpcLog('invoke', { operationId, tabId, browser, phase })
   if (browser !== 'chrome' && browser !== 'edge') {
+    writeExternalAuthIpcLog('rejected', { operationId, reason: 'unsupported-browser', browser })
     return { ok: false, error: '不支持的浏览器' }
   }
   const info = webviewManager.getViewInfo(tabId)
   const wc = webviewManager.getWebContents(tabId)
-  if (!info || !wc) return { ok: false, error: `Tab ${tabId} 不存在` }
+  if (!info || !wc) {
+    writeExternalAuthIpcLog('rejected', { operationId, reason: 'missing-tab', hasInfo: !!info, hasWebContents: !!wc })
+    return { ok: false, error: `Tab ${tabId} 不存在` }
+  }
 
   const page = info.pageId ? getPageById(info.pageId) : undefined
   const syncAuth = phase === 'complete' ? completeExternalBrowserAuth : startExternalBrowserAuth
   const returnUrl = info.lastNonAuthUrl || page?.url
-  const result = await syncAuth(browser, info.url, wc.session, info.containerId, returnUrl)
+  writeExternalAuthIpcLog('resolved-input', {
+    operationId,
+    tabId,
+    browser,
+    phase,
+    containerId: info.containerId,
+    pageId: info.pageId,
+    infoUrl: describeAuthUrl(info.url),
+    lastNonAuthUrl: describeAuthUrl(info.lastNonAuthUrl),
+    pageUrl: describeAuthUrl(page?.url),
+    returnUrl: describeAuthUrl(returnUrl),
+    webContentsDestroyed: wc.isDestroyed()
+  })
+  const result = await syncAuth(browser, info.url, wc.session, info.containerId, returnUrl, operationId)
+  writeExternalAuthIpcLog('service-result', { operationId, elapsedMs: Date.now() - startedAt, result })
   if (result.ok && !result.pending && !wc.isDestroyed()) {
     const resumeUrl = info.lastNonAuthUrl || result.finalUrl || page?.url
-    if (resumeUrl) await wc.loadURL(resumeUrl)
-    else wc.reload()
+    try {
+      if (resumeUrl) await wc.loadURL(resumeUrl)
+      else wc.reload()
+      writeExternalAuthIpcLog('resume-complete', { operationId, resumeUrl: describeAuthUrl(resumeUrl) })
+    } catch (error) {
+      writeExternalAuthIpcLog('resume-failed', {
+        operationId,
+        resumeUrl: describeAuthUrl(resumeUrl),
+        error: error instanceof Error ? error.message : String(error)
+      })
+      return { ok: false, error: 'Cookie 已同步，但恢复原页面失败' }
+    }
+  } else if (result.ok && !result.pending) {
+    writeExternalAuthIpcLog('resume-skipped', { operationId, reason: 'webcontents-destroyed' })
   }
+  writeExternalAuthIpcLog('return', { operationId, elapsedMs: Date.now() - startedAt, result })
   return result
 }
 
