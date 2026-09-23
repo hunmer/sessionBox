@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net } from 'electron'
 import AdmZip from 'adm-zip'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, normalize, relative } from 'node:path'
 import {
   createExtension,
@@ -16,7 +16,7 @@ import {
   openExtensionBrowserActionPopup,
   unloadExtensionFromAllContainers
 } from '../services/extensions'
-import { url } from 'node:inspector'
+import { buildWebStoreDownloadUrl, readExtensionArchive } from './extension-download'
 
 /**
  * 从扩展目录的 manifest.json 读取图标路径，返回绝对路径。
@@ -182,23 +182,40 @@ export function registerExtensionHandlers(): void {
     })
   })
 
-  ipcMain.handle('extension:installFromWebStore', async (_event, storeUrl: string): Promise<Extension> => {
+  ipcMain.handle('extension:installFromWebStore', async (event, storeUrl: string, requestId?: string): Promise<Extension> => {
     const extensionId = parseChromeWebStoreExtensionId(storeUrl)
-    const downloadUrl =
-      `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=120.0.0.0&acceptformat=crx2,crx3&x=id%3D${extensionId}%26installsource%3Dondemand%26uc`
+    const downloadUrl = buildWebStoreDownloadUrl(extensionId, process.versions.chrome)
     let response: Awaited<ReturnType<typeof net.fetch>>
     try {
       response = await net.fetch(downloadUrl)
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
-      throw new Error(`下载扩展网络请求失败：${reason}, url: ${url}`)
+      throw new Error(`下载扩展网络请求失败：${reason}`)
+    }
+    const archive = await readExtensionArchive(response, (progress) => {
+      if (requestId && !event.sender.isDestroyed()) {
+        event.sender.send('extension:download-progress', { requestId, ...progress })
+      }
+    })
+    const logDir = join(app.getPath('userData'), 'logs')
+    try {
+      mkdirSync(logDir, { recursive: true })
+      appendFileSync(join(logDir, 'extension-install.log'), JSON.stringify({
+        time: new Date().toISOString(), extensionId, chromiumVersion: process.versions.chrome,
+        status: response.status, contentType: response.headers.get('content-type'),
+        bytes: archive.length, magic: archive.subarray(0, 8).toString('hex')
+      }) + '\n')
+    } catch (error) {
+      console.warn('[Extension IPC] Failed to record download response:', error)
+    }
+    if (response.status === 204) {
+      throw new Error('扩展商店未提供兼容当前 Chromium 版本的扩展包（HTTP 204）')
     }
     if (!response.ok) {
       throw new Error(`下载扩展失败（HTTP ${response.status}）`)
     }
 
     const extensionRoot = join(app.getPath('userData'), 'extensions', 'webstore', extensionId)
-    const archive = Buffer.from(await response.arrayBuffer())
     const zipData = extractCrxZip(archive)
     const zip = new AdmZip(zipData)
     const entries = zip.getEntries()

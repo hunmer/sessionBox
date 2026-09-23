@@ -133,6 +133,11 @@ export interface Extension {
   compatibilityWarnings?: string[]
 }
 
+export interface ExtensionDownloadProgress {
+  received: number
+  total: number | null
+}
+
 // 快捷键条目
 export interface ShortcutItem {
   id: string
@@ -405,8 +410,22 @@ const api = {
   extension: {
     list: (): Promise<Extension[]> => ipcRenderer.invoke('extension:list'),
     select: (): Promise<Extension | null> => ipcRenderer.invoke('extension:select'),
-    installFromWebStore: (url: string): Promise<Extension> =>
-      ipcRenderer.invoke('extension:installFromWebStore', url),
+    installFromWebStore: async (
+      url: string,
+      onProgress?: (progress: ExtensionDownloadProgress) => void
+    ): Promise<Extension> => {
+      if (!onProgress) return ipcRenderer.invoke('extension:installFromWebStore', url)
+      const requestId = crypto.randomUUID()
+      const listener = (_event: Electron.IpcRendererEvent, data: ExtensionDownloadProgress & { requestId: string }) => {
+        if (data.requestId === requestId) onProgress({ received: data.received, total: data.total })
+      }
+      ipcRenderer.on('extension:download-progress', listener)
+      try {
+        return await ipcRenderer.invoke('extension:installFromWebStore', url, requestId)
+      } finally {
+        ipcRenderer.removeListener('extension:download-progress', listener)
+      }
+    },
     restartForUserScripts: (): Promise<void> => ipcRenderer.invoke('extension:restartForUserScripts'),
     load: (extensionId: string): Promise<void> =>
       ipcRenderer.invoke('extension:load', extensionId),

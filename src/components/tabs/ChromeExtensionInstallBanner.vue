@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ExternalLink, Loader2, X } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { Loader2, X } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { useNotification } from '@/composables/useNotification'
 import { useExtensionStore } from '@/stores/extension'
@@ -12,6 +12,17 @@ const tabStore = useTabStore()
 const extensionStore = useExtensionStore()
 const notify = useNotification()
 const opening = ref(false)
+const progress = ref<{ received: number; total: number | null } | null>(null)
+const progressLabel = computed(() => {
+  if (!progress.value) return '正在连接...'
+  const { received, total } = progress.value
+  if (total && received >= total) return '正在安装扩展...'
+  return total
+    ? `下载中 ${Math.min(100, Math.floor(received / total * 100))}%`
+    : received < 1024 * 1024
+      ? `已下载 ${Math.round(received / 1024)} KB`
+      : `已下载 ${(received / 1024 / 1024).toFixed(1)} MB`
+})
 
 async function openInChrome() {
   if (opening.value) return
@@ -22,9 +33,11 @@ async function openInChrome() {
   }
 
   opening.value = true
-  const loadingId = notify.loading('正在安装 Chrome 扩展...')
+  progress.value = null
   try {
-    const extension = await window.api.extension.installFromWebStore(url)
+    const extension = await window.api.extension.installFromWebStore(url, (value) => {
+      progress.value = value
+    })
     if (!extension?.name) {
       throw new Error('安装服务未返回扩展信息')
     }
@@ -53,8 +66,8 @@ async function openInChrome() {
       description: error instanceof Error ? error.message : String(error)
     })
   } finally {
-    notify.dismiss(loadingId)
     opening.value = false
+    progress.value = null
   }
 }
 </script>
@@ -63,7 +76,9 @@ async function openInChrome() {
   <div
     class="flex h-9 items-center gap-2 border-b border-blue-500/30 bg-blue-50 px-3 text-xs text-blue-950 dark:bg-blue-950 dark:text-blue-100"
   >
-    <span class="min-w-0 flex-1 truncate">检测到 Chrome 扩展页面，可在 Chrome 中快捷安装</span>
+    <span class="min-w-0 flex-1 truncate" role="status" aria-live="polite">
+      {{ opening ? progressLabel : '检测到 Chrome 扩展页面，可在 Chrome 中快捷安装' }}
+    </span>
     <Button
       size="sm"
       variant="outline"
@@ -72,7 +87,7 @@ async function openInChrome() {
       @click.stop="openInChrome"
     >
       <Loader2 v-if="opening" class="mr-1 size-3 animate-spin" />
-      安装到 SessionBox
+      {{ opening ? '安装中' : '安装到 SessionBox' }}
     </Button>
     <Button
       size="icon-sm"
@@ -83,5 +98,8 @@ async function openInChrome() {
     >
       <X class="size-3.5" />
     </Button>
+    <div v-if="opening && progress?.total" class="absolute inset-x-0 bottom-0 h-0.5 bg-blue-200 dark:bg-blue-900">
+      <div class="h-full bg-blue-600 transition-[width] duration-100 dark:bg-blue-400" :style="{ width: `${Math.min(100, progress.received / progress.total * 100)}%` }" />
+    </div>
   </div>
 </template>
