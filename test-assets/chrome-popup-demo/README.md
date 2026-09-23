@@ -9,6 +9,7 @@
 - MV3 `chrome.userScripts.register()` 是否能在任意网页注入脚本
 - 注入的 userscript 是否能正常调用 `alert(1)`
 - MV3 service worker 是否能调用 `chrome.sidePanel`、`storage`、`tabs`、`action` 和 `runtime.sendMessage`
+- popup 是否能手动创建并移除 cat-catch 风格的 video recording popup 窗口
 
 导入目录：
 
@@ -42,6 +43,8 @@ after-alert
 ```text
 [SessionBox Popup Demo] API_SMOKE_SUCCESS
 ```
+
+popup 中的“创建测试窗口”只在手动点击后调用 `chrome.windows.create({ type: 'popup', width: 640, height: 420 })`，打开 `recording.html`；“移除测试窗口”调用 `chrome.windows.remove`。自动 API smoke 不再创建窗口。
 
 已导入过旧版 demo 时，先禁用再启用扩展，然后刷新网页；若导入的是复制目录，请重新导入上面的源码目录。浏览器内部页面不属于普通 HTTP/HTTPS 网页。
 

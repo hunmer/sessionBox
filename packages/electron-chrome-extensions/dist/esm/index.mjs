@@ -2616,7 +2616,7 @@ var getSessionFromEvent = (event) => {
   }
 };
 var d8 = debug8("electron-chrome-extensions:router");
-var shouldLogExtensionWorkerConsole = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "1";
+var shouldLogExtensionWorkerConsole = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "verbose";
 var DEFAULT_SESSION = "_self";
 var toIpcValue = (value, seen = /* @__PURE__ */ new WeakSet()) => {
   if (value === null || value === void 0) return value;
@@ -2770,13 +2770,6 @@ var ExtensionRouter = class {
     });
     session2.serviceWorkers.on("console-message", (_event, details) => {
       if (!shouldLogExtensionWorkerConsole) return;
-      console.info("[electron-chrome-extensions] extension service worker console", {
-        sessionStoragePath: session2.getStoragePath(),
-        message: details?.message,
-        source: details?.sourceId ?? details?.source,
-        line: details?.lineNumber ?? details?.line,
-        url: details?.url
-      });
     });
     session2.serviceWorkers.on(
       "running-status-changed",

@@ -32,7 +32,7 @@ const getHostFromEvent = (event: IpcAnyEvent) => {
 }
 
 const d = debug('electron-chrome-extensions:router')
-const shouldLogExtensionWorkerConsole = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === '1'
+const shouldLogExtensionWorkerConsole = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === 'verbose'
 
 const DEFAULT_SESSION = '_self'
 

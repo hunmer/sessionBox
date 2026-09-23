@@ -50,7 +50,8 @@ const smokeEvents = [
 for (const [name, event] of smokeEvents) {
   try {
     const filter = name.startsWith('webRequest.') ? { urls: ['<all_urls>'] } : undefined
-    event?.addListener(() => {}, filter)
+    if (filter) event?.addListener(() => {}, filter)
+    else event?.addListener(() => {})
   } catch (error) {
     smokeFailures.push(`${name}: ${error.message}`)
   }
@@ -95,10 +96,8 @@ async function runApiSmokeTest() {
       console.log('[SessionBox Popup Demo] tabs.sendMessage had no receiver on existing tab')
     }
   }
-  const createdTab = await chrome.tabs.create({ url: 'data:text/html,sessionbox-tab-smoke', active: false })
+  const createdTab = await chrome.tabs.create({ url: 'about:blank', active: false })
   if (createdTab?.id != null) await chrome.tabs.remove(createdTab.id)
-  const createdWindow = await chrome.windows.create({ url: 'about:blank', focused: false })
-  if (createdWindow?.id != null) await chrome.windows.remove(createdWindow.id)
   await chrome.downloads.download({ url: 'data:text/plain,sessionbox-download-smoke', filename: 'sessionbox-api-smoke.txt', saveAs: false })
   await chrome.downloads.showDefaultFolder()
   await chrome.downloads.show(0)
@@ -159,6 +158,16 @@ void registerUserScript().catch((error) => {
   console.error('[SessionBox Popup Demo] userscript registration failed', error)
 })
 
-void runApiSmokeTest().catch((error) => {
-  console.error('[SessionBox Popup Demo] API_SMOKE_FAILURE', error)
+void chrome.storage.local.get(['sessionBoxApiSmokeEnabled']).then(({ sessionBoxApiSmokeEnabled }) => {
+  // Smoke 只应由 popup 开关显式开启，避免 service worker 每次唤醒都创建临时 tab。
+  if (sessionBoxApiSmokeEnabled !== true) {
+    console.log('[SessionBox Popup Demo] API_SMOKE_DISABLED')
+    return
+  }
+  return runApiSmokeTest().catch((error) => {
+    console.error('[SessionBox Popup Demo] API_SMOKE_FAILURE', error)
+  }).finally(() => {
+    // Smoke 是一次性诊断动作；完成后自动关闭，避免 MV3 worker 周期性唤醒时重复创建 tab。
+    return chrome.storage.local.set({ sessionBoxApiSmokeEnabled: false })
+  })
 })

@@ -440,6 +440,17 @@ class WebviewManager {
     })
   }
 
+  /**
+   * Extension tabs can be created inactive. Materialize their view before an
+   * extension API needs the underlying WebContents.
+   */
+  ensureWebContentsForTab(tabId: string): Electron.WebContents | undefined {
+    const existing = this.getWebContents(tabId)
+    if (existing && !existing.isDestroyed()) return existing
+    const entry = this.ensureViewReady(tabId)
+    return entry?.view.webContents
+  }
+
   private resolveWebContentsWaiters(tabId: string, webContents: Electron.WebContents): void {
     const waiters = this.webContentsWaiters.get(tabId)
     if (!waiters) return

@@ -1,4 +1,4 @@
-import { app, session } from 'electron'
+import { app, BrowserWindow, session } from 'electron'
 import { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import type { BrowserWindow, Session } from 'electron'
 import { randomUUID } from 'node:crypto'
@@ -28,6 +28,10 @@ const partitionExtensionIds = new Map<PartitionKey, Map<string, string>>()
 
 // 缓存扩展信息，供工具栏等 UI 使用。
 const extensionInfoMap = new Map<string, { name: string; icon?: string }>()
+
+// windows.create 创建的扩展窗口不属于主窗口；卸载扩展前必须先关闭它们，
+// 否则 renderer 仍会尝试初始化 chrome API。
+const extensionPopupWindows = new Map<PartitionKey, Set<BrowserWindow>>()
 
 // 避免同一 partition 并发重复加载同一个扩展。
 const pendingLoads = new Map<string, Promise<string>>()
@@ -153,6 +157,18 @@ async function unloadElectronExtension(
   browserSession: Session,
   electronExtensionId: string
 ): Promise<void> {
+  const partitionKey = browserSession === session.defaultSession
+    ? defaultPartitionKey
+    : [...extensionsMap.entries()].find(([, instance]) =>
+        instance === ElectronChromeExtensions.fromSession(browserSession)
+      )?.[0]
+  const popupWindows = partitionKey ? extensionPopupWindows.get(partitionKey) : undefined
+  if (popupWindows) {
+    for (const popupWindow of [...popupWindows]) {
+      if (!popupWindow.isDestroyed()) popupWindow.destroy()
+    }
+    popupWindows.clear()
+  }
   browserSession.extensions.removeExtension(electronExtensionId)
 }
 
@@ -191,6 +207,9 @@ function createExtensionsInstance(
   browserSession: Session,
   containerId?: string | null
 ): ElectronChromeExtensions {
+  const partitionKey = getPartitionKey(containerId)
+  const popupWindows = extensionPopupWindows.get(partitionKey) || new Set<BrowserWindow>()
+  extensionPopupWindows.set(partitionKey, popupWindows)
   const instance = new ElectronChromeExtensions({
     license: extensionRuntimeLicense,
     session: browserSession,
@@ -212,10 +231,33 @@ function createExtensionsInstance(
         containerId: containerId || '',
         active: details.active !== false
       })
+      webviewManager.ensureWebContentsForTab(tabId)
       const webContents = await webviewManager.waitForWebContents(tabId)
 
       console.info('[Extensions] tabs.create completed through tabStore', { tabId, url: tabUrl })
       return [webContents, mainWindow]
+    },
+    async createWindow(details) {
+      const popupWindow = new BrowserWindow({
+        width: details.width || 640,
+        height: details.height || 420,
+        show: details.focused !== false,
+        webPreferences: {
+          session: browserSession,
+          contextIsolation: true,
+        },
+      })
+      popupWindows.add(popupWindow)
+      popupWindow.once('closed', () => popupWindows.delete(popupWindow))
+      const url = typeof details.url === 'string' ? details.url : 'about:blank'
+      await popupWindow.loadURL(url)
+      return popupWindow
+    },
+    async removeWindow(window) {
+      const mainWindow = webviewManager.getMainWindow()
+      if (window !== mainWindow && !window.isDestroyed()) {
+        window.destroy()
+      }
     },
     selectTab(webContents) {
       webviewManager.switchByWebContents(webContents)
@@ -511,6 +553,7 @@ export function destroyExtensionsForContainer(containerId?: string | null): void
 
   extensionsMap.delete(partitionKey)
   partitionExtensionIds.delete(partitionKey)
+  extensionPopupWindows.delete(partitionKey)
 
   for (const key of [...extensionInfoMap.keys()]) {
     if (key.startsWith(`${partitionKey}:`)) {

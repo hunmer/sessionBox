@@ -52,6 +52,55 @@
         margin-bottom: 12px;
       }
 
+      .switch-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 4px 0 12px;
+        font-size: 13px;
+      }
+
+      .switch {
+        position: relative;
+        width: 40px;
+        height: 22px;
+      }
+
+      .switch input {
+        width: 0;
+        height: 0;
+        opacity: 0;
+      }
+
+      .slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 11px;
+        background: #9ca3af;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      .slider::before {
+        position: absolute;
+        content: '';
+        width: 18px;
+        height: 18px;
+        left: 2px;
+        top: 2px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 0.15s;
+      }
+
+      .switch input:checked + .slider {
+        background: #2563eb;
+      }
+
+      .switch input:checked + .slider::before {
+        transform: translateX(18px);
+      }
+
       button {
         flex: 1;
         border: 0;
@@ -121,6 +170,19 @@
       <div class="row">
         <button id="reloadButton" type="button">Reload 扩展</button>
         <button id="refreshButton" type="button">刷新信息</button>
+      </div>
+
+      <div class="row">
+        <button id="createWindowButton" type="button">创建测试窗口</button>
+        <button id="removeWindowButton" type="button">移除测试窗口</button>
+      </div>
+
+      <div class="switch-row">
+        <span>启动时自动执行 API Smoke</span>
+        <label class="switch">
+          <input id="smokeToggle" type="checkbox" />
+          <span class="slider"></span>
+        </label>
       </div>
 
       <section class="session" aria-label="当前 Session 信息">

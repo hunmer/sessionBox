@@ -1,7 +1,7 @@
 import { ipcRenderer, contextBridge, webFrame } from 'electron'
 import { addExtensionListener, removeExtensionListener } from './event'
 
-const shouldLogExtensionApi = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === '1'
+const shouldLogExtensionApi = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === 'verbose'
 
 export const injectExtensionAPIs = () => {
   if (process.type === 'service-worker') {

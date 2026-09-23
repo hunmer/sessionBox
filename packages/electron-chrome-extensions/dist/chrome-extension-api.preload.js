@@ -6,7 +6,7 @@ var import_electron2 = require("electron");
 // src/renderer/event.ts
 var import_electron = require("electron");
 var formatIpcName = (name) => `crx-${name}`;
-var shouldLogExtensionEvents = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "1";
+var shouldLogExtensionEvents = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "verbose";
 var listenerMap = /* @__PURE__ */ new Map();
 var addExtensionListener = (extensionId, name, callback) => {
   if (name === "runtime.onMessage" || name === "runtime.onConnect") {
@@ -38,7 +38,7 @@ var removeExtensionListener = (extensionId, name, callback) => {
 };
 
 // src/renderer/index.ts
-var shouldLogExtensionApi = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "1";
+var shouldLogExtensionApi = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "verbose";
 var injectExtensionAPIs = () => {
   if (process.type === "service-worker") {
     const runtime = globalThis.chrome?.runtime;

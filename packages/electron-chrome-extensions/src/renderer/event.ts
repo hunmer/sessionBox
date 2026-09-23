@@ -1,7 +1,7 @@
 import { ipcRenderer } from 'electron'
 
 const formatIpcName = (name: string) => `crx-${name}`
-const shouldLogExtensionEvents = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === '1'
+const shouldLogExtensionEvents = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === 'verbose'
 
 const listenerMap = new Map<string, number>()
 
