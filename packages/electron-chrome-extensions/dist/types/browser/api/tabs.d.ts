@@ -20,6 +20,7 @@ export declare class TabsAPI {
     private create;
     private insertCSS;
     private query;
+    private highlight;
     private reload;
     private update;
     private remove;

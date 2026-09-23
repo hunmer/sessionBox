@@ -16,8 +16,8 @@
 
       body {
         margin: 0;
-        width: 320px;
-        min-height: 220px;
+        width: 360px;
+        min-height: 280px;
       }
 
       .panel {
@@ -62,50 +62,75 @@
         font-weight: 600;
       }
 
-      #countButton {
+      #reloadButton {
         background: #2563eb;
         color: #fff;
       }
 
-      #resetButton {
+      #refreshButton {
         background: #e5e7eb;
         color: #111827;
       }
 
-      .stat {
+      .session {
         padding: 12px;
-        border-radius: 12px;
+        border-radius: 8px;
         background: rgba(255, 255, 255, 0.7);
         box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
       }
 
-      .stat-label {
+      .session-row {
+        display: grid;
+        grid-template-columns: 88px 1fr;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 12px;
+      }
+
+      .session-row:last-child {
+        border-bottom: 0;
+      }
+
+      .session-label {
         font-size: 12px;
         color: #6b7280;
       }
 
-      .stat-value {
-        margin-top: 6px;
-        font-size: 28px;
-        font-weight: 700;
+      .session-value {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        color: #111827;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      #status {
+        min-height: 18px;
+        margin-top: 10px;
+        color: #4b5563;
+        font-size: 12px;
       }
     </style>
   </head>
   <body>
     <main class="panel">
       <div class="badge">Popup Demo</div>
-      <h1>扩展已加载</h1>
-      <p>这个页面用于验证导入后的扩展按钮和 popup 是否能正常工作。</p>
+      <h1>SessionBox 扩展会话</h1>
+      <p>查看当前扩展会话，并验证 service worker reload。</p>
 
       <div class="row">
-        <button id="countButton" type="button">点击 +1</button>
-        <button id="resetButton" type="button">重置</button>
+        <button id="reloadButton" type="button">Reload 扩展</button>
+        <button id="refreshButton" type="button">刷新信息</button>
       </div>
 
-      <section class="stat">
-        <div class="stat-label">当前点击次数</div>
-        <div id="countValue" class="stat-value">0</div>
+      <section class="session" aria-label="当前 Session 信息">
+        <div class="session-row"><span class="session-label">扩展 ID</span><span id="extensionId" class="session-value">读取中</span></div>
+        <div class="session-row"><span class="session-label">版本</span><span id="version" class="session-value">读取中</span></div>
+        <div class="session-row"><span class="session-label">Session URL</span><span id="sessionUrl" class="session-value">读取中</span></div>
+        <div class="session-row"><span class="session-label">平台</span><span id="platform" class="session-value">读取中</span></div>
+        <div class="session-row"><span class="session-label">Smoke 状态</span><span id="smokeStatus" class="session-value">读取中</span></div>
       </section>
+      <div id="status" role="status"></div>
     </main>
 
     <script src="popup.js"></script>

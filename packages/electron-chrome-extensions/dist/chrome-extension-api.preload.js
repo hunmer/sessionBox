@@ -321,6 +321,7 @@ var injectExtensionAPIs = () => {
         shouldInject: () => manifest.manifest_version === 3,
         factory: (base) => ({
           ...base,
+          setOptions: invokeExtension2("sidePanel.setOptions"),
           setPanelBehavior: invokeExtension2("sidePanel.setPanelBehavior"),
           getPanelBehavior: invokeExtension2("sidePanel.getPanelBehavior")
         })
@@ -590,6 +591,7 @@ var injectExtensionAPIs = () => {
             getAllInWindow: invokeExtension2("tabs.getAllInWindow"),
             insertCSS: invokeExtension2("tabs.insertCSS"),
             query: invokeExtension2("tabs.query"),
+            highlight: invokeExtension2("tabs.highlight"),
             reload: invokeExtension2("tabs.reload"),
             update: invokeExtension2("tabs.update"),
             remove: invokeExtension2("tabs.remove"),
@@ -683,7 +685,7 @@ var injectExtensionAPIs = () => {
           Object.assign(baseApi, extensionApi);
         } catch {
         }
-        if (apiName === "tabs" && baseApi.sendMessage !== extensionApi.sendMessage || apiName === "sidePanel" && baseApi.setPanelBehavior !== extensionApi.setPanelBehavior) {
+        if (apiName === "tabs" && baseApi.sendMessage !== extensionApi.sendMessage || apiName === "sidePanel" && (baseApi.setOptions !== extensionApi.setOptions || baseApi.setPanelBehavior !== extensionApi.setPanelBehavior)) {
           try {
             Object.defineProperty(chrome, apiName, {
               value: extensionApi,

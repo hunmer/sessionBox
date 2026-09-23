@@ -48,6 +48,7 @@ export class TabsAPI {
     handle('tabs.create', this.create.bind(this))
     handle('tabs.insertCSS', this.insertCSS.bind(this))
     handle('tabs.query', this.query.bind(this))
+    handle('tabs.highlight', this.highlight.bind(this))
     handle('tabs.reload', this.reload.bind(this))
     handle('tabs.update', this.update.bind(this))
     handle('tabs.remove', this.remove.bind(this))
@@ -285,6 +286,12 @@ export class TabsAPI {
         return tab
       })
     return filteredTabs
+  }
+
+  private highlight(_event: ExtensionEvent, details: chrome.tabs.HighlightInfo) {
+    const tabs = Array.isArray(details?.tabs) ? details.tabs : [details?.tabs]
+    const selected = tabs.filter((id): id is number => typeof id === 'number')
+    return { windowId: details?.windowId ?? TabsAPI.WINDOW_ID_CURRENT, tabs: selected }
   }
 
   private reload(event: ExtensionEvent, arg1?: unknown, arg2?: unknown) {

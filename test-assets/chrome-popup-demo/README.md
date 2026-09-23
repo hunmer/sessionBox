@@ -8,6 +8,7 @@
 - popup 是否能打开并执行基础脚本
 - MV3 `chrome.userScripts.register()` 是否能在任意网页注入脚本
 - 注入的 userscript 是否能正常调用 `alert(1)`
+- MV3 service worker 是否能调用 `chrome.sidePanel`、`storage`、`tabs`、`action` 和 `runtime.sendMessage`
 
 导入目录：
 
@@ -35,6 +36,12 @@ after-alert
 ```
 
 如果只看到 `before-alert`，说明脚本已经注入，但弹窗尚未关闭或脚本没有从弹窗继续执行。
+
+在 SessionBox 开发模式中设置 `SESSIONBOX_TEST_EXTENSION_PATH` 为本目录路径时，SessionBox 会自动启用此扩展。service worker 启动后会自动执行 API smoke test，并在 SessionBox 日志中输出：
+
+```text
+[SessionBox Popup Demo] API_SMOKE_SUCCESS
+```
 
 已导入过旧版 demo 时，先禁用再启用扩展，然后刷新网页；若导入的是复制目录，请重新导入上面的源码目录。浏览器内部页面不属于普通 HTTP/HTTPS 网页。
 

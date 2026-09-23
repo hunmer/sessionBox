@@ -36,6 +36,22 @@ const shouldLogExtensionWorkerConsole = process.env.ELECTRON_CHROME_EXTENSIONS_D
 
 const DEFAULT_SESSION = '_self'
 
+const toIpcValue = (value: any, seen = new WeakSet<object>()): any => {
+  if (value === null || value === undefined) return value
+  if (typeof value === 'function' || typeof value === 'symbol') return undefined
+  if (typeof value !== 'object') return value
+  if (Buffer.isBuffer(value)) return Array.from(value.values())
+  if (seen.has(value)) return undefined
+  seen.add(value)
+  if (Array.isArray(value)) return value.map((item) => toIpcValue(item, seen))
+  const result: Record<string, any> = {}
+  for (const [key, item] of Object.entries(value)) {
+    const serialized = toIpcValue(item, seen)
+    if (serialized !== undefined) result[key] = serialized
+  }
+  return result
+}
+
 interface RoutingDelegateObserver {
   session: Electron.Session
   onExtensionMessage(
@@ -310,13 +326,13 @@ export class ExtensionRouter {
     session.serviceWorkers.on('console-message' as any, (_event: any, details: any) => {
       if (!shouldLogExtensionWorkerConsole) return
 
-      console.info('[electron-chrome-extensions] extension service worker console', {
-        sessionStoragePath: session.getStoragePath(),
-        message: details?.message,
-        source: details?.sourceId ?? details?.source,
-        line: details?.lineNumber ?? details?.line,
-        url: details?.url
-      })
+      // console.info('[electron-chrome-extensions] extension service worker console', {
+      //   sessionStoragePath: session.getStoragePath(),
+      //   message: details?.message,
+      //   source: details?.sourceId ?? details?.source,
+      //   line: details?.lineNumber ?? details?.line,
+      //   url: details?.url
+      // })
     })
 
     session.serviceWorkers.on(
@@ -540,7 +556,7 @@ export class ExtensionRouter {
         this.session.serviceWorkers
           .startWorkerForScope(scope)
           .then((serviceWorker) => {
-            serviceWorker.send(ipcName, ...args)
+            serviceWorker.send(ipcName, ...args.map((arg) => toIpcValue(arg)))
           })
           .catch((error) => {
             d('failed to send %s to %s', eventName, extensionId)

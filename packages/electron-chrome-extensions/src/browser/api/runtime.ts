@@ -12,6 +12,7 @@ export class RuntimeAPI extends EventEmitter {
   private ports = new Map<string, { extensionId: string; sender: Electron.WebContents }>()
   private observedPortSenders = new WeakSet<Electron.WebContents>()
   private userScriptMessageSenders = new Map<string, (response: unknown) => void>()
+  private observedResponseWorkers = new WeakSet<any>()
   private pendingInstallEvents = new Map<string, chrome.runtime.InstalledDetails>()
   private installEventTimer?: ReturnType<typeof setTimeout>
 
@@ -37,13 +38,19 @@ export class RuntimeAPI extends EventEmitter {
         if (port.extensionId === extension.id) this.ports.delete(portId)
       }
     })
-    this.ctx.session.serviceWorkers.on('running-status-changed', ({ runningStatus, versionId }) => {
-      if (runningStatus !== 'starting') return
-      const worker = this.ctx.session.serviceWorkers.getWorkerFromVersionID(versionId)
-      if (!worker?.scope?.startsWith('chrome-extension://')) return
-      worker.ipc.on('crx-user-script-message-response', (_event, response: any) => {
+    const observeWorkerResponse = (worker: any) => {
+      if (!worker?.scope?.startsWith('chrome-extension://') || this.observedResponseWorkers.has(worker)) return
+      this.observedResponseWorkers.add(worker)
+      worker.ipc.on('crx-user-script-message-response', (_event: any, response: any) => {
         this.handleUserScriptMessageResponse(response)
       })
+    }
+    Object.keys(this.ctx.session.serviceWorkers.getAllRunning()).forEach((versionId) => {
+      observeWorkerResponse(this.ctx.session.serviceWorkers.getWorkerFromVersionID(Number(versionId)))
+    })
+    this.ctx.session.serviceWorkers.on('running-status-changed', ({ runningStatus, versionId }) => {
+      if (runningStatus !== 'starting') return
+      observeWorkerResponse(this.ctx.session.serviceWorkers.getWorkerFromVersionID(versionId))
     })
   }
 
@@ -173,9 +180,8 @@ export class RuntimeAPI extends EventEmitter {
       senderType: event.type,
       senderUrl: (event.sender as any)?.getURL?.() ?? ''
     })
-    // USER_SCRIPT worlds do not have Chromium's native extension bindings.
-    // Forward their runtime messages through the standard extension event.
-    if (event.type !== 'frame') return undefined
+    // Forward messages from extension frames and service workers through the
+    // standard extension event so MV3 workers can message themselves too.
     if (event.extension.manifest.manifest_version === 3 &&
         !this.ctx.router.hasListener(event.extension.id, 'runtime.onMessage', 'service-worker')) {
       const workers = this.ctx.session.serviceWorkers

@@ -6,6 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   deleteTab as deleteStoredTab,
+  createExtension,
   listContainers,
   listExtensions,
   type Extension,
@@ -72,6 +73,23 @@ function getAllTargetContainerIds(): Array<string | null> {
 }
 
 function getEnabledExtensions(): Extension[] {
+  const testExtensionPath = process.env.SESSIONBOX_TEST_EXTENSION_PATH
+  if (testExtensionPath) {
+    const existing = listExtensions().find((extension) => extension.path === testExtensionPath)
+    if (existing) {
+      if (!existing.enabled) updateExtension(existing.id, { enabled: true })
+    } else if (existsSync(join(testExtensionPath, 'manifest.json'))) {
+      let name = 'SessionBox test extension'
+      try {
+        const manifest = JSON.parse(readFileSync(join(testExtensionPath, 'manifest.json'), 'utf8'))
+        name = manifest.name || manifest.short_name || name
+      } catch {
+        // The load path is validated below; keep a stable fallback name here.
+      }
+      createExtension({ name, path: testExtensionPath, enabled: true })
+      console.info('[Extensions] test extension registered', { path: testExtensionPath })
+    }
+  }
   return listExtensions().filter((extension) => extension.enabled)
 }
 
@@ -266,16 +284,23 @@ async function loadExtensionIntoContainer(
   const existingLoadedId =
     loadedMap.get(extension.id) || getLoadedElectronExtensionId(browserSession, extension.path)
   if (existingLoadedId) {
-    loadedMap.set(extension.id, existingLoadedId)
-    extensionInfoMap.set(`${partitionKey}:${existingLoadedId}`, {
-      name: extension.name,
-      icon: extension.icon
-    })
-    if (extension.userScriptsEnabled && extension.electronExtensionId) {
-      enableUserScriptsInProfile(getProfilePreferencesPath(containerId), extension.electronExtensionId)
+    // The smoke-test extension is loaded directly from the workspace. Force a
+    // fresh load so edits to popup/background assets are visible on restart.
+    if (process.env.SESSIONBOX_TEST_EXTENSION_PATH === extension.path) {
+      await unloadElectronExtension(browserSession, existingLoadedId)
+      loadedMap.delete(extension.id)
+    } else {
+      loadedMap.set(extension.id, existingLoadedId)
+      extensionInfoMap.set(`${partitionKey}:${existingLoadedId}`, {
+        name: extension.name,
+        icon: extension.icon
+      })
+      if (extension.userScriptsEnabled && extension.electronExtensionId) {
+        enableUserScriptsInProfile(getProfilePreferencesPath(containerId), extension.electronExtensionId)
+      }
+      await waitForUserScriptsInitialization(containerId, extension, existingLoadedId)
+      return existingLoadedId
     }
-    await waitForUserScriptsInitialization(containerId, extension, existingLoadedId)
-    return existingLoadedId
   }
 
   const pendingKey = `${partitionKey}:${extension.id}`

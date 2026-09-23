@@ -74,6 +74,7 @@ export class BrowserActionAPI {
   private observers: Set<Electron.WebContents> = new Set()
   private queuedUpdate: boolean = false
   private panelBehaviors = new Map<string, chrome.sidePanel.PanelBehavior>()
+  private panelOptions = new Map<string, chrome.sidePanel.PanelOptions>()
 
   constructor(private ctx: ExtensionContext) {
     const handle = this.ctx.router.apiHandler()
@@ -160,6 +161,7 @@ export class BrowserActionAPI {
     handle('browserAction.openPopup', this.openPopup)
     handle('sidePanel.setPanelBehavior', this.setPanelBehavior)
     handle('sidePanel.getPanelBehavior', this.getPanelBehavior)
+    handle('sidePanel.setOptions', this.setPanelOptions)
 
     // browserAction preload API
     const preloadOpts = { allowRemote: true, extensionContext: false }
@@ -213,6 +215,7 @@ export class BrowserActionAPI {
     sessionExtensions.on('extension-unloaded', (event, extension) => {
       this.removeActions(extension.id)
       this.panelBehaviors.delete(extension.id)
+      this.panelOptions.delete(extension.id)
     })
     sessionExtensions.on('extension-loaded', (_event, extension) => {
       this.processExtension(extension)
@@ -455,6 +458,17 @@ export class BrowserActionAPI {
 
   private getPanelBehavior = ({ extension }: ExtensionEvent) => {
     return this.panelBehaviors.get(extension.id) ?? { openPanelOnActionClick: false }
+  }
+
+  private setPanelOptions = (
+    { extension }: ExtensionEvent,
+    options: chrome.sidePanel.PanelOptions,
+  ) => {
+    if (!options || typeof options !== 'object') throw new TypeError('Invalid sidePanel options')
+    if (options.path !== undefined && typeof options.path !== 'string') {
+      throw new TypeError('Invalid sidePanel path')
+    }
+    this.panelOptions.set(extension.id, { ...options })
   }
 
   private activateContextMenu(details: ActivateDetails) {

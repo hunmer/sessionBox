@@ -379,6 +379,7 @@ var BrowserActionAPI = class {
     __publicField(this, "observers", /* @__PURE__ */ new Set());
     __publicField(this, "queuedUpdate", false);
     __publicField(this, "panelBehaviors", /* @__PURE__ */ new Map());
+    __publicField(this, "panelOptions", /* @__PURE__ */ new Map());
     __publicField(this, "setPanelBehavior", ({ extension }, behavior) => {
       if (!behavior || behavior.openPanelOnActionClick !== void 0 && typeof behavior.openPanelOnActionClick !== "boolean") {
         throw new TypeError("Invalid sidePanel behavior");
@@ -387,6 +388,13 @@ var BrowserActionAPI = class {
     });
     __publicField(this, "getPanelBehavior", ({ extension }) => {
       return this.panelBehaviors.get(extension.id) ?? { openPanelOnActionClick: false };
+    });
+    __publicField(this, "setPanelOptions", ({ extension }, options) => {
+      if (!options || typeof options !== "object") throw new TypeError("Invalid sidePanel options");
+      if (options.path !== void 0 && typeof options.path !== "string") {
+        throw new TypeError("Invalid sidePanel path");
+      }
+      this.panelOptions.set(extension.id, { ...options });
     });
     __publicField(this, "openPopup", (event, options) => {
       const window = typeof options?.windowId === "number" ? this.ctx.store.getWindowById(options.windowId) : this.ctx.store.getCurrentWindow();
@@ -463,6 +471,7 @@ var BrowserActionAPI = class {
     handle("browserAction.openPopup", this.openPopup);
     handle("sidePanel.setPanelBehavior", this.setPanelBehavior);
     handle("sidePanel.getPanelBehavior", this.getPanelBehavior);
+    handle("sidePanel.setOptions", this.setPanelOptions);
     const preloadOpts = { allowRemote: true, extensionContext: false };
     handle("browserAction.getState", this.getState.bind(this), preloadOpts);
     handle("browserAction.activate", this.activate.bind(this), preloadOpts);
@@ -508,6 +517,7 @@ var BrowserActionAPI = class {
     sessionExtensions.on("extension-unloaded", (event, extension) => {
       this.removeActions(extension.id);
       this.panelBehaviors.delete(extension.id);
+      this.panelOptions.delete(extension.id);
     });
     sessionExtensions.on("extension-loaded", (_event, extension) => {
       this.processExtension(extension);
@@ -958,6 +968,7 @@ var _TabsAPI = class _TabsAPI {
     handle("tabs.create", this.create.bind(this));
     handle("tabs.insertCSS", this.insertCSS.bind(this));
     handle("tabs.query", this.query.bind(this));
+    handle("tabs.highlight", this.highlight.bind(this));
     handle("tabs.reload", this.reload.bind(this));
     handle("tabs.update", this.update.bind(this));
     handle("tabs.remove", this.remove.bind(this));
@@ -1149,6 +1160,11 @@ var _TabsAPI = class _TabsAPI {
       return tab;
     });
     return filteredTabs;
+  }
+  highlight(_event, details) {
+    const tabs = Array.isArray(details?.tabs) ? details.tabs : [details?.tabs];
+    const selected = tabs.filter((id) => typeof id === "number");
+    return { windowId: details?.windowId ?? _TabsAPI.WINDOW_ID_CURRENT, tabs: selected };
   }
   reload(event, arg1, arg2) {
     const tabId = typeof arg1 === "number" ? arg1 : void 0;
@@ -2090,6 +2106,7 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
     __publicField(this, "ports", /* @__PURE__ */ new Map());
     __publicField(this, "observedPortSenders", /* @__PURE__ */ new WeakSet());
     __publicField(this, "userScriptMessageSenders", /* @__PURE__ */ new Map());
+    __publicField(this, "observedResponseWorkers", /* @__PURE__ */ new WeakSet());
     __publicField(this, "pendingInstallEvents", /* @__PURE__ */ new Map());
     __publicField(this, "installEventTimer");
     __publicField(this, "connectNative", async (event, connectionId, application) => {
@@ -2134,7 +2151,6 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
         senderType: event.type,
         senderUrl: event.sender?.getURL?.() ?? ""
       });
-      if (event.type !== "frame") return void 0;
       if (event.extension.manifest.manifest_version === 3 && !this.ctx.router.hasListener(event.extension.id, "runtime.onMessage", "service-worker")) {
         const workers = this.ctx.session.serviceWorkers;
         const scope = `chrome-extension://${event.extension.id}/`;
@@ -2290,13 +2306,19 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
         if (port.extensionId === extension.id) this.ports.delete(portId);
       }
     });
-    this.ctx.session.serviceWorkers.on("running-status-changed", ({ runningStatus, versionId }) => {
-      if (runningStatus !== "starting") return;
-      const worker = this.ctx.session.serviceWorkers.getWorkerFromVersionID(versionId);
-      if (!worker?.scope?.startsWith("chrome-extension://")) return;
+    const observeWorkerResponse = (worker) => {
+      if (!worker?.scope?.startsWith("chrome-extension://") || this.observedResponseWorkers.has(worker)) return;
+      this.observedResponseWorkers.add(worker);
       worker.ipc.on("crx-user-script-message-response", (_event, response) => {
         this.handleUserScriptMessageResponse(response);
       });
+    };
+    Object.keys(this.ctx.session.serviceWorkers.getAllRunning()).forEach((versionId) => {
+      observeWorkerResponse(this.ctx.session.serviceWorkers.getWorkerFromVersionID(Number(versionId)));
+    });
+    this.ctx.session.serviceWorkers.on("running-status-changed", ({ runningStatus, versionId }) => {
+      if (runningStatus !== "starting") return;
+      observeWorkerResponse(this.ctx.session.serviceWorkers.getWorkerFromVersionID(versionId));
     });
   }
   handleUserScriptMessageResponse(response) {
@@ -2631,6 +2653,21 @@ var getSessionFromEvent = (event) => {
 var d8 = (0, import_debug8.default)("electron-chrome-extensions:router");
 var shouldLogExtensionWorkerConsole = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "1";
 var DEFAULT_SESSION = "_self";
+var toIpcValue = (value, seen = /* @__PURE__ */ new WeakSet()) => {
+  if (value === null || value === void 0) return value;
+  if (typeof value === "function" || typeof value === "symbol") return void 0;
+  if (typeof value !== "object") return value;
+  if (Buffer.isBuffer(value)) return Array.from(value.values());
+  if (seen.has(value)) return void 0;
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((item) => toIpcValue(item, seen));
+  const result = {};
+  for (const [key, item] of Object.entries(value)) {
+    const serialized = toIpcValue(item, seen);
+    if (serialized !== void 0) result[key] = serialized;
+  }
+  return result;
+};
 var gRoutingDelegate;
 var bindServiceWorkerIpc = (workers, serviceWorker, onRouterMessage, onRemoteMessage, onAddListener, onRemoveListener) => {
   if (!serviceWorker?.scope?.startsWith("chrome-extension://") || workers.has(serviceWorker)) return;
@@ -2970,7 +3007,7 @@ var ExtensionRouter = class {
       if (type === "service-worker") {
         const scope = `chrome-extension://${extensionId}/`;
         this.session.serviceWorkers.startWorkerForScope(scope).then((serviceWorker) => {
-          serviceWorker.send(ipcName, ...args);
+          serviceWorker.send(ipcName, ...args.map((arg) => toIpcValue(arg)));
         }).catch((error) => {
           d8("failed to send %s to %s", eventName, extensionId);
           console.error(error);

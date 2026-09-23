@@ -382,6 +382,7 @@ export const injectExtensionAPIs = () => {
         shouldInject: () => manifest.manifest_version === 3,
         factory: (base) => ({
           ...base,
+          setOptions: invokeExtension('sidePanel.setOptions'),
           setPanelBehavior: invokeExtension('sidePanel.setPanelBehavior'),
           getPanelBehavior: invokeExtension('sidePanel.getPanelBehavior'),
         }),
@@ -692,6 +693,7 @@ export const injectExtensionAPIs = () => {
             getAllInWindow: invokeExtension('tabs.getAllInWindow'),
             insertCSS: invokeExtension('tabs.insertCSS'),
             query: invokeExtension('tabs.query'),
+            highlight: invokeExtension('tabs.highlight'),
             reload: invokeExtension('tabs.reload'),
             update: invokeExtension('tabs.update'),
             remove: invokeExtension('tabs.remove'),
@@ -802,7 +804,10 @@ export const injectExtensionAPIs = () => {
         // silently remain bound to Chromium's unavailable receiver.
         if (
           (apiName === 'tabs' && (baseApi as any).sendMessage !== (extensionApi as any).sendMessage) ||
-          (apiName === 'sidePanel' && (baseApi as any).setPanelBehavior !== (extensionApi as any).setPanelBehavior)
+          (apiName === 'sidePanel' && (
+            (baseApi as any).setOptions !== (extensionApi as any).setOptions ||
+            (baseApi as any).setPanelBehavior !== (extensionApi as any).setPanelBehavior
+          ))
         ) {
           try {
             Object.defineProperty(chrome, apiName, {

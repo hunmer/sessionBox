@@ -7,6 +7,7 @@ export declare class RuntimeAPI extends EventEmitter {
     private ports;
     private observedPortSenders;
     private userScriptMessageSenders;
+    private observedResponseWorkers;
     private pendingInstallEvents;
     private installEventTimer?;
     constructor(ctx: ExtensionContext);
