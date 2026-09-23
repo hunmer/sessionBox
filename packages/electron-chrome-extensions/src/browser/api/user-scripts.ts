@@ -5,6 +5,11 @@ import type { ExtensionContext } from '../context'
 import type { ExtensionEvent } from '../router'
 import { matchesPattern } from './common'
 
+const shouldLogExtensionDebug = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === 'verbose'
+const extensionInfo = (...args: any[]) => {
+  if (shouldLogExtensionDebug) console.info(...args)
+}
+
 type UserScript = chrome.userScripts.RegisteredUserScript & {
   allFrames?: boolean
   excludeGlobs?: string[]
@@ -206,7 +211,7 @@ export class UserScriptsAPI {
       target.worlds.set(worldId, properties)
     }
 
-    console.info('[electron-chrome-extensions] restored persisted user scripts', {
+    extensionInfo('[electron-chrome-extensions] restored persisted user scripts', {
       extensionId: extension.id,
       scriptCount: target.scripts.size,
       storagePath: this.getStorageFilePath()
@@ -254,7 +259,7 @@ export class UserScriptsAPI {
     waiter.settled = result
     waiter.waiters.forEach((resolve) => resolve(result))
     waiter.waiters.clear()
-    console.info('[electron-chrome-extensions] user scripts initialization settled', result)
+    extensionInfo('[electron-chrome-extensions] user scripts initialization settled', result)
     return result
   }
 
@@ -287,7 +292,7 @@ export class UserScriptsAPI {
       if (!waiter.workerStarted) {
         waiter.workerStarted = true
         void this.ctx.session.serviceWorkers.startWorkerForScope(scope).then(
-          () => console.info('[electron-chrome-extensions] MV3 worker started for restored user scripts', {
+          () => extensionInfo('[electron-chrome-extensions] MV3 worker started for restored user scripts', {
             extensionId,
             scope
           }),
@@ -305,14 +310,14 @@ export class UserScriptsAPI {
       waiter.workerStarted = true
       waiter.settled = undefined
       const scope = `chrome-extension://${extensionId}/`
-      console.info('[electron-chrome-extensions] waiting for MV3 user scripts initialization', {
+      extensionInfo('[electron-chrome-extensions] waiting for MV3 user scripts initialization', {
         extensionId,
         scope,
         timeoutMs,
         storagePath: this.getStorageFilePath()
       })
       void this.ctx.session.serviceWorkers.startWorkerForScope(scope).then(
-        () => console.info('[electron-chrome-extensions] MV3 worker started for user scripts initialization', {
+        () => extensionInfo('[electron-chrome-extensions] MV3 worker started for user scripts initialization', {
           extensionId,
           scope
         }),
@@ -352,7 +357,7 @@ export class UserScriptsAPI {
     const getDocumentScripts = (event: Electron.IpcMainInvokeEvent, details: { url?: string; topFrame?: boolean }) => {
       const api = instances.get(event.sender.session)
       const scripts = api?.getDocumentScripts(details.url ?? '', details.topFrame === true) ?? []
-      console.info('[electron-chrome-extensions] document user scripts query', {
+      extensionInfo('[electron-chrome-extensions] document user scripts query', {
         webContentsId: event.sender.id,
         sessionStoragePath: event.sender.session.getStoragePath(),
         url: details.url ?? '',
@@ -365,7 +370,7 @@ export class UserScriptsAPI {
     ipcMain.on(executionChannel, (event, details: Record<string, unknown>) => {
       const api = instances.get(event.sender.session)
       if (!api) return
-      console.info('[electron-chrome-extensions] user script execution', {
+      extensionInfo('[electron-chrome-extensions] user script execution', {
         webContentsId: event.sender.id,
         sessionStoragePath: event.sender.session.getStoragePath(),
         ...details
@@ -422,7 +427,7 @@ export class UserScriptsAPI {
       return left.scriptId.localeCompare(right.scriptId, 'en', { numeric: true })
     })
 
-    console.info('[electron-chrome-extensions] user scripts resolved for document', {
+    extensionInfo('[electron-chrome-extensions] user scripts resolved for document', {
       url,
       topFrame,
       registeredExtensions: this.scripts.size,
@@ -452,7 +457,7 @@ export class UserScriptsAPI {
     scripts.forEach((script) => target.scripts.set(script.id!, { ...script }))
     this.persistExtension(extensionId)
     this.scheduleInitializationSettlement(extensionId)
-    console.info('[electron-chrome-extensions] user scripts registered', {
+    extensionInfo('[electron-chrome-extensions] user scripts registered', {
       extensionId,
       scripts: scripts.map((script) => ({
         id: script.id,
@@ -484,7 +489,7 @@ export class UserScriptsAPI {
     updated.forEach((script) => target.scripts.set(script.id!, script))
     this.persistExtension(event.extension.id)
     this.scheduleInitializationSettlement(event.extension.id)
-    console.info('[electron-chrome-extensions] user scripts updated', {
+    extensionInfo('[electron-chrome-extensions] user scripts updated', {
       extensionId: event.extension.id,
       scriptIds: scripts.map((script) => script.id)
     })
@@ -493,7 +498,7 @@ export class UserScriptsAPI {
   getScripts = async (event: ExtensionEvent, filter?: { ids?: string[] }): Promise<UserScript[]> => {
     const scripts = [...this.getExtensionScripts(event.extension).scripts.values()]
     const result = filter?.ids ? scripts.filter((script) => filter.ids!.includes(script.id!)) : scripts
-    console.info('[electron-chrome-extensions] user scripts queried', {
+    extensionInfo('[electron-chrome-extensions] user scripts queried', {
       extensionId: event.extension.id,
       filterIds: filter?.ids ?? null,
       scriptCount: result.length
@@ -507,7 +512,7 @@ export class UserScriptsAPI {
     const target = this.getExtensionScripts(event.extension)
     target.worlds.set(worldId, { ...properties, worldId })
     this.persistExtension(event.extension.id)
-    console.info('[electron-chrome-extensions] user script world configured', {
+    extensionInfo('[electron-chrome-extensions] user script world configured', {
       extensionId: event.extension.id,
       worldId,
       hasCsp: typeof properties.csp === 'string',

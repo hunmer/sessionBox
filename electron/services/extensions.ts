@@ -81,7 +81,7 @@ function getEnabledExtensions(): Extension[] {
   if (testExtensionPath) {
     const existing = listExtensions().find((extension) => extension.path === testExtensionPath)
     if (existing) {
-      if (!existing.enabled) updateExtension(existing.id, { enabled: true })
+      // 已存在的测试扩展可能被用户明确禁用，不要在每次初始化时覆盖该状态。
     } else if (existsSync(join(testExtensionPath, 'manifest.json'))) {
       let name = 'SessionBox test extension'
       try {

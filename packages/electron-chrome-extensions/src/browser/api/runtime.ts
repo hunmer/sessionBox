@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { ExtensionContext } from '../context'
+const shouldLogExtensionDebug = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === 'verbose'
 import { ExtensionEvent } from '../router'
 import { getExtensionManifest } from './common'
 import { NativeMessagingHost } from './lib/native-messaging-host'
@@ -58,7 +59,7 @@ export class RuntimeAPI extends EventEmitter {
     const resolve = this.userScriptMessageSenders.get(response?.requestId)
     if (!resolve) return
     this.userScriptMessageSenders.delete(response.requestId)
-    console.info('[electron-chrome-extensions] runtime user script response received', {
+    if (shouldLogExtensionDebug) console.info('[electron-chrome-extensions] runtime user script response received', {
       requestId: response.requestId,
       hasResponse: response.response !== undefined,
     })
@@ -174,7 +175,7 @@ export class RuntimeAPI extends EventEmitter {
   }
 
   private sendMessage = async (event: ExtensionEvent, message: unknown) => {
-    console.info('[electron-chrome-extensions] runtime.sendMessage received', {
+    if (shouldLogExtensionDebug) console.info('[electron-chrome-extensions] runtime.sendMessage received', {
       extensionId: event.extension.id,
       method: (message as any)?.method,
       senderType: event.type,

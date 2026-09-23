@@ -1,5 +1,6 @@
 import { app, ipcMain, Session } from 'electron'
 import debug from 'debug'
+const shouldLogExtensionDebug = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === 'verbose'
 
 import { resolvePartition } from './partition'
 
@@ -171,7 +172,7 @@ class RoutingDelegate {
   }
 
   private onAddListener = (event: IpcAnyEvent, extensionId: string, eventName: string) => {
-    if (eventName === 'runtime.onMessage' || eventName === 'runtime.onConnect') {
+    if (shouldLogExtensionDebug && (eventName === 'runtime.onMessage' || eventName === 'runtime.onConnect')) {
       console.info('[electron-chrome-extensions] extension listener registered', {
         extensionId,
         eventName,
@@ -460,7 +461,7 @@ export class ExtensionRouter {
     const eventSessionExtensions = eventSession.extensions || eventSession
     const handler = this.getHandler(handlerName)
 
-    if (handlerName.startsWith('userScripts.')) {
+    if (shouldLogExtensionDebug && handlerName.startsWith('userScripts.')) {
       console.info('[electron-chrome-extensions] userScripts IPC received', {
         handlerName,
         eventType: event.type,

@@ -77,15 +77,15 @@ export function setupEventForwarding(
     if (details.message === 'Unchecked runtime.lastError: Could not establish connection. Receiving end does not exist.') {
       return
     }
-    console.error('[WebviewManager] guest console', {
-      tabId,
-      webContentsId: wc.id,
-      url: wc.getURL(),
-      level: details.level,
-      message: details.message,
-      line: details.lineNumber,
-      sourceId: details.sourceId
-    })
+    // console.error('[WebviewManager] guest console', {
+    //   tabId,
+    //   webContentsId: wc.id,
+    //   url: wc.getURL(),
+    //   level: details.level,
+    //   message: details.message,
+    //   line: details.lineNumber,
+    //   sourceId: details.sourceId
+    // })
   })
 
   wc.on('will-navigate', (event, url) => {

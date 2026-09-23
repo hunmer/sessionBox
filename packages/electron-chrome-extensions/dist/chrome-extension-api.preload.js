@@ -9,7 +9,7 @@ var formatIpcName = (name) => `crx-${name}`;
 var shouldLogExtensionEvents = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "verbose";
 var listenerMap = /* @__PURE__ */ new Map();
 var addExtensionListener = (extensionId, name, callback) => {
-  if (name === "runtime.onMessage" || name === "runtime.onConnect") {
+  if (shouldLogExtensionEvents && (name === "runtime.onMessage" || name === "runtime.onConnect")) {
     console.info("[electron-chrome-extensions] registering extension listener", { extensionId, name });
   }
   const listenerCount = listenerMap.get(name) || 0;
@@ -42,7 +42,7 @@ var shouldLogExtensionApi = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "ve
 var injectExtensionAPIs = () => {
   if (process.type === "service-worker") {
     const runtime = globalThis.chrome?.runtime;
-    console.info("[electron-chrome-extensions] service worker API injection started", {
+    if (shouldLogExtensionApi) console.info("[electron-chrome-extensions] service worker API injection started", {
       contextIsolated: process.contextIsolated,
       hasChrome: Boolean(globalThis.chrome),
       hasRuntime: Boolean(runtime),
@@ -132,7 +132,7 @@ var injectExtensionAPIs = () => {
       addListener(callback) {
         let listener = callback;
         if (this.name === "runtime.onMessage") {
-          console.info("[electron-chrome-extensions] registering runtime message listener", { extensionId });
+          if (shouldLogExtensionApi) console.info("[electron-chrome-extensions] registering runtime message listener", { extensionId });
         }
         if (this.name === "runtime.onConnect") {
           listener = (descriptor) => callback(new RuntimePort(descriptor?.portId, descriptor?.name, descriptor?.sender));

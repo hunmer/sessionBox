@@ -6,7 +6,7 @@ const shouldLogExtensionApi = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === '
 export const injectExtensionAPIs = () => {
   if (process.type === 'service-worker') {
     const runtime = (globalThis as any).chrome?.runtime
-    console.info('[electron-chrome-extensions] service worker API injection started', {
+    if (shouldLogExtensionApi) console.info('[electron-chrome-extensions] service worker API injection started', {
       contextIsolated: process.contextIsolated,
       hasChrome: Boolean((globalThis as any).chrome),
       hasRuntime: Boolean(runtime),
@@ -144,7 +144,7 @@ export const injectExtensionAPIs = () => {
       addListener(callback: T) {
         let listener: Function = callback
         if (this.name === 'runtime.onMessage') {
-          console.info('[electron-chrome-extensions] registering runtime message listener', { extensionId })
+          if (shouldLogExtensionApi) console.info('[electron-chrome-extensions] registering runtime message listener', { extensionId })
         }
         if (this.name === 'runtime.onConnect') {
           listener = (descriptor: any) => callback(new RuntimePort(descriptor?.portId, descriptor?.name, descriptor?.sender) as any)

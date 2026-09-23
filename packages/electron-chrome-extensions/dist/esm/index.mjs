@@ -2063,6 +2063,7 @@ var NativeMessagingHost = class {
 };
 
 // src/browser/api/runtime.ts
+var shouldLogExtensionDebug = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "verbose";
 var RuntimeAPI = class extends EventEmitter3 {
   constructor(ctx) {
     super();
@@ -2110,7 +2111,7 @@ var RuntimeAPI = class extends EventEmitter3 {
       }
     });
     __publicField(this, "sendMessage", async (event, message) => {
-      console.info("[electron-chrome-extensions] runtime.sendMessage received", {
+      if (shouldLogExtensionDebug) console.info("[electron-chrome-extensions] runtime.sendMessage received", {
         extensionId: event.extension.id,
         method: message?.method,
         senderType: event.type,
@@ -2290,7 +2291,7 @@ var RuntimeAPI = class extends EventEmitter3 {
     const resolve3 = this.userScriptMessageSenders.get(response?.requestId);
     if (!resolve3) return;
     this.userScriptMessageSenders.delete(response.requestId);
-    console.info("[electron-chrome-extensions] runtime user script response received", {
+    if (shouldLogExtensionDebug) console.info("[electron-chrome-extensions] runtime user script response received", {
       requestId: response.requestId,
       hasResponse: response.response !== void 0
     });
@@ -2604,6 +2605,7 @@ function resolvePartition(partition) {
 }
 
 // src/browser/router.ts
+var shouldLogExtensionDebug2 = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "verbose";
 var shortenValues = (k, v) => typeof v === "string" && v.length > 128 ? v.substr(0, 128) + "..." : v;
 debug8.formatters.r = (value) => {
   return value ? JSON.stringify(value, shortenValues, "  ") : value;
@@ -2658,7 +2660,7 @@ var RoutingDelegate = class _RoutingDelegate {
       return observer?.onExtensionMessage(event, void 0, handlerName, ...args);
     });
     __publicField(this, "onAddListener", (event, extensionId, eventName) => {
-      if (eventName === "runtime.onMessage" || eventName === "runtime.onConnect") {
+      if (shouldLogExtensionDebug2 && (eventName === "runtime.onMessage" || eventName === "runtime.onConnect")) {
         console.info("[electron-chrome-extensions] extension listener registered", {
           extensionId,
           eventName,
@@ -2889,7 +2891,7 @@ var ExtensionRouter = class {
     const eventSession = getSessionFromEvent(event);
     const eventSessionExtensions = eventSession.extensions || eventSession;
     const handler = this.getHandler(handlerName);
-    if (handlerName.startsWith("userScripts.")) {
+    if (shouldLogExtensionDebug2 && handlerName.startsWith("userScripts.")) {
       console.info("[electron-chrome-extensions] userScripts IPC received", {
         handlerName,
         eventType: event.type,
@@ -3141,6 +3143,10 @@ var PermissionsAPI = class {
 import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as readFileSync3, writeFileSync as writeFileSync2 } from "node:fs";
 import { ipcMain as ipcMain3 } from "electron";
 import { dirname as dirname2, join as join5, resolve, sep } from "node:path";
+var shouldLogExtensionDebug3 = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "verbose";
+var extensionInfo = (...args) => {
+  if (shouldLogExtensionDebug3) console.info(...args);
+};
 var documentStartChannel = "crx-user-scripts:document-start";
 var executionChannel = "crx-user-scripts:execution";
 var instances = /* @__PURE__ */ new WeakMap();
@@ -3208,7 +3214,7 @@ var UserScriptsAPI = class {
       scripts.forEach((script) => target.scripts.set(script.id, { ...script }));
       this.persistExtension(extensionId);
       this.scheduleInitializationSettlement(extensionId);
-      console.info("[electron-chrome-extensions] user scripts registered", {
+      extensionInfo("[electron-chrome-extensions] user scripts registered", {
         extensionId,
         scripts: scripts.map((script) => ({
           id: script.id,
@@ -3238,7 +3244,7 @@ var UserScriptsAPI = class {
       updated.forEach((script) => target.scripts.set(script.id, script));
       this.persistExtension(event.extension.id);
       this.scheduleInitializationSettlement(event.extension.id);
-      console.info("[electron-chrome-extensions] user scripts updated", {
+      extensionInfo("[electron-chrome-extensions] user scripts updated", {
         extensionId: event.extension.id,
         scriptIds: scripts.map((script) => script.id)
       });
@@ -3246,7 +3252,7 @@ var UserScriptsAPI = class {
     __publicField(this, "getScripts", async (event, filter) => {
       const scripts = [...this.getExtensionScripts(event.extension).scripts.values()];
       const result = filter?.ids ? scripts.filter((script) => filter.ids.includes(script.id)) : scripts;
-      console.info("[electron-chrome-extensions] user scripts queried", {
+      extensionInfo("[electron-chrome-extensions] user scripts queried", {
         extensionId: event.extension.id,
         filterIds: filter?.ids ?? null,
         scriptCount: result.length
@@ -3259,7 +3265,7 @@ var UserScriptsAPI = class {
       const target = this.getExtensionScripts(event.extension);
       target.worlds.set(worldId, { ...properties, worldId });
       this.persistExtension(event.extension.id);
-      console.info("[electron-chrome-extensions] user script world configured", {
+      extensionInfo("[electron-chrome-extensions] user script world configured", {
         extensionId: event.extension.id,
         worldId,
         hasCsp: typeof properties.csp === "string",
@@ -3335,7 +3341,7 @@ var UserScriptsAPI = class {
     for (const [worldId, properties] of Object.entries(saved.worlds ?? {})) {
       target.worlds.set(worldId, properties);
     }
-    console.info("[electron-chrome-extensions] restored persisted user scripts", {
+    extensionInfo("[electron-chrome-extensions] restored persisted user scripts", {
       extensionId: extension.id,
       scriptCount: target.scripts.size,
       storagePath: this.getStorageFilePath()
@@ -3375,7 +3381,7 @@ var UserScriptsAPI = class {
     waiter.settled = result;
     waiter.waiters.forEach((resolve3) => resolve3(result));
     waiter.waiters.clear();
-    console.info("[electron-chrome-extensions] user scripts initialization settled", result);
+    extensionInfo("[electron-chrome-extensions] user scripts initialization settled", result);
     return result;
   }
   scheduleInitializationSettlement(extensionId) {
@@ -3395,7 +3401,7 @@ var UserScriptsAPI = class {
       if (!waiter.workerStarted) {
         waiter.workerStarted = true;
         void this.ctx.session.serviceWorkers.startWorkerForScope(scope).then(
-          () => console.info("[electron-chrome-extensions] MV3 worker started for restored user scripts", {
+          () => extensionInfo("[electron-chrome-extensions] MV3 worker started for restored user scripts", {
             extensionId,
             scope
           }),
@@ -3412,14 +3418,14 @@ var UserScriptsAPI = class {
       waiter.workerStarted = true;
       waiter.settled = void 0;
       const scope = `chrome-extension://${extensionId}/`;
-      console.info("[electron-chrome-extensions] waiting for MV3 user scripts initialization", {
+      extensionInfo("[electron-chrome-extensions] waiting for MV3 user scripts initialization", {
         extensionId,
         scope,
         timeoutMs,
         storagePath: this.getStorageFilePath()
       });
       void this.ctx.session.serviceWorkers.startWorkerForScope(scope).then(
-        () => console.info("[electron-chrome-extensions] MV3 worker started for user scripts initialization", {
+        () => extensionInfo("[electron-chrome-extensions] MV3 worker started for user scripts initialization", {
           extensionId,
           scope
         }),
@@ -3457,7 +3463,7 @@ var UserScriptsAPI = class {
     const getDocumentScripts = (event, details) => {
       const api = instances.get(event.sender.session);
       const scripts = api?.getDocumentScripts(details.url ?? "", details.topFrame === true) ?? [];
-      console.info("[electron-chrome-extensions] document user scripts query", {
+      extensionInfo("[electron-chrome-extensions] document user scripts query", {
         webContentsId: event.sender.id,
         sessionStoragePath: event.sender.session.getStoragePath(),
         url: details.url ?? "",
@@ -3470,7 +3476,7 @@ var UserScriptsAPI = class {
     ipcMain3.on(executionChannel, (event, details) => {
       const api = instances.get(event.sender.session);
       if (!api) return;
-      console.info("[electron-chrome-extensions] user script execution", {
+      extensionInfo("[electron-chrome-extensions] user script execution", {
         webContentsId: event.sender.id,
         sessionStoragePath: event.sender.session.getStoragePath(),
         ...details
@@ -3522,7 +3528,7 @@ void 0
       }
       return left.scriptId.localeCompare(right.scriptId, "en", { numeric: true });
     });
-    console.info("[electron-chrome-extensions] user scripts resolved for document", {
+    extensionInfo("[electron-chrome-extensions] user scripts resolved for document", {
       url,
       topFrame,
       registeredExtensions: this.scripts.size,
