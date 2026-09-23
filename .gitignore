@@ -9,3 +9,4 @@ out/*
 dist-app-quick/
 .gitignore
 .electron-dist-iso/
+vendor/tampermonkey
