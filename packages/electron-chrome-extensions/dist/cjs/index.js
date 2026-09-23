@@ -2142,8 +2142,14 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
       if (event.type !== "frame") throw new Error("runtime.connectPort requires a frame context");
       const portId = requestedId || (0, import_node_crypto2.randomUUID)();
       this.ports.set(portId, { extensionId: event.extension.id, sender: event.sender });
-      console.info("[electron-chrome-extensions] runtime port connected", { portId, name, extensionId: event.extension.id });
       const senderUrl = event.sender.getURL?.() ?? "";
+      console.info("[electron-chrome-extensions] runtime port connected", {
+        portId,
+        name,
+        extensionId: event.extension.id,
+        senderTabId: event.sender.id,
+        senderUrl
+      });
       this.ctx.router.sendEvent(event.extension.id, "runtime.onConnect", {
         portId,
         name,
