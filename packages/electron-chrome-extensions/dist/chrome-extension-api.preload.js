@@ -124,7 +124,8 @@ var injectExtensionAPIs = () => {
         this.name = name;
       }
       addListener(callback) {
-        electron.addExtensionListener(extensionId, this.name, callback);
+        const listener = this.name === "runtime.onConnect" ? (descriptor) => callback(new RuntimePort(descriptor?.portId, descriptor?.name)) : callback;
+        electron.addExtensionListener(extensionId, this.name, listener);
       }
       removeListener(callback) {
         electron.removeExtensionListener(extensionId, this.name, callback);
@@ -157,7 +158,7 @@ var injectExtensionAPIs = () => {
         }
       };
     }
-    class Event {
+    class Event2 {
       listeners = [];
       _emit(...args) {
         this.listeners.forEach((listener) => {
@@ -207,8 +208,38 @@ var injectExtensionAPIs = () => {
           this.connected = false;
         }
       }
-      onMessage = new Event();
-      onDisconnect = new Event();
+      onMessage = new Event2();
+      onDisconnect = new Event2();
+    }
+    class RuntimePort {
+      constructor(portId, name = "") {
+        this.portId = portId;
+        this.name = name;
+        electron.addExtensionListener(extensionId, `runtime.portMessage:${portId}`, (message) => {
+          ;
+          this.onMessage._emit(message, this);
+        });
+        electron.addExtensionListener(extensionId, `runtime.portDisconnect:${portId}`, () => {
+          if (this.disconnected) return;
+          this.disconnected = true;
+          this.onDisconnect._emit(this);
+        });
+      }
+      name;
+      onMessage = new Event2();
+      onDisconnect = new Event2();
+      onError = new Event2();
+      disconnected = false;
+      postMessage(message) {
+        if (this.disconnected) return;
+        void electron.invokeExtension(extensionId, "runtime.portPostMessage", {}, this.portId, message);
+      }
+      disconnect() {
+        if (this.disconnected) return;
+        this.disconnected = true;
+        void electron.invokeExtension(extensionId, "runtime.disconnectPort", {}, this.portId);
+        this.onDisconnect._emit(this);
+      }
     }
     const browserActionFactory = (base) => {
       const api = {
@@ -445,6 +476,7 @@ var injectExtensionAPIs = () => {
             // loaded into a Session. The bridge emits this event only for a
             // real install or manifest version change instead.
             onInstalled: new ExtensionEvent("runtime.onInstalled"),
+            onConnect: new ExtensionEvent("runtime.onConnect"),
             connectNative: (application) => {
               const port = new NativePort();
               const receive = port._receive.bind(port);
@@ -613,6 +645,116 @@ var import_electron3 = require("electron");
 var documentStartChannel = "crx-user-scripts:document-start";
 var executionChannel = "crx-user-scripts:execution";
 var executionTimeoutMs = 5e3;
+var userScriptMessageChannel = "crx-user-scripts:runtime-message";
+var userScriptMessageResponseChannel = "crx-user-scripts:runtime-message-response";
+var userScriptPortConnectChannel = "crx-user-scripts:runtime-port-connect";
+var userScriptPortConnectResponseChannel = "crx-user-scripts:runtime-port-connect-response";
+var userScriptPortMessageChannel = "crx-user-scripts:runtime-port-message";
+var userScriptPortDisconnectChannel = "crx-user-scripts:runtime-port-disconnect";
+var userScriptMessageBridgeInstalled = false;
+var exposedWorlds = /* @__PURE__ */ new Set();
+function exposeUserScriptBridge(worldId, extensionId) {
+  if (exposedWorlds.has(worldId) || !process.contextIsolated) return;
+  exposedWorlds.add(worldId);
+  import_electron3.contextBridge.exposeInIsolatedWorld(worldId, "electronUserScripts", {
+    sendMessage: (message) => import_electron3.ipcRenderer.invoke("crx-msg", extensionId, "runtime.sendMessage", message),
+    connect: async (name, onMessage, onDisconnect) => {
+      const requestedId = Math.random().toString(36).slice(2);
+      const result = await import_electron3.ipcRenderer.invoke("crx-msg", extensionId, "runtime.connectPort", requestedId, name);
+      const portId = result.portId;
+      const messageChannel = "crx-user-scripts:runtime-port-message";
+      const disconnectChannel = "crx-user-scripts:runtime-port-disconnect";
+      const messageListener = (_event, details) => {
+        if (details?.portId === portId) onMessage(details.message);
+      };
+      const disconnectListener = (_event, details) => {
+        if (details?.portId !== portId) return;
+        import_electron3.ipcRenderer.off(messageChannel, messageListener);
+        import_electron3.ipcRenderer.off(disconnectChannel, disconnectListener);
+        onDisconnect();
+      };
+      import_electron3.ipcRenderer.on(messageChannel, messageListener);
+      import_electron3.ipcRenderer.on(disconnectChannel, disconnectListener);
+      return portId;
+    },
+    postMessage: (portId, message) => import_electron3.ipcRenderer.invoke("crx-msg", extensionId, "runtime.portPostMessage", portId, message),
+    disconnect: (portId) => import_electron3.ipcRenderer.invoke("crx-msg", extensionId, "runtime.disconnectPort", portId)
+  });
+}
+function installUserScriptMessageBridge() {
+  if (userScriptMessageBridgeInstalled) return;
+  userScriptMessageBridgeInstalled = true;
+  window.addEventListener("message", (event) => {
+    const data = event.data;
+    if (!data || data.source !== "electron-chrome-extensions-user-script" || typeof data.channel !== "string") return;
+    document.dispatchEvent(new CustomEvent(data.channel, { detail: data.detail }));
+  });
+  const postToUserScript = (channel, detail) => {
+    const carrier = document.createElement("meta");
+    carrier.dataset.crxUserScriptBridge = JSON.stringify(detail);
+    document.documentElement.appendChild(carrier);
+    carrier.dispatchEvent(new Event(channel, { bubbles: true }));
+    carrier.remove();
+  };
+  document.addEventListener(userScriptMessageChannel, (event) => {
+    const detail = event.target?.dataset?.crxUserScriptBridge ?? event.detail;
+    if (typeof detail !== "string") return;
+    let request;
+    try {
+      request = JSON.parse(detail);
+    } catch {
+      return;
+    }
+    if (!request.id || !request.extensionId) return;
+    void import_electron3.ipcRenderer.invoke("crx-msg", request.extensionId, "runtime.sendMessage", request.message).then(
+      (response) => {
+        postToUserScript(userScriptMessageResponseChannel, { id: request.id, response });
+      },
+      () => {
+        postToUserScript(userScriptMessageResponseChannel, { id: request.id });
+      }
+    );
+  });
+  document.addEventListener(userScriptPortConnectChannel, (event) => {
+    const detail = event.target?.dataset?.crxUserScriptBridge ?? event.detail;
+    if (typeof detail !== "string") return;
+    let request;
+    try {
+      request = JSON.parse(detail);
+    } catch {
+      return;
+    }
+    if (!request.id || !request.extensionId) return;
+    void import_electron3.ipcRenderer.invoke("crx-msg", request.extensionId, "runtime.connectPort", request.id, request.name || "").then(
+      (response) => postToUserScript(userScriptPortConnectResponseChannel, { id: request.id, ...response }),
+      () => postToUserScript(userScriptPortConnectResponseChannel, { id: request.id, error: true })
+    );
+  });
+  document.addEventListener(userScriptPortMessageChannel, (event) => {
+    const detail = event.target?.dataset?.crxUserScriptBridge ?? event.detail;
+    if (typeof detail !== "string") return;
+    try {
+      const request = JSON.parse(detail);
+      if (request.portId) void import_electron3.ipcRenderer.invoke("crx-msg", request.extensionId, "runtime.portPostMessage", request.portId, request.message);
+    } catch {
+    }
+  });
+  document.addEventListener(userScriptPortDisconnectChannel, (event) => {
+    const detail = event.target?.dataset?.crxUserScriptBridge ?? event.detail;
+    if (typeof detail !== "string") return;
+    try {
+      const request = JSON.parse(detail);
+      if (request.portId) void import_electron3.ipcRenderer.invoke("crx-msg", request.extensionId, "runtime.disconnectPort", request.portId);
+    } catch {
+    }
+  });
+  import_electron3.ipcRenderer.on("crx-user-scripts:runtime-port-message", (_event, detail) => {
+    postToUserScript(userScriptPortMessageChannel, detail);
+  });
+  import_electron3.ipcRenderer.on("crx-user-scripts:runtime-port-disconnect", (_event, detail) => {
+    postToUserScript(userScriptPortDisconnectChannel, detail);
+  });
+}
 function canInjectHere() {
   try {
     return ["http:", "https:", "file:"].includes(new URL(location.href).protocol);
@@ -637,6 +779,22 @@ function createUserScriptRuntimePrelude(extensionId) {
   const root = globalThis
   const chrome = root.chrome || (root.chrome = {})
   const runtime = chrome.runtime || (chrome.runtime = {})
+  const nativeBridge = root.electronUserScripts
+  const postBridge = (channel, detail) => {
+    const carrier = document.createElement('meta')
+    carrier.dataset.crxUserScriptBridge = JSON.stringify(detail)
+    document.documentElement.appendChild(carrier)
+    carrier.dispatchEvent(new Event(channel, { bubbles: true }))
+    carrier.remove()
+  }
+  const addBridgeListener = (channel, listener) => {
+    const wrapped = (event) => {
+      const detail = event.target?.dataset?.crxUserScriptBridge
+      if (detail) listener({ detail })
+    }
+    document.addEventListener(channel, wrapped)
+    return () => document.removeEventListener(channel, wrapped)
+  }
   const createEvent = () => {
     const listeners = []
     return {
@@ -680,25 +838,101 @@ function createUserScriptRuntimePrelude(extensionId) {
   if (typeof runtime.sendMessage !== 'function') {
     runtime.sendMessage = (...args) => {
       const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] : undefined
-      if (callback) queueMicrotask(() => callback())
-      return Promise.resolve()
+      if (callback) args.pop()
+      if (nativeBridge) {
+        const response = nativeBridge.sendMessage(args[args.length - 1])
+        if (callback) response.then(callback)
+        return response
+      }
+      const requestId = Math.random().toString(36).slice(2)
+      const response = new Promise((resolve) => {
+        const listener = (event) => {
+          const detail = event.detail
+          if (typeof detail !== 'string') return
+          try {
+            const result = JSON.parse(detail)
+            if (result.id !== requestId) return
+            removeListener()
+            resolve(result.response)
+            if (callback) callback(result.response)
+          } catch {}
+        }
+        const removeListener = addBridgeListener('${userScriptMessageResponseChannel}', listener)
+        postBridge('${userScriptMessageChannel}', { id: requestId, extensionId: ${serializedId}, message: args[args.length - 1] })
+      })
+      return response
     }
   }
   if (typeof runtime.connect !== 'function') {
     runtime.connect = (connectInfo = {}) => {
       let disconnected = false
+      let connected = false
+      const pending = []
+      const requestedId = Math.random().toString(36).slice(2)
       const port = {
         name: typeof connectInfo === 'string' ? connectInfo : String(connectInfo?.name || ''),
         onMessage: createEvent(),
         onDisconnect: createEvent(),
         onError: createEvent(),
-        postMessage() {},
+        postMessage(message) {
+          if (disconnected) return
+          if (!connected) pending.push(message)
+          else postBridge('${userScriptPortMessageChannel}', { portId: port._portId, extensionId: ${serializedId}, message })
+        },
         disconnect() {
           if (disconnected) return
           disconnected = true
+          postBridge('${userScriptPortDisconnectChannel}', { portId: port._portId || requestedId, extensionId: ${serializedId} })
+          port.onDisconnect.emit(port)
+        },
+        _portId: requestedId
+      }
+      if (nativeBridge) {
+        nativeBridge.connect(port.name, (message) => port.onMessage.emit(message, port), () => {
+          if (!disconnected) { disconnected = true; port.onDisconnect.emit(port) }
+        }).then((portId) => {
+          port._portId = portId
+          connected = true
+          pending.splice(0).forEach((message) => port.postMessage(message))
+        })
+        port.postMessage = (message) => {
+          if (disconnected) return
+          if (!connected) pending.push(message)
+          else nativeBridge.postMessage(port._portId, message)
+        }
+        port.disconnect = () => {
+          if (disconnected) return
+          disconnected = true
+          nativeBridge.disconnect(port._portId)
           port.onDisconnect.emit(port)
         }
+        return port
       }
+      const listener = (event) => {
+        try {
+          const result = JSON.parse(event.detail)
+          if (result.id !== requestedId) return
+          removeListener()
+          if (result.error) return
+          port._portId = result.portId
+          connected = true
+          pending.splice(0).forEach((message) => port.postMessage(message))
+        } catch {}
+      }
+      const removeListener = addBridgeListener('${userScriptPortConnectResponseChannel}', listener)
+      addBridgeListener('${userScriptPortMessageChannel}', (event) => {
+        try {
+          const result = JSON.parse(event.detail)
+          if (result.portId === port._portId && result.message !== undefined) port.onMessage.emit(result.message, port)
+        } catch {}
+      })
+      addBridgeListener('${userScriptPortDisconnectChannel}', (event) => {
+        try {
+          const result = JSON.parse(event.detail)
+          if (result.portId === port._portId && !disconnected) { disconnected = true; port.onDisconnect.emit(port) }
+        } catch {}
+      })
+      postBridge('${userScriptPortConnectChannel}', { id: requestedId, extensionId: ${serializedId}, name: port.name })
       return port
     }
   }
@@ -713,6 +947,11 @@ function createUserScriptRuntimePrelude(extensionId) {
     Object.defineProperty(extension, 'inIncognitoContext', { value: false, enumerable: true })
   }
   if (typeof extension.getURL !== 'function') extension.getURL = runtime.getURL
+  if (typeof extension.sendMessage !== 'function') extension.sendMessage = runtime.sendMessage
+  if (typeof extension.connect !== 'function') extension.connect = runtime.connect
+  for (const name of ['onMessage', 'onConnect', 'onConnectExternal']) {
+    if (!extension[name] && runtime[name]) extension[name] = runtime[name]
+  }
   const offscreen = chrome.offscreen || (chrome.offscreen = {})
   if (typeof offscreen.createDocument !== 'function') offscreen.createDocument = noopAsync
   if (typeof offscreen.closeDocument !== 'function') offscreen.closeDocument = noopAsync
@@ -764,6 +1003,8 @@ async function executeBatch(scripts) {
           name: first.worldName
         });
       }
+      await import_electron3.webFrame.executeJavaScriptInIsolatedWorld(first.worldId, [{ code: "void 0" }]);
+      exposeUserScriptBridge(first.worldId, first.extensionId);
       for (const script of scriptsInWorld) {
         report(script, "started");
         await reportExecution(
@@ -800,6 +1041,7 @@ function schedule(runAt, scripts) {
 }
 function injectUserScriptsAtDocumentStart() {
   if (process.type !== "renderer" || !canInjectHere()) return;
+  installUserScriptMessageBridge();
   const resolveAndSchedule = () => {
     void import_electron3.ipcRenderer.invoke(documentStartChannel, {
       url: location.href,

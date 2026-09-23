@@ -4,6 +4,7 @@ import { ExtensionContext } from '../context';
 export declare class RuntimeAPI extends EventEmitter {
     private ctx;
     private hostMap;
+    private ports;
     private pendingInstallEvents;
     private installEventTimer?;
     constructor(ctx: ExtensionContext);
@@ -16,4 +17,8 @@ export declare class RuntimeAPI extends EventEmitter {
     private disconnectNative;
     private sendNativeMessage;
     private openOptionsPage;
+    private sendMessage;
+    private connectPort;
+    private portPostMessage;
+    private disconnectPort;
 }

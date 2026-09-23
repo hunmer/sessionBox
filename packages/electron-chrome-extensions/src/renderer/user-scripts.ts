@@ -1,9 +1,118 @@
-import { ipcRenderer, webFrame } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 import type { DocumentUserScript } from '../browser/api/user-scripts'
 
 const documentStartChannel = 'crx-user-scripts:document-start'
 const executionChannel = 'crx-user-scripts:execution'
 const executionTimeoutMs = 5_000
+const userScriptMessageChannel = 'crx-user-scripts:runtime-message'
+const userScriptMessageResponseChannel = 'crx-user-scripts:runtime-message-response'
+const userScriptPortConnectChannel = 'crx-user-scripts:runtime-port-connect'
+const userScriptPortConnectResponseChannel = 'crx-user-scripts:runtime-port-connect-response'
+const userScriptPortMessageChannel = 'crx-user-scripts:runtime-port-message'
+const userScriptPortDisconnectChannel = 'crx-user-scripts:runtime-port-disconnect'
+
+let userScriptMessageBridgeInstalled = false
+const exposedWorlds = new Set<number>()
+
+function exposeUserScriptBridge(worldId: number, extensionId: string): void {
+  if (exposedWorlds.has(worldId) || !process.contextIsolated) return
+  exposedWorlds.add(worldId)
+  contextBridge.exposeInIsolatedWorld(worldId, 'electronUserScripts', {
+    sendMessage: (message: unknown) => ipcRenderer.invoke('crx-msg', extensionId, 'runtime.sendMessage', message),
+    connect: async (name: string, onMessage: (message: unknown) => void, onDisconnect: () => void) => {
+      const requestedId = Math.random().toString(36).slice(2)
+      const result = await ipcRenderer.invoke('crx-msg', extensionId, 'runtime.connectPort', requestedId, name)
+      const portId = result.portId as string
+      const messageChannel = 'crx-user-scripts:runtime-port-message'
+      const disconnectChannel = 'crx-user-scripts:runtime-port-disconnect'
+      const messageListener = (_event: Electron.IpcRendererEvent, details: any) => {
+        if (details?.portId === portId) onMessage(details.message)
+      }
+      const disconnectListener = (_event: Electron.IpcRendererEvent, details: any) => {
+        if (details?.portId !== portId) return
+        ipcRenderer.off(messageChannel, messageListener)
+        ipcRenderer.off(disconnectChannel, disconnectListener)
+        onDisconnect()
+      }
+      ipcRenderer.on(messageChannel, messageListener)
+      ipcRenderer.on(disconnectChannel, disconnectListener)
+      return portId
+    },
+    postMessage: (portId: string, message: unknown) =>
+      ipcRenderer.invoke('crx-msg', extensionId, 'runtime.portPostMessage', portId, message),
+    disconnect: (portId: string) =>
+      ipcRenderer.invoke('crx-msg', extensionId, 'runtime.disconnectPort', portId)
+  })
+}
+
+function installUserScriptMessageBridge(): void {
+  if (userScriptMessageBridgeInstalled) return
+  userScriptMessageBridgeInstalled = true
+  window.addEventListener('message', (event) => {
+    const data = event.data
+    if (!data || data.source !== 'electron-chrome-extensions-user-script' || typeof data.channel !== 'string') return
+    document.dispatchEvent(new CustomEvent(data.channel, { detail: data.detail }))
+  })
+  const postToUserScript = (channel: string, detail: unknown) => {
+    const carrier = document.createElement('meta')
+    carrier.dataset.crxUserScriptBridge = JSON.stringify(detail)
+    document.documentElement.appendChild(carrier)
+    carrier.dispatchEvent(new Event(channel, { bubbles: true }))
+    carrier.remove()
+  }
+  document.addEventListener(userScriptMessageChannel, (event) => {
+    const detail = (event.target as HTMLElement)?.dataset?.crxUserScriptBridge ?? (event as CustomEvent).detail
+    if (typeof detail !== 'string') return
+    let request: { id?: string; extensionId?: string; message?: unknown }
+    try {
+      request = JSON.parse(detail)
+    } catch {
+      return
+    }
+    if (!request.id || !request.extensionId) return
+    void ipcRenderer.invoke('crx-msg', request.extensionId, 'runtime.sendMessage', request.message).then(
+      (response) => {
+        postToUserScript(userScriptMessageResponseChannel, { id: request.id, response })
+      },
+      () => {
+        postToUserScript(userScriptMessageResponseChannel, { id: request.id })
+      }
+    )
+  })
+  document.addEventListener(userScriptPortConnectChannel, (event) => {
+    const detail = (event.target as HTMLElement)?.dataset?.crxUserScriptBridge ?? (event as CustomEvent).detail
+    if (typeof detail !== 'string') return
+    let request: { id?: string; extensionId?: string; name?: string }
+    try { request = JSON.parse(detail) } catch { return }
+    if (!request.id || !request.extensionId) return
+    void ipcRenderer.invoke('crx-msg', request.extensionId, 'runtime.connectPort', request.id, request.name || '').then(
+      (response) => postToUserScript(userScriptPortConnectResponseChannel, { id: request.id, ...response }),
+      () => postToUserScript(userScriptPortConnectResponseChannel, { id: request.id, error: true })
+    )
+  })
+  document.addEventListener(userScriptPortMessageChannel, (event) => {
+    const detail = (event.target as HTMLElement)?.dataset?.crxUserScriptBridge ?? (event as CustomEvent).detail
+    if (typeof detail !== 'string') return
+    try {
+      const request = JSON.parse(detail)
+      if (request.portId) void ipcRenderer.invoke('crx-msg', request.extensionId, 'runtime.portPostMessage', request.portId, request.message)
+    } catch {}
+  })
+  document.addEventListener(userScriptPortDisconnectChannel, (event) => {
+    const detail = (event.target as HTMLElement)?.dataset?.crxUserScriptBridge ?? (event as CustomEvent).detail
+    if (typeof detail !== 'string') return
+    try {
+      const request = JSON.parse(detail)
+      if (request.portId) void ipcRenderer.invoke('crx-msg', request.extensionId, 'runtime.disconnectPort', request.portId)
+    } catch {}
+  })
+  ipcRenderer.on('crx-user-scripts:runtime-port-message', (_event, detail) => {
+    postToUserScript(userScriptPortMessageChannel, detail)
+  })
+  ipcRenderer.on('crx-user-scripts:runtime-port-disconnect', (_event, detail) => {
+    postToUserScript(userScriptPortDisconnectChannel, detail)
+  })
+}
 
 function canInjectHere(): boolean {
   try {
@@ -31,6 +140,22 @@ function createUserScriptRuntimePrelude(extensionId: string): string {
   const root = globalThis
   const chrome = root.chrome || (root.chrome = {})
   const runtime = chrome.runtime || (chrome.runtime = {})
+  const nativeBridge = root.electronUserScripts
+  const postBridge = (channel, detail) => {
+    const carrier = document.createElement('meta')
+    carrier.dataset.crxUserScriptBridge = JSON.stringify(detail)
+    document.documentElement.appendChild(carrier)
+    carrier.dispatchEvent(new Event(channel, { bubbles: true }))
+    carrier.remove()
+  }
+  const addBridgeListener = (channel, listener) => {
+    const wrapped = (event) => {
+      const detail = event.target?.dataset?.crxUserScriptBridge
+      if (detail) listener({ detail })
+    }
+    document.addEventListener(channel, wrapped)
+    return () => document.removeEventListener(channel, wrapped)
+  }
   const createEvent = () => {
     const listeners = []
     return {
@@ -74,25 +199,101 @@ function createUserScriptRuntimePrelude(extensionId: string): string {
   if (typeof runtime.sendMessage !== 'function') {
     runtime.sendMessage = (...args) => {
       const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] : undefined
-      if (callback) queueMicrotask(() => callback())
-      return Promise.resolve()
+      if (callback) args.pop()
+      if (nativeBridge) {
+        const response = nativeBridge.sendMessage(args[args.length - 1])
+        if (callback) response.then(callback)
+        return response
+      }
+      const requestId = Math.random().toString(36).slice(2)
+      const response = new Promise((resolve) => {
+        const listener = (event) => {
+          const detail = event.detail
+          if (typeof detail !== 'string') return
+          try {
+            const result = JSON.parse(detail)
+            if (result.id !== requestId) return
+            removeListener()
+            resolve(result.response)
+            if (callback) callback(result.response)
+          } catch {}
+        }
+        const removeListener = addBridgeListener('${userScriptMessageResponseChannel}', listener)
+        postBridge('${userScriptMessageChannel}', { id: requestId, extensionId: ${serializedId}, message: args[args.length - 1] })
+      })
+      return response
     }
   }
   if (typeof runtime.connect !== 'function') {
     runtime.connect = (connectInfo = {}) => {
       let disconnected = false
+      let connected = false
+      const pending = []
+      const requestedId = Math.random().toString(36).slice(2)
       const port = {
         name: typeof connectInfo === 'string' ? connectInfo : String(connectInfo?.name || ''),
         onMessage: createEvent(),
         onDisconnect: createEvent(),
         onError: createEvent(),
-        postMessage() {},
+        postMessage(message) {
+          if (disconnected) return
+          if (!connected) pending.push(message)
+          else postBridge('${userScriptPortMessageChannel}', { portId: port._portId, extensionId: ${serializedId}, message })
+        },
         disconnect() {
           if (disconnected) return
           disconnected = true
+          postBridge('${userScriptPortDisconnectChannel}', { portId: port._portId || requestedId, extensionId: ${serializedId} })
+          port.onDisconnect.emit(port)
+        },
+        _portId: requestedId
+      }
+      if (nativeBridge) {
+        nativeBridge.connect(port.name, (message) => port.onMessage.emit(message, port), () => {
+          if (!disconnected) { disconnected = true; port.onDisconnect.emit(port) }
+        }).then((portId) => {
+          port._portId = portId
+          connected = true
+          pending.splice(0).forEach((message) => port.postMessage(message))
+        })
+        port.postMessage = (message) => {
+          if (disconnected) return
+          if (!connected) pending.push(message)
+          else nativeBridge.postMessage(port._portId, message)
+        }
+        port.disconnect = () => {
+          if (disconnected) return
+          disconnected = true
+          nativeBridge.disconnect(port._portId)
           port.onDisconnect.emit(port)
         }
+        return port
       }
+      const listener = (event) => {
+        try {
+          const result = JSON.parse(event.detail)
+          if (result.id !== requestedId) return
+          removeListener()
+          if (result.error) return
+          port._portId = result.portId
+          connected = true
+          pending.splice(0).forEach((message) => port.postMessage(message))
+        } catch {}
+      }
+      const removeListener = addBridgeListener('${userScriptPortConnectResponseChannel}', listener)
+      addBridgeListener('${userScriptPortMessageChannel}', (event) => {
+        try {
+          const result = JSON.parse(event.detail)
+          if (result.portId === port._portId && result.message !== undefined) port.onMessage.emit(result.message, port)
+        } catch {}
+      })
+      addBridgeListener('${userScriptPortDisconnectChannel}', (event) => {
+        try {
+          const result = JSON.parse(event.detail)
+          if (result.portId === port._portId && !disconnected) { disconnected = true; port.onDisconnect.emit(port) }
+        } catch {}
+      })
+      postBridge('${userScriptPortConnectChannel}', { id: requestedId, extensionId: ${serializedId}, name: port.name })
       return port
     }
   }
@@ -107,6 +308,11 @@ function createUserScriptRuntimePrelude(extensionId: string): string {
     Object.defineProperty(extension, 'inIncognitoContext', { value: false, enumerable: true })
   }
   if (typeof extension.getURL !== 'function') extension.getURL = runtime.getURL
+  if (typeof extension.sendMessage !== 'function') extension.sendMessage = runtime.sendMessage
+  if (typeof extension.connect !== 'function') extension.connect = runtime.connect
+  for (const name of ['onMessage', 'onConnect', 'onConnectExternal']) {
+    if (!extension[name] && runtime[name]) extension[name] = runtime[name]
+  }
   const offscreen = chrome.offscreen || (chrome.offscreen = {})
   if (typeof offscreen.createDocument !== 'function') offscreen.createDocument = noopAsync
   if (typeof offscreen.closeDocument !== 'function') offscreen.closeDocument = noopAsync
@@ -166,6 +372,11 @@ async function executeBatch(scripts: DocumentUserScript[]): Promise<void> {
           name: first.worldName
         })
       }
+      // Create the target context before exposing APIs into it. Electron does
+      // not retain exposeInIsolatedWorld calls made before a custom world has
+      // been instantiated.
+      await webFrame.executeJavaScriptInIsolatedWorld(first.worldId, [{ code: 'void 0' }])
+      exposeUserScriptBridge(first.worldId, first.extensionId)
       for (const script of scriptsInWorld) {
         report(script, 'started')
         await reportExecution(
@@ -207,6 +418,7 @@ function schedule(runAt: DocumentUserScript['runAt'], scripts: DocumentUserScrip
 /** Runs before page JavaScript through the session frame preload. */
 export function injectUserScriptsAtDocumentStart(): void {
   if (process.type !== 'renderer' || !canInjectHere()) return
+  installUserScriptMessageBridge()
 
   const resolveAndSchedule = () => {
     void ipcRenderer

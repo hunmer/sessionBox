@@ -154,7 +154,10 @@ export const matchesPattern = (pattern: string, url: string) => {
       (host.startsWith('*.') && (hostname === host.slice(2) || hostname.endsWith(host.slice(1))))
     if (!hostMatches) return false
 
-    const path = `${parsed.pathname}${parsed.search}`
+    // Chrome match patterns apply to the URL path; query parameters are not
+    // part of the pattern. Tampermonkey commonly navigates Baidu with `?wd=`
+    // and must still match `https://www.baidu.com/*`.
+    const path = parsed.pathname
     const pathRegexp = new RegExp(`^${pathPattern.split('*').map(escapePattern).join('.*')}$`)
     return pathRegexp.test(path)
   } catch {

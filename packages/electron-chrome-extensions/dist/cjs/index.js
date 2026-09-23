@@ -131,7 +131,7 @@ var matchesPattern = (pattern, url) => {
     const host = hostPattern.toLowerCase();
     const hostMatches = host === "*" || host === hostname || host.startsWith("*.") && (hostname === host.slice(2) || hostname.endsWith(host.slice(1)));
     if (!hostMatches) return false;
-    const path5 = `${parsed.pathname}${parsed.search}`;
+    const path5 = parsed.pathname;
     const pathRegexp = new RegExp(`^${pathPattern.split("*").map(escapePattern).join(".*")}$`);
     return pathRegexp.test(path5);
   } catch {
@@ -2014,6 +2014,7 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
     super();
     this.ctx = ctx;
     __publicField(this, "hostMap", {});
+    __publicField(this, "ports", /* @__PURE__ */ new Map());
     __publicField(this, "pendingInstallEvents", /* @__PURE__ */ new Map());
     __publicField(this, "installEventTimer");
     __publicField(this, "connectNative", async (event, connectionId, application) => {
@@ -2051,10 +2052,53 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
         await this.ctx.store.createTab({ url, active: true });
       }
     });
+    __publicField(this, "sendMessage", async (event, message) => {
+      this.ctx.router.sendEvent(event.extension.id, "runtime.onMessage", message, {
+        id: event.extension.id,
+        url: event.sender?.getURL?.() ?? ""
+      });
+      return void 0;
+    });
+    __publicField(this, "connectPort", async (event, requestedId, name = "") => {
+      if (event.type !== "frame") throw new Error("runtime.connectPort requires a frame context");
+      const portId = requestedId || (0, import_node_crypto.randomUUID)();
+      this.ports.set(portId, { extensionId: event.extension.id, sender: event.sender });
+      console.info("[electron-chrome-extensions] runtime port connected", { portId, name, extensionId: event.extension.id });
+      this.ctx.router.sendEvent(event.extension.id, "runtime.onConnect", { portId, name });
+      await new Promise((resolve2) => setTimeout(resolve2, 25));
+      return { portId, name };
+    });
+    __publicField(this, "portPostMessage", async (event, portId, message) => {
+      const port = this.ports.get(portId);
+      if (!port || port.extensionId !== event.extension.id) {
+        console.warn("[electron-chrome-extensions] runtime port message dropped", { portId, eventType: event.type });
+        return;
+      }
+      console.info("[electron-chrome-extensions] runtime port message", { portId, eventType: event.type });
+      if (event.type === "service-worker") {
+        port.sender.send("crx-user-scripts:runtime-port-message", { portId, message });
+        return;
+      }
+      this.ctx.router.sendEvent(port.extensionId, `runtime.portMessage:${portId}`, message);
+    });
+    __publicField(this, "disconnectPort", async (event, portId) => {
+      const port = this.ports.get(portId);
+      if (!port || port.extensionId !== event.extension.id) return;
+      this.ports.delete(portId);
+      if (event.type === "service-worker") {
+        port.sender.send("crx-user-scripts:runtime-port-disconnect", { portId });
+      } else {
+        this.ctx.router.sendEvent(port.extensionId, `runtime.portDisconnect:${portId}`);
+      }
+    });
     const handle = this.ctx.router.apiHandler();
     handle("runtime.connectNative", this.connectNative, { permission: "nativeMessaging" });
     handle("runtime.disconnectNative", this.disconnectNative, { permission: "nativeMessaging" });
     handle("runtime.openOptionsPage", this.openOptionsPage);
+    handle("runtime.sendMessage", this.sendMessage);
+    handle("runtime.connectPort", this.connectPort);
+    handle("runtime.portPostMessage", this.portPostMessage);
+    handle("runtime.disconnectPort", this.disconnectPort);
     handle("runtime.sendNativeMessage", this.sendNativeMessage, { permission: "nativeMessaging" });
     const sessionExtensions = this.ctx.session.extensions || this.ctx.session;
     sessionExtensions.on("extension-loaded", (_event, extension) => {

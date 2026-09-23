@@ -139,7 +139,10 @@ export const injectExtensionAPIs = () => {
       constructor(private name: string) {}
 
       addListener(callback: T) {
-        electron.addExtensionListener(extensionId, this.name, callback)
+        const listener = this.name === 'runtime.onConnect'
+          ? ((descriptor: any) => callback(new RuntimePort(descriptor?.portId, descriptor?.name) as any))
+          : callback
+        electron.addExtensionListener(extensionId, this.name, listener)
       }
       removeListener(callback: T) {
         electron.removeExtensionListener(extensionId, this.name, callback)
@@ -241,6 +244,38 @@ export const injectExtensionAPIs = () => {
       }
       onMessage: chrome.runtime.PortMessageEvent = new Event() as any
       onDisconnect: chrome.runtime.PortDisconnectEvent = new Event() as any
+    }
+
+    class RuntimePort implements chrome.runtime.Port {
+      name: string
+      onMessage: chrome.runtime.PortMessageEvent = new Event() as any
+      onDisconnect: chrome.runtime.PortDisconnectEvent = new Event() as any
+      onError: any = new Event()
+      private disconnected = false
+
+      constructor(private portId: string, name = '') {
+        this.name = name
+        electron.addExtensionListener(extensionId, `runtime.portMessage:${portId}`, (message: any) => {
+          ;(this.onMessage as any)._emit(message, this)
+        })
+        electron.addExtensionListener(extensionId, `runtime.portDisconnect:${portId}`, () => {
+          if (this.disconnected) return
+          this.disconnected = true
+          ;(this.onDisconnect as any)._emit(this)
+        })
+      }
+
+      postMessage(message: any) {
+        if (this.disconnected) return
+        void electron.invokeExtension(extensionId, 'runtime.portPostMessage', {}, this.portId, message)
+      }
+
+      disconnect() {
+        if (this.disconnected) return
+        this.disconnected = true
+        void electron.invokeExtension(extensionId, 'runtime.disconnectPort', {}, this.portId)
+        ;(this.onDisconnect as any)._emit(this)
+      }
     }
 
     type DeepPartial<T> = {
@@ -532,6 +567,7 @@ export const injectExtensionAPIs = () => {
             // loaded into a Session. The bridge emits this event only for a
             // real install or manifest version change instead.
             onInstalled: new ExtensionEvent('runtime.onInstalled'),
+            onConnect: new ExtensionEvent('runtime.onConnect'),
             connectNative: (application: string) => {
               const port = new NativePort()
               const receive = port._receive.bind(port)
