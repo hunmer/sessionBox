@@ -569,6 +569,20 @@ export const injectExtensionAPIs = () => {
         }),
       },
 
+      scripting: {
+        shouldInject: () => manifest.manifest_version === 3,
+        factory: (base) => ({
+          ...base,
+          executeScript: invokeExtension('scripting.executeScript'),
+          insertCSS: invokeExtension('scripting.insertCSS', { noop: true }),
+          removeCSS: invokeExtension('scripting.removeCSS', { noop: true }),
+          registerContentScripts: invokeExtension('scripting.registerContentScripts', { noop: true }),
+          unregisterContentScripts: invokeExtension('scripting.unregisterContentScripts', { noop: true }),
+          updateContentScripts: invokeExtension('scripting.updateContentScripts', { noop: true }),
+          getRegisteredContentScripts: invokeExtension('scripting.getRegisteredContentScripts', { noop: true, defaultResponse: [] }),
+        }),
+      },
+
       privacy: {
         factory: (base) => {
           return {
@@ -718,7 +732,17 @@ export const injectExtensionAPIs = () => {
         factory: (base) => {
           return {
             ...base,
+            OnBeforeSendHeadersOptions: {
+              ...(base as any)?.OnBeforeSendHeadersOptions,
+              EXTRA_HEADERS: 'extraHeaders',
+            },
+            onBeforeRequest: new ExtensionEvent('webRequest.onBeforeRequest'),
+            onBeforeRedirect: new ExtensionEvent('webRequest.onBeforeRedirect'),
+            onSendHeaders: new ExtensionEvent('webRequest.onSendHeaders'),
+            onResponseStarted: new ExtensionEvent('webRequest.onResponseStarted'),
             onHeadersReceived: new ExtensionEvent('webRequest.onHeadersReceived'),
+            onCompleted: new ExtensionEvent('webRequest.onCompleted'),
+            onErrorOccurred: new ExtensionEvent('webRequest.onErrorOccurred'),
           }
         },
       },

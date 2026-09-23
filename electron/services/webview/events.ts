@@ -71,6 +71,12 @@ export function setupEventForwarding(
   // generic "Script failed to execute" rejection.
   wc.on('console-message', (details: any) => {
     if (details.level !== 'error') return
+    // Chromium reports rejected extension messages as console errors when a
+    // page has no matching receiver. Third-party pages can emit this forever;
+    // it is expected noise and does not indicate a host/webview failure.
+    if (details.message === 'Unchecked runtime.lastError: Could not establish connection. Receiving end does not exist.') {
+      return
+    }
     console.error('[WebviewManager] guest console', {
       tabId,
       webContentsId: wc.id,

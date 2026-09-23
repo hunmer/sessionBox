@@ -532,6 +532,9 @@ export class BrowserActionAPI {
     this.queuedUpdate = true
     queueMicrotask(() => {
       this.queuedUpdate = false
+      // Consumers outside the extension preload (for example the host
+      // toolbar) need the same invalidation signal as browser-action-list.
+      this.ctx.emit('browser-action-update')
       if (this.observers.size === 0) return
       d(`dispatching update to ${this.observers.size} observer(s)`)
       Array.from(this.observers).forEach((observer) => {

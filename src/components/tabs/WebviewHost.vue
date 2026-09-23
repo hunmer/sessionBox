@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { Loader2 } from 'lucide-vue-next'
+import { useTabStore } from '@/stores/tab'
 
 interface WebviewSpec {
   tabId: string
@@ -12,6 +14,17 @@ interface WebviewSpec {
 type WebviewElement = HTMLElement & { getWebContentsId: () => number }
 
 const views = ref<Record<string, WebviewSpec>>({})
+const tabStore = useTabStore()
+
+// 尚未上报 nav-state 的新建 tab 视为加载中，覆盖 attach/扩展初始化期间的白屏
+const isViewLoading = (tabId: string) => tabStore.navStates.get(tabId)?.isLoading ?? true
+
+const boundsStyle = (view: WebviewSpec) => ({
+  left: `${view.bounds.x}px`,
+  top: `${view.bounds.y}px`,
+  width: `${view.bounds.width}px`,
+  height: `${view.bounds.height}px`
+})
 const elements = new Map<string, WebviewElement>()
 const attachedTabIds = new Set<string>()
 const attachingTabIds = new Set<string>()
@@ -127,23 +140,28 @@ onUnmounted(() => {
 
 <template>
   <div class="pointer-events-none fixed inset-0 z-[5]">
-    <webview
-      v-for="view in views"
-      :key="view.tabId"
-      :ref="(element: unknown) => bindElement(view.tabId, element)"
-      src="about:blank"
-      allowpopups
-      :partition="view.partition || undefined"
-      :useragent="view.userAgent"
-      class="fixed bg-background"
-      :style="{
-        display: view.visible ? 'flex' : 'none',
-        left: `${view.bounds.x}px`,
-        top: `${view.bounds.y}px`,
-        width: `${view.bounds.width}px`,
-        height: `${view.bounds.height}px`,
-        pointerEvents: view.visible ? 'auto' : 'none'
-      }"
-    />
+    <template v-for="view in views" :key="view.tabId">
+      <webview
+        :ref="(element: unknown) => bindElement(view.tabId, element)"
+        src="about:blank"
+        allowpopups
+        :partition="view.partition || undefined"
+        :useragent="view.userAgent"
+        class="fixed bg-background"
+        :style="{
+          display: view.visible ? 'flex' : 'none',
+          ...boundsStyle(view),
+          pointerEvents: view.visible ? 'auto' : 'none'
+        }"
+      />
+      <!-- webview 原生绘制在其加载完成前是空白，占位层需叠在其上（同容器 DOM 顺序后者居上） -->
+      <div
+        v-if="view.visible && isViewLoading(view.tabId)"
+        class="fixed flex items-center justify-center bg-background"
+        :style="boundsStyle(view)"
+      >
+        <Loader2 class="size-8 animate-spin text-muted-foreground" />
+      </div>
+    </template>
   </div>
 </template>

@@ -151,6 +151,10 @@ git diff --check
 
 ## 当前工作区注意事项
 
+### MV3 API inventory
+
+完整的 Chrome Extensions MV3 namespace 清单、当前实现状态、权限边界和 Cat Catch 验收映射见 [`MV3-API-INVENTORY.md`](./MV3-API-INVENTORY.md)。本轮新增了 `webRequest` 网络事件桥接和 `scripting.executeScript` 文件注入，后续实现 API 时应同步更新该清单。
+
 本轮接手时仓库位于 `master@cde778a`，接手后先执行 `git status --short` 和 `git diff`：
 
 - `src/browser/api/runtime.ts`、`src/browser/api/tabs.ts`、`src/browser/router.ts`、`src/renderer/index.ts`、`src/renderer/user-scripts.ts`、MV3 fixture 和 `chrome-userScripts-spec.ts` 包含本轮兼容性改动。

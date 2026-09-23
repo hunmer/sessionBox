@@ -127,6 +127,7 @@ export interface Extension {
   name: string
   path: string
   enabled: boolean
+  pinned?: boolean
   icon?: string
   electronExtensionId?: string
   userScriptsEnabled?: boolean
@@ -435,6 +436,13 @@ const api = {
     update: (id: string, data: Partial<Omit<Extension, 'id'>>): Promise<void> =>
       ipcRenderer.invoke('extension:update', id, data),
     getLoaded: (): Promise<string[]> => ipcRenderer.invoke('extension:getLoaded'),
+    getBrowserActionState: (): Promise<{ activeTabId?: number; actions: any[] }> =>
+      ipcRenderer.invoke('extension:getBrowserActionState'),
+    onBrowserActionUpdate: (listener: () => void): (() => void) => {
+      const wrapped = () => listener()
+      ipcRenderer.on('extension:browser-action-update', wrapped)
+      return () => ipcRenderer.removeListener('extension:browser-action-update', wrapped)
+    },
     openBrowserActionPopup: (
       extensionId: string,
       anchorRect: { x: number; y: number; width: number; height: number; alignment?: string }

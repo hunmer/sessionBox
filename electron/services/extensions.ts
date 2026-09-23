@@ -218,8 +218,27 @@ function createExtensionsInstance(
     }
   })
 
+  // Forward action state changes to the host toolbar. The extension preload
+  // observes this internally, but the application's Vue toolbar does not.
+  instance.on('browser-action-update', () => {
+    const mainWindow = webviewManager.getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('extension:browser-action-update')
+    }
+  })
+
   ElectronChromeExtensions.handleCRXProtocol(browserSession)
   return instance
+}
+
+export function getBrowserActionStateForActiveTab(): { activeTabId?: number; actions: any[] } {
+  const activeTabId = webviewManager.getActiveTabId()
+  if (!activeTabId) return { actions: [] }
+  const webContents = webviewManager.getWebContents(activeTabId)
+  if (!webContents) return { actions: [] }
+  const extensions = ElectronChromeExtensions.fromSession(webContents.session)
+  if (!extensions) return { actions: [] }
+  return (extensions as any).api.browserAction.getState()
 }
 
 /**

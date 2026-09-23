@@ -108,7 +108,9 @@ export interface Extension {
   name: string
   path: string
   enabled: boolean
+  pinned?: boolean
   icon?: string
+  electronExtensionId?: string
 }
 
 // 嗅探到的网络资源

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { ArrowRight, Puzzle } from 'lucide-vue-next'
+import { ArrowRight, Pin, PinOff, Puzzle } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -22,6 +22,14 @@ async function toggleExtension(extensionId: string, enabled: boolean) {
     await extensionStore.refreshLoadedExtensions()
   } catch (errorCause) {
     console.error('更新扩展失败:', errorCause)
+  }
+}
+
+async function togglePinned(extensionId: string, pinned: boolean) {
+  try {
+    await extensionStore.updateExtension(extensionId, { pinned })
+  } catch (errorCause) {
+    console.error('更新扩展固定状态失败:', errorCause)
   }
 }
 </script>
@@ -95,6 +103,24 @@ async function toggleExtension(extensionId: string, enabled: boolean) {
               :class="{ 'text-muted-foreground': !ext.enabled }"
             >{{ ext.name }}</span>
           </div>
+
+          <!-- 固定切换：固定后扩展图标常驻工具栏 -->
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 shrink-0"
+            :title="ext.pinned !== false ? '取消固定到工具栏' : '固定到工具栏'"
+            @click="togglePinned(ext.id, ext.pinned === false)"
+          >
+            <Pin
+              v-if="ext.pinned !== false"
+              class="h-3.5 w-3.5 text-primary"
+            />
+            <PinOff
+              v-else
+              class="h-3.5 w-3.5 text-muted-foreground"
+            />
+          </Button>
 
           <!-- 启用开关 -->
           <Switch

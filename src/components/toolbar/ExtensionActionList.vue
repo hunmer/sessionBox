@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Loader2, Puzzle } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,8 +18,13 @@ const tabStore = useTabStore()
 
 const isLoading = ref(false)
 const managerOpen = ref(false)
+const badgeByExtensionId = ref<Record<string, string>>({})
+let removeBadgeListener: (() => void) | undefined
 
-const enabledExtensions = computed(() => extensionStore.extensions.filter((e) => e.enabled))
+// 未固定（pinned === false）的扩展收进拼图弹出列表，其余固定显示在工具栏
+const pinnedExtensions = computed(() =>
+  extensionStore.extensions.filter((e) => e.enabled && e.pinned !== false)
+)
 
 onMounted(async () => {
   if (extensionStore.extensions.length === 0) {
@@ -27,7 +32,26 @@ onMounted(async () => {
   } else {
     await extensionStore.refreshLoadedExtensions()
   }
+  await refreshBadges()
+  removeBadgeListener = (window.api.extension as any).onBrowserActionUpdate?.(() => {
+    void refreshBadges()
+  })
 })
+
+onUnmounted(() => removeBadgeListener?.())
+
+async function refreshBadges() {
+  const state = await (window.api.extension as any).getBrowserActionState?.()
+  if (!state) return
+
+  const next: Record<string, string> = {}
+  for (const action of state.actions || []) {
+    const tabAction = state.activeTabId != null ? action.tabs?.[state.activeTabId] : undefined
+    const text = tabAction?.text ?? action.text
+    if (text) next[action.id] = String(text)
+  }
+  badgeByExtensionId.value = next
+}
 
 async function openBrowserActionPopup(extensionId: string, event: MouseEvent) {
   const target = event.currentTarget as HTMLElement
@@ -53,11 +77,11 @@ function openExtensionsPage() {
     :class="vertical ? 'flex flex-col items-center gap-0.5' : 'flex items-center gap-0.5'"
   >
     <Button
-      v-for="ext in enabledExtensions"
+      v-for="ext in pinnedExtensions"
       :key="ext.id"
       variant="ghost"
       size="icon"
-      class="h-7 w-7"
+      class="relative h-7 w-7"
       :title="ext.name"
       @click="openBrowserActionPopup(ext.id, $event)"
     >
@@ -71,6 +95,12 @@ function openExtensionsPage() {
         class="text-xs font-medium text-muted-foreground"
       >
         {{ ext.name.charAt(0).toUpperCase() }}
+      </span>
+      <span
+        v-if="ext.electronExtensionId && badgeByExtensionId[ext.electronExtensionId]"
+        class="absolute -right-0.5 -bottom-0.5 max-w-[calc(100%-2px)] min-w-3 h-3 px-0.5 rounded-sm bg-red-600 text-[9px] leading-3 text-white shadow-sm overflow-hidden whitespace-nowrap"
+      >
+        {{ badgeByExtensionId[ext.electronExtensionId] }}
       </span>
     </Button>
 

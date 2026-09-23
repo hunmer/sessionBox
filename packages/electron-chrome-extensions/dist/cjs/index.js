@@ -40,8 +40,8 @@ module.exports = __toCommonJS(index_exports);
 // src/browser/index.ts
 var import_electron13 = require("electron");
 var import_node_events4 = require("node:events");
-var import_node_path3 = __toESM(require("node:path"));
-var import_node_fs5 = require("node:fs");
+var import_node_path4 = __toESM(require("node:path"));
+var import_node_fs6 = require("node:fs");
 var import_node_module = require("node:module");
 
 // src/browser/api/browser-action.ts
@@ -270,7 +270,7 @@ var _PopupView = class _PopupView extends import_node_events.EventEmitter {
       this.setSize({ width: _PopupView.BOUNDS.minWidth, height: _PopupView.BOUNDS.minHeight });
     } else {
       this.setSize({ width: _PopupView.BOUNDS.maxWidth, height: _PopupView.BOUNDS.maxHeight });
-      await new Promise((resolve2) => setTimeout(resolve2, 100));
+      await new Promise((resolve3) => setTimeout(resolve3, 100));
       if (this.destroyed) return;
       await this.queryPreferredSize();
       if (this.destroyed) return;
@@ -729,6 +729,7 @@ var BrowserActionAPI = class {
     this.queuedUpdate = true;
     queueMicrotask(() => {
       this.queuedUpdate = false;
+      this.ctx.emit("browser-action-update");
       if (this.observers.size === 0) return;
       d2(`dispatching update to ${this.observers.size} observer(s)`);
       Array.from(this.observers).forEach((observer) => {
@@ -914,14 +915,14 @@ var _TabsAPI = class _TabsAPI {
       const tab = this.ctx.store.getTabById(tabId);
       if (!tab || tab.isDestroyed()) return void 0;
       const requestId = (0, import_node_crypto.randomUUID)();
-      return await new Promise((resolve2) => {
+      return await new Promise((resolve3) => {
         const timer = setTimeout(() => {
           this.pendingMessages.delete(requestId);
-          resolve2(void 0);
+          resolve3(void 0);
         }, 1e3);
         this.pendingMessages.set(requestId, (response) => {
           clearTimeout(timer);
-          resolve2(response);
+          resolve3(response);
         });
         tab.send("crx-user-scripts:tabs-message", {
           requestId,
@@ -959,10 +960,10 @@ var _TabsAPI = class _TabsAPI {
   }
   resolveMessage(details) {
     if (!details?.requestId) return;
-    const resolve2 = this.pendingMessages.get(details.requestId);
-    if (!resolve2) return;
+    const resolve3 = this.pendingMessages.get(details.requestId);
+    if (!resolve3) return;
     this.pendingMessages.delete(details.requestId);
-    resolve2(details.response);
+    resolve3(details.response);
   }
   observeTab(tab) {
     const tabId = tab.id;
@@ -1856,7 +1857,7 @@ function readRegistryKey(hive, path5, key) {
   if (process.platform !== "win32") {
     return Promise.reject("Unsupported platform");
   }
-  return new Promise((resolve2, reject) => {
+  return new Promise((resolve3, reject) => {
     const args = ["query", `${hive}\\${path5}`, ...key ? ["/v", key] : []];
     d6("reg %s", args.join(" "));
     const child = (0, import_child_process.spawn)("reg", args);
@@ -1878,9 +1879,9 @@ function readRegistryKey(hive, path5, key) {
       );
       if (resultLine) {
         const parts = resultLine.trim().split(/\s{2,}/);
-        resolve2(parts.pop() || null);
+        resolve3(parts.pop() || null);
       } else {
-        resolve2(null);
+        resolve3(null);
       }
     });
   });
@@ -2058,8 +2059,8 @@ var NativeMessagingHost = class {
   }
   sendAndReceive(message) {
     this.send(message);
-    return new Promise((resolve2) => {
-      this.resolveResponse = resolve2;
+    return new Promise((resolve3) => {
+      this.resolveResponse = resolve3;
     });
   }
 };
@@ -2123,12 +2124,12 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
         const scope = `chrome-extension://${event.extension.id}/`;
         const isRunning = () => Object.values(workers.getAllRunning()).some((worker) => worker.scope === scope);
         const listenerReady = this.ctx.router.waitForListener(event.extension.id, "runtime.onMessage", 5e3, "service-worker");
-        const workerReady = new Promise((resolve2) => {
-          if (isRunning()) return resolve2(true);
+        const workerReady = new Promise((resolve3) => {
+          if (isRunning()) return resolve3(true);
           const finish = (ready) => {
             clearTimeout(timer);
             workers.off("running-status-changed", onStatus);
-            resolve2(ready);
+            resolve3(ready);
           };
           const onStatus = ({ runningStatus, versionId }) => {
             if (runningStatus === "running" && workers.getWorkerFromVersionID(versionId)?.scope === scope) finish(true);
@@ -2162,11 +2163,11 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
           url: senderUrl
         }
       };
-      return await new Promise((resolve2) => {
+      return await new Promise((resolve3) => {
         const timer = setTimeout(() => {
           this.userScriptMessageSenders.delete(requestId);
           console.warn("[electron-chrome-extensions] runtime.sendMessage response timeout", { requestId, method: message?.method });
-          resolve2(void 0);
+          resolve3(void 0);
         }, 5e3);
         const onResponse = (response) => {
           clearTimeout(timer);
@@ -2179,7 +2180,7 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
               itemCount: Array.isArray(items) ? items.length : items && typeof items === "object" ? Object.keys(items).length : null
             });
           }
-          resolve2(response);
+          resolve3(response);
         };
         this.userScriptMessageSenders.set(requestId, onResponse);
         this.ctx.router.sendEvent(
@@ -2229,7 +2230,7 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
           }
         }
       });
-      await new Promise((resolve2) => setTimeout(resolve2, 25));
+      await new Promise((resolve3) => setTimeout(resolve3, 25));
       return { portId, name };
     });
     __publicField(this, "portPostMessage", async (event, portId, message) => {
@@ -2283,14 +2284,14 @@ var RuntimeAPI = class extends import_node_events3.EventEmitter {
     });
   }
   handleUserScriptMessageResponse(response) {
-    const resolve2 = this.userScriptMessageSenders.get(response?.requestId);
-    if (!resolve2) return;
+    const resolve3 = this.userScriptMessageSenders.get(response?.requestId);
+    if (!resolve3) return;
     this.userScriptMessageSenders.delete(response.requestId);
     console.info("[electron-chrome-extensions] runtime user script response received", {
       requestId: response.requestId,
       hasResponse: response.response !== void 0
     });
-    resolve2(response.response);
+    resolve3(response.response);
   }
   getInstallStatePath() {
     const storagePath = this.ctx.session.getStoragePath();
@@ -2768,14 +2769,14 @@ var ExtensionRouter = class {
   waitForListener(extensionId, eventName, timeoutMs, type) {
     if (this.hasListener(extensionId, eventName, type)) return Promise.resolve(true);
     const key = `${extensionId}:${eventName}:${type ?? "*"}`;
-    return new Promise((resolve2) => {
+    return new Promise((resolve3) => {
       const waiters = this.listenerWaiters.get(key) ?? /* @__PURE__ */ new Set();
       this.listenerWaiters.set(key, waiters);
       const finish = (ready) => {
         clearTimeout(timer);
         waiters.delete(onRegistered);
         if (waiters.size === 0) this.listenerWaiters.delete(key);
-        resolve2(ready);
+        resolve3(ready);
       };
       const onRegistered = () => finish(true);
       const timer = setTimeout(() => finish(false), timeoutMs);
@@ -3341,7 +3342,7 @@ var UserScriptsAPI = class {
       state
     };
     waiter.settled = result;
-    waiter.waiters.forEach((resolve2) => resolve2(result));
+    waiter.waiters.forEach((resolve3) => resolve3(result));
     waiter.waiters.clear();
     console.info("[electron-chrome-extensions] user scripts initialization settled", result);
     return result;
@@ -3398,7 +3399,7 @@ var UserScriptsAPI = class {
         })
       );
     }
-    return await new Promise((resolve2) => {
+    return await new Promise((resolve3) => {
       const timer = setTimeout(() => {
         waiter.waiters.delete(onSettled);
         const result = {
@@ -3410,11 +3411,11 @@ var UserScriptsAPI = class {
           ...result,
           storagePath: this.getStorageFilePath()
         });
-        resolve2(result);
+        resolve3(result);
       }, timeoutMs);
       const onSettled = (result) => {
         clearTimeout(timer);
-        resolve2(result);
+        resolve3(result);
       };
       waiter.waiters.add(onSettled);
     });
@@ -3505,6 +3506,84 @@ void 0
   }
 };
 
+// src/browser/api/web-request.ts
+var WebRequestAPI = class {
+  constructor(ctx) {
+    this.ctx = ctx;
+    const webRequest = ctx.session.webRequest;
+    const forward = (eventName) => (details) => {
+      const normalized = {
+        ...details,
+        // Electron exposes the owning WebContents as webContentsId. Chrome's
+        // webRequest tabId uses the same numeric tab identity in this package.
+        tabId: typeof details.webContentsId === "number" ? details.webContentsId : typeof details.tabId === "number" ? details.tabId : -1,
+        frameId: typeof details.frameId === "number" ? details.frameId : 0,
+        timeStamp: details.timestamp || Date.now()
+      };
+      ctx.router.broadcastEvent(`webRequest.${eventName}`, normalized);
+    };
+    webRequest.onSendHeaders({ urls: ["<all_urls>"] }, forward("onSendHeaders"));
+    webRequest.onResponseStarted({ urls: ["<all_urls>"] }, forward("onResponseStarted"));
+    webRequest.onErrorOccurred({ urls: ["<all_urls>"] }, forward("onErrorOccurred"));
+    webRequest.onCompleted({ urls: ["<all_urls>"] }, forward("onCompleted"));
+    webRequest.onBeforeRedirect({ urls: ["<all_urls>"] }, forward("onBeforeRedirect"));
+    webRequest.onBeforeRequest({ urls: ["<all_urls>"] }, (details, callback) => {
+      forward("onBeforeRequest")(details);
+      callback({});
+    });
+  }
+};
+
+// src/browser/api/scripting.ts
+var import_node_fs5 = require("node:fs");
+var import_node_path3 = require("node:path");
+var readExtensionFiles = (extension, files = []) => {
+  return files.map((file) => {
+    const path5 = (0, import_node_path3.resolve)(extension.path, file);
+    if (!path5.startsWith(`${extension.path}${import_node_path3.sep}`)) {
+      throw new Error(`Invalid scripting file path: ${file}`);
+    }
+    return (0, import_node_fs5.readFileSync)(path5, "utf8");
+  }).join("\n");
+};
+var ScriptingAPI = class {
+  constructor(ctx) {
+    this.ctx = ctx;
+    ctx.router.apiHandler()("scripting.executeScript", this.executeScript.bind(this), {
+      permission: "scripting"
+    });
+  }
+  async executeScript(event, details) {
+    const target = details?.target || {};
+    const tabId = typeof target.tabId === "number" ? target.tabId : this.ctx.store.getActiveTabOfCurrentWindow()?.id;
+    if (typeof tabId !== "number") return [];
+    const tab = this.ctx.store.getTabById(tabId);
+    if (!tab || tab.isDestroyed()) return [];
+    let code = readExtensionFiles(event.extension, details.files);
+    if (typeof details.func === "function") {
+      code += `
+;(${details.func.toString()})(...${JSON.stringify(details.args || [])})`;
+    }
+    if (typeof details.code === "string") code += `
+${details.code}`;
+    if (!code) return [];
+    const frames = target.allFrames && "mainFrame" in tab ? tab.mainFrame.framesInSubtree : [tab.mainFrame];
+    const results = [];
+    for (const frame of frames) {
+      try {
+        const result = await frame.executeJavaScript(code, true);
+        results.push({ frameId: frame === frame.top ? 0 : frame.frameTreeNodeId, result });
+      } catch (error) {
+        results.push({
+          frameId: frame === frame.top ? 0 : frame.frameTreeNodeId,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+    return results;
+  }
+};
+
 // src/browser/index.ts
 function checkVersion() {
   const electronVersion = process.versions.electron;
@@ -3526,9 +3605,9 @@ function resolvePreloadPath(modulePath) {
       'electron-chrome-extensions: "modulePath" is deprecated and will be removed in future versions.',
       { type: "DeprecationWarning" }
     );
-    return import_node_path3.default.join(modulePath, "dist", preloadFilename);
+    return import_node_path4.default.join(modulePath, "dist", preloadFilename);
   }
-  return import_node_path3.default.join(__dirname, preloadFilename);
+  return import_node_path4.default.join(__dirname, preloadFilename);
 }
 var sessionMap = /* @__PURE__ */ new WeakMap();
 var ElectronChromeExtensions = class _ElectronChromeExtensions extends import_node_events4.EventEmitter {
@@ -3563,6 +3642,8 @@ var ElectronChromeExtensions = class _ElectronChromeExtensions extends import_no
       runtime: new RuntimeAPI(this.ctx),
       tabs: new TabsAPI(this.ctx),
       webNavigation: new WebNavigationAPI(this.ctx),
+      webRequest: new WebRequestAPI(this.ctx),
+      scripting: new ScriptingAPI(this.ctx),
       windows: new WindowsAPI(this.ctx)
     };
     this.listenForExtensions();
@@ -3630,7 +3711,7 @@ var ElectronChromeExtensions = class _ElectronChromeExtensions extends import_no
     } else {
       session2.setPreloads([...session2.getPreloads(), preloadPath]);
     }
-    if (!(0, import_node_fs5.existsSync)(preloadPath)) {
+    if (!(0, import_node_fs6.existsSync)(preloadPath)) {
       console.error(
         new Error(
           `electron-chrome-extensions: Preload file not found at "${preloadPath}". See "Packaging the preload script" in the readme.`

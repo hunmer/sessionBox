@@ -12,6 +12,7 @@ import {
 import {
   completeRendererTabCreate,
   getLoadedExtensionIds,
+  getBrowserActionStateForActiveTab,
   loadExtensionForAllContainers,
   openExtensionBrowserActionPopup,
   unloadExtensionFromAllContainers
@@ -325,6 +326,10 @@ export function registerExtensionHandlers(): void {
 
   ipcMain.handle('extension:getLoaded', async (): Promise<string[]> => {
     return getLoadedExtensionIds()
+  })
+
+  ipcMain.handle('extension:getBrowserActionState', (): { activeTabId?: number; actions: any[] } => {
+    return getBrowserActionStateForActiveTab()
   })
 
   ipcMain.handle(

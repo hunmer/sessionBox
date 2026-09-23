@@ -93,6 +93,7 @@ export interface Extension {
   name: string
   path: string  // 扩展目录路径
   enabled: boolean
+  pinned?: boolean
   icon?: string
   electronExtensionId?: string
   userScriptsEnabled?: boolean
