@@ -4,8 +4,12 @@ export declare class TabsAPI {
     static TAB_ID_NONE: number;
     static WINDOW_ID_NONE: number;
     static WINDOW_ID_CURRENT: number;
+    private static instances;
+    private static responseDispatcherInstalled;
     private pendingMessages;
+    private static installResponseDispatcher;
     constructor(ctx: ExtensionContext);
+    private resolveMessage;
     private sendMessage;
     private observeTab;
     private createTabDetails;

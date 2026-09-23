@@ -1,8 +1,10 @@
 import { expect } from 'chai'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, ipcMain, session } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { ElectronChromeExtensions } from '../'
 import { useExtensionBrowser, useServer } from './hooks'
 
 describe('chrome.userScripts', () => {
@@ -70,6 +72,88 @@ describe('chrome.userScripts', () => {
     }
   })
 
+  it('does not route incoming port messages back to the service worker', async () => {
+    await browser.extensions.whenUserScriptsReady(browser.extension.id)
+    let missingExtensionId = 0
+    const originalWarn = console.warn
+    console.warn = (...args: unknown[]) => {
+      if (args[0] === '[electron-chrome-extensions] unknown extension context' &&
+          (args[1] as any)?.handlerName === 'runtime.portPostMessage' &&
+          (args[1] as any)?.sessionStoragePath === browser.session.getStoragePath()) {
+        missingExtensionId += 1
+      }
+      originalWarn(...args)
+    }
+    try {
+      await browser.webContents.loadURL(`${server.getUrl()}?port-direction=1`)
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const received = await browser.webContents.executeJavaScript(
+          "document.documentElement.dataset.chromeUserScriptsMv3RuntimePortSender === 'executed'"
+        )
+        if (received) break
+        if (attempt === 39) expect.fail('The worker did not reply to the user script port')
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(missingExtensionId).to.equal(0)
+    } finally {
+      console.warn = originalWarn
+    }
+  })
+
+  it('keeps tabs.sendMessage open for asynchronous user script responses', async () => {
+    await browser.extensions.whenUserScriptsReady(browser.extension.id)
+    await browser.webContents.loadURL(`${server.getUrl()}?tabs-message=1`)
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const ready = await browser.webContents.executeJavaScript(
+        "document.documentElement.dataset.chromeUserScriptsMv3Probe === 'executed'"
+      )
+      if (ready) break
+      if (attempt === 19) expect.fail('The MV3 user script message listener was not installed')
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    const extensionPage = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        session: browser.session,
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    })
+
+    try {
+      await extensionPage.loadURL(`${browser.extension.url}extension-page.html`)
+      const responses = await extensionPage.webContents.executeJavaScript(`
+        (async () => {
+          const send = (message) => new Promise((resolve) => {
+            chrome.tabs.sendMessage(${browser.webContents.id}, message, (response) => {
+              resolve({ response, lastError: chrome.runtime.lastError?.message })
+            })
+          })
+          return {
+            callback: await send({ type: 'tabs-message-async-callback-probe', value: 'callback' }),
+            promise: await send({ type: 'tabs-message-promise-probe', value: 'promise' })
+          }
+        })()
+      `)
+
+      expect(responses.callback.lastError).to.equal(undefined)
+      expect(responses.callback.response).to.deep.equal({
+        type: 'tabs-message-async-callback-response',
+        value: 'callback',
+      })
+      expect(responses.promise.lastError).to.equal(undefined)
+      expect(responses.promise.response).to.deep.equal({
+        type: 'tabs-message-promise-response',
+        value: 'promise',
+      })
+    } finally {
+      extensionPage.destroy()
+    }
+  })
+
   it('waits for MV3 user script initialization before the first navigation', async () => {
     const initialization = await browser.extensions.whenUserScriptsReady(browser.extension.id)
     expect(initialization.state).to.be.oneOf(['registered', 'restored'])
@@ -114,5 +198,37 @@ describe('chrome.userScripts', () => {
     }
 
     expect.fail('The MV3 user script registration was not persisted')
+  })
+
+  it('installs one tabs response dispatcher across Session instances', async () => {
+    expect(ipcMain.listenerCount('crx-tabs-message-response')).to.equal(1)
+
+    const otherSession = session.fromPartition(`persist:tabs-dispatcher-${randomUUID()}`)
+    const otherExtensions = new ElectronChromeExtensions({
+      license: 'internal-license-do-not-use' as any,
+      session: otherSession,
+      async createTab() {
+        throw new Error('createTab is not used by this test')
+      },
+    })
+    await otherExtensions.whenReady()
+
+    expect(ipcMain.listenerCount('crx-tabs-message-response')).to.equal(1)
+  })
+
+  it('releases runtime ports when their source tab is destroyed', async () => {
+    await browser.extensions.whenUserScriptsReady(browser.extension.id)
+    await browser.webContents.loadURL(`${server.getUrl()}?port-lifecycle=1`)
+    const ports = (browser.extensions as any).api.runtime.ports as Map<string, unknown>
+
+    for (let attempt = 0; attempt < 40 && ports.size === 0; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    expect(ports.size).to.be.greaterThan(0)
+
+    const destroyed = new Promise<void>((resolve) => browser.webContents.once('destroyed', () => resolve()))
+    browser.window.destroy()
+    await destroyed
+    expect(ports.size).to.equal(0)
   })
 })

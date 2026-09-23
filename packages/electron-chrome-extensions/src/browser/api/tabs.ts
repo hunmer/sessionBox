@@ -13,12 +13,31 @@ import { WindowsAPI } from './windows'
 import debug from 'debug'
 
 const d = debug('electron-chrome-extensions:tabs')
+const matchesTabUrl = (pattern: string, url: string) => {
+  if (pattern === url) return true
+  const authority = /^[a-z]+:\/\/([^/]+)/i.exec(pattern)?.[1]
+  if (/:[0-9]+$/.test(authority ?? '')) {
+    const escaped = pattern.split('*').map((part) => part.replace(/[\\^$+?.()|[\]{}]/g, '\\$&'))
+    return new RegExp(`^${escaped.join('.*')}$`).test(url)
+  }
+  return matchesPattern(pattern, url)
+}
 
 export class TabsAPI {
   static TAB_ID_NONE = -1
   static WINDOW_ID_NONE = -1
   static WINDOW_ID_CURRENT = -2
+  private static instances = new WeakMap<Electron.Session, TabsAPI>()
+  private static responseDispatcherInstalled = false
   private pendingMessages = new Map<string, (response: unknown) => void>()
+
+  private static installResponseDispatcher(): void {
+    if (TabsAPI.responseDispatcherInstalled) return
+    TabsAPI.responseDispatcherInstalled = true
+    ipcMain.on('crx-tabs-message-response', (event, details: { requestId?: string; response?: unknown }) => {
+      TabsAPI.instances.get(event.sender.session)?.resolveMessage(details)
+    })
+  }
 
   constructor(private ctx: ExtensionContext) {
     const handle = this.ctx.router.apiHandler()
@@ -36,13 +55,16 @@ export class TabsAPI {
     handle('tabs.goBack', this.goBack.bind(this))
 
     this.ctx.store.on('tab-added', this.observeTab.bind(this))
-    ipcMain.on('crx-tabs-message-response', (_event, details: { requestId?: string; response?: unknown }) => {
-      if (!details?.requestId) return
-      const resolve = this.pendingMessages.get(details.requestId)
-      if (!resolve) return
-      this.pendingMessages.delete(details.requestId)
-      resolve(details.response)
-    })
+    TabsAPI.instances.set(this.ctx.session, this)
+    TabsAPI.installResponseDispatcher()
+  }
+
+  private resolveMessage(details: { requestId?: string; response?: unknown }): void {
+    if (!details?.requestId) return
+    const resolve = this.pendingMessages.get(details.requestId)
+    if (!resolve) return
+    this.pendingMessages.delete(details.requestId)
+    resolve(details.response)
   }
 
   private sendMessage = async (event: ExtensionEvent, tabId: number, message: unknown) => {
@@ -236,11 +258,11 @@ export class TabsAPI {
           if (!matchesTitlePattern(info.title, tab.title)) return false
         }
         if (isSet(info.url) && typeof tab.url === 'string') {
-          if (typeof info.url === 'string' && !matchesPattern(info.url, tab.url!)) {
+          if (typeof info.url === 'string' && !matchesTabUrl(info.url, tab.url!)) {
             return false
           } else if (
             Array.isArray(info.url) &&
-            !info.url.some((pattern) => matchesPattern(pattern, tab.url!))
+            !info.url.some((pattern) => matchesTabUrl(pattern, tab.url!))
           ) {
             return false
           }

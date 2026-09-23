@@ -634,6 +634,7 @@ export const injectExtensionAPIs = () => {
 
       tabs: {
         factory: (base) => {
+          const nativeExecuteScript = (base?.executeScript as typeof chrome.tabs.executeScript | undefined)?.bind(base)
           const api = {
             ...base,
             create: invokeExtension('tabs.create'),
@@ -653,7 +654,8 @@ export const injectExtensionAPIs = () => {
                 })
                 return api.executeScript(activeTab.id, arg1, arg2)
               } else {
-                return (base.executeScript as typeof chrome.tabs.executeScript)(
+                if (!nativeExecuteScript) throw new Error('chrome.tabs.executeScript is unavailable')
+                return nativeExecuteScript(
                   arg1 as number,
                   arg2 as chrome.tabs.InjectDetails,
                   arg3 as () => {},

@@ -27,4 +27,33 @@ function markExecuted() {
   console.log('[chrome-userScripts-mv3] probe-executed')
 }
 
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'tabs-message-async-callback-probe') {
+    setTimeout(() => {
+      sendResponse({
+        type: 'tabs-message-async-callback-response',
+        value: message.value,
+      })
+    }, 25)
+    return true
+  }
+
+  if (message?.type === 'tabs-message-promise-probe') {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          type: 'tabs-message-promise-response',
+          value: message.value,
+        })
+      }, 25)
+    })
+  }
+
+  return undefined
+})
+
+if (location.search.includes('port-lifecycle=1')) {
+  chrome.runtime.connect({ name: 'lifecycle-probe' })
+}
+
 markExecuted()

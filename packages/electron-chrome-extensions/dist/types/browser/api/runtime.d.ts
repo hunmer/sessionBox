@@ -5,6 +5,7 @@ export declare class RuntimeAPI extends EventEmitter {
     private ctx;
     private hostMap;
     private ports;
+    private observedPortSenders;
     private userScriptMessageSenders;
     private pendingInstallEvents;
     private installEventTimer?;

@@ -21,7 +21,13 @@
 - USER_SCRIPT world 与 service worker 之间的 `runtime.sendMessage` 能收到响应。
 - `runtime.connect` 建立的 Port 支持 frame 与 worker 双向消息，worker 收到的 sender 含当前页面的 `tab.id` 和 URL。
 - `chrome.userScripts` 的注册、更新、注销、持久化、恢复和初始化等待已有实现。
-- 最小 `chrome.userScripts` 回归最后一次结果为 `7 pass, 0 fail`；BrowserWindow 与 WebContentsView 中的真实 `alert(1)` 均通过。
+- `chrome.userScripts` 回归最后一次结果为 `11 pass, 0 fail`；BrowserWindow 与 WebContentsView 中的真实 `alert(1)` 均通过。
+- `tabs.sendMessage` 在 USER_SCRIPT world 中支持异步 `sendResponse` (`return true`) 及 Promise listener；空 world 不会抢先回复 `undefined`。
+- tabs 响应只由单一全局 IPC dispatcher 接收，再按来源 Session 分发。`tabs.query` 已支持带端口的完整 URL 及 URL glob 查询。
+- 来源 tab 销毁或扩展卸载时清理其 runtime Port；frame 无法发送或断开其他 frame 创建的 Port。
+- DOM fallback 的入站 Port 消息不会再被同名出站监听器回送，实际百度页面重启验证无 `runtime.portPostMessage` 缺失扩展身份错误。
+- MV3 扩展页首次 `runtime.sendMessage` 会等待 service worker 处于 `running` 且已注册 `runtime.onMessage`，避免启动期间丢消息。
+- MV2 `tabs.executeScript` 包装层在 API 注入前绑定 Electron 原生方法，避免原地扩展 namespace 后递归调用自身。
 
 这些能力是后续修改必须守住的回归基线，不需要继续排查旧的注入、popup 或无接收端故障。
 
@@ -61,6 +67,7 @@ USER_SCRIPT world 不是 Chromium 原生扩展上下文，不能假设它天然�
 `src/browser/api/runtime.ts` 负责 USER_SCRIPT/扩展页与 service worker 之间的路由：
 
 - 每次 `sendMessage` 使用 request ID 保存响应 resolver，并通过 `runtime.onMessage` 投递给 worker。
+- 首次 MV3 消息使用 router 的 listener 注册信号及 worker `running` 状态共同判断可投递时机；Electron 在 worker 已经 `starting` 时再次 `startWorkerForScope()` 可能拒绝，因此不依赖该调用单独判断 ready。
 - sender 当前包含 `id`、`url`、`frameId` 和简化的 `tab`。
 - Port 由 `portId` 关联扩展、来源 frame 和 worker，支持双向消息与断开通知。
 - worker 启动时注册用户脚本响应 IPC。
@@ -71,7 +78,7 @@ USER_SCRIPT world 不是 Chromium 原生扩展上下文，不能假设它天然�
 
 `src/browser/api/tabs.ts` 根据 `tabId` 找到目标 `WebContents`，向页面 preload 发送 `crx-user-scripts:tabs-message`。`src/renderer/user-scripts.ts` 再把消息送入 USER_SCRIPT world 的 `runtime.onMessage`，响应经 `crx-tabs-message-response` 返回。
 
-该链路目前满足主 frame 的同步响应需求，但尚未完整实现多 frame、异步响应和 Chrome 的错误语义。
+该链路已支持主 frame 中同步 callback、`return true` 后异步 callback 及 Promise listener；USER_SCRIPT world 按目标扩展 ID 过滤消息，全局响应 dispatcher 按来源 Session 分发。仍未完整实现多 frame、Chrome 的无接收端错误和超时语义。
 
 ## 与 Chrome MV3 的剩余差距
 
@@ -90,13 +97,13 @@ USER_SCRIPT world 不是 Chromium 原生扩展上下文，不能假设它天然�
    当前 `frameId` 和 tab `index` 固定为 `0`，且不同调用上下文共用简化 sender。需要区分扩展页、主 frame、subframe 和 USER_SCRIPT，并补齐 `documentId`、`origin`、准确 URL/tab/frame 信息。
 
 5. **Port 生命周期**
-   移除建连 `25ms` 假等待；增加显式连接确认。frame 销毁、导航、扩展卸载、worker 停止/重启和任一端调用 `disconnect()` 时，都必须清理 listener、Port map 和保活任务，并只触发一次 `onDisconnect`。
+   来源 tab 销毁和扩展卸载时的 Port map 清理已有回归；DOM fallback 入站 Port 事件被反向当作出站请求的问题已有失败回归并已修复。下一步处理 frame 内导航、worker 停止/重启、Port listener 和保活任务清理。移除建连 `25ms` 假等待并增加显式连接确认，保证 `onDisconnect` 只触发一次。
 
 6. **完整 tabs.sendMessage**
-   支持 `frameId`/`documentId` 选项、多 frame 选择、异步响应、Promise/callback、首响应规则和 `lastError`。当前 renderer 在 listener 未同步响应时会立即返回 `undefined`，与 Chrome 的异步约定不等价。
+   已修复 USER_SCRIPT 的异步 callback/Promise 响应和空 world 抢答，仍需支持 `frameId`/`documentId` 选项、多 frame 选择、无接收端、Promise/callback 错误、首响应规则和 `lastError`。当前无接收端仍在主进程等待 1 秒后返回 `undefined`。
 
 7. **router 与全局 IPC 清理**
-   service worker listener 当前主要以扩展 ID 表示，需要验证停止和重启后的重新注册及去重。`TabsAPI` 每实例注册全局 `ipcMain` listener，存在跨 Session 响应碰撞和实例泄漏风险；应改为一次性 dispatcher 或可销毁的 Session 级注册。
+   `TabsAPI` 已改为一次性全局 IPC dispatcher，使用来源 Session 的 `WeakMap` 定位 API 实例。service worker listener 当前主要以扩展 ID 表示，还需验证停止和重启后的重新注册、去重与清理。
 
 8. **API inventory 与权限模型**
    按 Chrome MV3 官方 API 逐项记录：支持程度、可用上下文、权限检查、返回值/错误语义和测试 fixture。优先覆盖 runtime、tabs、scripting、storage、webNavigation、permissions、offscreen 和 action，不要用空成功响应掩盖未实现行为。
@@ -127,7 +134,7 @@ git diff --check
 - 主 frame、subframe、跨导航的 sender 字段与 `tabs.sendMessage` 定址。
 - frame/worker/扩展卸载时 Port 和 listener 无残留。
 
-全量 tabs 测试最后一次曾观察到 `21 pass / 4 fail`：两个精确 URL query 失败、两个 `executeScript` 超时。继续扩展 tabs 前应先重跑并把它们固定为当前基线，不能因 userScripts 测试通过而忽略。
+全量 tabs 测试本轮为 `25 pass / 0 fail`，另有一个原有 skip。带端口 URL 查询和两个 `executeScript` 超时均已修复：后者的根因是扩展 API 注入时 `Object.assign` 可能覆盖 `base.executeScript`，包装函数再从 `base` 读取会递归调用自身。
 
 ## 日志与验收
 
@@ -144,10 +151,10 @@ git diff --check
 
 ## 当前工作区注意事项
 
-编写本文档时仓库位于 `master@cde778a`，工作区已有未提交代码，接手后先执行 `git status --short` 和 `git diff`：
+本轮接手时仓库位于 `master@cde778a`，接手后先执行 `git status --short` 和 `git diff`：
 
-- `src/browser/api/runtime.ts` 有 Port sender 诊断字段改动。
-- 对应 `dist/cjs`、`dist/esm` 产物已修改。
+- `src/browser/api/runtime.ts`、`src/browser/api/tabs.ts`、`src/browser/router.ts`、`src/renderer/index.ts`、`src/renderer/user-scripts.ts`、MV3 fixture 和 `chrome-userScripts-spec.ts` 包含本轮兼容性改动。
+- 对应 `dist/` 产物已由包内 `build` 同步。
 - `vendor/tampermonkey` 是未跟踪的上游源码副本。
 
 不要覆盖这些已有改动，也不要提交 `vendor/tampermonkey`，除非用户明确要求。

@@ -226,6 +226,30 @@ const eventListenerEquals = (a: EventListener) => (b: EventListener) => {
 export class ExtensionRouter {
   private handlers: HandlerMap = new Map()
   private listeners: Map<EventName, EventListener[]> = new Map()
+  private listenerWaiters = new Map<string, Set<() => void>>()
+
+  hasListener(extensionId: string, eventName: string, type?: EventListener['type']): boolean {
+    return this.listeners.get(eventName)?.some((listener) =>
+      listener.extensionId === extensionId && (!type || listener.type === type)) ?? false
+  }
+
+  waitForListener(extensionId: string, eventName: string, timeoutMs: number, type?: EventListener['type']): Promise<boolean> {
+    if (this.hasListener(extensionId, eventName, type)) return Promise.resolve(true)
+    const key = `${extensionId}:${eventName}:${type ?? '*'}`
+    return new Promise((resolve) => {
+      const waiters = this.listenerWaiters.get(key) ?? new Set<() => void>()
+      this.listenerWaiters.set(key, waiters)
+      const finish = (ready: boolean) => {
+        clearTimeout(timer)
+        waiters.delete(onRegistered)
+        if (waiters.size === 0) this.listenerWaiters.delete(key)
+        resolve(ready)
+      }
+      const onRegistered = () => finish(true)
+      const timer = setTimeout(() => finish(false), timeoutMs)
+      waiters.add(onRegistered)
+    })
+  }
 
   /**
    * Collection of all extension hosts in the session.
@@ -343,6 +367,9 @@ export class ExtensionRouter {
     } else {
       d(`adding '${eventName}' event listener for ${extensionId}`)
       eventListeners.push(listener)
+      for (const type of [listener.type, '*']) {
+        for (const onRegistered of this.listenerWaiters.get(`${extensionId}:${eventName}:${type}`) ?? []) onRegistered()
+      }
       if (listener.type === 'frame' && listener.host) {
         this.observeListenerHost(listener.host)
       }
@@ -406,6 +433,14 @@ export class ExtensionRouter {
 
     const extension = extensionId ? eventSessionExtensions.getExtension(extensionId) : undefined
     if (!extension && handler.extensionContext) {
+      console.warn('[electron-chrome-extensions] unknown extension context', {
+        handlerName,
+        extensionId,
+        eventType: event.type,
+        sessionStoragePath: eventSession.getStoragePath(),
+        senderWebContentsId: event.type === 'frame' ? event.sender.id : undefined,
+        workerScope: event.type === 'service-worker' ? event.serviceWorker?.scope : undefined,
+      })
       throw new Error(`${handlerName} was sent from an unknown extension context`)
     }
 

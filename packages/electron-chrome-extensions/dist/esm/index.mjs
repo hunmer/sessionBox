@@ -862,6 +862,15 @@ var WindowsAPI = _WindowsAPI;
 // src/browser/api/tabs.ts
 import debug4 from "debug";
 var d4 = debug4("electron-chrome-extensions:tabs");
+var matchesTabUrl = (pattern, url) => {
+  if (pattern === url) return true;
+  const authority = /^[a-z]+:\/\/([^/]+)/i.exec(pattern)?.[1];
+  if (/:[0-9]+$/.test(authority ?? "")) {
+    const escaped = pattern.split("*").map((part) => part.replace(/[\\^$+?.()|[\]{}]/g, "\\$&"));
+    return new RegExp(`^${escaped.join(".*")}$`).test(url);
+  }
+  return matchesPattern(pattern, url);
+};
 var _TabsAPI = class _TabsAPI {
   constructor(ctx) {
     this.ctx = ctx;
@@ -903,13 +912,22 @@ var _TabsAPI = class _TabsAPI {
     handle("tabs.goForward", this.goForward.bind(this));
     handle("tabs.goBack", this.goBack.bind(this));
     this.ctx.store.on("tab-added", this.observeTab.bind(this));
-    ipcMain.on("crx-tabs-message-response", (_event, details) => {
-      if (!details?.requestId) return;
-      const resolve2 = this.pendingMessages.get(details.requestId);
-      if (!resolve2) return;
-      this.pendingMessages.delete(details.requestId);
-      resolve2(details.response);
+    _TabsAPI.instances.set(this.ctx.session, this);
+    _TabsAPI.installResponseDispatcher();
+  }
+  static installResponseDispatcher() {
+    if (_TabsAPI.responseDispatcherInstalled) return;
+    _TabsAPI.responseDispatcherInstalled = true;
+    ipcMain.on("crx-tabs-message-response", (event, details) => {
+      _TabsAPI.instances.get(event.sender.session)?.resolveMessage(details);
     });
+  }
+  resolveMessage(details) {
+    if (!details?.requestId) return;
+    const resolve2 = this.pendingMessages.get(details.requestId);
+    if (!resolve2) return;
+    this.pendingMessages.delete(details.requestId);
+    resolve2(details.response);
   }
   observeTab(tab) {
     const tabId = tab.id;
@@ -1058,9 +1076,9 @@ var _TabsAPI = class _TabsAPI {
         if (!matchesTitlePattern(info.title, tab.title)) return false;
       }
       if (isSet(info.url) && typeof tab.url === "string") {
-        if (typeof info.url === "string" && !matchesPattern(info.url, tab.url)) {
+        if (typeof info.url === "string" && !matchesTabUrl(info.url, tab.url)) {
           return false;
-        } else if (Array.isArray(info.url) && !info.url.some((pattern) => matchesPattern(pattern, tab.url))) {
+        } else if (Array.isArray(info.url) && !info.url.some((pattern) => matchesTabUrl(pattern, tab.url))) {
           return false;
         }
       }
@@ -1198,6 +1216,8 @@ var _TabsAPI = class _TabsAPI {
 __publicField(_TabsAPI, "TAB_ID_NONE", -1);
 __publicField(_TabsAPI, "WINDOW_ID_NONE", -1);
 __publicField(_TabsAPI, "WINDOW_ID_CURRENT", -2);
+__publicField(_TabsAPI, "instances", /* @__PURE__ */ new WeakMap());
+__publicField(_TabsAPI, "responseDispatcherInstalled", false);
 var TabsAPI = _TabsAPI;
 
 // src/browser/api/web-navigation.ts
@@ -2016,6 +2036,7 @@ var RuntimeAPI = class extends EventEmitter3 {
     this.ctx = ctx;
     __publicField(this, "hostMap", {});
     __publicField(this, "ports", /* @__PURE__ */ new Map());
+    __publicField(this, "observedPortSenders", /* @__PURE__ */ new WeakSet());
     __publicField(this, "userScriptMessageSenders", /* @__PURE__ */ new Map());
     __publicField(this, "pendingInstallEvents", /* @__PURE__ */ new Map());
     __publicField(this, "installEventTimer");
@@ -2062,6 +2083,38 @@ var RuntimeAPI = class extends EventEmitter3 {
         senderUrl: event.sender?.getURL?.() ?? ""
       });
       if (event.type !== "frame") return void 0;
+      if (event.extension.manifest.manifest_version === 3 && !this.ctx.router.hasListener(event.extension.id, "runtime.onMessage", "service-worker")) {
+        const workers = this.ctx.session.serviceWorkers;
+        const scope = `chrome-extension://${event.extension.id}/`;
+        const isRunning = () => Object.values(workers.getAllRunning()).some((worker) => worker.scope === scope);
+        const listenerReady = this.ctx.router.waitForListener(event.extension.id, "runtime.onMessage", 5e3, "service-worker");
+        const workerReady = new Promise((resolve2) => {
+          if (isRunning()) return resolve2(true);
+          const finish = (ready) => {
+            clearTimeout(timer);
+            workers.off("running-status-changed", onStatus);
+            resolve2(ready);
+          };
+          const onStatus = ({ runningStatus, versionId }) => {
+            if (runningStatus === "running" && workers.getWorkerFromVersionID(versionId)?.scope === scope) finish(true);
+          };
+          workers.on("running-status-changed", onStatus);
+          const timer = setTimeout(() => finish(false), 5e3);
+          if (isRunning()) finish(true);
+        });
+        void workers.startWorkerForScope(scope).catch(() => {
+        });
+        const [hasListener, running] = await Promise.all([listenerReady, workerReady]);
+        if (!hasListener || !running) {
+          console.warn("[electron-chrome-extensions] runtime listener unavailable", {
+            extensionId: event.extension.id,
+            sessionStoragePath: this.ctx.session.getStoragePath(),
+            hasListener,
+            workerRunning: running
+          });
+          return void 0;
+        }
+      }
       const requestId = randomUUID2();
       const senderUrl = event.sender.getURL?.() ?? "";
       const sender = {
@@ -2107,6 +2160,18 @@ var RuntimeAPI = class extends EventEmitter3 {
       if (event.type !== "frame") throw new Error("runtime.connectPort requires a frame context");
       const portId = requestedId || randomUUID2();
       this.ports.set(portId, { extensionId: event.extension.id, sender: event.sender });
+      if (!this.observedPortSenders.has(event.sender)) {
+        this.observedPortSenders.add(event.sender);
+        event.sender.once("destroyed", () => {
+          for (const [id, port] of this.ports) {
+            if (port.sender !== event.sender) continue;
+            this.ports.delete(id);
+            if ((this.ctx.session.extensions || this.ctx.session).getExtension(port.extensionId)) {
+              this.ctx.router.sendEvent(port.extensionId, `runtime.portDisconnect:${id}`);
+            }
+          }
+        });
+      }
       const senderUrl = event.sender.getURL?.() ?? "";
       console.info("[electron-chrome-extensions] runtime port connected", {
         portId,
@@ -2134,7 +2199,7 @@ var RuntimeAPI = class extends EventEmitter3 {
     });
     __publicField(this, "portPostMessage", async (event, portId, message) => {
       const port = this.ports.get(portId);
-      if (!port || port.extensionId !== event.extension.id) {
+      if (!port || port.extensionId !== event.extension.id || event.type === "frame" && port.sender !== event.sender) {
         console.warn("[electron-chrome-extensions] runtime port message dropped", { portId, eventType: event.type });
         return;
       }
@@ -2147,7 +2212,7 @@ var RuntimeAPI = class extends EventEmitter3 {
     });
     __publicField(this, "disconnectPort", async (event, portId) => {
       const port = this.ports.get(portId);
-      if (!port || port.extensionId !== event.extension.id) return;
+      if (!port || port.extensionId !== event.extension.id || event.type === "frame" && port.sender !== event.sender) return;
       this.ports.delete(portId);
       if (event.type === "service-worker") {
         port.sender.send("crx-user-scripts:runtime-port-disconnect", { portId });
@@ -2167,6 +2232,11 @@ var RuntimeAPI = class extends EventEmitter3 {
     const sessionExtensions = this.ctx.session.extensions || this.ctx.session;
     sessionExtensions.on("extension-loaded", (_event, extension) => {
       this.trackInstalledExtension(extension);
+    });
+    sessionExtensions.on("extension-unloaded", (_event, extension) => {
+      for (const [portId, port] of this.ports) {
+        if (port.extensionId === extension.id) this.ports.delete(portId);
+      }
     });
     this.ctx.session.serviceWorkers.on("running-status-changed", ({ runningStatus, versionId }) => {
       if (runningStatus !== "starting") return;
@@ -2603,6 +2673,7 @@ var ExtensionRouter = class {
     this.delegate = delegate;
     __publicField(this, "handlers", /* @__PURE__ */ new Map());
     __publicField(this, "listeners", /* @__PURE__ */ new Map());
+    __publicField(this, "listenerWaiters", /* @__PURE__ */ new Map());
     /**
      * Collection of all extension hosts in the session.
      *
@@ -2656,6 +2727,26 @@ var ExtensionRouter = class {
       }
     );
   }
+  hasListener(extensionId, eventName, type) {
+    return this.listeners.get(eventName)?.some((listener) => listener.extensionId === extensionId && (!type || listener.type === type)) ?? false;
+  }
+  waitForListener(extensionId, eventName, timeoutMs, type) {
+    if (this.hasListener(extensionId, eventName, type)) return Promise.resolve(true);
+    const key = `${extensionId}:${eventName}:${type ?? "*"}`;
+    return new Promise((resolve2) => {
+      const waiters = this.listenerWaiters.get(key) ?? /* @__PURE__ */ new Set();
+      this.listenerWaiters.set(key, waiters);
+      const finish = (ready) => {
+        clearTimeout(timer);
+        waiters.delete(onRegistered);
+        if (waiters.size === 0) this.listenerWaiters.delete(key);
+        resolve2(ready);
+      };
+      const onRegistered = () => finish(true);
+      const timer = setTimeout(() => finish(false), timeoutMs);
+      waiters.add(onRegistered);
+    });
+  }
   filterListeners(predicate) {
     for (const [eventName, listeners] of this.listeners) {
       const filteredListeners = listeners.filter(predicate);
@@ -2695,6 +2786,9 @@ var ExtensionRouter = class {
     } else {
       d8(`adding '${eventName}' event listener for ${extensionId}`);
       eventListeners.push(listener);
+      for (const type of [listener.type, "*"]) {
+        for (const onRegistered of this.listenerWaiters.get(`${extensionId}:${eventName}:${type}`) ?? []) onRegistered();
+      }
       if (listener.type === "frame" && listener.host) {
         this.observeListenerHost(listener.host);
       }
@@ -2742,6 +2836,14 @@ var ExtensionRouter = class {
     }
     const extension = extensionId ? eventSessionExtensions.getExtension(extensionId) : void 0;
     if (!extension && handler.extensionContext) {
+      console.warn("[electron-chrome-extensions] unknown extension context", {
+        handlerName,
+        extensionId,
+        eventType: event.type,
+        sessionStoragePath: eventSession.getStoragePath(),
+        senderWebContentsId: event.type === "frame" ? event.sender.id : void 0,
+        workerScope: event.type === "service-worker" ? event.serviceWorker?.scope : void 0
+      });
       throw new Error(`${handlerName} was sent from an unknown extension context`);
     }
     if (handler.permission) {

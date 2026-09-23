@@ -60,6 +60,9 @@ export declare class ExtensionRouter {
     private delegate;
     private handlers;
     private listeners;
+    private listenerWaiters;
+    hasListener(extensionId: string, eventName: string, type?: EventListener['type']): boolean;
+    waitForListener(extensionId: string, eventName: string, timeoutMs: number, type?: EventListener['type']): Promise<boolean>;
     /**
      * Collection of all extension hosts in the session.
      *

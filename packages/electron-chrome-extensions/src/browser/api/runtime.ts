@@ -10,6 +10,7 @@ import { NativeMessagingHost } from './lib/native-messaging-host'
 export class RuntimeAPI extends EventEmitter {
   private hostMap: Record<string, NativeMessagingHost | undefined> = {}
   private ports = new Map<string, { extensionId: string; sender: Electron.WebContents }>()
+  private observedPortSenders = new WeakSet<Electron.WebContents>()
   private userScriptMessageSenders = new Map<string, (response: unknown) => void>()
   private pendingInstallEvents = new Map<string, chrome.runtime.InstalledDetails>()
   private installEventTimer?: ReturnType<typeof setTimeout>
@@ -30,6 +31,11 @@ export class RuntimeAPI extends EventEmitter {
     const sessionExtensions = this.ctx.session.extensions || this.ctx.session
     sessionExtensions.on('extension-loaded', (_event, extension) => {
       this.trackInstalledExtension(extension)
+    })
+    sessionExtensions.on('extension-unloaded', (_event, extension) => {
+      for (const [portId, port] of this.ports) {
+        if (port.extensionId === extension.id) this.ports.delete(portId)
+      }
     })
     this.ctx.session.serviceWorkers.on('running-status-changed', ({ runningStatus, versionId }) => {
       if (runningStatus !== 'starting') return
@@ -170,6 +176,38 @@ export class RuntimeAPI extends EventEmitter {
     // USER_SCRIPT worlds do not have Chromium's native extension bindings.
     // Forward their runtime messages through the standard extension event.
     if (event.type !== 'frame') return undefined
+    if (event.extension.manifest.manifest_version === 3 &&
+        !this.ctx.router.hasListener(event.extension.id, 'runtime.onMessage', 'service-worker')) {
+      const workers = this.ctx.session.serviceWorkers
+      const scope = `chrome-extension://${event.extension.id}/`
+      const isRunning = () => Object.values(workers.getAllRunning()).some((worker) => worker.scope === scope)
+      const listenerReady = this.ctx.router.waitForListener(event.extension.id, 'runtime.onMessage', 5_000, 'service-worker')
+      const workerReady = new Promise<boolean>((resolve) => {
+        if (isRunning()) return resolve(true)
+        const finish = (ready: boolean) => {
+          clearTimeout(timer)
+          workers.off('running-status-changed', onStatus)
+          resolve(ready)
+        }
+        const onStatus = ({ runningStatus, versionId }: Electron.ServiceWorkersRunningStatusChangedEventParams) => {
+          if (runningStatus === 'running' && workers.getWorkerFromVersionID(versionId)?.scope === scope) finish(true)
+        }
+        workers.on('running-status-changed', onStatus)
+        const timer = setTimeout(() => finish(false), 5_000)
+        if (isRunning()) finish(true)
+      })
+      void workers.startWorkerForScope(scope).catch(() => {})
+      const [hasListener, running] = await Promise.all([listenerReady, workerReady])
+      if (!hasListener || !running) {
+        console.warn('[electron-chrome-extensions] runtime listener unavailable', {
+          extensionId: event.extension.id,
+          sessionStoragePath: this.ctx.session.getStoragePath(),
+          hasListener,
+          workerRunning: running,
+        })
+        return undefined
+      }
+    }
     const requestId = randomUUID()
     const senderUrl = (event.sender as any).getURL?.() ?? ''
     const sender = {
@@ -220,6 +258,18 @@ export class RuntimeAPI extends EventEmitter {
     if (event.type !== 'frame') throw new Error('runtime.connectPort requires a frame context')
     const portId = requestedId || randomUUID()
     this.ports.set(portId, { extensionId: event.extension.id, sender: event.sender })
+    if (!this.observedPortSenders.has(event.sender)) {
+      this.observedPortSenders.add(event.sender)
+      event.sender.once('destroyed', () => {
+        for (const [id, port] of this.ports) {
+          if (port.sender !== event.sender) continue
+          this.ports.delete(id)
+          if ((this.ctx.session.extensions || this.ctx.session).getExtension(port.extensionId)) {
+            this.ctx.router.sendEvent(port.extensionId, `runtime.portDisconnect:${id}`)
+          }
+        }
+      })
+    }
     const senderUrl = (event.sender as any).getURL?.() ?? ''
     console.info('[electron-chrome-extensions] runtime port connected', {
       portId,
@@ -251,7 +301,7 @@ export class RuntimeAPI extends EventEmitter {
 
   private portPostMessage = async (event: ExtensionEvent, portId: string, message: unknown) => {
     const port = this.ports.get(portId)
-    if (!port || port.extensionId !== event.extension.id) {
+    if (!port || port.extensionId !== event.extension.id || (event.type === 'frame' && port.sender !== event.sender)) {
       console.warn('[electron-chrome-extensions] runtime port message dropped', { portId, eventType: event.type })
       return
     }
@@ -265,7 +315,7 @@ export class RuntimeAPI extends EventEmitter {
 
   private disconnectPort = async (event: ExtensionEvent, portId: string) => {
     const port = this.ports.get(portId)
-    if (!port || port.extensionId !== event.extension.id) return
+    if (!port || port.extensionId !== event.extension.id || (event.type === 'frame' && port.sender !== event.sender)) return
     this.ports.delete(portId)
     if (event.type === 'service-worker') {
       port.sender.send('crx-user-scripts:runtime-port-disconnect', { portId })

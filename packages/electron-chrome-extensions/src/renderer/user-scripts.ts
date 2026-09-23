@@ -97,7 +97,9 @@ function installUserScriptMessageBridge(): void {
     if (typeof detail !== 'string') return
     try {
       const request = JSON.parse(detail)
-      if (request.portId) void ipcRenderer.invoke('crx-msg', request.extensionId, 'runtime.portPostMessage', request.portId, request.message)
+      if (typeof request.extensionId === 'string' && request.portId) {
+        void ipcRenderer.invoke('crx-msg', request.extensionId, 'runtime.portPostMessage', request.portId, request.message)
+      }
     } catch {}
   })
   document.addEventListener(userScriptPortDisconnectChannel, (event) => {
@@ -105,7 +107,9 @@ function installUserScriptMessageBridge(): void {
     if (typeof detail !== 'string') return
     try {
       const request = JSON.parse(detail)
-      if (request.portId) void ipcRenderer.invoke('crx-msg', request.extensionId, 'runtime.disconnectPort', request.portId)
+      if (typeof request.extensionId === 'string' && request.portId) {
+        void ipcRenderer.invoke('crx-msg', request.extensionId, 'runtime.disconnectPort', request.portId)
+      }
     } catch {}
   })
   ipcRenderer.on('crx-user-scripts:runtime-port-message', (_event, detail) => {
@@ -185,7 +189,13 @@ function createUserScriptRuntimePrelude(extensionId: string): string {
         return listeners.length > 0
       },
       emit(...args) {
-        listeners.slice().forEach((listener) => listener(...args))
+        return listeners.slice().map((listener) => {
+          try {
+            return listener(...args)
+          } catch {
+            return undefined
+          }
+        })
       }
     }
   }
@@ -318,15 +328,21 @@ function createUserScriptRuntimePrelude(extensionId: string): string {
   addBridgeListener('${tabsMessageChannel}', (event) => {
     try {
       const request = JSON.parse(event.detail)
-      if (!request.requestId) return
+      if (!request.requestId || request.sender?.id !== ${serializedId}) return
       let responded = false
       const sendResponse = (response) => {
         if (responded) return
         responded = true
         postBridge('${tabsMessageResponseChannel}', { requestId: request.requestId, response })
       }
-      runtime.onMessage.emit(request.message, request.sender, sendResponse)
-      if (!responded) sendResponse(undefined)
+      const results = runtime.onMessage.emit(request.message, request.sender, sendResponse)
+      // Returning true keeps sendResponse available. Empty worlds must not
+      // synthesize an undefined response and win the cross-world race.
+      for (const result of results) {
+        if (result && typeof result.then === 'function') {
+          Promise.resolve(result).then(sendResponse, () => sendResponse(undefined))
+        }
+      }
     } catch {}
   })
   const extension = chrome.extension || (chrome.extension = {})
