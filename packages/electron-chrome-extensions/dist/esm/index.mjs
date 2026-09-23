@@ -2082,6 +2082,15 @@ var RuntimeAPI = class extends EventEmitter3 {
         }, 5e3);
         const onResponse = (response) => {
           clearTimeout(timer);
+          if (message?.method === "loadTree") {
+            const items = response?.items;
+            console.info("[electron-chrome-extensions] popup tree response", {
+              requestId,
+              tabId: message?.tabId ?? null,
+              hasItems: items != null,
+              itemCount: Array.isArray(items) ? items.length : items && typeof items === "object" ? Object.keys(items).length : null
+            });
+          }
           resolve2(response);
         };
         this.userScriptMessageSenders.set(requestId, onResponse);
@@ -2099,7 +2108,21 @@ var RuntimeAPI = class extends EventEmitter3 {
       const portId = requestedId || randomUUID2();
       this.ports.set(portId, { extensionId: event.extension.id, sender: event.sender });
       console.info("[electron-chrome-extensions] runtime port connected", { portId, name, extensionId: event.extension.id });
-      this.ctx.router.sendEvent(event.extension.id, "runtime.onConnect", { portId, name });
+      const senderUrl = event.sender.getURL?.() ?? "";
+      this.ctx.router.sendEvent(event.extension.id, "runtime.onConnect", {
+        portId,
+        name,
+        sender: {
+          id: event.extension.id,
+          url: senderUrl,
+          frameId: 0,
+          tab: {
+            id: event.sender.id,
+            index: 0,
+            url: senderUrl
+          }
+        }
+      });
       await new Promise((resolve2) => setTimeout(resolve2, 25));
       return { portId, name };
     });

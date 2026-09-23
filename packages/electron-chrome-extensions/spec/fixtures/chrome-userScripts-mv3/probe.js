@@ -10,7 +10,14 @@ function markExecuted() {
   const port = chrome?.runtime?.connect?.({ name: 'probe' })
   if (port && typeof port.postMessage === 'function') {
     document.documentElement.dataset.chromeUserScriptsMv3RuntimeConnect = 'executed'
-    port.disconnect()
+    port.onMessage.addListener((response) => {
+      if (response?.type === 'user-script-port-sender-response' && typeof response.tabId === 'number') {
+        document.documentElement.dataset.chromeUserScriptsMv3RuntimePortSender = 'executed'
+        document.documentElement.dataset.chromeUserScriptsMv3RuntimePortTabId = String(response.tabId)
+        port.disconnect()
+      }
+    })
+    port.postMessage({ type: 'user-script-port-sender-probe' })
   }
   chrome.runtime.sendMessage({ type: 'user-script-message-probe', value: 'round-trip' }, (response) => {
     if (response?.type === 'user-script-message-response' && response.value === 'round-trip') {

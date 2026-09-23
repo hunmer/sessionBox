@@ -46,6 +46,17 @@ chrome.extension.onMessage.addListener((message, _sender, sendResponse) => {
   return undefined
 })
 
+chrome.extension.onConnect.addListener((port) => {
+  if (port.name !== 'probe') return
+  port.onMessage.addListener((message) => {
+    if (message?.type !== 'user-script-port-sender-probe') return
+    port.postMessage({
+      type: 'user-script-port-sender-response',
+      tabId: port.sender?.tab?.id,
+    })
+  })
+})
+
 async function registerProbe() {
   await chrome.userScripts.configureWorld({
     worldId: script.worldId,

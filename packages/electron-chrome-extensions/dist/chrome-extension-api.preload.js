@@ -135,7 +135,7 @@ var injectExtensionAPIs = () => {
           console.info("[electron-chrome-extensions] registering runtime message listener", { extensionId });
         }
         if (this.name === "runtime.onConnect") {
-          listener = (descriptor) => callback(new RuntimePort(descriptor?.portId, descriptor?.name));
+          listener = (descriptor) => callback(new RuntimePort(descriptor?.portId, descriptor?.name, descriptor?.sender));
         } else if (this.name === "runtime.onMessage") {
           listener = (message, sender, requestId) => {
             let responded = false;
@@ -237,9 +237,10 @@ var injectExtensionAPIs = () => {
       onDisconnect = new Event2();
     }
     class RuntimePort {
-      constructor(portId, name = "") {
+      constructor(portId, name = "", sender) {
         this.portId = portId;
         this.name = name;
+        this.sender = sender;
         electron.addExtensionListener(extensionId, `runtime.portMessage:${portId}`, (message) => {
           ;
           this.onMessage._emit(message, this);
@@ -251,6 +252,7 @@ var injectExtensionAPIs = () => {
         });
       }
       name;
+      sender;
       onMessage = new Event2();
       onDisconnect = new Event2();
       onError = new Event2();

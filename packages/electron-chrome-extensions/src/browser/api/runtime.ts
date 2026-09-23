@@ -190,6 +190,19 @@ export class RuntimeAPI extends EventEmitter {
       }, 5_000)
       const onResponse = (response: unknown) => {
         clearTimeout(timer)
+        if ((message as any)?.method === 'loadTree') {
+          const items = (response as any)?.items
+          console.info('[electron-chrome-extensions] popup tree response', {
+            requestId,
+            tabId: (message as any)?.tabId ?? null,
+            hasItems: items != null,
+            itemCount: Array.isArray(items)
+              ? items.length
+              : items && typeof items === 'object'
+                ? Object.keys(items).length
+                : null,
+          })
+        }
         resolve(response)
       }
       this.userScriptMessageSenders.set(requestId, onResponse)
@@ -208,7 +221,21 @@ export class RuntimeAPI extends EventEmitter {
     const portId = requestedId || randomUUID()
     this.ports.set(portId, { extensionId: event.extension.id, sender: event.sender })
     console.info('[electron-chrome-extensions] runtime port connected', { portId, name, extensionId: event.extension.id })
-    this.ctx.router.sendEvent(event.extension.id, 'runtime.onConnect', { portId, name })
+    const senderUrl = (event.sender as any).getURL?.() ?? ''
+    this.ctx.router.sendEvent(event.extension.id, 'runtime.onConnect', {
+      portId,
+      name,
+      sender: {
+        id: event.extension.id,
+        url: senderUrl,
+        frameId: 0,
+        tab: {
+          id: (event.sender as any).id,
+          index: 0,
+          url: senderUrl,
+        },
+      },
+    })
     // The service worker creates its per-port listener while handling
     // runtime.onConnect. Do not acknowledge the connection before that IPC has
     // crossed into the worker, otherwise the first postMessage can be lost.

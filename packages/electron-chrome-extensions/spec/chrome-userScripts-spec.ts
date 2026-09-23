@@ -19,9 +19,15 @@ describe('chrome.userScripts', () => {
       await browser.webContents.loadURL(`${server.getUrl()}?attempt=${attempt}`)
       for (let responseAttempt = 0; responseAttempt < 20; responseAttempt += 1) {
         const executed = await browser.webContents.executeJavaScript(
-          "document.documentElement.dataset.chromeUserScriptsMv3Probe === 'executed' && document.documentElement.dataset.chromeUserScriptsMv3RuntimeId === 'executed' && document.documentElement.dataset.chromeUserScriptsMv3RuntimeConnect === 'executed' && document.documentElement.dataset.chromeUserScriptsMv3RuntimeMessage === 'executed'"
+          "document.documentElement.dataset.chromeUserScriptsMv3Probe === 'executed' && document.documentElement.dataset.chromeUserScriptsMv3RuntimeId === 'executed' && document.documentElement.dataset.chromeUserScriptsMv3RuntimeConnect === 'executed' && document.documentElement.dataset.chromeUserScriptsMv3RuntimePortSender === 'executed' && document.documentElement.dataset.chromeUserScriptsMv3RuntimeMessage === 'executed'"
         )
-        if (executed === true) return
+        if (executed === true) {
+          const tabId = await browser.webContents.executeJavaScript(
+            'document.documentElement.dataset.chromeUserScriptsMv3RuntimePortTabId'
+          )
+          expect(tabId).to.equal(String(browser.webContents.id))
+          return
+        }
         await new Promise((resolve) => setTimeout(resolve, 50))
       }
       await new Promise((resolve) => setTimeout(resolve, 50))
@@ -74,12 +80,19 @@ describe('chrome.userScripts', () => {
       const probes = await browser.webContents.executeJavaScript(`[
         document.documentElement.dataset.chromeUserScriptsMv3Probe,
         document.documentElement.dataset.chromeUserScriptsMv3RuntimeConnect,
+        document.documentElement.dataset.chromeUserScriptsMv3RuntimePortSender,
         document.documentElement.dataset.chromeUserScriptsMv3RuntimeMessage,
         document.documentElement.dataset.chromeUserScriptsMv3ProbeSecond,
         document.documentElement.dataset.chromeUserScriptsMv3PendingProbe,
         document.documentElement.dataset.chromeUserScriptsMv3WorldLimitProbe
       ]`)
-      if (probes.every((probe: string | undefined) => probe === 'executed')) return
+      if (probes.every((probe: string | undefined) => probe === 'executed')) {
+        const tabId = await browser.webContents.executeJavaScript(
+          'document.documentElement.dataset.chromeUserScriptsMv3RuntimePortTabId'
+        )
+        expect(tabId).to.equal(String(browser.webContents.id))
+        return
+      }
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
 
