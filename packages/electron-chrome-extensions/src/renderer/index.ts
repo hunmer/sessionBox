@@ -378,6 +378,16 @@ export const injectExtensionAPIs = () => {
         factory: browserActionFactory,
       },
 
+      sidePanel: {
+        shouldInject: () => manifest.manifest_version === 3,
+        factory: (base) => ({
+          ...base,
+          setPanelBehavior: invokeExtension('sidePanel.setPanelBehavior'),
+          getPanelBehavior: invokeExtension('sidePanel.getPanelBehavior'),
+        }),
+      },
+
+
       browserAction: {
         shouldInject: () => manifest.manifest_version === 2 && !!manifest.browser_action,
         factory: browserActionFactory,
@@ -772,7 +782,7 @@ export const injectExtensionAPIs = () => {
     // Initialize APIs
     Object.keys(apiDefinitions).forEach((key: any) => {
       const apiName: keyof typeof chrome = key
-      const baseApi = chrome[apiName] as any
+      const baseApi = (chrome as any)[apiName] as any
       const api = apiDefinitions[apiName]!
 
       // Allow APIs to opt-out of being available in this context.
@@ -790,7 +800,10 @@ export const injectExtensionAPIs = () => {
         // Some Electron native namespaces expose non-writable methods. Keep
         // a plain-object fallback so APIs such as tabs.sendMessage cannot
         // silently remain bound to Chromium's unavailable receiver.
-        if (apiName === 'tabs' && (baseApi as any).sendMessage !== (extensionApi as any).sendMessage) {
+        if (
+          (apiName === 'tabs' && (baseApi as any).sendMessage !== (extensionApi as any).sendMessage) ||
+          (apiName === 'sidePanel' && (baseApi as any).setPanelBehavior !== (extensionApi as any).setPanelBehavior)
+        ) {
           try {
             Object.defineProperty(chrome, apiName, {
               value: extensionApi,

@@ -317,6 +317,14 @@ var injectExtensionAPIs = () => {
         shouldInject: () => manifest.manifest_version === 3 && !!manifest.action,
         factory: browserActionFactory
       },
+      sidePanel: {
+        shouldInject: () => manifest.manifest_version === 3,
+        factory: (base) => ({
+          ...base,
+          setPanelBehavior: invokeExtension2("sidePanel.setPanelBehavior"),
+          getPanelBehavior: invokeExtension2("sidePanel.getPanelBehavior")
+        })
+      },
       browserAction: {
         shouldInject: () => manifest.manifest_version === 2 && !!manifest.browser_action,
         factory: browserActionFactory
@@ -675,7 +683,7 @@ var injectExtensionAPIs = () => {
           Object.assign(baseApi, extensionApi);
         } catch {
         }
-        if (apiName === "tabs" && baseApi.sendMessage !== extensionApi.sendMessage) {
+        if (apiName === "tabs" && baseApi.sendMessage !== extensionApi.sendMessage || apiName === "sidePanel" && baseApi.setPanelBehavior !== extensionApi.setPanelBehavior) {
           try {
             Object.defineProperty(chrome, apiName, {
               value: extensionApi,

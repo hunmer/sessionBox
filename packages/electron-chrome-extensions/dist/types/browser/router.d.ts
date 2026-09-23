@@ -8,10 +8,6 @@ interface RoutingDelegateObserver {
     addListener(listener: EventListener, extensionId: string, eventName: string): void;
     removeListener(listener: EventListener, extensionId: string, eventName: string): void;
 }
-/**
- * Handles event routing IPCs and delivers them to the observer with the
- * associated session.
- */
 declare class RoutingDelegate {
     static get(): RoutingDelegate;
     private sessionMap;

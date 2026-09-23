@@ -51,6 +51,7 @@ export const useExtensionBrowser = (opts: {
   extensionName: string
   openDevTools?: boolean
   assignTabDetails?: ChromeExtensionImpl['assignTabDetails']
+  onBeforeExtensionLoad?: (session: Electron.Session) => void
 }) => {
   let w: Electron.BrowserWindow
   let extensions: ElectronChromeExtensions
@@ -79,6 +80,7 @@ export const useExtensionBrowser = (opts: {
       },
     })
 
+    opts.onBeforeExtensionLoad?.(customSession)
     extension = await customSession.loadExtension(path.join(fixtures, opts.extensionName))
     await waitForBackgroundScriptEvaluated(extension, customSession)
 

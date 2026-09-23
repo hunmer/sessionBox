@@ -16,8 +16,9 @@ type WebviewElement = HTMLElement & { getWebContentsId: () => number }
 const views = ref<Record<string, WebviewSpec>>({})
 const tabStore = useTabStore()
 
-// 尚未上报 nav-state 的新建 tab 视为加载中，覆盖 attach/扩展初始化期间的白屏
-const isViewLoading = (tabId: string) => tabStore.navStates.get(tabId)?.isLoading ?? true
+// 占位仅覆盖 attach/扩展初始化期间的白屏；主进程上报首个 nav-state
+// （did-start-loading，页面开始加载）即移除，后续导航由 webview 自行渐进渲染
+const shouldShowPlaceholder = (tabId: string) => !tabStore.navStates.has(tabId)
 
 const boundsStyle = (view: WebviewSpec) => ({
   left: `${view.bounds.x}px`,
@@ -156,7 +157,7 @@ onUnmounted(() => {
       />
       <!-- webview 原生绘制在其加载完成前是空白，占位层需叠在其上（同容器 DOM 顺序后者居上） -->
       <div
-        v-if="view.visible && isViewLoading(view.tabId)"
+        v-if="view.visible && shouldShowPlaceholder(view.tabId)"
         class="fixed flex items-center justify-center bg-background"
         :style="boundsStyle(view)"
       >

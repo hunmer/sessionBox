@@ -73,6 +73,7 @@ export class BrowserActionAPI {
 
   private observers: Set<Electron.WebContents> = new Set()
   private queuedUpdate: boolean = false
+  private panelBehaviors = new Map<string, chrome.sidePanel.PanelBehavior>()
 
   constructor(private ctx: ExtensionContext) {
     const handle = this.ctx.router.apiHandler()
@@ -157,6 +158,8 @@ export class BrowserActionAPI {
     )
 
     handle('browserAction.openPopup', this.openPopup)
+    handle('sidePanel.setPanelBehavior', this.setPanelBehavior)
+    handle('sidePanel.getPanelBehavior', this.getPanelBehavior)
 
     // browserAction preload API
     const preloadOpts = { allowRemote: true, extensionContext: false }
@@ -209,6 +212,10 @@ export class BrowserActionAPI {
 
     sessionExtensions.on('extension-unloaded', (event, extension) => {
       this.removeActions(extension.id)
+      this.panelBehaviors.delete(extension.id)
+    })
+    sessionExtensions.on('extension-loaded', (_event, extension) => {
+      this.processExtension(extension)
     })
   }
 
@@ -430,6 +437,24 @@ export class BrowserActionAPI {
       const tabDetails = this.ctx.store.tabDetailsCache.get(tab.id)
       this.ctx.router.sendEvent(extensionId, 'browserAction.onClicked', tabDetails)
     }
+  }
+
+  private setPanelBehavior = (
+    { extension }: ExtensionEvent,
+    behavior: chrome.sidePanel.PanelBehavior,
+  ) => {
+    if (
+      !behavior ||
+      (behavior.openPanelOnActionClick !== undefined &&
+        typeof behavior.openPanelOnActionClick !== 'boolean')
+    ) {
+      throw new TypeError('Invalid sidePanel behavior')
+    }
+    this.panelBehaviors.set(extension.id, { ...behavior })
+  }
+
+  private getPanelBehavior = ({ extension }: ExtensionEvent) => {
+    return this.panelBehaviors.get(extension.id) ?? { openPanelOnActionClick: false }
   }
 
   private activateContextMenu(details: ActivateDetails) {

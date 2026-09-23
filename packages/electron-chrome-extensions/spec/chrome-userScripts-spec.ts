@@ -11,7 +11,7 @@ describe('chrome.userScripts', () => {
   const server = useServer()
   const browser = useExtensionBrowser({
     url: server.getUrl,
-    extensionName: 'chrome-userScripts-mv3'
+    extensionName: 'chrome-userScripts-mv3',
   })
 
   it('registers an MV3 user script and executes it in a document', async () => {
@@ -36,6 +36,30 @@ describe('chrome.userScripts', () => {
     }
 
     expect.fail('The MV3 user script did not execute after registration')
+  })
+
+  it('sets and reads sidePanel behavior from an extension page', async () => {
+    const extensionPage = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        session: browser.session,
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    })
+
+    try {
+      await extensionPage.loadURL(`${browser.extension.url}extension-page.html`)
+      const result = await extensionPage.webContents.executeJavaScript(`
+        (async () => {
+          await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+          return chrome.sidePanel.getPanelBehavior()
+        })()
+      `)
+      expect(result).to.deep.equal({ openPanelOnActionClick: true })
+    } finally {
+      extensionPage.destroy()
+    }
   })
 
   it('routes legacy extension.sendMessage from an MV3 extension page', async () => {

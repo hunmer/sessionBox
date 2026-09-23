@@ -54,6 +54,22 @@ let gRoutingDelegate: RoutingDelegate
  * Handles event routing IPCs and delivers them to the observer with the
  * associated session.
  */
+const bindServiceWorkerIpc = (
+  workers: WeakSet<any>,
+  serviceWorker: any,
+  onRouterMessage: (...args: any[]) => any,
+  onRemoteMessage: (...args: any[]) => any,
+  onAddListener: (...args: any[]) => any,
+  onRemoveListener: (...args: any[]) => any,
+) => {
+  if (!serviceWorker?.scope?.startsWith('chrome-extension://') || workers.has(serviceWorker)) return
+  workers.add(serviceWorker)
+  serviceWorker.ipc.handle('crx-msg', onRouterMessage)
+  serviceWorker.ipc.handle('crx-msg-remote', onRemoteMessage)
+  serviceWorker.ipc.on('crx-add-listener', onAddListener)
+  serviceWorker.ipc.on('crx-remove-listener', onRemoveListener)
+}
+
 class RoutingDelegate {
   static get() {
     return gRoutingDelegate || (gRoutingDelegate = new RoutingDelegate())
@@ -72,6 +88,27 @@ class RoutingDelegate {
   addObserver(observer: RoutingDelegateObserver) {
     this.sessionMap.set(observer.session, observer)
 
+    const listenForWorker = (serviceWorker: any) => {
+      if (!serviceWorker?.scope?.startsWith('chrome-extension://')) return
+      if (this.workers.has(serviceWorker)) return
+      d(`listening to service worker [scope:${serviceWorker.scope}]`)
+      bindServiceWorkerIpc(
+        this.workers,
+        serviceWorker,
+        this.onRouterMessage,
+        this.onRemoteMessage,
+        this.onAddListener,
+        this.onRemoveListener,
+      )
+    }
+
+    Object.keys(observer.session.serviceWorkers.getAllRunning()).forEach((versionId) => {
+      const serviceWorker = (observer.session as any).serviceWorkers.getWorkerFromVersionID(
+        Number(versionId),
+      )
+      listenForWorker(serviceWorker)
+    })
+
     const maybeListenForWorkerEvents = ({
       runningStatus,
       versionId,
@@ -81,17 +118,7 @@ class RoutingDelegate {
       const serviceWorker = (observer.session as any).serviceWorkers.getWorkerFromVersionID(
         versionId,
       )
-      if (
-        serviceWorker?.scope?.startsWith('chrome-extension://') &&
-        !this.workers.has(serviceWorker)
-      ) {
-        d(`listening to service worker [versionId:${versionId}, scope:${serviceWorker.scope}]`)
-        this.workers.add(serviceWorker)
-        serviceWorker.ipc.handle('crx-msg', this.onRouterMessage)
-        serviceWorker.ipc.handle('crx-msg-remote', this.onRemoteMessage)
-        serviceWorker.ipc.on('crx-add-listener', this.onAddListener)
-        serviceWorker.ipc.on('crx-remove-listener', this.onRemoveListener)
-      }
+      listenForWorker(serviceWorker)
     }
     observer.session.serviceWorkers.on('running-status-changed', maybeListenForWorkerEvents)
   }

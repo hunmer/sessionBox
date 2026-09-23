@@ -343,6 +343,16 @@ var BrowserActionAPI = class {
     __publicField(this, "popup");
     __publicField(this, "observers", /* @__PURE__ */ new Set());
     __publicField(this, "queuedUpdate", false);
+    __publicField(this, "panelBehaviors", /* @__PURE__ */ new Map());
+    __publicField(this, "setPanelBehavior", ({ extension }, behavior) => {
+      if (!behavior || behavior.openPanelOnActionClick !== void 0 && typeof behavior.openPanelOnActionClick !== "boolean") {
+        throw new TypeError("Invalid sidePanel behavior");
+      }
+      this.panelBehaviors.set(extension.id, { ...behavior });
+    });
+    __publicField(this, "getPanelBehavior", ({ extension }) => {
+      return this.panelBehaviors.get(extension.id) ?? { openPanelOnActionClick: false };
+    });
     __publicField(this, "openPopup", (event, options) => {
       const window = typeof options?.windowId === "number" ? this.ctx.store.getWindowById(options.windowId) : this.ctx.store.getCurrentWindow();
       if (!window || window.isDestroyed()) {
@@ -416,6 +426,8 @@ var BrowserActionAPI = class {
       }
     );
     handle("browserAction.openPopup", this.openPopup);
+    handle("sidePanel.setPanelBehavior", this.setPanelBehavior);
+    handle("sidePanel.getPanelBehavior", this.getPanelBehavior);
     const preloadOpts = { allowRemote: true, extensionContext: false };
     handle("browserAction.getState", this.getState.bind(this), preloadOpts);
     handle("browserAction.activate", this.activate.bind(this), preloadOpts);
@@ -460,6 +472,10 @@ var BrowserActionAPI = class {
     });
     sessionExtensions.on("extension-unloaded", (event, extension) => {
       this.removeActions(extension.id);
+      this.panelBehaviors.delete(extension.id);
+    });
+    sessionExtensions.on("extension-loaded", (_event, extension) => {
+      this.processExtension(extension);
     });
   }
   handleCRXRequest(request) {
@@ -2581,6 +2597,14 @@ var d8 = debug8("electron-chrome-extensions:router");
 var shouldLogExtensionWorkerConsole = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "1";
 var DEFAULT_SESSION = "_self";
 var gRoutingDelegate;
+var bindServiceWorkerIpc = (workers, serviceWorker, onRouterMessage, onRemoteMessage, onAddListener, onRemoveListener) => {
+  if (!serviceWorker?.scope?.startsWith("chrome-extension://") || workers.has(serviceWorker)) return;
+  workers.add(serviceWorker);
+  serviceWorker.ipc.handle("crx-msg", onRouterMessage);
+  serviceWorker.ipc.handle("crx-msg-remote", onRemoteMessage);
+  serviceWorker.ipc.on("crx-add-listener", onAddListener);
+  serviceWorker.ipc.on("crx-remove-listener", onRemoveListener);
+};
 var RoutingDelegate = class _RoutingDelegate {
   constructor() {
     __publicField(this, "sessionMap", /* @__PURE__ */ new WeakMap());
@@ -2637,6 +2661,25 @@ var RoutingDelegate = class _RoutingDelegate {
   }
   addObserver(observer) {
     this.sessionMap.set(observer.session, observer);
+    const listenForWorker = (serviceWorker) => {
+      if (!serviceWorker?.scope?.startsWith("chrome-extension://")) return;
+      if (this.workers.has(serviceWorker)) return;
+      d8(`listening to service worker [scope:${serviceWorker.scope}]`);
+      bindServiceWorkerIpc(
+        this.workers,
+        serviceWorker,
+        this.onRouterMessage,
+        this.onRemoteMessage,
+        this.onAddListener,
+        this.onRemoveListener
+      );
+    };
+    Object.keys(observer.session.serviceWorkers.getAllRunning()).forEach((versionId) => {
+      const serviceWorker = observer.session.serviceWorkers.getWorkerFromVersionID(
+        Number(versionId)
+      );
+      listenForWorker(serviceWorker);
+    });
     const maybeListenForWorkerEvents = ({
       runningStatus,
       versionId
@@ -2645,14 +2688,7 @@ var RoutingDelegate = class _RoutingDelegate {
       const serviceWorker = observer.session.serviceWorkers.getWorkerFromVersionID(
         versionId
       );
-      if (serviceWorker?.scope?.startsWith("chrome-extension://") && !this.workers.has(serviceWorker)) {
-        d8(`listening to service worker [versionId:${versionId}, scope:${serviceWorker.scope}]`);
-        this.workers.add(serviceWorker);
-        serviceWorker.ipc.handle("crx-msg", this.onRouterMessage);
-        serviceWorker.ipc.handle("crx-msg-remote", this.onRemoteMessage);
-        serviceWorker.ipc.on("crx-add-listener", this.onAddListener);
-        serviceWorker.ipc.on("crx-remove-listener", this.onRemoveListener);
-      }
+      listenForWorker(serviceWorker);
     };
     observer.session.serviceWorkers.on("running-status-changed", maybeListenForWorkerEvents);
   }

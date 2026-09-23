@@ -26,7 +26,7 @@
 | `privacy` | 占位 | ChromeSetting 结构存在，未提供持久化设置 |
 | `downloads` | 未实现 | renderer 仍保留 API 形状，但方法为 noop；下载需接入 Electron `will-download` |
 | `declarativeNetRequest` | 未实现 | 尚未建立规则存储和 Session 请求拦截 |
-| `sidePanel` | 未实现 | Cat Catch 的 side panel 配置不会打开宿主面板 |
+| `sidePanel` | 部分实现 | MV3 扩展 worker/page 支持 `setPanelBehavior` / `getPanelBehavior`，配置按当前扩展实例隔离；SessionBox 尚无扩展 side panel UI，点击 action 不会展示面板 |
 | `offscreen` | 未实现 | 没有 offscreen document 生命周期管理 |
 
 ## MV3 API 全量目录

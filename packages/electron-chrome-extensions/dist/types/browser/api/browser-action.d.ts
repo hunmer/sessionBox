@@ -5,6 +5,7 @@ export declare class BrowserActionAPI {
     private popup?;
     private observers;
     private queuedUpdate;
+    private panelBehaviors;
     constructor(ctx: ExtensionContext);
     private setupSession;
     handleCRXRequest(request: GlobalRequest): GlobalResponse;
@@ -15,6 +16,8 @@ export declare class BrowserActionAPI {
     private getState;
     private activate;
     private activateClick;
+    private setPanelBehavior;
+    private getPanelBehavior;
     private activateContextMenu;
     private openPopup;
     private onUpdate;
