@@ -34,6 +34,18 @@ const worldLimitScript = {
   worldId: 'limit-probe-0'
 }
 
+chrome.extension.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'user-script-message-probe') {
+    sendResponse({ type: 'user-script-message-response', value: message.value })
+    return true
+  }
+  if (message?.type === 'extension-page-message-probe') {
+    sendResponse({ type: 'extension-page-message-response', value: message.value })
+    return true
+  }
+  return undefined
+})
+
 async function registerProbe() {
   await chrome.userScripts.configureWorld({
     worldId: script.worldId,

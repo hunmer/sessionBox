@@ -12,6 +12,11 @@ function markExecuted() {
     document.documentElement.dataset.chromeUserScriptsMv3RuntimeConnect = 'executed'
     port.disconnect()
   }
+  chrome.runtime.sendMessage({ type: 'user-script-message-probe', value: 'round-trip' }, (response) => {
+    if (response?.type === 'user-script-message-response' && response.value === 'round-trip') {
+      document.documentElement.dataset.chromeUserScriptsMv3RuntimeMessage = 'executed'
+    }
+  })
   console.log('[chrome-userScripts-mv3] probe-executed')
 }
 

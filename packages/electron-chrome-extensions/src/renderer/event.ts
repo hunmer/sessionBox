@@ -6,6 +6,9 @@ const shouldLogExtensionEvents = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG ==
 const listenerMap = new Map<string, number>()
 
 export const addExtensionListener = (extensionId: string, name: string, callback: Function) => {
+  if (name === 'runtime.onMessage' || name === 'runtime.onConnect') {
+    console.info('[electron-chrome-extensions] registering extension listener', { extensionId, name })
+  }
   const listenerCount = listenerMap.get(name) || 0
 
   if (listenerCount === 0) {

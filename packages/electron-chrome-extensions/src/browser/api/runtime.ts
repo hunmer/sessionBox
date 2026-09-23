@@ -10,6 +10,7 @@ import { NativeMessagingHost } from './lib/native-messaging-host'
 export class RuntimeAPI extends EventEmitter {
   private hostMap: Record<string, NativeMessagingHost | undefined> = {}
   private ports = new Map<string, { extensionId: string; sender: Electron.WebContents }>()
+  private userScriptMessageSenders = new Map<string, (response: unknown) => void>()
   private pendingInstallEvents = new Map<string, chrome.runtime.InstalledDetails>()
   private installEventTimer?: ReturnType<typeof setTimeout>
 
@@ -30,6 +31,25 @@ export class RuntimeAPI extends EventEmitter {
     sessionExtensions.on('extension-loaded', (_event, extension) => {
       this.trackInstalledExtension(extension)
     })
+    this.ctx.session.serviceWorkers.on('running-status-changed', ({ runningStatus, versionId }) => {
+      if (runningStatus !== 'starting') return
+      const worker = this.ctx.session.serviceWorkers.getWorkerFromVersionID(versionId)
+      if (!worker?.scope?.startsWith('chrome-extension://')) return
+      worker.ipc.on('crx-user-script-message-response', (_event, response: any) => {
+        this.handleUserScriptMessageResponse(response)
+      })
+    })
+  }
+
+  private handleUserScriptMessageResponse(response: any): void {
+    const resolve = this.userScriptMessageSenders.get(response?.requestId)
+    if (!resolve) return
+    this.userScriptMessageSenders.delete(response.requestId)
+    console.info('[electron-chrome-extensions] runtime user script response received', {
+      requestId: response.requestId,
+      hasResponse: response.response !== undefined,
+    })
+    resolve(response.response)
   }
 
   private getInstallStatePath(): string | undefined {
@@ -141,14 +161,46 @@ export class RuntimeAPI extends EventEmitter {
   }
 
   private sendMessage = async (event: ExtensionEvent, message: unknown) => {
-    // USER_SCRIPT worlds do not have Chromium's native extension bindings.
-    // Forward the message through the normal router so service-worker listeners
-    // still observe it; a response channel is intentionally best-effort.
-    this.ctx.router.sendEvent(event.extension.id, 'runtime.onMessage', message, {
-      id: event.extension.id,
-      url: (event.sender as any)?.getURL?.() ?? ''
+    console.info('[electron-chrome-extensions] runtime.sendMessage received', {
+      extensionId: event.extension.id,
+      method: (message as any)?.method,
+      senderType: event.type,
+      senderUrl: (event.sender as any)?.getURL?.() ?? ''
     })
-    return undefined
+    // USER_SCRIPT worlds do not have Chromium's native extension bindings.
+    // Forward their runtime messages through the standard extension event.
+    if (event.type !== 'frame') return undefined
+    const requestId = randomUUID()
+    const senderUrl = (event.sender as any).getURL?.() ?? ''
+    const sender = {
+      id: event.extension.id,
+      url: senderUrl,
+      frameId: 0,
+      tab: {
+        id: (event.sender as any).id,
+        index: 0,
+        url: senderUrl,
+      },
+    }
+    return await new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.userScriptMessageSenders.delete(requestId)
+        console.warn('[electron-chrome-extensions] runtime.sendMessage response timeout', { requestId, method: (message as any)?.method })
+        resolve(undefined)
+      }, 5_000)
+      const onResponse = (response: unknown) => {
+        clearTimeout(timer)
+        resolve(response)
+      }
+      this.userScriptMessageSenders.set(requestId, onResponse)
+      this.ctx.router.sendEvent(
+        event.extension.id,
+        'runtime.onMessage',
+        message,
+        sender,
+        requestId
+      )
+    })
   }
 
   private connectPort = async (event: ExtensionEvent, requestedId: string, name = '') => {

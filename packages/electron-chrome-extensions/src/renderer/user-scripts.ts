@@ -10,6 +10,8 @@ const userScriptPortConnectChannel = 'crx-user-scripts:runtime-port-connect'
 const userScriptPortConnectResponseChannel = 'crx-user-scripts:runtime-port-connect-response'
 const userScriptPortMessageChannel = 'crx-user-scripts:runtime-port-message'
 const userScriptPortDisconnectChannel = 'crx-user-scripts:runtime-port-disconnect'
+const tabsMessageChannel = 'crx-user-scripts:tabs-message'
+const tabsMessageResponseChannel = 'crx-user-scripts:tabs-message-response'
 
 let userScriptMessageBridgeInstalled = false
 const exposedWorlds = new Set<number>()
@@ -112,6 +114,16 @@ function installUserScriptMessageBridge(): void {
   ipcRenderer.on('crx-user-scripts:runtime-port-disconnect', (_event, detail) => {
     postToUserScript(userScriptPortDisconnectChannel, detail)
   })
+  ipcRenderer.on(tabsMessageChannel, (_event, detail) => {
+    postToUserScript(tabsMessageChannel, detail)
+  })
+  document.addEventListener(tabsMessageResponseChannel, (event) => {
+    const detail = (event.target as HTMLElement)?.dataset?.crxUserScriptBridge ?? (event as CustomEvent).detail
+    if (typeof detail !== 'string') return
+    try {
+      ipcRenderer.send('crx-tabs-message-response', JSON.parse(detail))
+    } catch {}
+  })
 }
 
 function canInjectHere(): boolean {
@@ -196,7 +208,7 @@ function createUserScriptRuntimePrelude(extensionId: string): string {
       return Promise.resolve(result)
     }
   }
-  if (typeof runtime.sendMessage !== 'function') {
+  {
     runtime.sendMessage = (...args) => {
       const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] : undefined
       if (callback) args.pop()
@@ -303,13 +315,34 @@ function createUserScriptRuntimePrelude(extensionId: string): string {
   for (const name of ['onMessage', 'onConnect', 'onInstalled', 'onUserScriptMessage', 'onUserScriptConnect']) {
     if (!runtime[name]) runtime[name] = createEvent()
   }
+  addBridgeListener('${tabsMessageChannel}', (event) => {
+    try {
+      const request = JSON.parse(event.detail)
+      if (!request.requestId) return
+      let responded = false
+      const sendResponse = (response) => {
+        if (responded) return
+        responded = true
+        postBridge('${tabsMessageResponseChannel}', { requestId: request.requestId, response })
+      }
+      runtime.onMessage.emit(request.message, request.sender, sendResponse)
+      if (!responded) sendResponse(undefined)
+    } catch {}
+  })
   const extension = chrome.extension || (chrome.extension = {})
   if (!('inIncognitoContext' in extension)) {
     Object.defineProperty(extension, 'inIncognitoContext', { value: false, enumerable: true })
   }
   if (typeof extension.getURL !== 'function') extension.getURL = runtime.getURL
-  if (typeof extension.sendMessage !== 'function') extension.sendMessage = runtime.sendMessage
-  if (typeof extension.connect !== 'function') extension.connect = runtime.connect
+  try {
+    extension.sendMessage = runtime.sendMessage
+    extension.connect = runtime.connect
+  } catch {
+    const replacement = Object.create(extension)
+    replacement.sendMessage = runtime.sendMessage
+    replacement.connect = runtime.connect
+    try { Object.defineProperty(chrome, 'extension', { value: replacement, configurable: true }) } catch {}
+  }
   for (const name of ['onMessage', 'onConnect', 'onConnectExternal']) {
     if (!extension[name] && runtime[name]) extension[name] = runtime[name]
   }

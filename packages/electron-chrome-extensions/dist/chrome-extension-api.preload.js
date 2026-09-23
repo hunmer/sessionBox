@@ -9,6 +9,9 @@ var formatIpcName = (name) => `crx-${name}`;
 var shouldLogExtensionEvents = process.env.ELECTRON_CHROME_EXTENSIONS_DEBUG === "1";
 var listenerMap = /* @__PURE__ */ new Map();
 var addExtensionListener = (extensionId, name, callback) => {
+  if (name === "runtime.onMessage" || name === "runtime.onConnect") {
+    console.info("[electron-chrome-extensions] registering extension listener", { extensionId, name });
+  }
   const listenerCount = listenerMap.get(name) || 0;
   if (listenerCount === 0) {
     import_electron.ipcRenderer.send("crx-add-listener", extensionId, name);
@@ -101,6 +104,9 @@ var injectExtensionAPIs = () => {
     invokeExtension,
     addExtensionListener,
     removeExtensionListener,
+    sendUserScriptMessageResponse: (requestId, response) => {
+      import_electron2.ipcRenderer.send("crx-user-script-message-response", { requestId, response });
+    },
     connectNative,
     disconnectNative
   };
@@ -124,7 +130,23 @@ var injectExtensionAPIs = () => {
         this.name = name;
       }
       addListener(callback) {
-        const listener = this.name === "runtime.onConnect" ? (descriptor) => callback(new RuntimePort(descriptor?.portId, descriptor?.name)) : callback;
+        let listener = callback;
+        if (this.name === "runtime.onMessage") {
+          console.info("[electron-chrome-extensions] registering runtime message listener", { extensionId });
+        }
+        if (this.name === "runtime.onConnect") {
+          listener = (descriptor) => callback(new RuntimePort(descriptor?.portId, descriptor?.name));
+        } else if (this.name === "runtime.onMessage") {
+          listener = (message, sender, requestId) => {
+            let responded = false;
+            const sendResponse = (response) => {
+              if (responded) return;
+              responded = true;
+              electron.sendUserScriptMessageResponse(requestId, response);
+            };
+            return callback(message, sender, sendResponse);
+          };
+        }
         electron.addExtensionListener(extensionId, this.name, listener);
       }
       removeListener(callback) {
@@ -160,6 +182,9 @@ var injectExtensionAPIs = () => {
     }
     class Event2 {
       listeners = [];
+      get _listeners() {
+        return this.listeners;
+      }
       _emit(...args) {
         this.listeners.forEach((listener) => {
           listener(...args);
@@ -283,6 +308,8 @@ var injectExtensionAPIs = () => {
       };
       return api;
     };
+    const runtimeMessageEvent = new ExtensionEvent("runtime.onMessage");
+    const runtimeConnectEvent = new ExtensionEvent("runtime.onConnect");
     const apiDefinitions = {
       action: {
         shouldInject: () => manifest.manifest_version === 3 && !!manifest.action,
@@ -378,6 +405,11 @@ var injectExtensionAPIs = () => {
         factory: (base) => {
           return {
             ...base,
+            ...manifest.manifest_version === 3 ? {
+              sendMessage: invokeExtension2("runtime.sendMessage"),
+              onMessage: runtimeMessageEvent,
+              onConnect: runtimeConnectEvent
+            } : {},
             isAllowedFileSchemeAccess: invokeExtension2("extension.isAllowedFileSchemeAccess", {
               noop: true,
               defaultResponse: false
@@ -476,7 +508,11 @@ var injectExtensionAPIs = () => {
             // loaded into a Session. The bridge emits this event only for a
             // real install or manifest version change instead.
             onInstalled: new ExtensionEvent("runtime.onInstalled"),
-            onConnect: new ExtensionEvent("runtime.onConnect"),
+            ...manifest.manifest_version === 3 ? {
+              onMessage: runtimeMessageEvent,
+              onConnect: runtimeConnectEvent,
+              sendMessage: invokeExtension2("runtime.sendMessage")
+            } : {},
             connectNative: (application) => {
               const port = new NativePort();
               const receive = port._receive.bind(port);
@@ -524,6 +560,7 @@ var injectExtensionAPIs = () => {
               }
             },
             get: invokeExtension2("tabs.get"),
+            sendMessage: invokeExtension2("tabs.sendMessage"),
             getCurrent: invokeExtension2("tabs.getCurrent"),
             getAllInWindow: invokeExtension2("tabs.getAllInWindow"),
             insertCSS: invokeExtension2("tabs.insertCSS"),
@@ -607,7 +644,21 @@ var injectExtensionAPIs = () => {
       if (api.shouldInject && !api.shouldInject()) return;
       const extensionApi = api.factory(baseApi);
       if (baseApi && (typeof baseApi === "object" || typeof baseApi === "function")) {
-        Object.assign(baseApi, extensionApi);
+        try {
+          Object.assign(baseApi, extensionApi);
+        } catch {
+        }
+        if (apiName === "tabs" && baseApi.sendMessage !== extensionApi.sendMessage) {
+          try {
+            Object.defineProperty(chrome, apiName, {
+              value: extensionApi,
+              enumerable: true,
+              configurable: true,
+              writable: true
+            });
+          } catch {
+          }
+        }
       } else {
         Object.defineProperty(chrome, apiName, {
           value: extensionApi,
@@ -616,6 +667,28 @@ var injectExtensionAPIs = () => {
         });
       }
     });
+    try {
+      const runtime = chrome.runtime;
+      const extension = chrome.extension;
+      if (runtime && extension) {
+        Object.defineProperty(extension, "onMessage", {
+          value: runtime.onMessage,
+          configurable: true,
+          writable: true
+        });
+        Object.defineProperty(extension, "onConnect", {
+          value: runtime.onConnect,
+          configurable: true,
+          writable: true
+        });
+        Object.defineProperty(extension, "sendMessage", {
+          value: runtime.sendMessage,
+          configurable: true,
+          writable: true
+        });
+      }
+    } catch {
+    }
     delete globalThis.electron;
     Object.freeze(chrome);
   }
@@ -651,6 +724,8 @@ var userScriptPortConnectChannel = "crx-user-scripts:runtime-port-connect";
 var userScriptPortConnectResponseChannel = "crx-user-scripts:runtime-port-connect-response";
 var userScriptPortMessageChannel = "crx-user-scripts:runtime-port-message";
 var userScriptPortDisconnectChannel = "crx-user-scripts:runtime-port-disconnect";
+var tabsMessageChannel = "crx-user-scripts:tabs-message";
+var tabsMessageResponseChannel = "crx-user-scripts:tabs-message-response";
 var userScriptMessageBridgeInstalled = false;
 var exposedWorlds = /* @__PURE__ */ new Set();
 function exposeUserScriptBridge(worldId, extensionId) {
@@ -754,6 +829,17 @@ function installUserScriptMessageBridge() {
   import_electron3.ipcRenderer.on("crx-user-scripts:runtime-port-disconnect", (_event, detail) => {
     postToUserScript(userScriptPortDisconnectChannel, detail);
   });
+  import_electron3.ipcRenderer.on(tabsMessageChannel, (_event, detail) => {
+    postToUserScript(tabsMessageChannel, detail);
+  });
+  document.addEventListener(tabsMessageResponseChannel, (event) => {
+    const detail = event.target?.dataset?.crxUserScriptBridge ?? event.detail;
+    if (typeof detail !== "string") return;
+    try {
+      import_electron3.ipcRenderer.send("crx-tabs-message-response", JSON.parse(detail));
+    } catch {
+    }
+  });
 }
 function canInjectHere() {
   try {
@@ -835,7 +921,7 @@ function createUserScriptRuntimePrelude(extensionId) {
       return Promise.resolve(result)
     }
   }
-  if (typeof runtime.sendMessage !== 'function') {
+  {
     runtime.sendMessage = (...args) => {
       const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] : undefined
       if (callback) args.pop()
@@ -942,13 +1028,34 @@ function createUserScriptRuntimePrelude(extensionId) {
   for (const name of ['onMessage', 'onConnect', 'onInstalled', 'onUserScriptMessage', 'onUserScriptConnect']) {
     if (!runtime[name]) runtime[name] = createEvent()
   }
+  addBridgeListener('${tabsMessageChannel}', (event) => {
+    try {
+      const request = JSON.parse(event.detail)
+      if (!request.requestId) return
+      let responded = false
+      const sendResponse = (response) => {
+        if (responded) return
+        responded = true
+        postBridge('${tabsMessageResponseChannel}', { requestId: request.requestId, response })
+      }
+      runtime.onMessage.emit(request.message, request.sender, sendResponse)
+      if (!responded) sendResponse(undefined)
+    } catch {}
+  })
   const extension = chrome.extension || (chrome.extension = {})
   if (!('inIncognitoContext' in extension)) {
     Object.defineProperty(extension, 'inIncognitoContext', { value: false, enumerable: true })
   }
   if (typeof extension.getURL !== 'function') extension.getURL = runtime.getURL
-  if (typeof extension.sendMessage !== 'function') extension.sendMessage = runtime.sendMessage
-  if (typeof extension.connect !== 'function') extension.connect = runtime.connect
+  try {
+    extension.sendMessage = runtime.sendMessage
+    extension.connect = runtime.connect
+  } catch {
+    const replacement = Object.create(extension)
+    replacement.sendMessage = runtime.sendMessage
+    replacement.connect = runtime.connect
+    try { Object.defineProperty(chrome, 'extension', { value: replacement, configurable: true }) } catch {}
+  }
   for (const name of ['onMessage', 'onConnect', 'onConnectExternal']) {
     if (!extension[name] && runtime[name]) extension[name] = runtime[name]
   }

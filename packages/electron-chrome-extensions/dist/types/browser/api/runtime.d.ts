@@ -5,9 +5,11 @@ export declare class RuntimeAPI extends EventEmitter {
     private ctx;
     private hostMap;
     private ports;
+    private userScriptMessageSenders;
     private pendingInstallEvents;
     private installEventTimer?;
     constructor(ctx: ExtensionContext);
+    private handleUserScriptMessageResponse;
     private getInstallStatePath;
     private readInstallState;
     private writeInstallState;

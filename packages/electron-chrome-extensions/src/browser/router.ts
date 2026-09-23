@@ -128,6 +128,13 @@ class RoutingDelegate {
   }
 
   private onAddListener = (event: IpcAnyEvent, extensionId: string, eventName: string) => {
+    if (eventName === 'runtime.onMessage' || eventName === 'runtime.onConnect') {
+      console.info('[electron-chrome-extensions] extension listener registered', {
+        extensionId,
+        eventName,
+        eventType: event.type,
+      })
+    }
     const observer = this.sessionMap.get(getSessionFromEvent(event))
     const listener: EventListener =
       event.type === 'frame'
@@ -449,6 +456,11 @@ export class ExtensionRouter {
     const ipcName = `crx-${eventName}`
 
     if (!eventListeners || eventListeners.length === 0) {
+      if (eventName === 'runtime.onMessage') {
+        console.warn('[electron-chrome-extensions] runtime message has no receiving listener', {
+          targetExtensionId,
+        })
+      }
       // Ignore events with no listeners
       return
     }

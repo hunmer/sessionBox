@@ -705,6 +705,10 @@ var BrowserActionAPI = class {
   }
 };
 
+// src/browser/api/tabs.ts
+import { ipcMain } from "electron";
+import { randomUUID } from "node:crypto";
+
 // src/browser/api/windows.ts
 import debug3 from "debug";
 var d3 = debug3("electron-chrome-extensions:windows");
@@ -861,10 +865,35 @@ var d4 = debug4("electron-chrome-extensions:tabs");
 var _TabsAPI = class _TabsAPI {
   constructor(ctx) {
     this.ctx = ctx;
+    __publicField(this, "pendingMessages", /* @__PURE__ */ new Map());
+    __publicField(this, "sendMessage", async (event, tabId, message) => {
+      const tab = this.ctx.store.getTabById(tabId);
+      if (!tab || tab.isDestroyed()) return void 0;
+      const requestId = randomUUID();
+      return await new Promise((resolve2) => {
+        const timer = setTimeout(() => {
+          this.pendingMessages.delete(requestId);
+          resolve2(void 0);
+        }, 1e3);
+        this.pendingMessages.set(requestId, (response) => {
+          clearTimeout(timer);
+          resolve2(response);
+        });
+        tab.send("crx-user-scripts:tabs-message", {
+          requestId,
+          message,
+          sender: {
+            id: event.extension.id,
+            url: event.sender?.getURL?.() ?? ""
+          }
+        });
+      });
+    });
     const handle = this.ctx.router.apiHandler();
     handle("tabs.get", this.get.bind(this));
     handle("tabs.getAllInWindow", this.getAllInWindow.bind(this));
     handle("tabs.getCurrent", this.getCurrent.bind(this));
+    handle("tabs.sendMessage", this.sendMessage);
     handle("tabs.create", this.create.bind(this));
     handle("tabs.insertCSS", this.insertCSS.bind(this));
     handle("tabs.query", this.query.bind(this));
@@ -874,6 +903,13 @@ var _TabsAPI = class _TabsAPI {
     handle("tabs.goForward", this.goForward.bind(this));
     handle("tabs.goBack", this.goBack.bind(this));
     this.ctx.store.on("tab-added", this.observeTab.bind(this));
+    ipcMain.on("crx-tabs-message-response", (_event, details) => {
+      if (!details?.requestId) return;
+      const resolve2 = this.pendingMessages.get(details.requestId);
+      if (!resolve2) return;
+      this.pendingMessages.delete(details.requestId);
+      resolve2(details.response);
+    });
   }
   observeTab(tab) {
     const tabId = tab.id;
@@ -1744,7 +1780,7 @@ var ContextMenusAPI = class {
 };
 
 // src/browser/api/runtime.ts
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID2 } from "node:crypto";
 import { EventEmitter as EventEmitter3 } from "node:events";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join as join3 } from "node:path";
@@ -1980,6 +2016,7 @@ var RuntimeAPI = class extends EventEmitter3 {
     this.ctx = ctx;
     __publicField(this, "hostMap", {});
     __publicField(this, "ports", /* @__PURE__ */ new Map());
+    __publicField(this, "userScriptMessageSenders", /* @__PURE__ */ new Map());
     __publicField(this, "pendingInstallEvents", /* @__PURE__ */ new Map());
     __publicField(this, "installEventTimer");
     __publicField(this, "connectNative", async (event, connectionId, application) => {
@@ -1996,7 +2033,7 @@ var RuntimeAPI = class extends EventEmitter3 {
       this.hostMap[connectionId] = void 0;
     });
     __publicField(this, "sendNativeMessage", async (event, application, message) => {
-      const connectionId = randomUUID();
+      const connectionId = randomUUID2();
       const host = new NativeMessagingHost(
         event.extension.id,
         event.sender,
@@ -2018,15 +2055,48 @@ var RuntimeAPI = class extends EventEmitter3 {
       }
     });
     __publicField(this, "sendMessage", async (event, message) => {
-      this.ctx.router.sendEvent(event.extension.id, "runtime.onMessage", message, {
-        id: event.extension.id,
-        url: event.sender?.getURL?.() ?? ""
+      console.info("[electron-chrome-extensions] runtime.sendMessage received", {
+        extensionId: event.extension.id,
+        method: message?.method,
+        senderType: event.type,
+        senderUrl: event.sender?.getURL?.() ?? ""
       });
-      return void 0;
+      if (event.type !== "frame") return void 0;
+      const requestId = randomUUID2();
+      const senderUrl = event.sender.getURL?.() ?? "";
+      const sender = {
+        id: event.extension.id,
+        url: senderUrl,
+        frameId: 0,
+        tab: {
+          id: event.sender.id,
+          index: 0,
+          url: senderUrl
+        }
+      };
+      return await new Promise((resolve2) => {
+        const timer = setTimeout(() => {
+          this.userScriptMessageSenders.delete(requestId);
+          console.warn("[electron-chrome-extensions] runtime.sendMessage response timeout", { requestId, method: message?.method });
+          resolve2(void 0);
+        }, 5e3);
+        const onResponse = (response) => {
+          clearTimeout(timer);
+          resolve2(response);
+        };
+        this.userScriptMessageSenders.set(requestId, onResponse);
+        this.ctx.router.sendEvent(
+          event.extension.id,
+          "runtime.onMessage",
+          message,
+          sender,
+          requestId
+        );
+      });
     });
     __publicField(this, "connectPort", async (event, requestedId, name = "") => {
       if (event.type !== "frame") throw new Error("runtime.connectPort requires a frame context");
-      const portId = requestedId || randomUUID();
+      const portId = requestedId || randomUUID2();
       this.ports.set(portId, { extensionId: event.extension.id, sender: event.sender });
       console.info("[electron-chrome-extensions] runtime port connected", { portId, name, extensionId: event.extension.id });
       this.ctx.router.sendEvent(event.extension.id, "runtime.onConnect", { portId, name });
@@ -2069,6 +2139,24 @@ var RuntimeAPI = class extends EventEmitter3 {
     sessionExtensions.on("extension-loaded", (_event, extension) => {
       this.trackInstalledExtension(extension);
     });
+    this.ctx.session.serviceWorkers.on("running-status-changed", ({ runningStatus, versionId }) => {
+      if (runningStatus !== "starting") return;
+      const worker = this.ctx.session.serviceWorkers.getWorkerFromVersionID(versionId);
+      if (!worker?.scope?.startsWith("chrome-extension://")) return;
+      worker.ipc.on("crx-user-script-message-response", (_event, response) => {
+        this.handleUserScriptMessageResponse(response);
+      });
+    });
+  }
+  handleUserScriptMessageResponse(response) {
+    const resolve2 = this.userScriptMessageSenders.get(response?.requestId);
+    if (!resolve2) return;
+    this.userScriptMessageSenders.delete(response.requestId);
+    console.info("[electron-chrome-extensions] runtime user script response received", {
+      requestId: response.requestId,
+      hasResponse: response.response !== void 0
+    });
+    resolve2(response.response);
   }
   getInstallStatePath() {
     const storagePath = this.ctx.session.getStoragePath();
@@ -2364,7 +2452,7 @@ var CommandsAPI = class {
 };
 
 // src/browser/router.ts
-import { app as app4, ipcMain } from "electron";
+import { app as app4, ipcMain as ipcMain2 } from "electron";
 import debug8 from "debug";
 
 // src/browser/partition.ts
@@ -2409,6 +2497,13 @@ var RoutingDelegate = class _RoutingDelegate {
       return observer?.onExtensionMessage(event, void 0, handlerName, ...args);
     });
     __publicField(this, "onAddListener", (event, extensionId, eventName) => {
+      if (eventName === "runtime.onMessage" || eventName === "runtime.onConnect") {
+        console.info("[electron-chrome-extensions] extension listener registered", {
+          extensionId,
+          eventName,
+          eventType: event.type
+        });
+      }
       const observer = this.sessionMap.get(getSessionFromEvent(event));
       const listener = event.type === "frame" ? {
         type: event.type,
@@ -2432,10 +2527,10 @@ var RoutingDelegate = class _RoutingDelegate {
       };
       return observer?.removeListener(listener, extensionId, eventName);
     });
-    ipcMain.handle("crx-msg", this.onRouterMessage);
-    ipcMain.handle("crx-msg-remote", this.onRemoteMessage);
-    ipcMain.on("crx-add-listener", this.onAddListener);
-    ipcMain.on("crx-remove-listener", this.onRemoveListener);
+    ipcMain2.handle("crx-msg", this.onRouterMessage);
+    ipcMain2.handle("crx-msg-remote", this.onRemoteMessage);
+    ipcMain2.on("crx-add-listener", this.onAddListener);
+    ipcMain2.on("crx-remove-listener", this.onRemoveListener);
   }
   static get() {
     return gRoutingDelegate || (gRoutingDelegate = new _RoutingDelegate());
@@ -2656,6 +2751,11 @@ var ExtensionRouter = class {
     let eventListeners = listeners.get(eventName);
     const ipcName = `crx-${eventName}`;
     if (!eventListeners || eventListeners.length === 0) {
+      if (eventName === "runtime.onMessage") {
+        console.warn("[electron-chrome-extensions] runtime message has no receiving listener", {
+          targetExtensionId
+        });
+      }
       return;
     }
     let sentCount = 0;
@@ -2841,7 +2941,7 @@ var PermissionsAPI = class {
 
 // src/browser/api/user-scripts.ts
 import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as readFileSync3, writeFileSync as writeFileSync2 } from "node:fs";
-import { ipcMain as ipcMain2 } from "electron";
+import { ipcMain as ipcMain3 } from "electron";
 import { dirname as dirname2, join as join5, resolve, sep } from "node:path";
 var documentStartChannel = "crx-user-scripts:document-start";
 var executionChannel = "crx-user-scripts:execution";
@@ -3168,8 +3268,8 @@ var UserScriptsAPI = class {
       });
       return scripts;
     };
-    ipcMain2.handle(documentStartChannel, getDocumentScripts);
-    ipcMain2.on(executionChannel, (event, details) => {
+    ipcMain3.handle(documentStartChannel, getDocumentScripts);
+    ipcMain3.on(executionChannel, (event, details) => {
       const api = instances.get(event.sender.session);
       if (!api) return;
       console.info("[electron-chrome-extensions] user script execution", {

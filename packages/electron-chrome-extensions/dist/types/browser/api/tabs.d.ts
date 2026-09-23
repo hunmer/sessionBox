@@ -4,7 +4,9 @@ export declare class TabsAPI {
     static TAB_ID_NONE: number;
     static WINDOW_ID_NONE: number;
     static WINDOW_ID_CURRENT: number;
+    private pendingMessages;
     constructor(ctx: ExtensionContext);
+    private sendMessage;
     private observeTab;
     private createTabDetails;
     private getTabDetails;

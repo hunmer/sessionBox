@@ -1,5 +1,7 @@
 import { ExtensionContext } from '../context'
 import { ExtensionEvent } from '../router'
+import { ipcMain } from 'electron'
+import { randomUUID } from 'node:crypto'
 import {
   getAllWindows,
   matchesPattern,
@@ -16,12 +18,14 @@ export class TabsAPI {
   static TAB_ID_NONE = -1
   static WINDOW_ID_NONE = -1
   static WINDOW_ID_CURRENT = -2
+  private pendingMessages = new Map<string, (response: unknown) => void>()
 
   constructor(private ctx: ExtensionContext) {
     const handle = this.ctx.router.apiHandler()
     handle('tabs.get', this.get.bind(this))
     handle('tabs.getAllInWindow', this.getAllInWindow.bind(this))
     handle('tabs.getCurrent', this.getCurrent.bind(this))
+    handle('tabs.sendMessage', this.sendMessage)
     handle('tabs.create', this.create.bind(this))
     handle('tabs.insertCSS', this.insertCSS.bind(this))
     handle('tabs.query', this.query.bind(this))
@@ -32,6 +36,38 @@ export class TabsAPI {
     handle('tabs.goBack', this.goBack.bind(this))
 
     this.ctx.store.on('tab-added', this.observeTab.bind(this))
+    ipcMain.on('crx-tabs-message-response', (_event, details: { requestId?: string; response?: unknown }) => {
+      if (!details?.requestId) return
+      const resolve = this.pendingMessages.get(details.requestId)
+      if (!resolve) return
+      this.pendingMessages.delete(details.requestId)
+      resolve(details.response)
+    })
+  }
+
+  private sendMessage = async (event: ExtensionEvent, tabId: number, message: unknown) => {
+    const tab = this.ctx.store.getTabById(tabId)
+    if (!tab || tab.isDestroyed()) return undefined
+
+    const requestId = randomUUID()
+    return await new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.pendingMessages.delete(requestId)
+        resolve(undefined)
+      }, 1_000)
+      this.pendingMessages.set(requestId, (response) => {
+        clearTimeout(timer)
+        resolve(response)
+      })
+      tab.send('crx-user-scripts:tabs-message', {
+        requestId,
+        message,
+        sender: {
+          id: event.extension.id,
+          url: (event.sender as any)?.getURL?.() ?? '',
+        },
+      })
+    })
   }
 
   private observeTab(tab: TabContents) {

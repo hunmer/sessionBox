@@ -98,6 +98,9 @@ export const injectExtensionAPIs = () => {
     invokeExtension,
     addExtensionListener,
     removeExtensionListener,
+    sendUserScriptMessageResponse: (requestId: string, response: unknown) => {
+      ipcRenderer.send('crx-user-script-message-response', { requestId, response })
+    },
     connectNative,
     disconnectNative,
   }
@@ -139,9 +142,23 @@ export const injectExtensionAPIs = () => {
       constructor(private name: string) {}
 
       addListener(callback: T) {
-        const listener = this.name === 'runtime.onConnect'
-          ? ((descriptor: any) => callback(new RuntimePort(descriptor?.portId, descriptor?.name) as any))
-          : callback
+        let listener: Function = callback
+        if (this.name === 'runtime.onMessage') {
+          console.info('[electron-chrome-extensions] registering runtime message listener', { extensionId })
+        }
+        if (this.name === 'runtime.onConnect') {
+          listener = (descriptor: any) => callback(new RuntimePort(descriptor?.portId, descriptor?.name) as any)
+        } else if (this.name === 'runtime.onMessage') {
+          listener = (message: any, sender: any, requestId: string) => {
+            let responded = false
+            const sendResponse = (response: unknown) => {
+              if (responded) return
+              responded = true
+              electron.sendUserScriptMessageResponse(requestId, response)
+            }
+            return callback(message, sender, sendResponse)
+          }
+        }
         electron.addExtensionListener(extensionId, this.name, listener)
       }
       removeListener(callback: T) {
@@ -184,6 +201,8 @@ export const injectExtensionAPIs = () => {
 
     class Event<T extends Function> implements Partial<chrome.events.Event<T>> {
       private listeners: T[] = []
+
+      get _listeners() { return this.listeners }
 
       _emit(...args: any[]) {
         this.listeners.forEach((listener) => {
@@ -349,6 +368,8 @@ export const injectExtensionAPIs = () => {
     /**
      * Factories for each additional chrome.* API.
      */
+    const runtimeMessageEvent = new ExtensionEvent('runtime.onMessage')
+    const runtimeConnectEvent = new ExtensionEvent('runtime.onConnect')
     const apiDefinitions: Partial<APIFactoryMap> = {
       action: {
         shouldInject: () => manifest.manifest_version === 3 && !!manifest.action,
@@ -460,6 +481,13 @@ export const injectExtensionAPIs = () => {
         factory: (base) => {
           return {
             ...base,
+            ...(manifest.manifest_version === 3
+              ? {
+                  sendMessage: invokeExtension('runtime.sendMessage'),
+                  onMessage: runtimeMessageEvent,
+                  onConnect: runtimeConnectEvent,
+                }
+              : {}),
             isAllowedFileSchemeAccess: invokeExtension('extension.isAllowedFileSchemeAccess', {
               noop: true,
               defaultResponse: false,
@@ -567,7 +595,13 @@ export const injectExtensionAPIs = () => {
             // loaded into a Session. The bridge emits this event only for a
             // real install or manifest version change instead.
             onInstalled: new ExtensionEvent('runtime.onInstalled'),
-            onConnect: new ExtensionEvent('runtime.onConnect'),
+            ...(manifest.manifest_version === 3
+              ? {
+                  onMessage: runtimeMessageEvent,
+                  onConnect: runtimeConnectEvent,
+                  sendMessage: invokeExtension('runtime.sendMessage'),
+                }
+              : {}),
             connectNative: (application: string) => {
               const port = new NativePort()
               const receive = port._receive.bind(port)
@@ -625,6 +659,7 @@ export const injectExtensionAPIs = () => {
               }
             },
             get: invokeExtension('tabs.get'),
+            sendMessage: invokeExtension('tabs.sendMessage'),
             getCurrent: invokeExtension('tabs.getCurrent'),
             getAllInWindow: invokeExtension('tabs.getAllInWindow'),
             insertCSS: invokeExtension('tabs.insertCSS'),
@@ -721,7 +756,22 @@ export const injectExtensionAPIs = () => {
       // place so extension code that captured `chrome` before this preload
       // still observes the SessionBox-provided methods (notably tabs.create).
       if (baseApi && (typeof baseApi === 'object' || typeof baseApi === 'function')) {
-        Object.assign(baseApi, extensionApi)
+        try {
+          Object.assign(baseApi, extensionApi)
+        } catch {}
+        // Some Electron native namespaces expose non-writable methods. Keep
+        // a plain-object fallback so APIs such as tabs.sendMessage cannot
+        // silently remain bound to Chromium's unavailable receiver.
+        if (apiName === 'tabs' && (baseApi as any).sendMessage !== (extensionApi as any).sendMessage) {
+          try {
+            Object.defineProperty(chrome, apiName, {
+              value: extensionApi,
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            })
+          } catch {}
+        }
       } else {
         Object.defineProperty(chrome, apiName, {
           value: extensionApi,
@@ -730,6 +780,31 @@ export const injectExtensionAPIs = () => {
         })
       }
     })
+
+    // Chrome exposes the legacy extension events as aliases of runtime events.
+    // Keep both names on the same router-backed object so listeners registered
+    // by older MV2/MV3 code receive messages sent through runtime.sendMessage.
+    try {
+      const runtime = (chrome as any).runtime
+      const extension = (chrome as any).extension
+      if (runtime && extension) {
+        Object.defineProperty(extension, 'onMessage', {
+          value: runtime.onMessage,
+          configurable: true,
+          writable: true,
+        })
+        Object.defineProperty(extension, 'onConnect', {
+          value: runtime.onConnect,
+          configurable: true,
+          writable: true,
+        })
+        Object.defineProperty(extension, 'sendMessage', {
+          value: runtime.sendMessage,
+          configurable: true,
+          writable: true,
+        })
+      }
+    } catch {}
 
     // Remove access to internals
     delete (globalThis as any).electron
