@@ -144,8 +144,14 @@ onMounted(loadConfig)
             :disabled="testing || !serverUrl.trim()"
             @click="handleTestConnection"
           >
-            <Loader2 v-if="testing" class="w-4 h-4 animate-spin" />
-            <PlugZap v-else class="w-4 h-4" />
+            <Loader2
+              v-if="testing"
+              class="w-4 h-4 animate-spin"
+            />
+            <PlugZap
+              v-else
+              class="w-4 h-4"
+            />
             测试连接
           </Button>
         </div>
@@ -199,9 +205,18 @@ onMounted(loadConfig)
     <!-- 同步操作 -->
     <div class="space-y-3">
       <div class="flex items-center gap-3">
-        <Button :disabled="!canSync" @click="handleSync">
-          <Loader2 v-if="syncing" class="w-4 h-4 animate-spin" />
-          <RefreshCw v-else class="w-4 h-4" />
+        <Button
+          :disabled="!canSync"
+          @click="handleSync"
+        >
+          <Loader2
+            v-if="syncing"
+            class="w-4 h-4 animate-spin"
+          />
+          <RefreshCw
+            v-else
+            class="w-4 h-4"
+          />
           立即同步
         </Button>
         <span class="text-xs text-muted-foreground">上次同步：{{ lastSyncText }}</span>

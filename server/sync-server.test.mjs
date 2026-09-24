@@ -44,8 +44,12 @@ test('PUT then GET roundtrips payload with updatedAt', () =>
     assert.equal(put.status, 200)
     assert.equal((await put.json()).ok, true)
 
+    // 渲染进程跨域 fetch 依赖每个实际响应都带 CORS 头（预检之外）
+    assert.equal(put.headers.get('access-control-allow-origin'), '*')
+
     const res = await request('GET', `${base}/api/user-a/containers`)
     assert.equal(res.status, 200)
+    assert.equal(res.headers.get('access-control-allow-origin'), '*')
     const data = await res.json()
     assert.equal(data.ok, true)
     assert.deepEqual(data.payload, payload)

@@ -10,3 +10,7 @@ dist-app-quick/
 .gitignore
 .electron-dist-iso/
 vendor/tampermonkey
+
+# 数据同步后端的本地数据
+data/
+server/data/

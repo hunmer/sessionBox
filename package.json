@@ -7,6 +7,8 @@
   "main": "./out/main/index.js",
   "scripts": {
     "build:extensions": "pnpm -C packages/electron-chrome-extensions run build",
+    "sync-server": "node server/sync-server.mjs",
+    "sync-server:test": "node --test server/sync-server.test.mjs",
     "dev": "pnpm run build:extensions && electron-vite dev",
     "build": "pnpm run build:extensions && electron-vite build",
     "preview": "electron-vite preview",

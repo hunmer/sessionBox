@@ -18,6 +18,13 @@
       "args": ["run", "preview"],
       "desc": "预览构建产物",
       "group": "sessionbox"
+    },
+    "sync-server": {
+      "script": "node",
+      "args": ["server/sync-server.mjs"],
+      "desc": "数据同步后端（端口 37400，数据目录 server/data）",
+      "group": "sync",
+      "port": 37400
     }
   }
 }
