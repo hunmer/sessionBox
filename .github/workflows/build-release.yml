@@ -6,6 +6,7 @@ on:
       - master
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -42,6 +43,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # 重新构建 extensions 包，避免仓库中已提交的 dist 落后于源码
+      - name: Build extensions
+        run: pnpm run build:extensions
 
       - name: Build application
         run: npx electron-vite build

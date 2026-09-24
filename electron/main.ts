@@ -1,15 +1,19 @@
+// 必须第一个 import：profile 启动参数的 userData 重定向要先于所有服务模块执行
+import { DEFAULT_PROFILE_ID, IS_PROFILE_SELECTOR, PROFILE_ID } from './bootstrap'
 import { app, BrowserWindow, nativeImage, protocol, net, session } from 'electron'
 import { join } from 'path'
 import { initProcmConsole, shutdownProcmConsole } from './services/procm'
 import { setupUserAgent, installClientHintsRewrite } from './utils/user-agent'
 import { migrateBookmarksAndPasswords } from './services/migration'
 import { registerIpcHandlers } from './ipc'
+import { registerProfileIpcHandlers } from './ipc/profile'
 import { registerDownloadIpcHandlers } from './ipc/download'
 import { webviewManager, BLOCKED_SCHEMES } from './services/webview-manager'
 import { prepareUserScriptPreferences } from './services/extensions'
 import { listExtensions, getWindowState, setWindowState, getDefaultWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled, getPageById } from './services/store'
 import type { WindowState } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
+import { getProfile, touchProfile } from './services/profile-registry'
 import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
 import { trayManager } from './services/tray'
 import { trayWindowManager } from './services/tray-window'
@@ -153,7 +157,17 @@ if (!gotTheLock) {
     }
     // 处理外部 http/https 链接（默认浏览器功能）
     const externalUrl = argv.find((arg) => arg.startsWith('http://') || arg.startsWith('https://'))
-    if (externalUrl) handleExternalUrl(externalUrl)
+    if (externalUrl) {
+      handleExternalUrl(externalUrl)
+      return
+    }
+    // 同一 profile 重复启动：聚焦已有窗口（各 profile userData 不同，不会走到这里互相干扰）
+    const existing = BrowserWindow.getAllWindows().find((win) => !win.isDestroyed())
+    if (existing) {
+      if (existing.isMinimized()) existing.restore()
+      existing.show()
+      existing.focus()
+    }
   })
 
   // macOS: 外部 URL 通过 open-url 事件传入
@@ -204,16 +218,17 @@ if (!gotTheLock) {
       ? join(process.resourcesPath, 'icon.png')
       : join(__dirname, '../../resources/icon.png')
 
-    // 加载窗口状态（尺寸过小时恢复默认）
-    const windowState = sanitizeWindowState(getWindowState())
+    // Profiles 选择页：固定小窗、居中、不可缩放，不读写主窗口状态
+    const windowState = IS_PROFILE_SELECTOR ? null : sanitizeWindowState(getWindowState())
 
     const mainWindow = new BrowserWindow({
-      x: windowState.x,
-      y: windowState.y,
-      width: windowState.width,
-      height: windowState.height,
-      minWidth: MIN_WINDOW_WIDTH,
-      minHeight: MIN_WINDOW_HEIGHT,
+      width: IS_PROFILE_SELECTOR ? 760 : windowState!.width,
+      height: IS_PROFILE_SELECTOR ? 560 : windowState!.height,
+      minWidth: IS_PROFILE_SELECTOR ? 480 : MIN_WINDOW_WIDTH,
+      minHeight: IS_PROFILE_SELECTOR ? 400 : MIN_WINDOW_HEIGHT,
+      ...(IS_PROFILE_SELECTOR
+        ? { resizable: false, maximizable: false }
+        : { x: windowState!.x, y: windowState!.y }),
       show: false,
       autoHideMenuBar: true,
       frame: false,
@@ -227,7 +242,7 @@ if (!gotTheLock) {
     })
 
     // 如果保存的状态是最大化，则恢复
-    if (windowState.isMaximized) {
+    if (!IS_PROFILE_SELECTOR && windowState!.isMaximized) {
       mainWindow.maximize()
     }
 
@@ -247,19 +262,21 @@ if (!gotTheLock) {
     // 通知渲染进程窗口最大化状态变化
     mainWindow.on('maximize', () => {
       mainWindow.webContents.send('on:window:maximized')
+      if (IS_PROFILE_SELECTOR) return
       // 同步保存最大化状态
       const state = getWindowState()
       setWindowState({ ...state, isMaximized: true })
     })
     mainWindow.on('unmaximize', () => {
       mainWindow.webContents.send('on:window:unmaximized')
+      if (IS_PROFILE_SELECTOR) return
       const state = getWindowState()
       setWindowState({ ...state, isMaximized: false })
     })
 
     // 节流保存窗口状态（位置和大小变化时）
     const saveWindowBounds = throttle(() => {
-      if (mainWindow.isDestroyed() || mainWindow.isMaximized()) return
+      if (IS_PROFILE_SELECTOR || mainWindow.isDestroyed() || mainWindow.isMaximized()) return
       const bounds = mainWindow.getBounds()
       const state = getWindowState()
       setWindowState({
@@ -276,6 +293,8 @@ if (!gotTheLock) {
 
     // 窗口关闭时隐藏到托盘或直接退出（取决于用户设置）
     mainWindow.on('close', (e) => {
+      // 选择页进程：直接关闭退出，不进托盘也不保存主窗口状态
+      if (IS_PROFILE_SELECTOR) return
       if (!isQuitting) {
         const shouldMinimize = getMinimizeOnClose()
         if (shouldMinimize) {
@@ -339,9 +358,18 @@ if (!gotTheLock) {
     }
 
     if (process.env.ELECTRON_RENDERER_URL) {
-      mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+      if (IS_PROFILE_SELECTOR) {
+        const url = new URL(process.env.ELECTRON_RENDERER_URL)
+        url.searchParams.set('view', 'profile-selector')
+        mainWindow.loadURL(url.toString())
+      } else {
+        mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+      }
     } else {
-      mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+      mainWindow.loadFile(
+        join(__dirname, '../renderer/index.html'),
+        IS_PROFILE_SELECTOR ? { query: { view: 'profile-selector' } } : undefined
+      )
     }
   }
 
@@ -354,8 +382,10 @@ if (!gotTheLock) {
 
     ensureWindowsBrowserRegistration()
 
-    // 迁移 bookmark/password 数据到独立 JsonStore
-    migrateBookmarksAndPasswords()
+    // 迁移 bookmark/password 数据到独立 JsonStore（选择页进程数据目录为空，跳过）
+    if (!IS_PROFILE_SELECTOR) {
+      migrateBookmarksAndPasswords()
+    }
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -364,9 +394,12 @@ if (!gotTheLock) {
     // 注册所有 IPC 处理器
     registerIpcHandlers()
     registerDownloadIpcHandlers()
+    registerProfileIpcHandlers(() => BrowserWindow.getAllWindows().find((win) => !win.isDestroyed()) ?? null)
 
-    // 初始化插件系统
-    pluginManager.loadAll()
+    // 初始化插件系统（选择页进程不加载插件，避免端口/后台进程冲突）
+    if (!IS_PROFILE_SELECTOR) {
+      pluginManager.loadAll()
+    }
 
     // 初始化标签冻结定时器
     webviewManager.setFreezeMinutes(getTabFreezeMinutes())
@@ -432,27 +465,42 @@ if (!gotTheLock) {
     // 初始化系统托盘（createWindow 内部创建 mainWindow，需要在这里获取引用）
     const mainWindow = BrowserWindow.getAllWindows()[0]
     if (mainWindow) {
-      trayManager.init(mainWindow)
-      pluginManager.setMainWindow(mainWindow)
+      if (!IS_PROFILE_SELECTOR) {
+        trayManager.init(mainWindow)
+        pluginManager.setMainWindow(mainWindow)
+
+        // 非 profile 进程窗口标题带 profile 名，多开时便于区分
+        if (PROFILE_ID !== DEFAULT_PROFILE_ID) {
+          touchProfile(PROFILE_ID)
+          const profileName = getProfile(PROFILE_ID)?.name ?? PROFILE_ID
+          mainWindow.webContents.once('did-finish-load', () => {
+            if (!mainWindow.isDestroyed()) mainWindow.setTitle(`SessionBox - ${profileName}`)
+          })
+        }
+      }
     }
 
-    // 注册全局快捷键
-    registerGlobalShortcuts()
+    // 注册全局快捷键（选择页进程不注册）
+    if (!IS_PROFILE_SELECTOR) {
+      registerGlobalShortcuts()
+    }
 
     // 启动 MCP Server（如果已启用）
-    if (getMcpEnabled()) {
+    if (!IS_PROFILE_SELECTOR && getMcpEnabled()) {
       mcpServerService.start().catch((error) => {
         console.error('[Main] Failed to start MCP server:', error)
       })
     }
 
     // 启动 3 秒后自动检查更新
-    setTimeout(() => {
-      const autoUpdater = getAutoUpdater()
-      autoUpdater.initUpdateSource()
-      console.log('[Main] 开始检查更新...')
-      autoUpdater.checkForUpdates()
-    }, 3000)
+    if (!IS_PROFILE_SELECTOR) {
+      setTimeout(() => {
+        const autoUpdater = getAutoUpdater()
+        autoUpdater.initUpdateSource()
+        console.log('[Main] 开始检查更新...')
+        autoUpdater.checkForUpdates()
+      }, 3000)
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -461,8 +509,8 @@ if (!gotTheLock) {
 
   app.on('window-all-closed', () => {
     unregisterGlobalShortcuts()
-    // 当 minimizeOnClose 关闭时，窗口关闭即退出应用
-    if (!getMinimizeOnClose()) {
+    // 选择页进程：窗口关闭即退出；当 minimizeOnClose 关闭时，窗口关闭即退出应用
+    if (IS_PROFILE_SELECTOR || !getMinimizeOnClose()) {
       app.quit()
     }
     // 最小化到托盘模式：用户通过 Tray 菜单退出
