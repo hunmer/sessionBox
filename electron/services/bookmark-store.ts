@@ -81,6 +81,26 @@ export function batchCreateBookmarks(items: Omit<Bookmark, 'id'>[]): Bookmark[] 
   return created
 }
 
+// ====== 数据同步 upsert（保留传入 id，避免跨设备同步时重复创建） ======
+
+export function upsertBookmarks(items: Bookmark[]): { created: number; updated: number } {
+  const sites = bookmarkStore.get('bookmarks') ?? []
+  let created = 0
+  let updated = 0
+  for (const item of items) {
+    const idx = sites.findIndex((s) => s.id === item.id)
+    if (idx === -1) {
+      sites.push(item)
+      created++
+    } else {
+      sites[idx] = { ...sites[idx], ...item }
+      updated++
+    }
+  }
+  bookmarkStore.set('bookmarks', sites)
+  return { created, updated }
+}
+
 // ====== 书签文件夹操作 ======
 
 export function listBookmarkFolders(): BookmarkFolder[] {
@@ -171,6 +191,24 @@ export function batchCreateBookmarkFolders(items: Omit<BookmarkFolder, 'id'>[]):
   }
   bookmarkStore.set('bookmarkFolders', folders)
   return created
+}
+
+export function upsertBookmarkFolders(items: BookmarkFolder[]): { created: number; updated: number } {
+  const folders = bookmarkStore.get('bookmarkFolders') ?? []
+  let created = 0
+  let updated = 0
+  for (const item of items) {
+    const idx = folders.findIndex((f) => f.id === item.id)
+    if (idx === -1) {
+      folders.push(item)
+      created++
+    } else {
+      folders[idx] = { ...folders[idx], ...item }
+      updated++
+    }
+  }
+  bookmarkStore.set('bookmarkFolders', folders)
+  return { created, updated }
 }
 
 function collectChildFolderIds(folders: BookmarkFolder[], parentId: string): string[] {

@@ -219,6 +219,37 @@ export interface DefaultBrowserResult {
 }
 
 export type TabImplementation = 'browsercontent' | 'webview'
+
+// 数据同步相关类型
+export interface SyncTypes {
+  bookmarks: boolean
+  history: boolean
+  extensions: boolean
+  plugins: boolean
+  proxies: boolean
+  containers: boolean
+}
+
+export interface SyncConfig {
+  serverUrl: string
+  userId: string
+  types: SyncTypes
+  lastSyncAt: number
+}
+
+export interface SyncCookie {
+  name: string
+  value: string
+  domain: string
+  path: string
+  secure: boolean
+  httpOnly: boolean
+  hostOnly?: boolean
+  session?: boolean
+  expirationDate?: number
+  sameSite?: 'unspecified' | 'no_restriction' | 'lax' | 'strict'
+}
+
 export type ExternalAuthBrowser = 'chrome' | 'edge'
 export interface ExternalAuthResult {
   ok: boolean
@@ -546,6 +577,29 @@ const api = {
     clear: (tabId: string): Promise<{ success: boolean }> => ipcRenderer.invoke('siteData:clear', tabId),
     importCookies: (tabId: string, cookieText: string): Promise<{ success: boolean; count: number; skipped: number }> =>
       ipcRenderer.invoke('siteData:importCookies', tabId, cookieText),
+  },
+
+  sync: {
+    getConfig: (): Promise<SyncConfig> => ipcRenderer.invoke('sync:getConfig'),
+    setConfig: (config: SyncConfig): Promise<SyncConfig> => ipcRenderer.invoke('sync:setConfig', config),
+    testConnection: (serverUrl: string): Promise<{ ok: boolean; version?: number; serverTime?: number; error?: string }> =>
+      ipcRenderer.invoke('sync:testConnection', serverUrl),
+    getContainerCookies: (containerId: string): Promise<SyncCookie[]> =>
+      ipcRenderer.invoke('sync:getContainerCookies', containerId),
+    setContainerCookies: (
+      containerId: string,
+      cookies: SyncCookie[]
+    ): Promise<{ applied: number; skipped: number }> =>
+      ipcRenderer.invoke('sync:setContainerCookies', containerId, cookies),
+    applyContainers: (items: Container[]): Promise<{ created: number; updated: number }> =>
+      ipcRenderer.invoke('sync:applyContainers', items),
+    applyProxies: (items: Proxy[]): Promise<{ created: number; updated: number }> =>
+      ipcRenderer.invoke('sync:applyProxies', items),
+    applyBookmarks: (data: {
+      folders: BookmarkFolder[]
+      bookmarks: Bookmark[]
+    }): Promise<{ folders: { created: number; updated: number }; bookmarks: { created: number; updated: number } }> =>
+      ipcRenderer.invoke('sync:applyBookmarks', data),
   },
 
   sniffer: {

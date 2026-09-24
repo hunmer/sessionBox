@@ -610,6 +610,44 @@ export function getContainerById(id: string): Container | undefined {
   return getCollection('containers').find((c) => c.id === id)
 }
 
+// ====== 数据同步 upsert（保留传入 id，避免跨设备同步时重复创建） ======
+
+export function upsertContainers(items: Container[]): { created: number; updated: number } {
+  const containers = getCollection('containers')
+  let created = 0
+  let updated = 0
+  for (const item of items) {
+    const idx = containers.findIndex((c) => c.id === item.id)
+    if (idx === -1) {
+      containers.push(item)
+      created++
+    } else {
+      containers[idx] = { ...containers[idx], ...item }
+      updated++
+    }
+  }
+  setCollection('containers', containers)
+  return { created, updated }
+}
+
+export function upsertProxies(items: Proxy[]): { created: number; updated: number } {
+  const proxies = getCollection('proxies')
+  let created = 0
+  let updated = 0
+  for (const item of items) {
+    const idx = proxies.findIndex((p) => p.id === item.id)
+    if (idx === -1) {
+      proxies.push(item)
+      created++
+    } else {
+      proxies[idx] = { ...proxies[idx], ...item }
+      updated++
+    }
+  }
+  setCollection('proxies', proxies)
+  return { created, updated }
+}
+
 export function getGroupById(id: string): Group | undefined {
   return getCollection('groups').find((g) => g.id === id)
 }

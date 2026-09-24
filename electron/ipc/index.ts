@@ -99,6 +99,7 @@ import { isDefaultBrowser, setDefaultBrowser } from '../services/default-browser
 import { listSkills, searchSkill, readSkill, writeSkill, deleteSkill } from '../services/skill-store'
 import { registerDebuggerIpcHandlers } from './debugger'
 import { registerSiteDataIpc } from './site-data'
+import { registerSyncIpc } from './sync'
 import { getCachedIconPath } from '../services/favicon-cache'
 import { getExternalAuthProfileDirs } from '../services/external-auth-cdp'
 
@@ -848,4 +849,5 @@ export function registerIpcHandlers(): void {
   registerSystemIpc()
   registerDebuggerIpcHandlers()
   registerSiteDataIpc()
+  registerSyncIpc()
 }
