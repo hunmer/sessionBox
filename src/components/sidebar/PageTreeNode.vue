@@ -216,6 +216,13 @@ function onChildrenReorder(reordered: PageItem[]) {
               @dragleave.stop="handlePageDragLeave($event)"
               @drop.stop="handlePageDrop($event)"
             >
+              
+              <EmojiRenderer
+                :emoji="pageItem.emoji"
+                :url="pageItem.url"
+              />
+              <span class="truncate">{{ pageItem.name }}</span>
+
               <button
                 v-if="hasChildren"
                 class="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 shrink-0"
@@ -226,11 +233,6 @@ function onChildrenReorder(reordered: PageItem[]) {
                   :class="childrenOpen ? 'rotate-90' : ''"
                 />
               </button>
-              <EmojiRenderer
-                :emoji="pageItem.emoji"
-                :url="pageItem.url"
-              />
-              <span class="truncate">{{ pageItem.name }}</span>
             </a>
           </SidebarMenuSubButton>
           <!-- 标签页关闭按钮 -->
@@ -363,7 +365,7 @@ function onChildrenReorder(reordered: PageItem[]) {
       item-key="id"
       :animation="150"
       tag="ul"
-      class="border-sidebar-border ml-3 flex min-w-0 flex-col gap-1 border-l pl-8 py-0.5"
+      class="border-sidebar-border ml-3 flex min-w-0 flex-col gap-1 border-l py-0.5"
       @update:model-value="onChildrenReorder"
     >
       <template #item="{ element: child }">
