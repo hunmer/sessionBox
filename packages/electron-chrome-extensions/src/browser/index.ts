@@ -25,6 +25,7 @@ import type { UserScriptsInitialization } from './api/user-scripts'
 import { resolvePartition } from './partition'
 import { WebRequestAPI } from './api/web-request'
 import { ScriptingAPI } from './api/scripting'
+import { DownloadsAPI } from './api/downloads'
 
 function checkVersion() {
   const electronVersion = process.versions.electron
@@ -138,6 +139,7 @@ export class ElectronChromeExtensions extends EventEmitter {
     webNavigation: WebNavigationAPI
     webRequest: WebRequestAPI
     scripting: ScriptingAPI
+    downloads: DownloadsAPI
     windows: WindowsAPI
   }
 
@@ -178,6 +180,7 @@ export class ElectronChromeExtensions extends EventEmitter {
       webNavigation: new WebNavigationAPI(this.ctx),
       webRequest: new WebRequestAPI(this.ctx),
       scripting: new ScriptingAPI(this.ctx),
+      downloads: new DownloadsAPI(this.ctx),
       windows: new WindowsAPI(this.ctx),
     }
 

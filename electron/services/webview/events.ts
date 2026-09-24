@@ -276,7 +276,13 @@ function ensureSessionDownloadHandler(
       fallbackToSystem()
       return
     }
-    if (wc.isDestroyed()) return
+    // Downloads initiated by an extension service worker have no page
+    // WebContents. They cannot provide a referer/cookies context for aria2,
+    // so keep them on Electron's system downloader instead of throwing here.
+    if (!wc || wc.isDestroyed()) {
+      fallbackToSystem()
+      return
+    }
 
     event.preventDefault()
     const referer = wc.getURL()

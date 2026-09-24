@@ -18,6 +18,7 @@
   "manifest_version": 2,
   "permissions": [
     "contextMenus",
+    "downloads",
     "nativeMessaging",
     "webRequest",
     "webRequestBlocking",

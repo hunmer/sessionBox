@@ -10,6 +10,8 @@
 - 注入的 userscript 是否能正常调用 `alert(1)`
 - MV3 service worker 是否能调用 `chrome.sidePanel`、`storage`、`tabs`、`action` 和 `runtime.sendMessage`
 - popup 是否能手动创建并移除 cat-catch 风格的 video recording popup 窗口
+- popup 是否能通过 `chrome.scripting.executeScript` 注入并显示 cat-catch 风格的 video recording 面板
+- popup 是否能通过 `chrome.downloads.download` 创建并保存一个测试文件
 
 导入目录：
 
@@ -45,6 +47,10 @@ after-alert
 ```
 
 popup 中的“创建测试窗口”只在手动点击后调用 `chrome.windows.create({ type: 'popup', width: 640, height: 420 })`，打开 `recording.html`；“移除测试窗口”调用 `chrome.windows.remove`。自动 API smoke 不再创建窗口。
+
+点击“视频录制 MVP”会查询当前页面标签，并由 service worker 使用 `chrome.scripting.executeScript` 注入 `recording-mvp.js`（`world: MAIN`）。当前页面出现 `#sessionBoxRecordingMvp` 面板且日志出现 `RECORDING_MVP_INJECTED`，即表示录制入口的最小链路正常。
+
+点击“下载文件 MVP”会由 service worker 调用 `chrome.downloads.download` 保存 `sessionbox/download-mvp.txt`，随后用 `chrome.downloads.search` 查询任务。状态栏显示数字 `downloadId` 和任务 `state`，且日志出现 `DOWNLOAD_MVP_STARTED`，即表示下载与查询链路正常。
 
 已导入过旧版 demo 时，先禁用再启用扩展，然后刷新网页；若导入的是复制目录，请重新导入上面的源码目录。浏览器内部页面不属于普通 HTTP/HTTPS 网页。
 

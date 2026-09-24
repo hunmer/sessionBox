@@ -7,6 +7,47 @@ const userScript = {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'sessionbox-recording-mvp') {
+    const tabId = Number(message.tabId)
+    if (!Number.isInteger(tabId)) {
+      sendResponse({ ok: false, error: 'active tabId is required' })
+      return false
+    }
+    chrome.scripting.executeScript({
+      target: { tabId, allFrames: false },
+      files: ['recording-mvp.js'],
+      injectImmediately: true,
+      world: 'MAIN',
+    }).then((results) => {
+      const frames = Array.isArray(results) ? results.length : 0
+      if (!Array.isArray(results)) {
+        sendResponse({ ok: false, error: 'scripting.executeScript returned no results' })
+        return
+      }
+      console.log('[SessionBox Popup Demo] RECORDING_MVP_INJECTED', JSON.stringify({ tabId, frames }))
+      sendResponse({ ok: true, results })
+    }).catch((error) => {
+      console.error('[SessionBox Popup Demo] RECORDING_MVP_FAILURE', error)
+      sendResponse({ ok: false, error: error?.message || String(error) })
+    })
+    return true
+  }
+  if (message?.type === 'sessionbox-download-mvp') {
+    chrome.downloads.download({
+      url: 'data:text/plain,sessionbox-download-mvp',
+      filename: 'sessionbox/download-mvp.txt',
+      saveAs: false,
+    }).then(async (id) => {
+      const [item] = await chrome.downloads.search({ id })
+      if (!item) throw new Error(`downloads.search did not find id ${id}`)
+      console.log('[SessionBox Popup Demo] DOWNLOAD_MVP_STARTED', JSON.stringify({ id, state: item.state }))
+      sendResponse({ ok: true, id, state: item.state })
+    }).catch((error) => {
+      console.error('[SessionBox Popup Demo] DOWNLOAD_MVP_FAILURE', error)
+      sendResponse({ ok: false, error: error?.message || String(error) })
+    })
+    return true
+  }
   if (message?.type !== 'sessionbox-api-smoke') return false
   sendResponse({ ok: true, echo: message.value })
   return false
@@ -98,9 +139,10 @@ async function runApiSmokeTest() {
   }
   const createdTab = await chrome.tabs.create({ url: 'about:blank', active: false })
   if (createdTab?.id != null) await chrome.tabs.remove(createdTab.id)
-  await chrome.downloads.download({ url: 'data:text/plain,sessionbox-download-smoke', filename: 'sessionbox-api-smoke.txt', saveAs: false })
-  await chrome.downloads.showDefaultFolder()
-  await chrome.downloads.show(0)
+  const downloadId = await chrome.downloads.download({ url: 'data:text/plain,sessionbox-download-smoke', filename: 'sessionbox-api-smoke.txt', saveAs: false })
+  if (typeof downloadId !== 'number') smokeFailures.push('downloads.download did not return an id')
+  const downloadItems = await chrome.downloads.search({ id: downloadId })
+  if (downloadItems[0]?.id !== downloadId) smokeFailures.push('downloads.search did not return the new download')
 
   if (chrome.alarms) {
     chrome.alarms.onAlarm.addListener(() => {})
@@ -137,6 +179,7 @@ async function runApiSmokeTest() {
     runtime: response.echo,
     frames: frames.length,
     currentTab: currentTab?.id ?? null,
+    downloadId,
     platform: platform.os,
     manifest: manifest.version,
     smokeUrl,

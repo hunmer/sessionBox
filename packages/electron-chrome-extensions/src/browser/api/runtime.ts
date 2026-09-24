@@ -178,6 +178,7 @@ export class RuntimeAPI extends EventEmitter {
     if (shouldLogExtensionDebug) console.info('[electron-chrome-extensions] runtime.sendMessage received', {
       extensionId: event.extension.id,
       method: (message as any)?.method,
+      messageType: (message as any)?.Message ?? (message as any)?.type ?? null,
       senderType: event.type,
       senderUrl: (event.sender as any)?.getURL?.() ?? ''
     })
@@ -203,7 +204,14 @@ export class RuntimeAPI extends EventEmitter {
         const timer = setTimeout(() => finish(false), 5_000)
         if (isRunning()) finish(true)
       })
-      void workers.startWorkerForScope(scope).catch(() => {})
+      void workers.startWorkerForScope(scope).catch((error) => {
+        console.warn('[electron-chrome-extensions] runtime.sendMessage worker wake failed', {
+          extensionId: event.extension.id,
+          scope,
+          sessionStoragePath: this.ctx.session.getStoragePath(),
+          message: error instanceof Error ? error.message : String(error),
+        })
+      })
       const [hasListener, running] = await Promise.all([listenerReady, workerReady])
       if (!hasListener || !running) {
         console.warn('[electron-chrome-extensions] runtime listener unavailable', {
@@ -251,6 +259,14 @@ export class RuntimeAPI extends EventEmitter {
         resolve(response)
       }
       this.userScriptMessageSenders.set(requestId, onResponse)
+      if (shouldLogExtensionDebug) console.info('[electron-chrome-extensions] runtime.sendMessage dispatch', {
+        requestId,
+        extensionId: event.extension.id,
+        messageType: (message as any)?.Message ?? (message as any)?.type ?? null,
+        listenerCount: this.ctx.router.hasListener(event.extension.id, 'runtime.onMessage', 'service-worker')
+          ? 'service-worker'
+          : 'none',
+      })
       this.ctx.router.sendEvent(
         event.extension.id,
         'runtime.onMessage',

@@ -4,9 +4,19 @@ import type { ExtensionContext } from '../context'
 export class WebRequestAPI {
   constructor(private ctx: ExtensionContext) {
     const webRequest = ctx.session.webRequest
+    const normalizeHeaders = (headers: any) => {
+      if (Array.isArray(headers)) return headers
+      if (!headers || typeof headers !== 'object') return headers
+      return Object.entries(headers).flatMap(([name, value]) => {
+        const values = Array.isArray(value) ? value : [value]
+        return values.map((item) => ({ name, value: String(item) }))
+      })
+    }
     const forward = (eventName: string) => (details: any) => {
       const normalized = {
         ...details,
+        requestHeaders: normalizeHeaders(details.requestHeaders),
+        responseHeaders: normalizeHeaders(details.responseHeaders),
         // Electron exposes the owning WebContents as webContentsId. Chrome's
         // webRequest tabId uses the same numeric tab identity in this package.
         tabId: typeof details.webContentsId === 'number'

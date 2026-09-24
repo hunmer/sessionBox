@@ -96,6 +96,41 @@ describe('chrome.userScripts', () => {
     }
   })
 
+  it('normalizes runtime.sendMessage extension-id overload', async () => {
+    const extensionPage = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        session: browser.session,
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    })
+
+    try {
+      await extensionPage.loadURL(`${browser.extension.url}extension-page.html`)
+      const result = await extensionPage.webContents.executeJavaScript(`
+        new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            chrome.runtime.id,
+            { type: 'extension-page-message-probe', value: 'runtime-round-trip' },
+            (response) => resolve({
+              response,
+              lastError: chrome.runtime.lastError?.message
+            })
+          )
+        })
+      `)
+
+      expect(result.lastError).to.equal(undefined)
+      expect(result.response).to.deep.equal({
+        type: 'extension-page-message-response',
+        value: 'runtime-round-trip',
+      })
+    } finally {
+      extensionPage.destroy()
+    }
+  })
+
   it('does not route incoming port messages back to the service worker', async () => {
     await browser.extensions.whenUserScriptsReady(browser.extension.id)
     let missingExtensionId = 0

@@ -5,8 +5,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
 // src/browser/index.ts
 import { session as electronSession } from "electron";
 import { EventEmitter as EventEmitter4 } from "node:events";
-import path4 from "node:path";
-import { existsSync as existsSync3 } from "node:fs";
+import path5 from "node:path";
+import { existsSync as existsSync4 } from "node:fs";
 import { createRequire } from "node:module";
 
 // src/browser/api/browser-action.ts
@@ -96,9 +96,9 @@ var matchesPattern = (pattern, url) => {
     const host = hostPattern.toLowerCase();
     const hostMatches = host === "*" || host === hostname || host.startsWith("*.") && (hostname === host.slice(2) || hostname.endsWith(host.slice(1)));
     if (!hostMatches) return false;
-    const path5 = parsed.pathname;
+    const path6 = parsed.pathname;
     const pathRegexp = new RegExp(`^${pathPattern.split("*").map(escapePattern).join(".*")}$`);
-    return pathRegexp.test(path5);
+    return pathRegexp.test(path6);
   } catch {
     return false;
   }
@@ -1850,12 +1850,12 @@ import debug7 from "debug";
 import { spawn } from "child_process";
 import debug6 from "debug";
 var d6 = debug6("electron-chrome-extensions:winreg");
-function readRegistryKey(hive, path5, key) {
+function readRegistryKey(hive, path6, key) {
   if (process.platform !== "win32") {
     return Promise.reject("Unsupported platform");
   }
   return new Promise((resolve3, reject) => {
-    const args = ["query", `${hive}\\${path5}`, ...key ? ["/v", key] : []];
+    const args = ["query", `${hive}\\${path6}`, ...key ? ["/v", key] : []];
     d6("reg %s", args.join(" "));
     const child = spawn("reg", args);
     let output = "";
@@ -2114,6 +2114,7 @@ var RuntimeAPI = class extends EventEmitter3 {
       if (shouldLogExtensionDebug) console.info("[electron-chrome-extensions] runtime.sendMessage received", {
         extensionId: event.extension.id,
         method: message?.method,
+        messageType: message?.Message ?? message?.type ?? null,
         senderType: event.type,
         senderUrl: event.sender?.getURL?.() ?? ""
       });
@@ -2136,7 +2137,13 @@ var RuntimeAPI = class extends EventEmitter3 {
           const timer = setTimeout(() => finish(false), 5e3);
           if (isRunning()) finish(true);
         });
-        void workers.startWorkerForScope(scope).catch(() => {
+        void workers.startWorkerForScope(scope).catch((error) => {
+          console.warn("[electron-chrome-extensions] runtime.sendMessage worker wake failed", {
+            extensionId: event.extension.id,
+            scope,
+            sessionStoragePath: this.ctx.session.getStoragePath(),
+            message: error instanceof Error ? error.message : String(error)
+          });
         });
         const [hasListener, running] = await Promise.all([listenerReady, workerReady]);
         if (!hasListener || !running) {
@@ -2181,6 +2188,12 @@ var RuntimeAPI = class extends EventEmitter3 {
           resolve3(response);
         };
         this.userScriptMessageSenders.set(requestId, onResponse);
+        if (shouldLogExtensionDebug) console.info("[electron-chrome-extensions] runtime.sendMessage dispatch", {
+          requestId,
+          extensionId: event.extension.id,
+          messageType: message?.Message ?? message?.type ?? null,
+          listenerCount: this.ctx.router.hasListener(event.extension.id, "runtime.onMessage", "service-worker") ? "service-worker" : "none"
+        });
         this.ctx.router.sendEvent(
           event.extension.id,
           "runtime.onMessage",
@@ -2772,6 +2785,13 @@ var ExtensionRouter = class {
     });
     session2.serviceWorkers.on("console-message", (_event, details) => {
       if (!shouldLogExtensionWorkerConsole) return;
+      console.info("[electron-chrome-extensions] extension service worker console", {
+        sessionStoragePath: session2.getStoragePath(),
+        message: details?.message,
+        source: details?.sourceId ?? details?.source,
+        line: details?.lineNumber ?? details?.line,
+        url: details?.url
+      });
     });
     session2.serviceWorkers.on(
       "running-status-changed",
@@ -2786,6 +2806,19 @@ var ExtensionRouter = class {
           versionId,
           runningStatus
         });
+        if (runningStatus === "stopping" || runningStatus === "stopped") {
+          const extensionId = scope.slice("chrome-extension://".length).replace(/\/$/, "");
+          const removedListeners = this.filterListeners(
+            (listener) => listener.type !== "service-worker" || listener.extensionId !== extensionId
+          );
+          console.info("[electron-chrome-extensions] service worker listeners cleared", {
+            extensionId,
+            versionId,
+            runningStatus,
+            removedListeners
+          });
+          return;
+        }
         if (runningStatus !== "starting") return;
         if (this.extensionHosts.has(serviceWorker)) {
           d8("%s running status changed to %s", scope, runningStatus);
@@ -2817,9 +2850,11 @@ var ExtensionRouter = class {
     });
   }
   filterListeners(predicate) {
+    let removedTotal = 0;
     for (const [eventName, listeners] of this.listeners) {
       const filteredListeners = listeners.filter(predicate);
       const delta = listeners.length - filteredListeners.length;
+      removedTotal += delta;
       if (filteredListeners.length > 0) {
         this.listeners.set(eventName, filteredListeners);
       } else {
@@ -2829,6 +2864,7 @@ var ExtensionRouter = class {
         d8(`removed ${delta} listener(s) for '${eventName}'`);
       }
     }
+    return removedTotal;
   }
   observeListenerHost(host) {
     const hostId = getHostId(host);
@@ -3548,9 +3584,19 @@ var WebRequestAPI = class {
   constructor(ctx) {
     this.ctx = ctx;
     const webRequest = ctx.session.webRequest;
+    const normalizeHeaders = (headers) => {
+      if (Array.isArray(headers)) return headers;
+      if (!headers || typeof headers !== "object") return headers;
+      return Object.entries(headers).flatMap(([name, value]) => {
+        const values = Array.isArray(value) ? value : [value];
+        return values.map((item) => ({ name, value: String(item) }));
+      });
+    };
     const forward = (eventName) => (details) => {
       const normalized = {
         ...details,
+        requestHeaders: normalizeHeaders(details.requestHeaders),
+        responseHeaders: normalizeHeaders(details.responseHeaders),
         // Electron exposes the owning WebContents as webContentsId. Chrome's
         // webRequest tabId uses the same numeric tab identity in this package.
         tabId: typeof details.webContentsId === "number" ? details.webContentsId : typeof details.tabId === "number" ? details.tabId : -1,
@@ -3573,14 +3619,16 @@ var WebRequestAPI = class {
 
 // src/browser/api/scripting.ts
 import { readFileSync as readFileSync4 } from "node:fs";
-import { resolve as resolve2, sep as sep2 } from "node:path";
+import { isAbsolute, relative, resolve as resolve2, sep as sep2 } from "node:path";
 var readExtensionFiles = (extension, files = []) => {
+  const extensionRoot = resolve2(extension.path);
   return files.map((file) => {
-    const path5 = resolve2(extension.path, file);
-    if (!path5.startsWith(`${extension.path}${sep2}`)) {
+    const path6 = resolve2(extensionRoot, file);
+    const relativePath = relative(extensionRoot, path6);
+    if (!relativePath || relativePath === ".." || relativePath.startsWith(`..${sep2}`) || isAbsolute(relativePath)) {
       throw new Error(`Invalid scripting file path: ${file}`);
     }
-    return readFileSync4(path5, "utf8");
+    return readFileSync4(path6, "utf8");
   }).join("\n");
 };
 var ScriptingAPI = class {
@@ -3596,6 +3644,13 @@ var ScriptingAPI = class {
     if (typeof tabId !== "number") return [];
     const tab = this.ctx.store.getTabById(tabId);
     if (!tab || tab.isDestroyed()) return [];
+    console.info("[electron-chrome-extensions] scripting.executeScript request", {
+      extensionId: event.extension.id,
+      tabId,
+      files: details.files ?? [],
+      allFrames: Boolean(target.allFrames),
+      world: details.world ?? "ISOLATED"
+    });
     let code = readExtensionFiles(event.extension, details.files);
     if (typeof details.func === "function") {
       code += `
@@ -3617,7 +3672,308 @@ ${details.code}`;
         });
       }
     }
+    console.info("[electron-chrome-extensions] scripting.executeScript completed", {
+      extensionId: event.extension.id,
+      tabId,
+      resultCount: results.length,
+      errors: results.filter((item) => item?.error).map((item) => ({ frameId: item.frameId, error: item.error }))
+    });
     return results;
+  }
+};
+
+// src/browser/api/downloads.ts
+import { app as app6, shell } from "electron";
+import { existsSync as existsSync3 } from "node:fs";
+import { rm } from "node:fs/promises";
+import path4 from "node:path";
+function normalizeFilename(filename) {
+  if (filename === void 0) return void 0;
+  if (typeof filename !== "string" || !filename.trim()) throw new Error("Invalid download filename");
+  const normalized = filename.replaceAll("\\", "/");
+  if (path4.posix.isAbsolute(normalized) || /^[a-z]:\//i.test(normalized) || normalized.split("/").includes("..")) {
+    throw new Error("Download filename must be relative to the Downloads directory");
+  }
+  return normalized;
+}
+var DownloadsAPI = class {
+  constructor(ctx) {
+    this.ctx = ctx;
+    __publicField(this, "nextId", 1);
+    __publicField(this, "pending", /* @__PURE__ */ new Map());
+    __publicField(this, "records", /* @__PURE__ */ new Map());
+    __publicField(this, "download", ({ extension }, options) => {
+      if (!options || typeof options.url !== "string" || !options.url) {
+        throw new Error("downloads.download requires a URL");
+      }
+      if (options.saveAs) throw new Error("downloads.download saveAs is not supported");
+      if (options.method === "POST" || options.body) {
+        throw new Error("downloads.download POST requests are not supported");
+      }
+      const headers = options.headers?.reduce((result, header) => {
+        result[header.name] = header.value;
+        return result;
+      }, {});
+      return new Promise((resolve3, reject) => {
+        const id = this.nextId++;
+        const timer = setTimeout(() => {
+          const queue2 = this.pending.get(options.url) || [];
+          const remaining = queue2.filter((item) => item.id !== id);
+          if (remaining.length) this.pending.set(options.url, remaining);
+          else this.pending.delete(options.url);
+          reject(new Error("Timed out waiting for download to start"));
+        }, 1e4);
+        const request = {
+          id,
+          extensionId: extension.id,
+          url: options.url,
+          filename: normalizeFilename(options.filename),
+          resolve: resolve3,
+          reject,
+          timer
+        };
+        const queue = this.pending.get(request.url) || [];
+        queue.push(request);
+        this.pending.set(request.url, queue);
+        try {
+          this.ctx.session.downloadURL(request.url, headers ? { headers } : void 0);
+        } catch (error) {
+          clearTimeout(timer);
+          this.pending.set(request.url, queue.filter((item) => item !== request));
+          reject(error instanceof Error ? error : new Error(String(error)));
+        }
+      });
+    });
+    __publicField(this, "onWillDownload", (_event, item) => {
+      const url = item.getURL();
+      const queue = this.pending.get(url);
+      const request = queue?.shift();
+      if (!request) return;
+      if (queue?.length) this.pending.set(url, queue);
+      else this.pending.delete(url);
+      if (request.filename) {
+        item.setSavePath(path4.join(app6.getPath("downloads"), request.filename));
+      }
+      clearTimeout(request.timer);
+      const record = { ...request, item, state: "in_progress" };
+      this.records.set(request.id, record);
+      request.resolve(request.id);
+      try {
+        this.ctx.router.sendEvent(request.extensionId, "downloads.onCreated", this.toChromeItem(record));
+      } catch (error) {
+        console.warn("[electron-chrome-extensions] downloads.onCreated dispatch failed", {
+          id: request.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+      item.on("updated", (_event2, state) => {
+        record.state = state === "progressing" ? "in_progress" : "interrupted";
+        if (state === "progressing") {
+          record.error = void 0;
+          record.endTime = void 0;
+        }
+        try {
+          this.ctx.router.sendEvent(request.extensionId, "downloads.onChanged", {
+            id: request.id,
+            state: { current: this.toChromeItem(record).state },
+            bytesReceived: { current: item.getReceivedBytes() },
+            paused: { current: item.isPaused() }
+          });
+        } catch (error) {
+          console.warn("[electron-chrome-extensions] downloads.onChanged dispatch failed", {
+            id: request.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      });
+      item.once("done", (_event2, state) => {
+        record.state = state === "completed" ? "complete" : "interrupted";
+        record.endTime = (/* @__PURE__ */ new Date()).toISOString();
+        if (state === "cancelled") record.error = "USER_CANCELED";
+        else if (state === "interrupted") record.error = "NETWORK_FAILED";
+        this.ctx.router.sendEvent(request.extensionId, "downloads.onChanged", {
+          id: request.id,
+          state: { current: record.state },
+          filename: { current: this.getFilename(item) },
+          ...record.error ? { error: { current: record.error } } : {}
+        });
+      });
+    });
+    __publicField(this, "cancel", ({ extension }, id) => {
+      this.getRecord(extension.id, id).item.cancel();
+    });
+    __publicField(this, "pause", ({ extension }, id) => {
+      const item = this.getRecord(extension.id, id).item;
+      if (!item.isPaused()) item.pause();
+    });
+    __publicField(this, "resume", ({ extension }, id) => {
+      const item = this.getRecord(extension.id, id).item;
+      if (item.canResume()) item.resume();
+    });
+    __publicField(this, "removeFile", async ({ extension }, id) => {
+      const record = this.getRecord(extension.id, id);
+      if (record.state !== "complete") throw new Error("Download is not complete");
+      const filename = this.getFilename(record.item);
+      if (!existsSync3(filename)) return;
+      await rm(filename, { force: true });
+    });
+    __publicField(this, "open", async ({ extension }, id) => {
+      const permissions = extension.manifest.permissions;
+      if (!permissions?.includes("downloads.open")) {
+        throw new Error("downloads.open requires the downloads.open permission");
+      }
+      const filename = this.getFilename(this.getRecord(extension.id, id).item);
+      if (!existsSync3(filename)) throw new Error("Downloaded file does not exist");
+      const error = await shell.openPath(filename);
+      if (error) throw new Error(error);
+    });
+    __publicField(this, "show", ({ extension }, id) => {
+      const filename = this.getFilename(this.getRecord(extension.id, id).item);
+      shell.showItemInFolder(filename);
+    });
+    __publicField(this, "showDefaultFolder", () => {
+      return shell.openPath(app6.getPath("downloads")).then((error) => {
+        if (error) throw new Error(error);
+      });
+    });
+    __publicField(this, "acceptDanger", ({ extension }, id) => {
+      this.getRecord(extension.id, id);
+    });
+    __publicField(this, "getFileIcon", async ({ extension }, id, options = {}) => {
+      const filename = this.getFilename(this.getRecord(extension.id, id).item);
+      const icon = await app6.getFileIcon(filename, { size: options.size === 16 ? "small" : "normal" });
+      return icon.toDataURL();
+    });
+    __publicField(this, "search", ({ extension }, query = {}) => {
+      const records = [...this.records.values()].filter((record) => record.extensionId === extension.id);
+      const urlPattern = query.urlRegex ? new RegExp(query.urlRegex) : void 0;
+      const filenamePattern = query.filenameRegex ? new RegExp(query.filenameRegex) : void 0;
+      const terms = query.query || [];
+      const filtered = records.filter((record) => {
+        const item = this.toChromeItem(record);
+        if (query.id !== void 0 && item.id !== query.id) return false;
+        if (query.url !== void 0 && item.url !== query.url) return false;
+        if (query.filename !== void 0 && item.filename !== query.filename) return false;
+        if (query.state !== void 0 && item.state !== query.state) return false;
+        if (query.paused !== void 0 && item.paused !== query.paused) return false;
+        if (query.exists !== void 0 && item.exists !== query.exists) return false;
+        if (query.totalBytes !== void 0 && item.totalBytes !== query.totalBytes) return false;
+        if (query.bytesReceived !== void 0 && item.bytesReceived !== query.bytesReceived) return false;
+        if (query.totalBytesGreater !== void 0 && item.totalBytes <= query.totalBytesGreater) return false;
+        if (query.totalBytesLess !== void 0 && item.totalBytes >= query.totalBytesLess) return false;
+        if (query.mime !== void 0 && item.mime !== query.mime) return false;
+        if (query.danger !== void 0 && item.danger !== query.danger) return false;
+        if (query.startedAfter !== void 0 && item.startTime <= query.startedAfter) return false;
+        if (query.startedBefore !== void 0 && item.startTime >= query.startedBefore) return false;
+        if (query.endedAfter !== void 0 && (!item.endTime || item.endTime <= query.endedAfter)) return false;
+        if (query.endedBefore !== void 0 && (!item.endTime || item.endTime >= query.endedBefore)) return false;
+        if (urlPattern && !urlPattern.test(item.url)) return false;
+        if (filenamePattern && !filenamePattern.test(item.filename)) return false;
+        return terms.every((term) => term.startsWith("-") ? !`${item.url} ${item.filename}`.includes(term.slice(1)) : `${item.url} ${item.filename}`.includes(term));
+      });
+      const orderBy = query.orderBy || ["-startTime"];
+      filtered.sort((a, b) => {
+        const left = this.toChromeItem(a);
+        const right = this.toChromeItem(b);
+        for (const field of orderBy) {
+          const descending = field.startsWith("-");
+          const key = descending ? field.slice(1) : field;
+          const leftValue = left[key] ?? "";
+          const rightValue = right[key] ?? "";
+          if (leftValue === rightValue) continue;
+          const result = leftValue > rightValue ? 1 : -1;
+          return descending ? -result : result;
+        }
+        return 0;
+      });
+      const limit = query.limit === 0 ? filtered.length : Math.max(0, query.limit ?? 1e3);
+      return filtered.slice(0, limit).map((record) => this.toChromeItem(record));
+    });
+    __publicField(this, "erase", ({ extension }, query = {}) => {
+      const matches = this.search({ extension }, query);
+      for (const item of matches) {
+        this.records.delete(item.id);
+        this.ctx.router.sendEvent(extension.id, "downloads.onErased", item.id);
+      }
+      return matches.map((item) => item.id);
+    });
+    const handle = this.ctx.router.apiHandler();
+    handle("downloads.download", this.download, { permission: "downloads" });
+    handle("downloads.cancel", this.cancel, { permission: "downloads" });
+    handle("downloads.pause", this.pause, { permission: "downloads" });
+    handle("downloads.resume", this.resume, { permission: "downloads" });
+    handle("downloads.erase", this.erase, { permission: "downloads" });
+    handle("downloads.removeFile", this.removeFile, { permission: "downloads" });
+    handle("downloads.open", this.open, { permission: "downloads" });
+    handle("downloads.show", this.show, { permission: "downloads" });
+    handle("downloads.showDefaultFolder", this.showDefaultFolder, { permission: "downloads" });
+    handle("downloads.search", this.search, { permission: "downloads" });
+    handle("downloads.acceptDanger", this.acceptDanger, { permission: "downloads" });
+    handle("downloads.getFileIcon", this.getFileIcon, { permission: "downloads" });
+    this.ctx.session.on("will-download", this.onWillDownload);
+    const sessionExtensions = ctx.session.extensions || ctx.session;
+    sessionExtensions.on("extension-unloaded", (_event, extension) => {
+      for (const [url, requests] of this.pending) {
+        for (const request of requests) {
+          if (request.extensionId === extension.id) {
+            clearTimeout(request.timer);
+            request.reject(new Error("Extension unloaded before download started"));
+          }
+        }
+        const remaining = requests.filter((request) => request.extensionId !== extension.id);
+        if (remaining.length === 0) this.pending.delete(url);
+        else this.pending.set(url, remaining);
+      }
+      for (const [id, record] of this.records) {
+        if (record.extensionId === extension.id) this.records.delete(id);
+      }
+    });
+  }
+  getFilename(item) {
+    try {
+      return item.getSavePath() || path4.join(app6.getPath("downloads"), item.getFilename());
+    } catch {
+      return path4.join(app6.getPath("downloads"), "download");
+    }
+  }
+  toChromeItem(record) {
+    const { item } = record;
+    const safe = (read, fallback) => {
+      try {
+        return read();
+      } catch {
+        return fallback;
+      }
+    };
+    const filename = this.getFilename(item);
+    const urlChain = safe(() => item.getURLChain(), []);
+    const startTime = safe(() => item.getStartTime(), Date.now() / 1e3);
+    return {
+      id: record.id,
+      url: record.url,
+      finalUrl: urlChain[urlChain.length - 1] || record.url,
+      filename,
+      state: record.state,
+      bytesReceived: safe(() => item.getReceivedBytes(), 0),
+      totalBytes: safe(() => item.getTotalBytes(), 0),
+      paused: safe(() => item.isPaused(), false),
+      danger: "safe",
+      mime: safe(() => item.getMimeType(), ""),
+      fileSize: safe(() => item.getTotalBytes(), 0),
+      startTime: new Date(startTime * 1e3).toISOString(),
+      endTime: record.endTime,
+      error: record.error,
+      incognito: !this.ctx.session.isPersistent(),
+      referrer: "",
+      canResume: safe(() => item.canResume(), false),
+      exists: existsSync3(filename),
+      byExtensionId: record.extensionId
+    };
+  }
+  getRecord(extensionId, id) {
+    const record = this.records.get(id);
+    if (!record || record.extensionId !== extensionId) throw new Error(`Unknown download id: ${id}`);
+    return record;
   }
 };
 
@@ -3642,9 +3998,9 @@ function resolvePreloadPath(modulePath) {
       'electron-chrome-extensions: "modulePath" is deprecated and will be removed in future versions.',
       { type: "DeprecationWarning" }
     );
-    return path4.join(modulePath, "dist", preloadFilename);
+    return path5.join(modulePath, "dist", preloadFilename);
   }
-  return path4.join(__dirname, preloadFilename);
+  return path5.join(__dirname, preloadFilename);
 }
 var sessionMap = /* @__PURE__ */ new WeakMap();
 var ElectronChromeExtensions = class _ElectronChromeExtensions extends EventEmitter4 {
@@ -3681,6 +4037,7 @@ var ElectronChromeExtensions = class _ElectronChromeExtensions extends EventEmit
       webNavigation: new WebNavigationAPI(this.ctx),
       webRequest: new WebRequestAPI(this.ctx),
       scripting: new ScriptingAPI(this.ctx),
+      downloads: new DownloadsAPI(this.ctx),
       windows: new WindowsAPI(this.ctx)
     };
     this.listenForExtensions();
@@ -3748,7 +4105,7 @@ var ElectronChromeExtensions = class _ElectronChromeExtensions extends EventEmit
     } else {
       session2.setPreloads([...session2.getPreloads(), preloadPath]);
     }
-    if (!existsSync3(preloadPath)) {
+    if (!existsSync4(preloadPath)) {
       console.error(
         new Error(
           `electron-chrome-extensions: Preload file not found at "${preloadPath}". See "Packaging the preload script" in the readme.`

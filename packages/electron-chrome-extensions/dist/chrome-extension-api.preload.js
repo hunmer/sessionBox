@@ -110,12 +110,16 @@ var injectExtensionAPIs = () => {
     connectNative,
     disconnectNative
   };
-  function mainWorldScript() {
+  function mainWorldScript(debugEnabled = false) {
     const electron = globalThis.electron || electronContext;
     const chrome = globalThis.chrome || {};
     const extensionId = chrome.runtime?.id;
     const manifest = extensionId && chrome.runtime.getManifest?.() || {};
     const invokeExtension2 = (fnName, opts = {}) => (...args) => electron.invokeExtension(extensionId, fnName, opts, ...args);
+    const sendRuntimeMessage = (...args) => {
+      if (args.length >= 2 && args[0] === extensionId) args.shift();
+      return invokeExtension2("runtime.sendMessage")(...args);
+    };
     function imageData2base64(imageData) {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
@@ -132,7 +136,7 @@ var injectExtensionAPIs = () => {
       addListener(callback) {
         let listener = callback;
         if (this.name === "runtime.onMessage") {
-          if (shouldLogExtensionApi) console.info("[electron-chrome-extensions] registering runtime message listener", { extensionId });
+          if (debugEnabled) console.info("[electron-chrome-extensions] registering runtime message listener", { extensionId });
         }
         if (this.name === "runtime.onConnect") {
           listener = (descriptor) => callback(new RuntimePort(descriptor?.portId, descriptor?.name, descriptor?.sender));
@@ -392,19 +396,19 @@ var injectExtensionAPIs = () => {
         factory: (base) => {
           return {
             ...base,
-            acceptDanger: invokeExtension2("downloads.acceptDanger", { noop: true }),
-            cancel: invokeExtension2("downloads.cancel", { noop: true }),
-            download: invokeExtension2("downloads.download", { noop: true }),
-            erase: invokeExtension2("downloads.erase", { noop: true }),
-            getFileIcon: invokeExtension2("downloads.getFileIcon", { noop: true }),
-            open: invokeExtension2("downloads.open", { noop: true }),
-            pause: invokeExtension2("downloads.pause", { noop: true }),
-            removeFile: invokeExtension2("downloads.removeFile", { noop: true }),
-            resume: invokeExtension2("downloads.resume", { noop: true }),
-            search: invokeExtension2("downloads.search", { noop: true }),
+            acceptDanger: invokeExtension2("downloads.acceptDanger"),
+            cancel: invokeExtension2("downloads.cancel"),
+            download: invokeExtension2("downloads.download"),
+            erase: invokeExtension2("downloads.erase"),
+            getFileIcon: invokeExtension2("downloads.getFileIcon"),
+            open: invokeExtension2("downloads.open"),
+            pause: invokeExtension2("downloads.pause"),
+            removeFile: invokeExtension2("downloads.removeFile"),
+            resume: invokeExtension2("downloads.resume"),
+            search: invokeExtension2("downloads.search"),
             setUiOptions: invokeExtension2("downloads.setUiOptions", { noop: true }),
-            show: invokeExtension2("downloads.show", { noop: true }),
-            showDefaultFolder: invokeExtension2("downloads.showDefaultFolder", { noop: true }),
+            show: invokeExtension2("downloads.show"),
+            showDefaultFolder: invokeExtension2("downloads.showDefaultFolder"),
             onChanged: new ExtensionEvent("downloads.onChanged"),
             onCreated: new ExtensionEvent("downloads.onCreated"),
             onDeterminingFilename: new ExtensionEvent("downloads.onDeterminingFilename"),
@@ -417,7 +421,7 @@ var injectExtensionAPIs = () => {
           return {
             ...base,
             ...manifest.manifest_version === 3 ? {
-              sendMessage: invokeExtension2("runtime.sendMessage"),
+              sendMessage: sendRuntimeMessage,
               onMessage: runtimeMessageEvent,
               onConnect: runtimeConnectEvent
             } : {},
@@ -535,7 +539,7 @@ var injectExtensionAPIs = () => {
             ...manifest.manifest_version === 3 ? {
               onMessage: runtimeMessageEvent,
               onConnect: runtimeConnectEvent,
-              sendMessage: invokeExtension2("runtime.sendMessage")
+              sendMessage: sendRuntimeMessage
             } : {},
             connectNative: (application) => {
               const port = new NativePort();
@@ -685,7 +689,7 @@ var injectExtensionAPIs = () => {
           Object.assign(baseApi, extensionApi);
         } catch {
         }
-        if (apiName === "tabs" && baseApi.sendMessage !== extensionApi.sendMessage || apiName === "sidePanel" && (baseApi.setOptions !== extensionApi.setOptions || baseApi.setPanelBehavior !== extensionApi.setPanelBehavior)) {
+        if (apiName === "tabs" && baseApi.sendMessage !== extensionApi.sendMessage || apiName === "downloads" && (baseApi.download !== extensionApi.download || baseApi.search !== extensionApi.search) || apiName === "sidePanel" && (baseApi.setOptions !== extensionApi.setOptions || baseApi.setPanelBehavior !== extensionApi.setPanelBehavior)) {
           try {
             Object.defineProperty(chrome, apiName, {
               value: extensionApi,
@@ -739,7 +743,8 @@ var injectExtensionAPIs = () => {
     if ("executeInMainWorld" in import_electron2.contextBridge) {
       ;
       import_electron2.contextBridge.executeInMainWorld({
-        func: mainWorldScript
+        func: mainWorldScript,
+        args: [shouldLogExtensionApi]
       });
     } else {
       import_electron2.webFrame.executeJavaScript(`(${mainWorldScript}());`);

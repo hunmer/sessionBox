@@ -10,6 +10,8 @@ const reloadButton = document.getElementById('reloadButton')
 const refreshButton = document.getElementById('refreshButton')
 const createWindowButton = document.getElementById('createWindowButton')
 const removeWindowButton = document.getElementById('removeWindowButton')
+const recordingButton = document.getElementById('recordingButton')
+const downloadButton = document.getElementById('downloadButton')
 const smokeToggle = document.getElementById('smokeToggle')
 let testWindowId = null
 
@@ -67,6 +69,29 @@ removeWindowButton.addEventListener('click', async () => {
     testWindowId = null
   } catch (error) {
     setStatus(`windows.remove 失败：${error.message}`)
+  }
+})
+
+recordingButton.addEventListener('click', async () => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (tab?.id == null) throw new Error('未找到当前页面标签')
+    const response = await chrome.runtime.sendMessage({
+      type: 'sessionbox-recording-mvp',
+      tabId: tab.id,
+    })
+    setStatus(response?.ok ? '视频录制 MVP 面板已注入当前页面' : `注入失败：${response?.error || '未知错误'}`)
+  } catch (error) {
+    setStatus(`视频录制 MVP 失败：${error.message}`)
+  }
+})
+
+downloadButton.addEventListener('click', async () => {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'sessionbox-download-mvp' })
+    setStatus(response?.ok ? `下载 MVP 已启动，downloadId=${response.id}，state=${response.state}` : `下载失败：${response?.error || '未知错误'}`)
+  } catch (error) {
+    setStatus(`下载 MVP 失败：${error.message}`)
   }
 })
 

@@ -107,7 +107,7 @@ export const injectExtensionAPIs = () => {
 
   // Function body to run in the main world.
   // IMPORTANT: This must be self-contained, no closure variable will be included!
-  function mainWorldScript() {
+  function mainWorldScript(debugEnabled = false) {
     // Use context bridge API or closure variable when context isolation is disabled.
     const electron = ((globalThis as any).electron as typeof electronContext) || electronContext
 
@@ -125,6 +125,15 @@ export const injectExtensionAPIs = () => {
       (fnName: string, opts: ExtensionMessageOptions = {}) =>
       (...args: any[]) =>
         electron.invokeExtension(extensionId, fnName, opts, ...args)
+
+    // Chrome supports runtime.sendMessage(extensionId, message, callback).
+    // The IPC handler routes within the current extension context, so passing
+    // the current extension ID through as the message makes MV3 listeners
+    // receive a string instead of the actual message object.
+    const sendRuntimeMessage = (...args: any[]) => {
+      if (args.length >= 2 && args[0] === extensionId) args.shift()
+      return invokeExtension('runtime.sendMessage')(...args)
+    }
 
     function imageData2base64(imageData: ImageData) {
       const canvas = document.createElement('canvas')
@@ -144,7 +153,7 @@ export const injectExtensionAPIs = () => {
       addListener(callback: T) {
         let listener: Function = callback
         if (this.name === 'runtime.onMessage') {
-          if (shouldLogExtensionApi) console.info('[electron-chrome-extensions] registering runtime message listener', { extensionId })
+          if (debugEnabled) console.info('[electron-chrome-extensions] registering runtime message listener', { extensionId })
         }
         if (this.name === 'runtime.onConnect') {
           listener = (descriptor: any) => callback(new RuntimePort(descriptor?.portId, descriptor?.name, descriptor?.sender) as any)
@@ -469,19 +478,19 @@ export const injectExtensionAPIs = () => {
         factory: (base) => {
           return {
             ...base,
-            acceptDanger: invokeExtension('downloads.acceptDanger', { noop: true }),
-            cancel: invokeExtension('downloads.cancel', { noop: true }),
-            download: invokeExtension('downloads.download', { noop: true }),
-            erase: invokeExtension('downloads.erase', { noop: true }),
-            getFileIcon: invokeExtension('downloads.getFileIcon', { noop: true }),
-            open: invokeExtension('downloads.open', { noop: true }),
-            pause: invokeExtension('downloads.pause', { noop: true }),
-            removeFile: invokeExtension('downloads.removeFile', { noop: true }),
-            resume: invokeExtension('downloads.resume', { noop: true }),
-            search: invokeExtension('downloads.search', { noop: true }),
+            acceptDanger: invokeExtension('downloads.acceptDanger'),
+            cancel: invokeExtension('downloads.cancel'),
+            download: invokeExtension('downloads.download'),
+            erase: invokeExtension('downloads.erase'),
+            getFileIcon: invokeExtension('downloads.getFileIcon'),
+            open: invokeExtension('downloads.open'),
+            pause: invokeExtension('downloads.pause'),
+            removeFile: invokeExtension('downloads.removeFile'),
+            resume: invokeExtension('downloads.resume'),
+            search: invokeExtension('downloads.search'),
             setUiOptions: invokeExtension('downloads.setUiOptions', { noop: true }),
-            show: invokeExtension('downloads.show', { noop: true }),
-            showDefaultFolder: invokeExtension('downloads.showDefaultFolder', { noop: true }),
+            show: invokeExtension('downloads.show'),
+            showDefaultFolder: invokeExtension('downloads.showDefaultFolder'),
             onChanged: new ExtensionEvent('downloads.onChanged'),
             onCreated: new ExtensionEvent('downloads.onCreated'),
             onDeterminingFilename: new ExtensionEvent('downloads.onDeterminingFilename'),
@@ -496,7 +505,7 @@ export const injectExtensionAPIs = () => {
             ...base,
             ...(manifest.manifest_version === 3
               ? {
-                  sendMessage: invokeExtension('runtime.sendMessage'),
+                  sendMessage: sendRuntimeMessage,
                   onMessage: runtimeMessageEvent,
                   onConnect: runtimeConnectEvent,
                 }
@@ -626,7 +635,7 @@ export const injectExtensionAPIs = () => {
               ? {
                   onMessage: runtimeMessageEvent,
                   onConnect: runtimeConnectEvent,
-                  sendMessage: invokeExtension('runtime.sendMessage'),
+                  sendMessage: sendRuntimeMessage,
                 }
               : {}),
             connectNative: (application: string) => {
@@ -804,6 +813,10 @@ export const injectExtensionAPIs = () => {
         // silently remain bound to Chromium's unavailable receiver.
         if (
           (apiName === 'tabs' && (baseApi as any).sendMessage !== (extensionApi as any).sendMessage) ||
+          (apiName === 'downloads' && (
+            (baseApi as any).download !== (extensionApi as any).download ||
+            (baseApi as any).search !== (extensionApi as any).search
+          )) ||
           (apiName === 'sidePanel' && (
             (baseApi as any).setOptions !== (extensionApi as any).setOptions ||
             (baseApi as any).setPanelBehavior !== (extensionApi as any).setPanelBehavior
@@ -873,6 +886,7 @@ export const injectExtensionAPIs = () => {
     if ('executeInMainWorld' in contextBridge) {
       ;(contextBridge as any).executeInMainWorld({
         func: mainWorldScript,
+        args: [shouldLogExtensionApi],
       })
     } else {
       // TODO(mv3): remove webFrame usage

@@ -327,13 +327,13 @@ export class ExtensionRouter {
     session.serviceWorkers.on('console-message' as any, (_event: any, details: any) => {
       if (!shouldLogExtensionWorkerConsole) return
 
-      // console.info('[electron-chrome-extensions] extension service worker console', {
-      //   sessionStoragePath: session.getStoragePath(),
-      //   message: details?.message,
-      //   source: details?.sourceId ?? details?.source,
-      //   line: details?.lineNumber ?? details?.line,
-      //   url: details?.url
-      // })
+      console.info('[electron-chrome-extensions] extension service worker console', {
+        sessionStoragePath: session.getStoragePath(),
+        message: details?.message,
+        source: details?.sourceId ?? details?.source,
+        line: details?.lineNumber ?? details?.line,
+        url: details?.url,
+      })
     })
 
     session.serviceWorkers.on(
@@ -352,6 +352,23 @@ export class ExtensionRouter {
           runningStatus
         })
 
+        // MV3 service-worker event listeners live in the worker instance.
+        // Once Chromium stops that instance, retaining the router entry makes
+        // runtime.sendMessage skip the wake-up path and send to a dead worker.
+        if (runningStatus === 'stopping' || runningStatus === 'stopped') {
+          const extensionId = scope.slice('chrome-extension://'.length).replace(/\/$/, '')
+          const removedListeners = this.filterListeners((listener) =>
+            listener.type !== 'service-worker' || listener.extensionId !== extensionId,
+          )
+          console.info('[electron-chrome-extensions] service worker listeners cleared', {
+            extensionId,
+            versionId,
+            runningStatus,
+            removedListeners,
+          })
+          return
+        }
+
         if (runningStatus !== 'starting') return
 
         if (this.extensionHosts.has(serviceWorker)) {
@@ -364,10 +381,12 @@ export class ExtensionRouter {
     )
   }
 
-  private filterListeners(predicate: (listener: EventListener) => boolean) {
+  private filterListeners(predicate: (listener: EventListener) => boolean): number {
+    let removedTotal = 0
     for (const [eventName, listeners] of this.listeners) {
       const filteredListeners = listeners.filter(predicate)
       const delta = listeners.length - filteredListeners.length
+      removedTotal += delta
 
       if (filteredListeners.length > 0) {
         this.listeners.set(eventName, filteredListeners)
@@ -379,6 +398,7 @@ export class ExtensionRouter {
         d(`removed ${delta} listener(s) for '${eventName}'`)
       }
     }
+    return removedTotal
   }
 
   private observeListenerHost(host: FrameEventListener['host']) {

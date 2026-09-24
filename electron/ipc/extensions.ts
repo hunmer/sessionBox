@@ -99,8 +99,7 @@ function getCompatibilityWarnings(manifest: { permissions?: string[] }): string[
     'webNavigation',
     'contextMenus',
     'chrome://favicon/',
-    'cookies',
-    'downloads'
+    'cookies'
   ])
   return (manifest.permissions ?? []).filter((permission) => unsupportedPermissions.has(permission))
 }

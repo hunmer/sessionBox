@@ -24,7 +24,7 @@
 | `notifications` | 部分实现 | 常用创建、更新、清除和事件 |
 | `i18n` | 部分实现 | 常用语言和消息读取 |
 | `privacy` | 占位 | ChromeSetting 结构存在，未提供持久化设置 |
-| `downloads` | 未实现 | renderer 仍保留 API 形状，但方法为 noop；下载需接入 Electron `will-download` |
+| `downloads` | 主要能力已实现 | 支持 `download/search/pause/resume/cancel/erase/removeFile/open/show/showDefaultFolder/getFileIcon`、安全任务的 `acceptDanger` 及 `onCreated/onChanged/onErased`；`drag/setShelfEnabled/setUiOptions/onDeterminingFilename` 尚未实现 |
 | `declarativeNetRequest` | 未实现 | 尚未建立规则存储和 Session 请求拦截 |
 | `sidePanel` | 部分实现 | MV3 扩展 worker/page 支持 `setPanelBehavior` / `getPanelBehavior`，配置按当前扩展实例隔离；SessionBox 尚无扩展 side panel UI，点击 action 不会展示面板 |
 | `offscreen` | 未实现 | 没有 offscreen document 生命周期管理 |

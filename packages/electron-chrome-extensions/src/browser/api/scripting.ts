@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { resolve, sep } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { ExtensionContext } from '../context'
 import type { ExtensionEvent } from '../router'
 
@@ -12,9 +12,11 @@ type ExecuteScriptDetails = Record<string, any> & {
 }
 
 const readExtensionFiles = (extension: Electron.Extension, files: string[] = []): string => {
+  const extensionRoot = resolve(extension.path)
   return files.map((file) => {
-    const path = resolve(extension.path, file)
-    if (!path.startsWith(`${extension.path}${sep}`)) {
+    const path = resolve(extensionRoot, file)
+    const relativePath = relative(extensionRoot, path)
+    if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
       throw new Error(`Invalid scripting file path: ${file}`)
     }
     return readFileSync(path, 'utf8')
@@ -38,6 +40,14 @@ export class ScriptingAPI {
     const tab = this.ctx.store.getTabById(tabId)
     if (!tab || tab.isDestroyed()) return []
 
+    console.info('[electron-chrome-extensions] scripting.executeScript request', {
+      extensionId: event.extension.id,
+      tabId,
+      files: details.files ?? [],
+      allFrames: Boolean(target.allFrames),
+      world: details.world ?? 'ISOLATED',
+    })
+
     let code = readExtensionFiles(event.extension, details.files)
     if (typeof details.func === 'function') {
       code += `\n;(${details.func.toString()})(...${JSON.stringify(details.args || [])})`
@@ -60,6 +70,12 @@ export class ScriptingAPI {
         })
       }
     }
+    console.info('[electron-chrome-extensions] scripting.executeScript completed', {
+      extensionId: event.extension.id,
+      tabId,
+      resultCount: results.length,
+      errors: results.filter((item) => item?.error).map((item) => ({ frameId: item.frameId, error: item.error })),
+    })
     return results
   }
 }
