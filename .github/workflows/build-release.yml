@@ -51,9 +51,21 @@ jobs:
       - name: Build application
         run: npx electron-vite build
 
+      # CI 上 pnpm 安装出的 electron/dist 符号链接被物化, codesign 报
+      # "bundle format is ambiguous"; 用 ditto 重新解压到隔离目录恢复符号链接
+      - name: Prepare Electron dist (macOS)
+        if: matrix.platform == 'mac'
+        run: |
+          ls -la "node_modules/electron/dist/Electron.app/Contents/Frameworks/Electron Framework.framework/"
+          ELECTRON_VERSION=$(node -p "require('./node_modules/electron/package.json').version")
+          curl -fL -o /tmp/electron.zip "https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}/electron-v${ELECTRON_VERSION}-darwin-${{ matrix.arch }}.zip"
+          rm -rf .electron-dist-ci && mkdir -p .electron-dist-ci
+          ditto -x -k /tmp/electron.zip .electron-dist-ci
+          ls -la ".electron-dist-ci/Electron.app/Contents/Frameworks/Electron Framework.framework/"
+
       - name: Package (macOS)
         if: matrix.platform == 'mac'
-        run: npx electron-builder --config electron-builder.json --mac --${{ matrix.arch }}
+        run: npx electron-builder --config electron-builder.json --mac --${{ matrix.arch }} --config.electronDist=.electron-dist-ci
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
