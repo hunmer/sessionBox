@@ -1,8 +1,9 @@
 // 必须第一个 import：profile 启动参数的 userData 重定向要先于所有服务模块执行
 import { DEFAULT_PROFILE_ID, IS_PROFILE_SELECTOR, PROFILE_ID } from './bootstrap'
-import { app, BrowserWindow, nativeImage, protocol, net, session } from 'electron'
+import { app, BrowserWindow, crashReporter, nativeImage, protocol, net, session } from 'electron'
 import { join } from 'path'
 import { initProcmConsole, shutdownProcmConsole } from './services/procm'
+import { initFileLogger } from './services/logger'
 import { setupUserAgent, installClientHintsRewrite } from './utils/user-agent'
 import { migrateBookmarksAndPasswords } from './services/migration'
 import { registerIpcHandlers } from './ipc'
@@ -35,8 +36,14 @@ function throttle<T extends (...args: any[]) => void>(fn: T, delay: number): T {
   }) as T
 }
 
+// 文件日志先于 procm console 接管初始化：无论 procm 是否托管，console 输出都同步落盘
+initFileLogger()
+
 // procm-mcp 托管启动时把 console 转发到 procm 控制台（需尽早调用以捕获后续输出）
 initProcmConsole()
+
+// 本地崩溃报告：minidump 落在 app.getPath('crashDumps')（默认 userData/Crashpad），不上传
+crashReporter.start({ uploadToServer: false })
 
 // 在 app ready 之前设置 UA
 setupUserAgent()
