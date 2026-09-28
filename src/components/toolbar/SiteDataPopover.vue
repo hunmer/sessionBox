@@ -350,9 +350,12 @@ watch(() => tabStore.activeTabId, loadInfo, { immediate: true })
                   导出 Cookie
                 </TooltipContent>
               </Tooltip>
+              <!-- 阻止关闭菜单时自动还焦点给按钮：否则系统保存对话框取消后窗口重新激活，
+                   焦点残留会触发相邻按钮（如导入）的 tooltip 常亮 -->
               <DropdownMenuContent
                 align="end"
                 :side-offset="4"
+                @close-auto-focus.prevent
               >
                 <DropdownMenuItem @click="handleExport('netscape')">
                   Netscape（cookies.txt）
