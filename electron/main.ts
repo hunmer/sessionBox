@@ -14,6 +14,7 @@ import { prepareUserScriptPreferences } from './services/extensions'
 import { listExtensions, getWindowState, setWindowState, getDefaultWindowState, getTabFreezeMinutes, getMinimizeOnClose, getMcpEnabled, getPageById } from './services/store'
 import type { WindowState } from './services/store'
 import { getAutoUpdater } from './composables/useAutoUpdater'
+import { disableAllExtensions, initCrashGuard, markCleanQuit } from './services/crash-guard'
 import { getProfile, touchProfile } from './services/profile-registry'
 import { registerGlobalShortcuts, unregisterGlobalShortcuts, handleBeforeInputEvent } from './services/shortcut-manager'
 import { trayManager } from './services/tray'
@@ -177,7 +178,7 @@ if (!gotTheLock) {
     }
   })
 
-  // macOS: 外部 URL 通过 open-url 事件传入
+    // macOS: 外部 URL 通过 open-url 事件传入
   app.on('open-url', (_e, url: string) => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       handleExternalUrl(url)
@@ -188,8 +189,20 @@ if (!gotTheLock) {
 
   let isQuitting = false
 
+  // 崩溃哨兵：上次异常退出时禁用全部扩展，避免扩展再次把主进程带崩形成闪退循环
+  let crashGuardDisabledCount = 0
+  if (!IS_PROFILE_SELECTOR && initCrashGuard()) {
+    crashGuardDisabledCount = disableAllExtensions()
+    if (crashGuardDisabledCount > 0) {
+      console.warn(
+        `[CrashGuard] 检测到上次异常退出，已自动禁用 ${crashGuardDisabledCount} 个扩展（可在设置中重新启用）`
+      )
+    }
+  }
+
   app.on('before-quit', () => {
     isQuitting = true
+    markCleanQuit()
     shutdownProcmConsole()
     mcpServerService.stop().catch((error) => {
       console.error('[Main] Failed to stop MCP server:', error)
@@ -482,6 +495,17 @@ if (!gotTheLock) {
           const profileName = getProfile(PROFILE_ID)?.name ?? PROFILE_ID
           mainWindow.webContents.once('did-finish-load', () => {
             if (!mainWindow.isDestroyed()) mainWindow.setTitle(`SessionBox - ${profileName}`)
+          })
+        }
+
+        // 崩溃哨兵禁用了扩展时通知渲染进程展示提示
+        if (crashGuardDisabledCount > 0) {
+          mainWindow.webContents.once('did-finish-load', () => {
+            if (!mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('on:crash-guard:extensions-disabled', {
+                count: crashGuardDisabledCount
+              })
+            }
           })
         }
       }

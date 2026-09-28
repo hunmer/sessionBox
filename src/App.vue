@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, nextTick, ref, watch, computed } from 'vue'
 import { Info, Loader2, RotateCw } from 'lucide-vue-next'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
+import { toast } from 'vue-sonner'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -446,6 +447,14 @@ function toggleSidebar() {
 useIpcEvent('window:maximized', () => { isMaximized.value = true })
 useIpcEvent('window:unmaximized', () => { isMaximized.value = false })
 window.api.window.isMaximized().then((m: boolean) => { isMaximized.value = m })
+
+// 崩溃哨兵：上次异常退出时主进程已自动禁用扩展，提示用户
+useIpcEvent('crash-guard:extensions-disabled', (payload) => {
+  const count = (payload as { count?: number })?.count ?? 0
+  toast.warning(`检测到上次异常退出，已自动禁用 ${count} 个扩展以避免闪退`, {
+    description: '可在 设置 → 扩展 中重新启用'
+  })
+})
 
 
 /** 向主进程同步 webview 容器的位置和大小 */
