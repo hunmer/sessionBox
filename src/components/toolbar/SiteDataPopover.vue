@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Info, Cookie, Database, HardDrive, Trash2, RefreshCw, ClipboardPaste } from 'lucide-vue-next'
+import { Info, Cookie, Database, HardDrive, Trash2, RefreshCw, ClipboardPaste, Download } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +39,9 @@ const confirmOpen = ref(false)
 const importMode = ref(false)
 const importText = ref('')
 const importing = ref(false)
+
+// 导出 cookie
+const exporting = ref(false)
 
 /** 当前 tab 是否为可清理的有效网站 */
 const hasSite = computed(() => {
@@ -136,6 +145,25 @@ async function handleImport() {
     toast.error('导入失败')
   } finally {
     importing.value = false
+  }
+}
+
+/** 导出当前站点 Cookie 为文件，format: netscape / json / header */
+async function handleExport(format: 'netscape' | 'json' | 'header') {
+  if (!tabStore.activeTabId) return
+  exporting.value = true
+  try {
+    const res = await api.siteData.exportCookies(tabStore.activeTabId, format)
+    if (res.success) {
+      toast.success(`已导出 ${res.count} 条 Cookie`)
+    } else if (res.error) {
+      // 用户在保存对话框取消时无 error，静默处理
+      toast.error(res.error)
+    }
+  } catch {
+    toast.error('导出失败')
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -298,6 +326,46 @@ watch(() => tabStore.activeTabId, loadInfo, { immediate: true })
               </TooltipContent>
             </Tooltip>
 
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <DropdownMenuTrigger
+                    as-child
+                    :disabled="!hasSite || exporting"
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      class="size-7"
+                      :disabled="!hasSite || exporting"
+                    >
+                      <Download class="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  :side-offset="4"
+                >
+                  导出 Cookie
+                </TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent
+                align="end"
+                :side-offset="4"
+              >
+                <DropdownMenuItem @click="handleExport('netscape')">
+                  Netscape（cookies.txt）
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="handleExport('json')">
+                  JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="handleExport('header')">
+                  Header String
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Tooltip>
               <TooltipTrigger as-child>
                 <Button
@@ -319,9 +387,6 @@ watch(() => tabStore.activeTabId, loadInfo, { immediate: true })
             </Tooltip>
           </div>
         </TooltipProvider>
-        <p class="text-[10px] text-muted-foreground text-center">
-          清理 Cookie / localStorage / IndexedDB / Cache
-        </p>
       </div>
     </div>
 

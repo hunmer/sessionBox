@@ -1,5 +1,16 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog } from 'electron'
+import type { Cookie, FileFilter } from 'electron'
+import { writeFile } from 'node:fs/promises'
 import { webviewManager } from '../services/webview-manager'
+
+export type CookieExportFormat = 'netscape' | 'json' | 'header'
+
+export interface CookieExportResult {
+  success: boolean
+  count: number
+  path?: string
+  error?: string
+}
 
 export interface SiteDataInfo {
   origin: string
@@ -178,6 +189,84 @@ export function registerSiteDataIpc(): void {
       return { success: count > 0, count, skipped }
     },
   )
+
+  /**
+   * 导出当前站点 Cookie 为文件
+   * - netscape：curl / wget 兼容的 cookies.txt
+   * - json：Electron Cookie 对象数组（Cookie-Editor 等工具可读）
+   * - header：标准 Cookie 请求头字符串 `name=value; ...`
+   * 用户在保存对话框取消时不报错（success: false 且无 error）。
+   */
+  ipcMain.handle(
+    'siteData:exportCookies',
+    async (_e, tabId: string, format: CookieExportFormat): Promise<CookieExportResult> => {
+      const wc = webviewManager.getWebContents(tabId)
+      if (!wc) return { success: false, count: 0, error: '未找到页面' }
+
+      const url = wc.getURL()
+      if (!url || url.startsWith('sessionbox://')) return { success: false, count: 0, error: '当前页面无站点数据' }
+
+      let hostname = ''
+      try {
+        hostname = new URL(url).hostname
+      } catch {
+        return { success: false, count: 0, error: '无效的页面地址' }
+      }
+
+      const cookies = await wc.session.cookies.get({ url })
+      if (!cookies.length) return { success: false, count: 0, error: '当前站点没有 Cookie' }
+
+      let content = ''
+      let filters: FileFilter[]
+      let defaultPath = ''
+      if (format === 'netscape') {
+        content = toNetscapeCookies(cookies)
+        filters = [{ name: 'Netscape Cookie 文件', extensions: ['txt'] }]
+        defaultPath = `${hostname}-cookies.txt`
+      } else if (format === 'json') {
+        content = JSON.stringify(cookies, null, 2)
+        filters = [{ name: 'JSON', extensions: ['json'] }]
+        defaultPath = `${hostname}-cookies.json`
+      } else {
+        content = cookies.map((c) => `${c.name}=${c.value}`).join('; ')
+        filters = [{ name: '文本文件', extensions: ['txt'] }]
+        defaultPath = `${hostname}-cookies-header.txt`
+      }
+
+      const result = await dialog.showSaveDialog({ defaultPath, filters })
+      if (result.canceled || !result.filePath) return { success: false, count: 0 }
+
+      try {
+        await writeFile(result.filePath, content, 'utf-8')
+        return { success: true, count: cookies.length, path: result.filePath }
+      } catch (error) {
+        return { success: false, count: 0, error: error instanceof Error ? error.message : String(error) }
+      }
+    },
+  )
+}
+
+/**
+ * 序列化为 Netscape cookies.txt 格式（curl / wget 兼容）
+ * 每行 7 个 TAB 分隔字段：domain, includeSubdomains, path, secure, expires, name, value
+ * - hostOnly 的 cookie 域名不加前导点（只匹配该域），否则加 `.` 以匹配子域
+ * - 会话 cookie（无 expirationDate）expires 为 0
+ */
+function toNetscapeCookies(cookies: Cookie[]): string {
+  const lines = [
+    '# Netscape HTTP Cookie File',
+    '# https://curl.se/docs/http-cookies.html',
+    '',
+  ]
+  for (const c of cookies) {
+    const domain = c.hostOnly ? c.domain : `.${c.domain}`
+    const includeSubdomains = c.hostOnly ? 'FALSE' : 'TRUE'
+    const expires = c.expirationDate ? Math.floor(c.expirationDate) : 0
+    lines.push(
+      [domain, includeSubdomains, c.path || '/', c.secure ? 'TRUE' : 'FALSE', String(expires), c.name, c.value].join('\t'),
+    )
+  }
+  return `${lines.join('\n')}\n`
 }
 
 /**
