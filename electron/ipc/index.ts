@@ -32,6 +32,8 @@ import {
   setAskContainerOnOpen,
   getDefaultWorkspaceId,
   setDefaultWorkspaceId,
+  getSessionApiSettings,
+  setSessionApiSettings,
   getMutedSites,
   setMutedSites,
   addMutedSite,
@@ -610,6 +612,10 @@ function registerSettingsIpc(): void {
 
   ipcMain.handle('settings:getDefaultWorkspaceId', () => getDefaultWorkspaceId())
   ipcMain.handle('settings:setDefaultWorkspaceId', (_e, id: string) => setDefaultWorkspaceId(id))
+  ipcMain.handle('settings:getSessionApi', () => getSessionApiSettings())
+  ipcMain.handle('settings:setSessionApi', (_e, settings: { port: number; token: string }) => {
+    setSessionApiSettings(settings)
+  })
 
   // 默认浏览器
   ipcMain.handle('settings:setDefaultBrowser', (_e, enabled: boolean) => setDefaultBrowser(enabled))

@@ -2,6 +2,8 @@ import { BrowserWindow } from 'electron'
 import { pluginEventBus } from './plugin-event-bus'
 import { PluginStorage } from './plugin-storage'
 import type { PluginContext, PluginInfo } from './plugin-types'
+import { sessionService, startSessionApiServer, stopSessionApiServer } from './session-service'
+import { getSessionApiSettings } from './store'
 
 export function createPluginContext(
   pluginInfo: PluginInfo,
@@ -15,6 +17,8 @@ export function createPluginContext(
   const registeredHandlers: Array<{ event: string; handler: (...args: any[]) => void }> = []
 
   const context: PluginContext = {
+    session: sessionService,
+    sessionServer: { start: () => { const config = getSessionApiSettings(); startSessionApiServer(config.port, config.token); return config }, stop: stopSessionApiServer },
     events: {
       on(event: string, handler: (...args: any[]) => void): void {
         registeredHandlers.push({ event, handler })

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doubao 2API 控制台</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{
+brand:{50:'#eef2ff',100:'#e0e7ff',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81'},
+surface:{50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',700:'#334155',800:'#1e293b',900:'#0f172a'}
+}}}}
+</script>
+<style>
+[v-cloak]{display:none}
+*{box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a}
+.sidebar-item{transition:all .15s}
+.sidebar-item:hover{background:rgba(99,102,241,.15)}
+.sidebar-item.active{background:rgba(99,102,241,.2);border-right:3px solid #6366f1}
+.glass{background:rgba(255,255,255,.03);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.06)}
+.card{background:#1e293b;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:20px}
+.card-glow{box-shadow:0 0 20px rgba(99,102,241,.05)}
+.metric{background:linear-gradient(135deg,#1e293b 0%,#1a2332 100%)}
+pre.out{max-height:420px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;scrollbar-width:thin}
+pre.out::-webkit-scrollbar{width:6px}
+pre.out::-webkit-scrollbar-thumb{background:#475569;border-radius:3px}
+.thinking-box{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border-left:3px solid #a78bfa}
+.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+input,select,textarea{background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:10px 14px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.btn{padding:9px 20px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.3)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-primary{background:linear-gradient(135deg,#3b82f6,#2563eb)}
+.btn-primary:hover{box-shadow:0 4px 12px rgba(59,130,246,.3)}
+.btn-success{background:linear-gradient(135deg,#10b981,#059669)}
+.btn-success:hover{box-shadow:0 4px 12px rgba(16,185,129,.3)}
+.btn-sm{padding:6px 14px;background:#334155;color:#e2e8f0;border-radius:6px;font-size:12px;border:none;cursor:pointer;transition:all .15s}
+.btn-sm:hover{background:#475569}
+</style>
+</head>
+<body class="min-h-screen text-slate-200">
+<div id="app" v-cloak class="flex h-screen overflow-hidden">
+
+<!-- Sidebar -->
+<aside class="w-60 bg-surface-900 border-r border-slate-800 flex flex-col shrink-0">
+  <div class="p-5 border-b border-slate-800">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2L3 7v6l7 5 7-5V7l-7-5z"/></svg>
+      </div>
+      <div>
+        <div class="font-bold text-white text-sm tracking-wide">Doubao 2API</div>
+        <div class="text-xs text-slate-400">OpenAI 兼容代理</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="flex-1 py-4 px-2 space-y-1">
+    <button v-for="(tab,i) in tabs" :key="i" @click="activeTab=i"
+      :class="['sidebar-item w-full text-left px-4 py-3 rounded-lg text-sm flex items-center gap-3 font-medium', activeTab===i ? 'active text-white bg-indigo-600/20' : 'text-slate-400']">
+      <span v-html="icons[i]"></span>{{tab.name}}
+    </button>
+  </nav>
+
+  <div class="p-4 border-t border-slate-800 bg-surface-900/60">
+    <div class="flex items-center justify-between text-xs">
+      <span class="text-slate-400">登录状态</span>
+      <div class="flex items-center gap-1.5 font-medium" :class="session&&session.logged_in?'text-emerald-400':'text-rose-400'">
+        <span :class="['w-2 h-2 rounded-full', session&&session.logged_in?'bg-emerald-400 pulse':'bg-rose-400']"></span>
+        {{session&&session.logged_in?'已登录就绪':'未登录'}}
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<div class="flex-1 overflow-y-auto">
+  <header class="sticky top-0 z-10 glass px-8 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <h1 class="text-lg font-bold text-white">{{tabs[activeTab].name}}</h1>
+      <span class="text-xs px-2.5 py-0.5 rounded-full border"
+        :class="session&&session.logged_in?'bg-emerald-950/60 text-emerald-400 border-emerald-800/50':'bg-rose-950/60 text-rose-400 border-rose-800/50'">
+        {{session&&session.logged_in?'API 服务正常':'等待登录'}}
+      </span>
+      <span class="text-xs px-2.5 py-0.5 rounded-full border bg-amber-950/60 text-amber-300 border-amber-800/50 flex items-center gap-1" title="API 请求完成后会自动删除豆包临时对话，保持侧边栏干净整洁">
+        <span>🔥</span> 即用即焚模式
+      </span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button @click="resetCaptcha" class="btn btn-sm btn-outline border-slate-700 text-slate-300 hover:text-white" title="重置验证拦截状态，恢复API畅通">
+        🔄 解除拦截 / 恢复服务
+      </button>
+      <button @click="openDoubaoWeb" class="btn btn-sm btn-primary">
+        🌐 在浏览器中打开豆包
+      </button>
+      <div class="text-xs text-slate-400 font-mono">{{currentTime}}</div>
+    </div>
+  </header>
+
+  <div class="p-8 max-w-6xl mx-auto space-y-6">
+
+    <!-- TAB 0: 状态与快速登录 -->
+    <section v-show="activeTab===0" class="space-y-6">
+
+      <!-- Captcha Alert Banner if needs_captcha is True -->
+      <div v-if="session && session.needs_captcha" class="card border border-amber-500/40 bg-amber-950/40 flex items-center justify-between p-4 rounded-xl">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">⚠️</span>
+          <div>
+            <div class="text-sm font-bold text-amber-300">安全风控状态预警 (needs_captcha)</div>
+            <div class="text-xs text-amber-400/80 mt-0.5">检测到验证拦截标志。若打开的 Chrome 窗口中未见滑块拼图（偶发误判），可直接点击右侧按钮一键解锁自愈。</div>
+          </div>
+        </div>
+        <button @click="resetCaptcha" class="btn btn-sm bg-amber-600 hover:bg-amber-500 text-white font-medium shrink-0 ml-4">
+          🔄 一键解除拦截
+        </button>
+      </div>
+
+      <!-- Status Metric Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="metric card card-glow">
+          <div class="text-xs text-slate-400 mb-1">会话授权状态</div>
+          <div class="flex items-center gap-2">
+            <span :class="['w-3 h-3 rounded-full',session&&session.logged_in?'bg-emerald-400 pulse':'bg-rose-400']"></span>
+            <span class="text-xl font-bold" :class="session&&session.logged_in?'text-emerald-400':'text-rose-400'">
+              {{session&&session.logged_in?'已授权 (Logged In)':'未登录 (Not Logged In)'}}
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-2">
+            {{session&&session.logged_in?'Session 有效，所有客户端均可正常请求。':'请使用下方按钮打开豆包进行登录或导入凭证。'}}
+          </p>
+        </div>
+
+        <div class="metric card">
+          <div class="text-xs text-slate-400 mb-1">运行模式</div>
+          <div class="text-xl font-bold text-white flex items-center gap-2">
+            <span>{{browserMode.headless?'👻 静默后台模式':'🖥️ 可见窗口模式'}}</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-2">
+            {{browserMode.headless?'无弹窗干扰，低内存占用。':'可直接在前台查看与操作浏览器。'}}
+          </p>
+        </div>
+
+        <div class="metric card">
+          <div class="text-xs text-slate-400 mb-1">本地服务地址</div>
+          <div class="text-sm font-mono font-bold text-brand-300">http://127.0.0.1:9090</div>
+          <p class="text-xs text-slate-400 mt-2">OpenAI Base: <code class="text-slate-300 font-mono">/v1</code></p>
+        </div>
+      </div>
+
+      <!-- Quick Login Actions Card -->
+      <div class="card card-glow border border-indigo-500/30">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span>🚀 快速登录与窗口唤起</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">若 Chrome 窗口未自动弹出，可直接点击下方按钮跳转到常用浏览器登录，或强制唤起独立窗口：</p>
+          </div>
+          <button @click="fetchOverview" class="btn-sm">🔄 刷新状态</button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+          <!-- Button 1: Open Doubao in User's Default Browser -->
+          <button @click="openDoubaoWeb" class="btn btn-primary py-3.5 text-sm">
+            <span>🌐</span>
+            <span>在常用浏览器中打开豆包</span>
+          </button>
+
+          <!-- Button 2: Force Launch / Bring Window to Front -->
+          <button @click="forceWindow" :disabled="windowActionLoading" class="btn py-3.5 text-sm" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">
+            <span>🖥️</span>
+            <span>{{windowActionLoading?'正在唤起...':'弹出 / 置顶 Chrome 窗口'}}</span>
+          </button>
+
+          <!-- Button 3: Toggle Live Screenshot -->
+          <button @click="toggleScreenshot" class="btn btn-sm py-3.5 text-sm" style="background:#334155">
+            <span>📷</span>
+            <span>{{showScreenshot?'收起浏览器截图':'查看后台实时画面'}}</span>
+          </button>
+        </div>
+
+        <!-- Inline Screenshot Viewer -->
+        <div v-if="showScreenshot" class="mt-5 p-4 rounded-xl bg-slate-900/90 border border-slate-700">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs text-slate-300 font-medium">后台浏览器实时画面（如有二维码可直接用手机扫码）：</span>
+            <button @click="refreshScreenshot" :disabled="screenshot.loading" class="btn-sm text-xs">
+              {{screenshot.loading?'截图中...':'🔄 刷新画面'}}
+            </button>
+          </div>
+          <div v-if="screenshot.img" class="flex flex-col items-center">
+            <img :src="screenshot.img" class="max-h-96 rounded-lg border border-slate-700 shadow-xl" />
+            <span class="text-xs text-slate-500 mt-2 font-mono">截取时间: {{screenshot.time}}</span>
+          </div>
+          <div v-else class="py-8 text-center text-xs text-slate-500">正在加载截图...</div>
+        </div>
+      </div>
+
+      <!-- Quick Cookie Import Card -->
+      <div class="card border border-slate-700 bg-surface-900/40">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <span>📥 一键导入已登录 Cookie（最稳妥、免扫码）</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">如果您已经在日常的 Edge 或 Chrome 中登录了豆包，只需 5 秒即可导入：</p>
+          </div>
+        </div>
+
+        <div class="p-3 mb-3 rounded-lg bg-surface-800/80 border border-slate-700 text-xs text-slate-300 space-y-1">
+          <div>1. 在已登录的豆包网页（doubao.com/chat）按 <kbd class="px-1.5 py-0.5 rounded bg-slate-700 font-mono text-slate-200">F12</kbd> 打开控制台；</div>
+          <div>2. 切换到 <span class="text-indigo-300 font-semibold">Console (控制台)</span>，输入 <code class="text-emerald-400 font-mono font-bold select-all">copy(document.cookie)</code> 并按回车；</div>
+          <div>3. 粘贴到下方文本框，点击【确认导入并激活】即可永久保存！</div>
+        </div>
+
+        <div class="flex gap-2">
+          <input v-model="cookieInput" type="text" class="flex-1 text-xs font-mono" placeholder="粘贴 Cookie 字符串（或直接粘贴 sessionid 的值）..." />
+          <button @click="submitCookie" :disabled="cookieLoading||!cookieInput.trim()" class="btn btn-success text-xs font-semibold px-5 shrink-0">
+            {{cookieLoading?'正在激活...':'确认导入并激活'}}
+          </button>
+        </div>
+        <div v-if="cookieMessage" class="mt-2 text-xs font-semibold" :class="cookieMessage.includes('成功')?'text-emerald-400':'text-rose-400'">
+          {{cookieMessage}}
+        </div>
+      </div>
+
+      <!-- Client Configuration Info -->
+      <div class="card border border-slate-700 bg-surface-900/40">
+        <h3 class="text-sm font-bold text-slate-200 mb-2">🔌 客户端接入配置 (OpenAI 兼容)</h3>
+        <p class="text-xs text-slate-400 mb-3">可在 Cherry Studio、Chatbox、NextChat、Cursor、沉浸式翻译等任意软件中使用：</p>
+        <div class="grid md:grid-cols-2 gap-3 text-xs">
+          <div class="p-3 bg-surface-800 rounded-lg border border-slate-700">
+            <span class="text-slate-400 block mb-1">API Base URL:</span>
+            <code class="font-mono text-indigo-300 font-bold select-all text-sm">http://127.0.0.1:9090/v1</code>
+          </div>
+          <div class="p-3 bg-surface-800 rounded-lg border border-slate-700">
+            <span class="text-slate-400 block mb-1">API Key:</span>
+            <code class="font-mono text-emerald-400 font-bold select-all text-sm">sk-doubao (或任意字符)</code>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 1: API 调试测试 -->
+    <section v-show="activeTab===1" class="space-y-6">
+      <div class="card">
+        <div class="grid md:grid-cols-4 gap-4 mb-4">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1.5 font-medium">选择模型 (Model)</label>
+            <select v-model="test.model" class="w-full text-xs">
+              <option value="doubao-2.1-turbo">doubao-2.1-turbo (极速响应，推荐)</option>
+              <option value="doubao-think">doubao-think (深度思考链，强推理)</option>
+              <option value="doubao-2.1-pro">doubao-2.1-pro (2.1 专业版)</option>
+              <option value="doubao-2.1">doubao-2.1 (2.1 标准版)</option>
+              <option value="doubao-expert">doubao-expert (专家深度推理)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1.5 font-medium">思考深度 (Reasoning)</label>
+            <select v-model="test.reasoningEffort" class="w-full text-xs">
+              <option value="auto">默认 (跟随模型推荐)</option>
+              <option value="high">强制开启深度思考 (high)</option>
+              <option value="none">强制关闭思考 (none)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1.5 font-medium">传输方式 (Stream)</label>
+            <select v-model="test.stream" class="w-full text-xs">
+              <option :value="true">流式打字输出 (Stream)</option>
+              <option :value="false">单次完整输出 (Block)</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button @click="runTest" :disabled="test.loading" class="btn btn-primary w-full py-2.5 text-sm font-bold shadow-lg">
+              {{test.loading?'正在处理响应...':'🚀 发送测试'}}
+            </button>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="text-xs text-slate-400 block mb-1.5 font-medium">测试内容 (Prompt)</label>
+          <textarea v-model="test.prompt" rows="3" class="w-full text-sm font-sans" placeholder="输入测试内容..."></textarea>
+        </div>
+
+        <!-- Thinking Chain Accordion -->
+        <div v-if="test.thinking" class="mb-4">
+          <div @click="test.thinkOpen=!test.thinkOpen" class="flex items-center gap-2 cursor-pointer select-none mb-2">
+            <svg :class="['w-4 h-4 transition-transform text-purple-400', test.thinkOpen?'rotate-90':'']" fill="currentColor" viewBox="0 0 20 20"><path d="M6 4l8 6-8 6V4z"/></svg>
+            <span class="text-xs font-bold text-purple-400">🧠 深度思维链 (Thinking Process - {{test.thinking.length}} 字)</span>
+          </div>
+          <div v-show="test.thinkOpen" class="thinking-box rounded-lg p-4">
+            <pre class="out text-purple-200 text-xs leading-relaxed font-sans">{{test.thinking}}</pre>
+          </div>
+        </div>
+
+        <!-- Output Box -->
+        <div v-if="test.output" class="mt-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-slate-400 font-semibold">回复内容 (Answer)</span>
+            <span class="text-xs text-brand-400 font-mono font-bold">{{test.ms}}ms</span>
+          </div>
+          <pre class="out bg-surface-900 text-emerald-300 p-4 rounded-lg text-sm border border-slate-700 font-sans leading-relaxed">{{test.output}}</pre>
+        </div>
+
+        <div v-if="test.error" class="mt-4 p-4 bg-rose-950/40 border border-rose-800/80 rounded-lg text-rose-300 text-xs leading-relaxed">
+          <span class="font-bold">❌ 请求失败：</span>{{test.error}}
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: 请求日志 -->
+    <section v-show="activeTab===2">
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs text-slate-400">最近 100 条请求调用记录 (每 5 秒自动刷新)</span>
+          <button @click="fetchLogs" class="btn-sm">🔄 刷新</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-slate-500 border-b border-slate-700">
+                <th class="py-2.5 px-3">时间</th>
+                <th class="py-2.5 px-3">方法</th>
+                <th class="py-2.5 px-3">路径</th>
+                <th class="py-2.5 px-3">模型</th>
+                <th class="py-2.5 px-3">状态</th>
+                <th class="py-2.5 px-3">耗时</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(l,i) in logs" :key="i" class="border-b border-slate-800 hover:bg-slate-800/40 transition-colors">
+                <td class="py-2 px-3 text-slate-400 font-mono text-xs">{{fmtTime(l.ts)}}</td>
+                <td class="py-2 px-3">
+                  <span class="px-1.5 py-0.5 rounded text-xs font-mono font-medium" :class="l.method==='POST'?'bg-amber-900/40 text-amber-300':'bg-blue-900/40 text-blue-300'">{{l.method}}</span>
+                </td>
+                <td class="py-2 px-3 font-mono text-xs text-slate-300">{{l.path}}</td>
+                <td class="py-2 px-3 text-xs font-mono text-brand-400">{{l.model||'-'}}</td>
+                <td class="py-2 px-3 font-mono font-semibold" :class="l.status<400?'text-emerald-400':'text-rose-400'">{{l.status}}</td>
+                <td class="py-2 px-3 text-slate-400 font-mono text-xs">{{l.ms}}ms</td>
+              </tr>
+              <tr v-if="!logs.length"><td colspan="6" class="py-8 text-center text-slate-500">暂无请求记录</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+</div>
+
+<script>
+const{createApp,ref,reactive,onMounted}=Vue;
+createApp({
+  setup(){
+    const API=window.location.origin;
+    const tabs=ref([{name:'状态与登录'},{name:'API 调试测试'},{name:'请求日志'}]);
+    const icons=[
+      '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>',
+      '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>',
+      '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
+    ];
+    const activeTab=ref(0);
+    const session=ref(null);
+    const browserMode=reactive({headless:false,mode:'window',loading:false});
+    const currentTime=ref('');
+    const cookieInput=ref('');
+    const cookieLoading=ref(false);
+    const cookieMessage=ref('');
+    const showScreenshot=ref(false);
+    const screenshot=reactive({img:'',loading:false,time:''});
+    const windowActionLoading=ref(false);
+    const logs=ref([]);
+
+    const test=reactive({
+      model:'doubao-2.1-turbo',
+      reasoningEffort:'auto',
+      stream:true,
+      prompt:'9.11和9.8哪个大？请简要推理说明。',
+      output:'',
+      thinking:'',
+      thinkOpen:true,
+      error:'',
+      loading:false,
+      ms:0
+    });
+
+    function fmtTime(ts){if(!ts)return'';return new Date(ts*1000).toLocaleTimeString('zh-CN',{hour12:false})}
+
+    async function api(path,opts={}){
+      const r=await fetch(API+path,{headers:{'Content-Type':'application/json'},...opts});
+      return r.json();
+    }
+
+    async function fetchSession(){
+      try{
+        const d=await api('/admin/api/status');
+        session.value={logged_in:d.logged_in,status:d.logged_in?'healthy':'not_logged_in'};
+        if(d.headless!==undefined){
+          browserMode.headless=d.headless;
+          browserMode.mode=d.mode||(d.headless?'headless':'window');
+        }
+      }catch(e){
+        session.value={logged_in:false};
+      }
+    }
+
+    async function fetchOverview(){
+      await fetchSession();
+    }
+
+    async function openDoubaoWeb(){
+      window.open('https://www.doubao.com/chat/', '_blank');
+      try{
+        await api('/admin/api/open-doubao',{method:'POST'});
+      }catch(e){}
+    }
+
+    async function forceWindow(){
+      windowActionLoading.value=true;
+      try{
+        const r=await api('/admin/api/browser/force-window',{method:'POST'});
+        if(r.status==='ok'){
+          browserMode.headless=false;
+          browserMode.mode='window';
+          alert('已请求唤起 Chrome 窗口！若任务栏闪烁请点击激活。');
+        }else{
+          alert('唤起窗口提示: '+(r.detail||'后台正在运行'));
+        }
+        await fetchSession();
+      }catch(e){
+        alert('操作失败: '+e.message);
+      }finally{
+        windowActionLoading.value=false;
+      }
+    }
+
+    async function toggleScreenshot(){
+      showScreenshot.value=!showScreenshot.value;
+      if(showScreenshot.value){
+        await refreshScreenshot();
+      }
+    }
+
+    async function refreshScreenshot(){
+      screenshot.loading=true;
+      try{
+        const r=await fetch(API+'/auth/screenshot');
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        const blob=await r.blob();
+        screenshot.img=URL.createObjectURL(blob);
+        screenshot.time=new Date().toLocaleTimeString('zh-CN',{hour12:false});
+      }catch(e){
+        screenshot.img='';
+        alert('获取画面失败: '+e.message);
+      }finally{
+        screenshot.loading=false;
+      }
+    }
+
+    async function submitCookie(){
+      if(!cookieInput.value.trim())return;
+      cookieLoading.value=true;
+      cookieMessage.value='';
+      try{
+        const r=await api('/admin/api/cookies/import',{
+          method:'POST',
+          body:JSON.stringify({cookies:cookieInput.value.trim()})
+        });
+        if(r.status==='ok'&&r.logged_in){
+          cookieMessage.value='🎉 导入成功！会话已成功激活，已就绪！';
+          cookieInput.value='';
+          await fetchSession();
+        }else{
+          cookieMessage.value='⚠️ 导入已接收，但检测到会话尚未生效，请确认复制了包含 sessionid 的完整 Cookie。';
+          await fetchSession();
+        }
+      }catch(e){
+        cookieMessage.value='导入出错: '+e.message;
+      }finally{
+        cookieLoading.value=false;
+      }
+    }
+
+    async function fetchLogs(){
+      try{
+        logs.value=(await api('/admin/api/logs')).reverse();
+      }catch(e){}
+    }
+
+    async function runTest(){
+      test.output='';
+      test.thinking='';
+      test.error='';
+      test.loading=true;
+      test.ms=0;
+      const t0=Date.now();
+
+      if(!test.prompt.trim()){
+        test.error='请输入测试内容';
+        test.loading=false;
+        return;
+      }
+
+      const controller=new AbortController();
+      const timeoutId=setTimeout(()=>controller.abort(),60000);
+
+      try{
+        const reqBody={
+          model:test.model,
+          messages:[{role:'user',content:test.prompt}],
+          stream:test.stream
+        };
+        if(test.reasoningEffort!=='auto'){
+          reqBody.reasoning_effort=test.reasoningEffort;
+          reqBody.enable_thinking=(test.reasoningEffort!=='none');
+        }
+
+        const resp=await fetch(API+'/v1/chat/completions',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(reqBody),
+          signal:controller.signal
+        });
+
+        if(!resp.ok){
+          const err=await resp.json().catch(()=>({}));
+          throw new Error(err.error?.message||err.detail||('HTTP '+resp.status));
+        }
+
+        if(test.stream){
+          const reader=resp.body.getReader();
+          const dec=new TextDecoder();
+          let buf='';
+          while(true){
+            const{done,value}=await reader.read();
+            if(done)break;
+            buf+=dec.decode(value,{stream:true});
+            const lines=buf.split('\n');
+            buf=lines.pop()||'';
+            for(const line of lines){
+              if(!line.startsWith('data: '))continue;
+              const d=line.slice(6);
+              if(d==='[DONE]')continue;
+              try{
+                const j=JSON.parse(d);
+                if(j.error)throw new Error(j.error.message||'Stream error');
+                const delta=j.choices?.[0]?.delta||{};
+                if(delta.reasoning_content)test.thinking+=delta.reasoning_content;
+                if(delta.content)test.output+=delta.content;
+              }catch(e){
+                if(e.message==='Stream error')throw e;
+              }
+            }
+          }
+        }else{
+          const r=await resp.json();
+          const msg=r.choices?.[0]?.message||{};
+          test.output=msg.content||JSON.stringify(r,null,2);
+          if(msg.reasoning_content)test.thinking=msg.reasoning_content;
+        }
+        test.ms=Date.now()-t0;
+      }catch(e){
+        if(e.name==='AbortError'){
+          test.error='请求超时（超过60秒），可能尚未完成登录，请先在常用浏览器中登录。';
+        }else{
+          test.error=e.message||'调用出错';
+        }
+      }finally{
+        clearTimeout(timeoutId);
+        test.loading=false;
+      }
+    }
+
+    onMounted(()=>{
+      fetchOverview();
+      fetchLogs();
+      currentTime.value=new Date().toLocaleTimeString('zh-CN',{hour12:false});
+      setInterval(()=>{currentTime.value=new Date().toLocaleTimeString('zh-CN',{hour12:false})},1000);
+      setInterval(()=>{if(activeTab.value===0)fetchSession()},5000);
+      setInterval(()=>{if(activeTab.value===2)fetchLogs()},5000);
+    });
+
+    async function resetCaptcha(){
+      try{
+        const r=await api('/auth/reset_captcha',{method:'POST'});
+        alert(r.message||'安全拦截标志已解除，服务已恢复正常！');
+        await fetchSession();
+      }catch(e){
+        alert('解除失败: '+e.message);
+      }
+    }
+
+    return{
+      tabs,icons,activeTab,session,browserMode,currentTime,
+      cookieInput,cookieLoading,cookieMessage,
+      showScreenshot,screenshot,windowActionLoading,logs,test,
+      fmtTime,fetchOverview,openDoubaoWeb,forceWindow,toggleScreenshot,
+      refreshScreenshot,submitCookie,fetchLogs,runTest,resetCaptcha
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

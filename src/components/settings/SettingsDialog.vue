@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import {
-  Settings, Palette, Settings2, LayoutList, Keyboard, Globe, Info, Download, Search, Box, Server, Bookmark, CloudCog
+  Settings, Palette, Settings2, LayoutList, Keyboard, Globe, Info, Download, Search, Box, Server, Bookmark, CloudCog, KeyRound
 } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import SettingsGeneral from './SettingsGeneral.vue'
@@ -16,6 +16,7 @@ import SettingsContainer from './SettingsContainer.vue'
 import SettingsMCP from './SettingsMCP.vue'
 import SettingsBookmark from './SettingsBookmark.vue'
 import SettingsSync from './SettingsSync.vue'
+import SettingsSessionApi from './SettingsSessionApi.vue'
 
 const props = defineProps<{ open: boolean; initialTab?: string }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
@@ -31,6 +32,7 @@ const tabs = [
   { key: 'download', label: '下载', icon: Download },
   { key: 'search', label: '搜索', icon: Search },
   { key: 'mcp', label: 'MCP', icon: Server },
+  { key: 'session-api', label: 'HTTP 服务', icon: KeyRound },
   { key: 'sync', label: '数据同步', icon: CloudCog },
   { key: 'about', label: '关于', icon: Info }
 ]
@@ -87,6 +89,7 @@ watch(() => props.open, (open) => {
           <SettingsDownload v-else-if="activeTab === 'download'" />
           <SettingsSearch v-else-if="activeTab === 'search'" />
           <SettingsMCP v-else-if="activeTab === 'mcp'" />
+          <SettingsSessionApi v-else-if="activeTab === 'session-api'" />
           <SettingsSync v-else-if="activeTab === 'sync'" />
           <SettingsAbout v-else-if="activeTab === 'about'" />
         </div>

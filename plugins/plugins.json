@@ -1,5 +1,15 @@
 [
   {
+    "id": "sessionbox.doubao-api",
+    "name": "Doubao API Bridge",
+    "version": "1.0.0",
+    "description": "通过页面 ID 将 SessionBox 会话提供给 Doubao API",
+    "author": { "name": "SessionBox" },
+    "tags": ["Doubao", "API", "会话"],
+    "hasView": false,
+    "downloadUrl": "doubao-api.zip"
+  },
+  {
     "id": "sessionbox.group-tab-filter",
     "name": "Group Tab Filter",
     "version": "1.0.0",

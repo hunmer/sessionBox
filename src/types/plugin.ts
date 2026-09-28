@@ -53,6 +53,12 @@ export interface PluginInstance {
 
 /** 插件上下文 API */
 export interface PluginContext {
+  session: {
+    getCookies(pageId: string, url?: string): Promise<any[]>
+    openPage(pageId: string, url: string): Promise<{ pageId: string; url: string }>
+    execute(pageId: string, code: string): Promise<unknown>
+  }
+  sessionServer: { start(): { port: number; token: string }; stop(): void }
   events: {
     on(event: string, handler: (...args: any[]) => void): void
     once(event: string, handler: (...args: any[]) => void): void

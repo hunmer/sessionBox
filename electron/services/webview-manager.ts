@@ -909,6 +909,13 @@ class WebviewManager {
     return entry.view.webContents
   }
 
+  getWebContentsByPageId(pageId: string) {
+    for (const entry of this.views.values()) {
+      if (entry.pageId === pageId && !entry.view.webContents.isDestroyed()) return entry.view.webContents
+    }
+    return null
+  }
+
   async captureTab(tabId: string): Promise<string | null> {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return null

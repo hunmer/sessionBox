@@ -1,0 +1,9 @@
+{
+  "id": "sessionbox.doubao-api",
+  "name": "Doubao API Bridge",
+  "version": "1.0.0",
+  "description": "通过页面 ID 将 SessionBox 会话提供给 Doubao API，账号和登录由 SessionBox 管理",
+  "author": { "name": "SessionBox" },
+  "tags": ["Doubao", "API", "会话"],
+  "hasView": false
+}

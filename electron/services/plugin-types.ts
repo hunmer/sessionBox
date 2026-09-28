@@ -47,6 +47,8 @@ export interface PluginMeta {
 
 /** 插件上下文 API */
 export interface PluginContext {
+  session: import('./session-service').SessionService
+  sessionServer: { start(): { port: number; token: string }; stop(): void }
   events: {
     on(event: string, handler: (...args: any[]) => void): void
     once(event: string, handler: (...args: any[]) => void): void

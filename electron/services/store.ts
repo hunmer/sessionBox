@@ -850,6 +850,15 @@ export function setDefaultWorkspaceId(id: string): void {
   store.set('defaultWorkspaceId', id)
 }
 
+export interface SessionApiSettings { port: number; token: string }
+export function getSessionApiSettings(): SessionApiSettings {
+  return store.get('sessionApi', { port: 19100, token: '' })
+}
+export function setSessionApiSettings(settings: SessionApiSettings): void {
+  const port = Math.max(1, Math.min(65535, Math.round(Number(settings.port) || 19100)))
+  store.set('sessionApi', { port, token: String(settings.token || '') })
+}
+
 // ====== 快捷键绑定操作 ======
 
 export function getShortcutBindings(): ShortcutBindingStore[] {
