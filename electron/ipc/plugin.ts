@@ -37,4 +37,5 @@ export function registerPluginIpcHandlers(): void {
   ipcMain.handle('plugin:uninstall', async (_e, pluginId: string) => {
     return pluginManager.uninstallPlugin(pluginId)
   })
+  ipcMain.handle('plugin:open-default', (_e, pluginId: string) => pluginManager.openDefault(pluginId))
 }

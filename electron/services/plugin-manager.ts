@@ -1,6 +1,8 @@
 import { join, basename } from 'path'
+import { pathToFileURL } from 'node:url'
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { app, BrowserWindow, shell, dialog } from 'electron'
+import { getSessionApiSettings } from './store'
 import AdmZip from 'adm-zip'
 import { pluginEventBus } from './plugin-event-bus'
 import { PluginStorage } from './plugin-storage'
@@ -182,8 +184,25 @@ class PluginManager {
       tags: instance.info.tags || [],
       hasView: instance.info.hasView || false,
       enabled: instance.enabled,
-      iconPath: this.getIconPath(instance)
+      iconPath: this.getIconPath(instance),
+      defaultBehavior: instance.info.defaultBehavior
     }))
+  }
+
+  openDefault(pluginId: string): void {
+    const instance = this.plugins.get(pluginId)
+    const behavior = instance?.info.defaultBehavior
+    if (!instance || !behavior || behavior.type !== 'browserWindow') return
+    const config = getSessionApiSettings()
+    const baseUrl = behavior.url.startsWith('file://PLUGIN_DIR/')
+      ? pathToFileURL(join(instance.dir, behavior.url.slice('file://PLUGIN_DIR/'.length))).toString()
+      : behavior.url.replace('PLUGIN_DIR', instance.dir.replace(/\\/g, '/'))
+    const separator = baseUrl.includes('?') ? '&' : '?'
+    const servicePort = pluginId === 'sessionbox.qianwen-api' ? 9091 : 9090
+    const url = `${baseUrl}${separator}api=${encodeURIComponent(`http://127.0.0.1:${config.port}`)}&service=${encodeURIComponent(`http://127.0.0.1:${servicePort}`)}&token=${encodeURIComponent(config.token)}`
+    const win = new BrowserWindow({ width: 1280, height: 860, show: false, autoHideMenuBar: true, title: instance.info.name, webPreferences: { sandbox: false } })
+    void win.loadURL(url)
+    win.once('ready-to-show', () => win.show())
   }
 
   private getIconPath(instance: PluginInstance): string {

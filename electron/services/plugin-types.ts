@@ -17,6 +17,7 @@ export interface PluginInfo {
   tags?: string[]
   minAppVersion?: string
   hasView?: boolean
+  defaultBehavior?: { type: 'browserWindow'; url: string }
 }
 
 /** 插件运行时实例 */
@@ -43,6 +44,7 @@ export interface PluginMeta {
   hasView: boolean
   enabled: boolean
   iconPath: string
+  defaultBehavior?: PluginInfo['defaultBehavior']
 }
 
 /** 插件上下文 API */

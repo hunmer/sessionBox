@@ -153,6 +153,10 @@ function handleOpenSettings(pluginId: string) {
   pluginStore.openView(pluginId)
 }
 
+function handleOpenDefault(pluginId: string) {
+  void window.api.plugin.openDefault(pluginId)
+}
+
 async function handleImportPlugin() {
   const result = await pluginStore.importPlugin()
   if (result.success) {
@@ -341,6 +345,7 @@ async function handleUninstall(pluginId: string) {
             :loading="loadingPluginId === plugin.id"
             @toggle="handleToggle"
             @open-settings="handleOpenSettings"
+            @open-default="handleOpenDefault"
             @install="handleInstall"
             @uninstall="handleUninstall"
           />

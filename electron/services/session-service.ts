@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http'
 import { URL } from 'node:url'
 import { webviewManager } from './webview-manager'
-import { getPageById, getSessionApiSettings } from './store'
+import { getPageById, getSessionApiSettings, listPages } from './store'
 
 export interface SessionCookie {
   name: string
@@ -54,7 +54,12 @@ export const sessionService: SessionService = {
 
 function json(res: ServerResponse, status: number, body: unknown) {
   const payload = JSON.stringify(body)
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*' })
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET,POST,OPTIONS',
+    'access-control-allow-headers': 'Authorization,Content-Type'
+  })
   res.end(payload)
 }
 
@@ -71,9 +76,17 @@ export function startSessionApiServer(port = getSessionApiSettings().port, token
   if (activeServer) return activeServer
   const server = createServer(async (req, res) => {
     try {
-      if (token && req.headers.authorization !== `Bearer ${token}`) return json(res, 401, { error: 'unauthorized' })
       if (req.method === 'OPTIONS') return json(res, 204, {})
+      if (token && req.headers.authorization !== `Bearer ${token}`) return json(res, 401, { error: 'unauthorized' })
       const parsed = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`)
+      if (req.method === 'GET' && parsed.pathname === '/api/v1/pages') {
+        const openViews = webviewManager.listOpenPageViews()
+        const openByPage = new Map(openViews.map((view) => [view.pageId, view]))
+        return json(res, 200, { pages: listPages().map((page) => {
+          const view = openByPage.get(page.id)
+          return { id: page.id, name: page.name, url: page.url, currentUrl: view?.url || page.url, title: view?.title || page.name, groupId: page.groupId, open: !!view }
+        }) })
+      }
       const match = parsed.pathname.match(/^\/api\/v1\/pages\/([^/]+)(?:\/(cookies|open|execute))?$/)
       if (!match) return json(res, 404, { error: 'not_found' })
       const pageId = decodeURIComponent(match[1])

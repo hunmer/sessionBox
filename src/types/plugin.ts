@@ -12,6 +12,7 @@ export interface PluginInfo {
   tags?: string[]
   minAppVersion?: string
   hasView?: boolean
+  defaultBehavior?: { type: 'browserWindow'; url: string }
 }
 
 /** 插件展示信息（传递给渲染进程） */
@@ -25,6 +26,7 @@ export interface PluginMeta {
   hasView: boolean
   enabled: boolean
   iconPath: string
+  defaultBehavior?: PluginInfo['defaultBehavior']
 }
 
 /** 在线插件商店条目 */
@@ -38,6 +40,7 @@ export interface RemotePlugin {
   hasView: boolean
   downloadUrl: string
   iconUrl?: string
+  defaultBehavior?: PluginInfo['defaultBehavior']
 }
 
 /** 插件运行时实例 */

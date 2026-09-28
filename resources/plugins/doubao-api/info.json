@@ -5,5 +5,6 @@
   "description": "通过页面 ID 将 SessionBox 会话提供给 Doubao API，账号和登录由 SessionBox 管理",
   "author": { "name": "SessionBox" },
   "tags": ["Doubao", "API", "会话"],
-  "hasView": false
+  "hasView": false,
+  "defaultBehavior": { "type": "browserWindow", "url": "file://PLUGIN_DIR/demo.html" }
 }

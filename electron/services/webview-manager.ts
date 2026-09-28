@@ -916,6 +916,15 @@ class WebviewManager {
     return null
   }
 
+  listOpenPageViews(): Array<{ pageId: string; url: string; title: string }> {
+    const result: Array<{ pageId: string; url: string; title: string }> = []
+    for (const entry of this.views.values()) {
+      if (!entry.pageId || entry.view.webContents.isDestroyed()) continue
+      result.push({ pageId: entry.pageId, url: entry.view.webContents.getURL(), title: entry.view.webContents.getTitle() })
+    }
+    return result
+  }
+
   async captureTab(tabId: string): Promise<string | null> {
     const entry = this.views.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) return null

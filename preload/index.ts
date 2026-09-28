@@ -732,7 +732,8 @@ const api = {
     install: (url: string): Promise<{ success: boolean; pluginName?: string; error?: string }> =>
       ipcRenderer.invoke('plugin:install', url),
     uninstall: (pluginId: string): Promise<{ success: boolean; error?: string }> =>
-      ipcRenderer.invoke('plugin:uninstall', pluginId)
+      ipcRenderer.invoke('plugin:uninstall', pluginId),
+    openDefault: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugin:open-default', pluginId)
   },
 
   // 自动更新

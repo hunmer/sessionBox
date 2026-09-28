@@ -19,6 +19,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'toggle', pluginId: string): void
   (e: 'open-settings', pluginId: string): void
+  (e: 'open-default', pluginId: string): void
   (e: 'install', plugin: RemotePlugin): void
   (e: 'uninstall', pluginId: string): void
 }>()
@@ -45,6 +46,7 @@ onMounted(async () => {
   <div
     class="rounded-lg border border-border bg-card p-4 transition-all hover:shadow-md hover:border-primary/30"
     :class="{ 'opacity-60': !storeMode && !plugin.enabled }"
+    @dblclick="!storeMode && plugin.enabled && 'defaultBehavior' in plugin && plugin.defaultBehavior ? emit('open-default', plugin.id) : undefined"
   >
     <div class="flex gap-4">
       <div class="shrink-0">
@@ -104,6 +106,16 @@ onMounted(async () => {
             @click="emit('open-settings', plugin.id)"
           >
             <Settings class="w-4 h-4" />
+          </Button>
+          <Button
+            v-if="plugin.defaultBehavior"
+            variant="outline"
+            size="sm"
+            class="h-7 text-xs"
+            title="打开插件默认页面"
+            @click="emit('open-default', plugin.id)"
+          >
+            打开
           </Button>
         </template>
         <!-- 商店模式：安装/卸载按钮 -->

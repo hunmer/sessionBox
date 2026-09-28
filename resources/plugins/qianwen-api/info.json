@@ -1,0 +1,10 @@
+{
+  "id": "sessionbox.qianwen-api",
+  "name": "Qianwen API Bridge",
+  "version": "1.0.0",
+  "description": "通过 SessionBox 页面会话提供通义千问 API",
+  "author": { "name": "SessionBox" },
+  "tags": ["Qianwen", "API", "会话"],
+  "hasView": false,
+  "defaultBehavior": { "type": "browserWindow", "url": "file://PLUGIN_DIR/demo.html" }
+}

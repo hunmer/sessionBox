@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>Qianwen API 调试</title>
+<style>body{font:14px system-ui;margin:28px;max-width:980px;color:#202124}select,textarea,button{padding:8px;margin:4px 0}select,textarea{width:100%;box-sizing:border-box}textarea{min-height:180px;font-family:monospace}button{cursor:pointer}.status{white-space:pre-wrap;background:#f5f5f5;padding:12px;min-height:80px}</style></head>
+<body><h1>Qianwen API 在线调试</h1><p>选择 SessionBox 页面后，可读取会话 Cookie、打开 Qianwen 页面或执行 JavaScript。</p>
+<label>账号页面<select id="page"></select></label><label>API<select id="api"><option value="cookies">获取 Cookie 元数据</option><option value="open">打开 Qianwen 页面</option><option value="execute">执行 JavaScript</option></select></label>
+<textarea id="input">document.title</textarea><button id="run">执行</button><div id="status" class="status">加载页面列表中...</div>
+<script>
+const query=new URLSearchParams(location.search), base=query.get('api')||'http://127.0.0.1:19100', token=query.get('token')||'', headers=token?{Authorization:`Bearer ${token}`}:{};
+const page=document.querySelector('#page'), api=document.querySelector('#api'), input=document.querySelector('#input'), status=document.querySelector('#status');
+async function request(path, options={}){const r=await fetch(base+path,{...options,headers:{...headers,...(options.headers||{})}});const data=await r.json();if(!r.ok)throw Error(data.error||r.statusText);return data}
+async function load(){try{const data=await request('/api/v1/pages');data.pages.forEach(p=>page.add(new Option(`${p.name} (${p.id})`,p.id)));status.textContent=`已加载 ${data.pages.length} 个页面`;}catch(e){status.textContent='加载失败：'+e.message}}
+api.onchange=()=>{input.value=api.value==='execute'?'document.title':'https://www.Qianwen.com/chat/'};
+document.querySelector('#run').onclick=async()=>{try{const id=encodeURIComponent(page.value);let data;if(api.value==='cookies')data=await request(`/api/v1/pages/${id}/cookies?url=https://www.Qianwen.com`);if(api.value==='open')data=await request(`/api/v1/pages/${id}/open`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:input.value})});if(api.value==='execute')data=await request(`/api/v1/pages/${id}/execute`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:input.value})});status.textContent=JSON.stringify(data,null,2)}catch(e){status.textContent='执行失败：'+e.message}};load();
+</script></body></html>

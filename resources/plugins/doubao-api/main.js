@@ -10,7 +10,9 @@ module.exports = {
     const sessionConfig = context.sessionServer.start()
     const serviceDir = path.join(__dirname, 'service')
     const log = fs.createWriteStream(path.join(serviceDir, 'service.log'), { flags: 'a' })
-    serviceProcess = spawn(process.env.DOUBAO_PYTHON || 'python', ['-m', 'doubao2api'], {
+    const bundledPython = 'G:/doubao2api-1/.venv/Scripts/python.exe'
+    const python = process.env.DOUBAO_PYTHON || (fs.existsSync(bundledPython) ? bundledPython : 'python')
+    serviceProcess = spawn(python, ['-m', 'doubao2api'], {
       cwd: serviceDir,
       env: {
         ...process.env,

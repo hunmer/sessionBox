@@ -1,0 +1,69 @@
+Traceback (most recent call last):
+  File "G:\programming\nodejs\sessionBox\resources\plugins\qianwen-api\service\qianwen_server.py", line 6, in <module>
+    from qianwen_client import QianwenClient, QIANWEN_MODELS
+  File "G:\programming\nodejs\sessionBox\resources\plugins\qianwen-api\service\qianwen_client.py", line 25, in <module>
+    from playwright.async_api import async_playwright, BrowserContext, Page
+ModuleNotFoundError: No module named 'playwright'
+Traceback (most recent call last):
+  File "G:\programming\nodejs\sessionBox\resources\plugins\qianwen-api\service\qianwen_server.py", line 6, in <module>
+    from qianwen_client import QianwenClient, QIANWEN_MODELS
+  File "G:\programming\nodejs\sessionBox\resources\plugins\qianwen-api\service\qianwen_client.py", line 25, in <module>
+    from playwright.async_api import async_playwright, BrowserContext, Page
+ModuleNotFoundError: No module named 'playwright'
+INFO:     Started server process [22868]
+INFO:     Waiting for application startup.
+ERROR:    Traceback (most recent call last):
+  File "G:\doubao2api-1\.venv\Lib\site-packages\starlette\routing.py", line 648, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\Administrator\AppData\Roaming\uv\python\cpython-3.11.9-windows-x86_64-none\Lib\contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "G:\programming\nodejs\sessionBox\resources\plugins\qianwen-api\service\qianwen_server.py", line 18, in lifespan
+    await client.start()
+  File "G:\programming\nodejs\sessionBox\resources\plugins\qianwen-api\service\qianwen_client.py", line 121, in start
+    browser = await self._playwright.chromium.launch(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\doubao2api-1\.venv\Lib\site-packages\playwright\async_api\_generated.py", line 16851, in launch
+    await self._impl_obj.launch(
+  File "G:\doubao2api-1\.venv\Lib\site-packages\playwright\_impl\_browser_type.py", line 101, in launch
+    await self._channel.send(
+  File "G:\doubao2api-1\.venv\Lib\site-packages\playwright\_impl\_connection.py", line 76, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\doubao2api-1\.venv\Lib\site-packages\playwright\_impl\_connection.py", line 632, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at C:\Users\Administrator\AppData\Local\ms-playwright\chromium_headless_shell-1243\chrome-headless-shell-win64\chrome-headless-shell.exe
+¨X¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨[
+¨U Looks like Playwright was just installed or updated.       ¨U
+¨U Please run the following command to download new browsers: ¨U
+¨U                                                            ¨U
+¨U     playwright install                                     ¨U
+¨U                                                            ¨U
+¨U <3 Playwright Team                                         ¨U
+¨^¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨a
+
+ERROR:    Application startup failed. Exiting.
+INFO:     Started server process [20020]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:9091 (Press CTRL+C to quit)
+INFO:     Started server process [28492]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:9091 (Press CTRL+C to quit)
+INFO:     Started server process [27588]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:9091 (Press CTRL+C to quit)
+INFO:     Started server process [4444]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:9091 (Press CTRL+C to quit)
+INFO:     Started server process [17984]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:9091 (Press CTRL+C to quit)
+INFO:     Started server process [10768]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:9091 (Press CTRL+C to quit)

@@ -248,6 +248,23 @@ def create_app(
     _browser: Dict[str, Any] = {}  # holds BrowserClient instance
     _qianwen: Dict[str, Any] = {}  # holds QianwenClient instance
 
+    async def _select_sessionbox_page(page_id: str) -> BrowserClient:
+        if not page_id:
+            raise HTTPException(status_code=400, detail="page_id is required")
+        current = _browser.get("client")
+        if current and current.page_id == page_id and current.is_ready:
+            return current
+        if current:
+            await current.stop()
+        client = BrowserClient(
+            headless=os.environ.get("DOUBAO_HEADLESS", "true").strip().lower() == "true",
+            page_id=page_id,
+            sessionbox_url=os.environ.get("SESSIONBOX_API_URL", "http://127.0.0.1:19100").strip(),
+        )
+        await client.start()
+        _browser["client"] = client
+        return client
+
     async def _browser_watchdog():
         """Background task: check browser health, auto-detect login, auto-restart on crash."""
         consecutive_dead = 0
@@ -287,18 +304,10 @@ def create_app(
         logging.getLogger("doubao2api.browser_client").addHandler(logging.StreamHandler())
 
         page_id = os.environ.get("DOUBAO_PAGE_ID", "").strip()
-        sessionbox_url = os.environ.get("SESSIONBOX_API_URL", "http://127.0.0.1:19100").strip()
-        if not page_id:
-            raise RuntimeError("DOUBAO_PAGE_ID must reference a SessionBox page")
-        headless = os.environ.get("DOUBAO_HEADLESS", "true").strip().lower() == "true"
-        client = BrowserClient(headless=headless, page_id=page_id, sessionbox_url=sessionbox_url)
-        await client.start()
-        _browser["client"] = client
-
-        if client.is_ready:
-            log.info("Browser client ready (already logged in)")
+        if page_id:
+            await _select_sessionbox_page(page_id)
         else:
-            log.warning("SessionBox page %s cookies are not authenticated", page_id)
+            log.info("Waiting for a SessionBox page selection")
 
         # Start browser watchdog
         watchdog_task = asyncio.create_task(_browser_watchdog())
@@ -319,18 +328,6 @@ def create_app(
             except Exception as e:
                 log.warning("Qianwen client failed to start: %s", e)
                 qw_client = None
-
-        # Auto open admin dashboard in default browser
-        if os.environ.get("DOUBAO_AUTO_OPEN", "true").lower() == "true":
-            server_port = int(os.environ.get("DOUBAO_PORT", "9090"))
-            async def _auto_open():
-                await asyncio.sleep(1.5)
-                try:
-                    import webbrowser
-                    webbrowser.open(f"http://127.0.0.1:{server_port}/admin")
-                except Exception:
-                    pass
-            asyncio.create_task(_auto_open())
 
         yield
 
@@ -508,8 +505,10 @@ def create_app(
     @app.middleware("http")
     async def _log_requests(request: Request, call_next):
         path = request.url.path
-        if path.startswith("/auth") or path.startswith("/admin"):
-            return await call_next(request)
+        if path.startswith("/admin"):
+            return JSONResponse(status_code=404, content={"error": {"message": "Admin endpoints have been removed", "type": "not_found", "code": 404}})
+        if path.startswith("/auth"):
+            return JSONResponse(status_code=410, content={"error": {"message": "Authentication is managed by SessionBox", "type": "gone", "code": 410}})
         start = time.time()
         response = await call_next(request)
         elapsed = round((time.time() - start) * 1000)
@@ -543,6 +542,12 @@ def create_app(
     async def list_models(request: Request):
         _check_auth(request)
         return {"object": "list", "data": ALL_MODELS}
+
+    @app.post("/v1/sessionbox/page")
+    async def select_sessionbox_page(request: Request):
+        body = await request.json()
+        client = await _select_sessionbox_page(str(body.get("page_id", "")))
+        return {"page_id": client.page_id, "ready": client.is_ready}
 
     @app.post("/v1/chat/completions")
     async def chat_completions(body: ChatCompletionRequest, request: Request):
@@ -1717,29 +1722,11 @@ def create_app(
 
     @app.get("/admin", response_class=HTMLResponse)
     async def admin_dashboard(request: Request):
-        """Serve the admin dashboard (QR login + system + API test + logs)."""
-        _check_auth(request)
-        novnc_url = os.environ.get("DOUBAO_NOVNC_URL", "").strip()
-        if not novnc_url:
-            scheme = request.url.scheme
-            host = request.url.hostname or "localhost"
-            novnc_url = f"{scheme}://{host}:6080/vnc.html"
-        novnc_password = os.environ.get("DOUBAO_NOVNC_PASSWORD", "").strip()
-        if novnc_password and "password=" not in novnc_url:
-            sep = "&" if "?" in novnc_url else "?"
-            novnc_url = f"{novnc_url}{sep}password={novnc_password}"
-        from pathlib import Path
-        html_path = Path(__file__).parent / "static" / "admin.html"
-        html = html_path.read_text(encoding="utf-8")
-        return html.replace("{{NOVNC_URL}}", novnc_url)
+        raise HTTPException(status_code=404, detail="Admin page has been removed")
 
     @app.get("/auth")
     async def auth_redirect(request: Request):
-        """Redirect /auth to /admin for backwards compatibility."""
-        from fastapi.responses import RedirectResponse
-        key = request.query_params.get("key", "")
-        url = "/admin" + (f"?key={key}" if key else "")
-        return RedirectResponse(url=url)
+        raise HTTPException(status_code=410, detail="Authentication is managed by SessionBox")
 
     @app.get("/admin/api/system")
     async def admin_system(request: Request):
@@ -2031,7 +2018,6 @@ def run_server():
 
     print(f"\n  Doubao API Server (Playwright)")
     print(f"  Listening on http://{host}:{port}")
-    print(f"  Admin page: http://{host}:{port}/admin")
     if novnc_url:
         print(f"  noVNC: {novnc_url}")
     if api_key:
