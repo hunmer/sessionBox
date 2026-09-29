@@ -13,6 +13,7 @@ and call this signing function. All actual API traffic goes through httpx.
 """
 
 import asyncio
+from datetime import datetime, timezone
 import json
 import logging
 import os
@@ -359,10 +360,33 @@ class BrowserClient:
         except Exception:
             pass
 
-        # True authenticated state: avatar present, or session cookie without visible login button
-        is_logged_in = has_avatar or (has_session and not has_login_btn)
-        log.info("Login check: has_sessionid=%s, has_avatar=%s, has_login_btn=%s -> is_logged_in=%s",
-                 has_session, has_avatar, has_login_btn, is_logged_in)
+        # The cloned browser can show a login control even while the source
+        # SessionBox page is authenticated. Check the source before rejecting it.
+        source_authenticated = False
+        if has_session and has_login_btn and self.page_id:
+            try:
+                from .sessionbox_api import SessionBoxClient
+
+                source = await SessionBoxClient(
+                    self.sessionbox_url, token=os.environ.get("SESSIONBOX_API_TOKEN", "")
+                ).execute(self.page_id, '''(() => ({
+                    url: location.href,
+                    has_login_button: [...document.querySelectorAll('button,a')].some(el =>
+                        el.textContent?.trim() === '登录' && !!el.getClientRects().length)
+                }))()''')
+                source_authenticated = (
+                    isinstance(source, dict)
+                    and source.get("url", "").startswith(DOUBAO_URL + "/")
+                    and source.get("has_login_button") is False
+                )
+            except Exception as e:
+                log.warning("SessionBox source login check failed: %s", e)
+
+        is_logged_in = has_avatar or (has_session and (not has_login_btn or source_authenticated))
+        log.info("Login check: time=%s page_id=%s url=%s has_sessionid=%s has_avatar=%s "
+                 "has_login_btn=%s source_authenticated=%s is_logged_in=%s",
+                 datetime.now(timezone.utc).isoformat(), self.page_id, self._page.url,
+                 has_session, has_avatar, has_login_btn, source_authenticated, is_logged_in)
 
         if not is_logged_in:
             log.info("Not logged in - valid sessionid or avatar not confirmed")

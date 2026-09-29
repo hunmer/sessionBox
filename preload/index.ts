@@ -733,7 +733,9 @@ const api = {
       ipcRenderer.invoke('plugin:install', url),
     uninstall: (pluginId: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('plugin:uninstall', pluginId),
-    openDefault: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugin:open-default', pluginId)
+    openDefault: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugin:open-default', pluginId),
+    openLog: (pluginId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('plugin:open-log', pluginId)
   },
 
   // 自动更新

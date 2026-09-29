@@ -38,4 +38,5 @@ export function registerPluginIpcHandlers(): void {
     return pluginManager.uninstallPlugin(pluginId)
   })
   ipcMain.handle('plugin:open-default', (_e, pluginId: string) => pluginManager.openDefault(pluginId))
+  ipcMain.handle('plugin:open-log', (_e, pluginId: string) => pluginManager.openPluginLog(pluginId))
 }

@@ -7,6 +7,7 @@ import AdmZip from 'adm-zip'
 import { pluginEventBus } from './plugin-event-bus'
 import { PluginStorage } from './plugin-storage'
 import { createPluginContext } from './plugin-context'
+import { ensurePluginLog } from './plugin-log'
 import type { PluginInfo, PluginMeta, PluginInstance } from './plugin-types'
 
 class PluginManager {
@@ -95,6 +96,11 @@ class PluginManager {
 
     const storage = new PluginStorage(info.id, this.userDataPath)
     const { context, cleanupEvents } = createPluginContext(info, storage, pluginEventBus, () => this.mainWindow)
+    try {
+      ensurePluginLog(this.userDataPath, info.id)
+    } catch (err) {
+      console.error(`[PluginManager] 插件日志初始化失败: ${info.name}`, err)
+    }
     const isDisabled = this.disabledIds.has(info.id)
     const pluginModule = require(mainPath)
 
@@ -114,8 +120,10 @@ class PluginManager {
     if (!isDisabled && typeof pluginModule.activate === 'function') {
       try {
         pluginModule.activate(context)
+        context.logger.info('插件已激活 v%s', info.version)
         console.log(`[PluginManager] 插件已激活: ${info.name} v${info.version}`)
       } catch (err) {
+        context.logger.error('插件激活失败', err)
         console.error(`[PluginManager] 插件激活失败: ${info.name}`, err)
       }
     }
@@ -129,9 +137,11 @@ class PluginManager {
       try {
         instance.module.deactivate(instance.context)
       } catch (err) {
+        instance.context.logger.error('插件停用失败', err)
         console.error(`[PluginManager] 插件停用失败: ${instance.info.name}`, err)
       }
     }
+    instance.context.logger.info('插件已卸载')
     // 清理该插件注册的所有事件监听器
     instance.cleanupEvents()
     this.plugins.delete(pluginId)
@@ -146,10 +156,12 @@ class PluginManager {
       try {
         instance.module.activate(instance.context)
       } catch (err) {
+        instance.context.logger.error('插件激活失败', err)
         console.error(`[PluginManager] 插件激活失败: ${instance.info.name}`, err)
         return
       }
     }
+    instance.context.logger.info('插件已启用')
     instance.enabled = true
     this.disabledIds.delete(pluginId)
     this.saveDisabledList()
@@ -163,9 +175,11 @@ class PluginManager {
       try {
         instance.module.deactivate(instance.context)
       } catch (err) {
+        instance.context.logger.error('插件停用失败', err)
         console.error(`[PluginManager] 插件停用失败: ${instance.info.name}`, err)
       }
     }
+    instance.context.logger.info('插件已禁用')
     // 清理该插件注册的所有事件监听器
     instance.cleanupEvents()
     instance.enabled = false
@@ -334,6 +348,16 @@ class PluginManager {
       mkdirSync(dir, { recursive: true })
     }
     shell.openPath(dir)
+  }
+
+  openPluginLog(pluginId: string): { success: boolean; error?: string } {
+    if (!this.plugins.has(pluginId)) return { success: false, error: '插件未找到' }
+    try {
+      shell.showItemInFolder(ensurePluginLog(this.userDataPath, pluginId))
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
   }
 
   /** 从 URL 下载并安装插件 ZIP */

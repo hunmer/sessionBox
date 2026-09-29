@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Circle } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Circle, RotateCcw } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -11,8 +11,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { Button } from '@/components/ui/button'
 import { useTabStore } from '@/stores/tab'
+import { useToolbarStore } from '@/stores/toolbar'
+import ToolbarCustomizeDialog from './ToolbarCustomizeDialog.vue'
 import ExtensionActionList from '@/components/toolbar/ExtensionActionList.vue'
 import BookmarkMiniPopover from './BookmarkMiniPopover.vue'
 import HistoryMiniPopover from './HistoryMiniPopover.vue'
@@ -28,6 +37,10 @@ import { useChatUIStore } from '@/stores/chat-ui'
 
 const tabStore = useTabStore()
 const chatUIStore = useChatUIStore()
+const toolbarStore = useToolbarStore()
+
+/** 自定义工具栏对话框 */
+const customizeOpen = ref(false)
 
 const emit = defineEmits<{
   openSettings: [tab?: string]
@@ -66,187 +79,243 @@ function openFullPage(site: string) {
 <template>
   <div class="h-full w-full bg-background">
     <ResizablePanelGroup direction="vertical">
-      <!-- 区域一：书签 / 历史 / 下载 Popover 入口 -->
+      <!-- 区域一：书签 / 历史 / 下载 Popover 入口（右键可自定义） -->
       <ResizablePanel :default-size="33">
-        <div class="flex flex-col items-center justify-start gap-1 py-2 h-full">
-          <!-- 书签 -->
-          <Popover v-model:open="bookmarkOpen">
-            <PopoverTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8"
+        <ContextMenu>
+          <ContextMenuTrigger as-child>
+            <div class="flex flex-col items-center justify-start gap-1 py-2 h-full">
+              <template
+                v-for="item in toolbarStore.visibleItems"
+                :key="item.id"
               >
-                <Bookmark class="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="left"
-              :side-offset="4"
-              :collision-padding="30"
-              class="p-0 w-auto overflow-hidden"
-            >
-              <BookmarkMiniPopover @open-full="openFullPage('sessionbox://bookmarks')" />
-            </PopoverContent>
-          </Popover>
+                <!-- 书签 -->
+                <Popover
+                  v-if="item.id === 'bookmark'"
+                  v-model:open="bookmarkOpen"
+                >
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                    >
+                      <Bookmark class="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="left"
+                    :side-offset="4"
+                    :collision-padding="30"
+                    class="p-0 w-auto overflow-hidden"
+                  >
+                    <BookmarkMiniPopover @open-full="openFullPage('sessionbox://bookmarks')" />
+                  </PopoverContent>
+                </Popover>
 
-          <!-- 历史记录 -->
-          <Popover v-model:open="historyOpen">
-            <PopoverTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8"
-              >
-                <History class="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="left"
-              :side-offset="4"
-              :collision-padding="30"
-              class="p-0 w-auto overflow-hidden"
-            >
-              <HistoryMiniPopover @open-full="openFullPage('sessionbox://history')" />
-            </PopoverContent>
-          </Popover>
+                <!-- 历史记录 -->
+                <Popover
+                  v-else-if="item.id === 'history'"
+                  v-model:open="historyOpen"
+                >
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                    >
+                      <History class="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="left"
+                    :side-offset="4"
+                    :collision-padding="30"
+                    class="p-0 w-auto overflow-hidden"
+                  >
+                    <HistoryMiniPopover @open-full="openFullPage('sessionbox://history')" />
+                  </PopoverContent>
+                </Popover>
 
-          <!-- 下载管理 -->
-          <Popover v-model:open="downloadOpen">
-            <PopoverTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8"
-              >
-                <Download class="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="left"
-              :side-offset="4"
-              :collision-padding="30"
-              class="p-0 w-auto overflow-hidden"
-            >
-              <DownloadMiniPopover @open-full="openFullPage('sessionbox://downloads')" />
-            </PopoverContent>
-          </Popover>
+                <!-- 下载管理 -->
+                <Popover
+                  v-else-if="item.id === 'download'"
+                  v-model:open="downloadOpen"
+                >
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                    >
+                      <Download class="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="left"
+                    :side-offset="4"
+                    :collision-padding="30"
+                    class="p-0 w-auto overflow-hidden"
+                  >
+                    <DownloadMiniPopover @open-full="openFullPage('sessionbox://downloads')" />
+                  </PopoverContent>
+                </Popover>
 
-          <!-- 代理切换 -->
-          <Popover v-model:open="proxyOpen">
-            <PopoverTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8"
-              >
-                <Shield class="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="left"
-              :side-offset="4"
-              :collision-padding="30"
-              class="p-0 w-auto overflow-hidden"
-            >
-              <ProxyMiniPopover @open-full="proxyOpen = false; proxyDialogOpen = true" />
-            </PopoverContent>
-          </Popover>
+                <!-- 代理切换 -->
+                <Popover
+                  v-else-if="item.id === 'proxy'"
+                  v-model:open="proxyOpen"
+                >
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                    >
+                      <Shield class="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="left"
+                    :side-offset="4"
+                    :collision-padding="30"
+                    class="p-0 w-auto overflow-hidden"
+                  >
+                    <ProxyMiniPopover @open-full="proxyOpen = false; proxyDialogOpen = true" />
+                  </PopoverContent>
+                </Popover>
 
-          <!-- 容器切换 -->
-          <Popover v-model:open="containerOpen">
-            <PopoverTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8"
-              >
-                <Box class="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="left"
-              :side-offset="4"
-              :collision-padding="30"
-              class="p-0 w-auto overflow-hidden"
-            >
-              <ContainerMiniPopover @open-full="emit('openSettings', 'containers')" />
-            </PopoverContent>
-          </Popover>
+                <!-- 容器切换 -->
+                <Popover
+                  v-else-if="item.id === 'container'"
+                  v-model:open="containerOpen"
+                >
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                    >
+                      <Box class="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="left"
+                    :side-offset="4"
+                    :collision-padding="30"
+                    class="p-0 w-auto overflow-hidden"
+                  >
+                    <ContainerMiniPopover @open-full="emit('openSettings', 'containers')" />
+                  </PopoverContent>
+                </Popover>
 
-          <!-- 网络嗅探 -->
-          <Popover v-model:open="snifferOpen">
-            <PopoverTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8"
-              >
-                <Radar class="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="left"
-              :side-offset="4"
-              :collision-padding="30"
-              class="p-0 w-auto overflow-hidden"
-            >
-              <SnifferMiniPopover />
-            </PopoverContent>
-          </Popover>
+                <!-- 网络嗅探 -->
+                <Popover
+                  v-else-if="item.id === 'sniffer'"
+                  v-model:open="snifferOpen"
+                >
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                    >
+                      <Radar class="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="left"
+                    :side-offset="4"
+                    :collision-padding="30"
+                    class="p-0 w-auto overflow-hidden"
+                  >
+                    <SnifferMiniPopover />
+                  </PopoverContent>
+                </Popover>
 
-          <!-- 插件 -->
-          <Popover v-model:open="pluginOpen">
-            <PopoverTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8"
-              >
-                <Puzzle class="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="left"
-              :side-offset="4"
-              :collision-padding="30"
-              class="p-0 w-auto overflow-hidden"
-            >
-              <PluginMiniPopover @open-full="openFullPage('sessionbox://plugins')" />
-            </PopoverContent>
-          </Popover>
+                <!-- 插件 -->
+                <Popover
+                  v-else-if="item.id === 'plugin'"
+                  v-model:open="pluginOpen"
+                >
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                    >
+                      <Puzzle class="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="left"
+                    :side-offset="4"
+                    :collision-padding="30"
+                    class="p-0 w-auto overflow-hidden"
+                  >
+                    <PluginMiniPopover @open-full="openFullPage('sessionbox://plugins')" />
+                  </PopoverContent>
+                </Popover>
 
-          <!-- 网页调试 -->
-          <Popover v-model:open="debuggerOpen">
-            <PopoverTrigger as-child>
-              <Button variant="ghost" size="icon" class="h-8 w-8" title="网页调试与录制">
-                <Circle class="h-4 w-4" fill="currentColor" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent side="left" :side-offset="4" :collision-padding="30" class="w-auto overflow-hidden p-0">
-              <RecordingMiniPopover @open-full="openDebugger" />
-            </PopoverContent>
-          </Popover>
+                <!-- 网页调试 -->
+                <Popover
+                  v-else-if="item.id === 'debugger'"
+                  v-model:open="debuggerOpen"
+                >
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                      title="网页调试与录制"
+                    >
+                      <Circle
+                        class="h-4 w-4"
+                        fill="currentColor"
+                      />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="left"
+                    :side-offset="4"
+                    :collision-padding="30"
+                    class="w-auto overflow-hidden p-0"
+                  >
+                    <RecordingMiniPopover @open-full="openDebugger" />
+                  </PopoverContent>
+                </Popover>
 
-          <!-- AI 聊天 -->
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8"
-            @click="chatUIStore.togglePanel()"
-          >
-            <MessageSquare class="h-4 w-4" />
-          </Button>
-        </div>
+                <!-- AI 聊天 -->
+                <Button
+                  v-else-if="item.id === 'chat'"
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8"
+                  @click="chatUIStore.togglePanel()"
+                >
+                  <MessageSquare class="h-4 w-4" />
+                </Button>
+              </template>
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuLabel>工具栏</ContextMenuLabel>
+            <ContextMenuItem @select="customizeOpen = true">
+              <Settings2 class="h-4 w-4" />
+              自定义工具栏
+            </ContextMenuItem>
+            <ContextMenuItem @select="toolbarStore.reset()">
+              <RotateCcw class="h-4 w-4" />
+              恢复默认
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </ResizablePanel>
 
       <ResizableHandle />
 
       <!-- 区域二：扩展列表（垂直模式） -->
       <ResizablePanel :default-size="33">
-        <div class="flex flex-col items-center justify-center py-2 h-full overflow-y-auto">
-          
-        </div>
+        <div class="flex flex-col items-center justify-center py-2 h-full overflow-y-auto" />
       </ResizablePanel>
 
       <ResizableHandle />
@@ -261,6 +330,9 @@ function openFullPage(site: string) {
 
     <!-- 代理管理对话框 -->
     <ProxyDialog v-model:open="proxyDialogOpen" />
+
+    <!-- 工具栏自定义对话框 -->
+    <ToolbarCustomizeDialog v-model:open="customizeOpen" />
 
     <!-- 插件设置对话框 -->
     <PluginSettings />

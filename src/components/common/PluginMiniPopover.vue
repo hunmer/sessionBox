@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { Puzzle, ArrowRight, Settings } from 'lucide-vue-next'
+import { Puzzle, ArrowRight, Settings, ScrollText } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { usePluginStore } from '@/stores/plugin'
+import { useNotification } from '@/composables/useNotification'
 
 const pluginStore = usePluginStore()
+const notify = useNotification()
 
 const emit = defineEmits<{ 'open-full': [] }>()
 
@@ -33,6 +35,15 @@ async function loadIcons() {
 
 function handleOpenSettings(pluginId: string) {
   pluginStore.openView(pluginId)
+}
+
+async function handleOpenLog(pluginId: string) {
+  try {
+    const result = await window.api.plugin.openLog(pluginId)
+    if (!result.success) notify.error(result.error || '打开插件日志失败')
+  } catch (err) {
+    notify.error(`打开插件日志失败: ${err instanceof Error ? err.message : String(err)}`)
+  }
 }
 
 function handleOpenFull() {
@@ -106,6 +117,16 @@ function handleOpenFull() {
             <span class="text-[10px] text-muted-foreground ml-1">v{{ plugin.version }}</span>
           </div>
 
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 shrink-0"
+            title="打开插件日志"
+            aria-label="打开插件日志"
+            @click="handleOpenLog(plugin.id)"
+          >
+            <ScrollText class="h-3.5 w-3.5" />
+          </Button>
           <!-- 设置按钮 -->
           <Button
             v-if="plugin.hasView"

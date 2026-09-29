@@ -1,9 +1,10 @@
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { pluginEventBus } from './plugin-event-bus'
 import { PluginStorage } from './plugin-storage'
 import type { PluginContext, PluginInfo } from './plugin-types'
 import { sessionService, startSessionApiServer, stopSessionApiServer } from './session-service'
 import { getSessionApiSettings } from './store'
+import { writePluginLog } from './plugin-log'
 
 export function createPluginContext(
   pluginInfo: PluginInfo,
@@ -12,6 +13,14 @@ export function createPluginContext(
   getMainWindow: () => BrowserWindow | null
 ): { context: PluginContext; cleanupEvents: () => void } {
   const prefix = `plugin:${pluginInfo.id}:`
+
+  const log = (level: string, msg: string, args: any[]) => {
+    try {
+      writePluginLog(app.getPath('userData'), pluginInfo.id, level, msg, ...args)
+    } catch (error) {
+      console.error(`[Plugin:${pluginInfo.name}] 日志写入失败`, error)
+    }
+  }
 
   // 追踪所有通过 context.events 注册的监听器，卸载时逐一移除
   const registeredHandlers: Array<{ event: string; handler: (...args: any[]) => void }> = []
@@ -51,12 +60,15 @@ export function createPluginContext(
 
     logger: {
       info(msg: string, ...args: any[]): void {
+        log('INFO', msg, args)
         console.log(`[Plugin:${pluginInfo.name}] ${msg}`, ...args)
       },
       warn(msg: string, ...args: any[]): void {
+        log('WARN', msg, args)
         console.warn(`[Plugin:${pluginInfo.name}] ${msg}`, ...args)
       },
       error(msg: string, ...args: any[]): void {
+        log('ERROR', msg, args)
         console.error(`[Plugin:${pluginInfo.name}] ${msg}`, ...args)
       }
     },

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Download } from 'lucide-vue-next'
 import { useDownloadStore } from '@/stores/download'
 
@@ -23,10 +23,32 @@ onMounted(async () => {
 
 const summary = computed(() => store.downloadSummary)
 
-/** 是否有任何下载任务（活跃 + 待下载 + 失败），无则隐藏整个组件 */
-const hasTasks = computed(() =>
-  summary.value.active + summary.value.waiting + summary.value.error > 0
+/** 是否显示组件：有进行中任务立即显示；全部结束（含存在失败任务）后延时 5 秒自动隐藏 */
+const visible = ref(false)
+let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(
+  () => summary.value.active + summary.value.waiting,
+  (running) => {
+    if (running > 0) {
+      if (hideTimer) {
+        clearTimeout(hideTimer)
+        hideTimer = null
+      }
+      visible.value = true
+    } else if (visible.value && !hideTimer) {
+      hideTimer = setTimeout(() => {
+        hideTimer = null
+        visible.value = false
+      }, 5000)
+    }
+  },
+  { immediate: true }
 )
+
+onUnmounted(() => {
+  if (hideTimer) clearTimeout(hideTimer)
+})
 
 /** 进度条各段宽度百分比（基于总进度百分比，绿色/灰色/红色三段） */
 const activeWidth = computed(() => Math.max(0, Math.min(100, summary.value.progress)))
@@ -47,7 +69,7 @@ function handleClick() {
 
 <template>
   <div
-    v-if="hasTasks"
+    v-if="visible"
     class="px-3 pt-2 pb-1 text-xs text-sidebar-foreground/60"
   >
     <!-- 展开态：一行摘要 + 进度条 -->

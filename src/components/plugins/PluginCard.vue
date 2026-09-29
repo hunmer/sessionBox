@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Settings } from 'lucide-vue-next'
+import { Settings, ScrollText } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import type { PluginMeta, RemotePlugin } from '@/types'
+import { useNotification } from '@/composables/useNotification'
+
+const notify = useNotification()
 
 const props = defineProps<{
   plugin: PluginMeta | RemotePlugin
@@ -27,6 +30,15 @@ const emit = defineEmits<{
 const iconDataUrl = ref<string | null>(null)
 
 const isRemote = (p: PluginMeta | RemotePlugin): p is RemotePlugin => 'downloadUrl' in p
+
+async function openLog() {
+  try {
+    const result = await window.api.plugin.openLog(props.plugin.id)
+    if (!result.success) notify.error(result.error || '打开插件日志失败')
+  } catch (err) {
+    notify.error(`打开插件日志失败: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
 
 onMounted(async () => {
   // 商店模式使用 iconUrl，本地模式使用 IPC 获取图标
@@ -97,6 +109,17 @@ onMounted(async () => {
             :model-value="plugin.enabled"
             @update:model-value="emit('toggle', plugin.id)"
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-7 w-7"
+            title="打开插件日志"
+            aria-label="打开插件日志"
+            @click.stop="openLog"
+            @dblclick.stop
+          >
+            <ScrollText class="w-4 h-4" />
+          </Button>
           <Button
             v-if="plugin.hasView"
             variant="ghost"
