@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Circle, RotateCcw } from 'lucide-vue-next'
+import { Bookmark, History, Download, Shield, Settings2, Network, Keyboard, Box, Radar, Puzzle, MessageSquare, Circle } from 'lucide-vue-next'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -15,7 +15,6 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuLabel,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { Button } from '@/components/ui/button'
@@ -298,14 +297,9 @@ function openFullPage(site: string) {
             </div>
           </ContextMenuTrigger>
           <ContextMenuContent>
-            <ContextMenuLabel>工具栏</ContextMenuLabel>
             <ContextMenuItem @select="customizeOpen = true">
               <Settings2 class="h-4 w-4" />
               自定义工具栏
-            </ContextMenuItem>
-            <ContextMenuItem @select="toolbarStore.reset()">
-              <RotateCcw class="h-4 w-4" />
-              恢复默认
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
