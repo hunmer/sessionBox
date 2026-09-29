@@ -11,6 +11,7 @@
     "sync-server:test": "node --test server/sync-server.test.mjs",
     "dev": "pnpm run build:extensions && electron-vite dev",
     "build": "pnpm run build:extensions && electron-vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.web.json",
     "preview": "electron-vite preview",
     "pack": "node scripts/build-production.js local",
     "pack:release": "node scripts/build-production.js release",

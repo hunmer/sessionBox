@@ -66,7 +66,7 @@ const isContainerNameManual = ref(false)
 /** URL Combobox 状态 */
 const comboboxOpen = ref(false)
 const comboboxSearch = ref('')
-const urlTriggerRef = ref<HTMLElement | null>(null)
+const urlTriggerRef = ref<InstanceType<typeof Button> | null>(null)
 const filteredBookmarks = ref<typeof bookmarkStore.bookmarks>([])
 
 /** 截流过滤：300ms 延迟，无关键词时不展示，最多 50 条 */
@@ -82,6 +82,13 @@ const debouncedFilter = useDebounceFn((keyword: string) => {
 }, 300)
 
 watch(comboboxSearch, (val) => debouncedFilter(val.trim()))
+
+/** 书签选中：写入 URL 并关闭下拉（模板内联箭头函数不支持 TS 类型注解，故提取到 script） */
+function onBookmarkSelect(ev: Event) {
+  const value = (ev as CustomEvent<{ value?: string }>).detail?.value
+  if (value) url.value = value
+  comboboxOpen.value = false
+}
 
 /** 代理下拉选项 */
 const proxyOptions = computed(() => proxyStore.proxies)
@@ -232,7 +239,7 @@ function handleDelete() {
               </Button>
             </PopoverTrigger>
             <PopoverContent
-              :style="{ width: urlTriggerRef?.$el?.offsetWidth + 'px' }"
+              :style="{ width: ((urlTriggerRef?.$el as HTMLElement | undefined)?.offsetWidth ?? 0) + 'px' }"
               class="p-0"
               align="start"
             >
@@ -252,10 +259,7 @@ function handleDelete() {
                       v-for="site in filteredBookmarks"
                       :key="site.id"
                       :value="site.url"
-                      @select="(ev: { detail: { value: string } }) => {
-                        url = ev.detail.value
-                        comboboxOpen = false
-                      }"
+                      @select="onBookmarkSelect"
                     >
                       <CheckIcon
                         :class="cn('mr-2 h-4 w-4', url === site.url ? 'opacity-100' : 'opacity-0')"

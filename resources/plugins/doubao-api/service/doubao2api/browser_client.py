@@ -36,6 +36,20 @@ SAMANTHA_COMPLETION_URL = f"{DOUBAO_URL}/samantha/chat/completion"
 DEFAULT_BOT_ID = "7338286299411103781"
 
 
+class _SessionBoxPage:
+    """Evaluate existing page scripts through the SessionBox tab API."""
+
+    def __init__(self, client: "BrowserClient"):
+        self.client = client
+
+    async def evaluate(self, script: str, arg: Any = None) -> Any:
+        if arg is not None or script.lstrip().startswith(("async () =>", "() =>")):
+            expression = f"({script})({json.dumps(arg, ensure_ascii=False) if arg is not None else ''})"
+        else:
+            expression = script
+        return await self.client._execute_sessionbox(expression)
+
+
 class BrowserClient:
     """Manages Playwright for login and in-browser fetch for API calls."""
 
@@ -1042,23 +1056,30 @@ class BrowserClient:
                         return
                     parsed_count = 0
                     parsed_text_length = 0
+                    event_counts: Dict[str, int] = {}
+                    current_event = ""
                     for line in body.splitlines():
-                        if not line.startswith("data: "):
+                        line = line.strip()
+                        if line.startswith("event:"):
+                            current_event = line[6:].strip()
+                            continue
+                        if not line.startswith("data:"):
                             continue
                         try:
-                            event = json.loads(line[6:])
-                            event["_event"] = event.get("_event", "")
+                            event = json.loads(line[5:].strip())
+                            event["_event"] = current_event or event.get("_event", "")
                             event["_sessionbox_stream"] = True
                             parsed_count += 1
+                            event_counts[event["_event"]] = event_counts.get(event["_event"], 0) + 1
                             parsed_text_length += len(event.get("text", "")) if isinstance(event.get("text"), str) else 0
                             yield event
-                        except json.JSONDecodeError:
+                        except (json.JSONDecodeError, TypeError):
                             continue
                     if result and result.get("done"):
                         log.info("DOUBAO_DIAG %s", json.dumps({"event": "sessionbox_tab_response",
                             "page_id": self.page_id, "request_id": request_id,
                             "body_length": len(body), "event_count": parsed_count,
-                            "text_length": parsed_text_length}))
+                            "text_length": parsed_text_length, "event_types": event_counts}))
             if result and result.get("done"):
                 await self._execute_sessionbox(f"delete window.__sessionboxDoubao.queues[{json.dumps(request_id)}]")
                 return
@@ -1377,9 +1398,64 @@ class BrowserClient:
         timeout_ms = int(timeout * 1000)
 
         log.info("POST %s [browser fetch, timeout=%ds]", url.split("?")[0], timeout)
-        result = await self._page.evaluate(
-            js_code, [url, payload_json, timeout_ms]
-        )
+        if self.sessionbox_tab_mode:
+            request_id = f"sb_{uuid.uuid4().hex[:16]}"
+            args = json.dumps([url, payload_json, timeout_ms], ensure_ascii=False)
+            start = f"""(() => {{
+                window.__sessionboxDoubao = window.__sessionboxDoubao || {{queues: {{}}}};
+                const queues = window.__sessionboxDoubao.queues;
+                const id = {json.dumps(request_id)};
+                queues[id] = {{items: [], done: false}};
+                const run = {js_code};
+                run({args}).then(result => {{
+                    const queue = queues[id];
+                    if (!queue) return;
+                    if (result.error) queue.items.push(result);
+                    else for (let i = 0; i < result.body.length; i += 32768)
+                        queue.items.push({{body: result.body.slice(i, i + 32768)}});
+                    queue.done = true;
+                }}).catch(error => {{
+                    const queue = queues[id];
+                    if (queue) {{ queue.items.push({{error: true, status: 0, body: String(error)}}); queue.done = true; }}
+                }});
+                return true;
+            }})()"""
+            await self._execute_sessionbox(start)
+            parts = []
+            result = None
+            deadline = time.monotonic() + timeout + 5
+            try:
+                while time.monotonic() < deadline:
+                    state = await self._execute_sessionbox(
+                        f"(() => {{ const q = window.__sessionboxDoubao?.queues?.[{json.dumps(request_id)}]; "
+                        "if (!q) return null; return {items:q.items.splice(0,1),done:q.done && !q.items.length}; })()"
+                    )
+                    if state:
+                        for item in state.get("items", []):
+                            if item.get("error"):
+                                result = item
+                                break
+                            parts.append(item.get("body", ""))
+                        if result or state.get("done"):
+                            break
+                    await asyncio.sleep(0.25)
+                else:
+                    raise TimeoutError("SessionBox tab Samantha request timed out")
+            finally:
+                try:
+                    await self._execute_sessionbox(
+                        f"delete window.__sessionboxDoubao?.queues?.[{json.dumps(request_id)}]"
+                    )
+                except Exception as exc:
+                    log.warning("Samantha SessionBox queue cleanup failed: %s", exc)
+            if result is None:
+                result = {"error": False, "body": "".join(parts)}
+            log.info("DOUBAO_DIAG %s", json.dumps({"event": "sessionbox_samantha_response",
+                "page_id": self.page_id, "request_id": request_id,
+                "status": result.get("status", 200 if not result.get("error") else 0),
+                "body_length": len(result.get("body", ""))}))
+        else:
+            result = await self._page.evaluate(js_code, [url, payload_json, timeout_ms])
 
         if result.get("error"):
             status = result.get("status", 0)
@@ -1708,14 +1784,35 @@ class BrowserClient:
         the page input, type the prompt, submit, then watch the DOM for a new
         playable video element.
         """
-        page = self._page
+        page = _SessionBoxPage(self) if self.sessionbox_tab_mode else self._page
         if not page:
             raise RuntimeError("Browser page unavailable")
+        log.info("DOUBAO_DIAG %s", json.dumps({"event": "video_page_start",
+            "page_id": self.page_id, "sessionbox_tab": self.sessionbox_tab_mode,
+            "has_ref_image_url": bool(ref_image_url)}))
 
         import tempfile
 
         tmp_path: Optional[str] = None
-        if ref_image_url:
+        if ref_image_url and self.sessionbox_tab_mode:
+            attached = await page.evaluate("""async (url) => {
+                const input = document.querySelector('input[type="file"]');
+                if (!input) return 'no file input';
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) return `download failed (${response.status})`;
+                    const blob = await response.blob();
+                    const files = new DataTransfer();
+                    files.items.add(new File([blob], 'reference.png', {type: blob.type || 'image/png'}));
+                    input.files = files.files;
+                    input.dispatchEvent(new Event('change', {bubbles: true}));
+                    return 'attached';
+                } catch (error) { return String(error); }
+            }""", ref_image_url)
+            if attached != "attached":
+                raise RuntimeError(f"Reference image attachment failed: {attached}")
+            await asyncio.sleep(2.5)
+        elif ref_image_url:
             try:
                 async with httpx.AsyncClient(timeout=60, follow_redirects=True) as hc:
                     resp = await hc.get(ref_image_url)
@@ -1777,6 +1874,8 @@ class BrowserClient:
         if sent != "sent":
             raise RuntimeError(f"Failed to submit prompt in page: {sent}")
         log.info("generate_video: prompt submitted via page input")
+        log.info("DOUBAO_DIAG %s", json.dumps({"event": "video_page_submitted",
+            "page_id": self.page_id, "sessionbox_tab": self.sessionbox_tab_mode}))
 
         await asyncio.sleep(5)
 
@@ -1865,6 +1964,8 @@ class BrowserClient:
                 video_url = new_urls[-1]
                 new_covers = [c for c in state.get("covers", []) if c not in baseline_covers]
                 log.info("generate_video: collected video from DOM: %s", video_url[:100])
+                log.info("DOUBAO_DIAG %s", json.dumps({"event": "video_page_complete",
+                    "page_id": self.page_id, "video_count": len(new_urls)}))
                 if tmp_path and os.path.exists(tmp_path):
                     os.unlink(tmp_path)
                 return {"videos": [{

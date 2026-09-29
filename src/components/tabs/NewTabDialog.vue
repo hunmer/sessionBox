@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, watch, onBeforeUnmount } from 'vue'
 import { Search, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useContainerStore } from '@/stores/container'
@@ -106,15 +106,15 @@ function createRowLimiter() {
   return { setEl, expanded, visible, needToggle }
 }
 
-const pagesLimiter = createRowLimiter()
-const historyLimiter = createRowLimiter()
+const pagesLimiter = reactive(createRowLimiter())
+const historyLimiter = reactive(createRowLimiter())
 
 watch(() => props.open, (open) => {
   if (open) {
     urlInput.value = ''
     loadRecords()
-    pagesLimiter.expanded.value = false
-    historyLimiter.expanded.value = false
+    pagesLimiter.expanded = false
+    historyLimiter.expanded = false
   }
 })
 

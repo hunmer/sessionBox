@@ -1,7 +1,7 @@
 <!--
   ChatInput 聊天输入框
   来源：React Compose 组件移植（framer-motion → motion-v，React hooks → Composition API）
-  附加：图片上传、模型选择、工具开关、Skill 管理（沿用旧版 ChatInput 功能）
+  附加：图片上传、模型选择、工具开关；Skill 列表接入 / 命令菜单（行内可复制/编辑/删除）
   用法：
     <ChatInput
       :is-streaming="chat.isStreaming"
@@ -161,7 +161,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
-  ImagePlus, Square, Trash2, Wrench, ScrollText,
+  ImagePlus, Square, Trash2, Wrench,
   Copy, Check, Pencil, Loader2,
 } from 'lucide-vue-next'
 import ModelSelector from './ModelSelector.vue'
@@ -180,7 +180,7 @@ interface SkillFull {
   updated: string
 }
 
-/** 菜单行统一模型（mention / command 归一化，简化模板） */
+/** 菜单行统一模型（mention / command / skill 归一化，简化模板） */
 interface Row {
   id: string
   label: string
@@ -188,6 +188,8 @@ interface Row {
   avatar?: string
   hint?: string
   icon?: Component
+  /** 行来源为 Skill 时携带原对象（用于行内复制/编辑/删除） */
+  skill?: SkillItem
 }
 
 const props = withDefaults(defineProps<{
@@ -242,18 +244,25 @@ const popIndex = computed(() => {
 const results = computed<Row[]>(() => {
   if (!trigger.value) return []
   const q = trigger.value.query.toLowerCase()
-  const src = trigger.value.type === '@' ? (props.mentions ?? []) : (props.commands ?? [])
-  return src
-    .filter((x) => x.label.toLowerCase().includes(q))
+  if (trigger.value.type === '@') {
+    return (props.mentions ?? [])
+      .filter((m) => m.label.toLowerCase().includes(q))
+      .slice(0, 6)
+      .map((m) => ({ id: m.id, label: m.label, sublabel: m.sublabel, avatar: m.avatar }))
+  }
+  // / 命令 = 外部 commands + Skill 列表（按 label 去重，外部优先）
+  const cmds: Row[] = [
+    ...(props.commands ?? []).map((c) => ({ id: c.id, label: c.label, hint: c.hint, icon: c.icon })),
+    ...skills.value.map((s) => ({ id: `skill:${s.name}`, label: s.name, hint: s.description, skill: s })),
+  ]
+  const seen = new Set<string>()
+  return cmds
+    .filter((c) => {
+      if (seen.has(c.label)) return false
+      seen.add(c.label)
+      return c.label.toLowerCase().includes(q)
+    })
     .slice(0, 6)
-    .map((x) => ({
-      id: x.id,
-      label: x.label,
-      sublabel: (x as ComposeMention).sublabel,
-      avatar: (x as ComposeMention).avatar,
-      hint: (x as ComposeCommand).hint,
-      icon: (x as ComposeCommand).icon,
-    }))
 })
 
 const menuStyle = computed(() => {
@@ -273,6 +282,8 @@ function refreshTrigger() {
   const t = detectTrigger(ta.value, caret)
   trigger.value = t
   if (t) {
+    // / 命令菜单数据源为 Skill 列表，打开时按 TTL 刷新
+    if (t.type === '/') loadSkills()
     const c = caretCoords(ta, caret)
     const caretLineTop = c.y - ta.scrollTop
     const rect = ta.getBoundingClientRect()
@@ -327,11 +338,14 @@ function initialsOf(label: string) {
 const NAV_KEYS = ['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape']
 
 function onKeyUp(e: KeyboardEvent) {
+  if (e.isComposing) return
   if (trigger.value && results.value.length && NAV_KEYS.includes(e.key)) return
   refreshTrigger()
 }
 
 function onKeyDown(e: KeyboardEvent) {
+  // 输入法组词期间的按键（含 Enter 确认）不参与导航与发送
+  if (e.isComposing) return
   if (trigger.value && results.value.length) {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -365,7 +379,7 @@ function onBlur() {
   window.setTimeout(() => (trigger.value = null), 120)
 }
 
-function onScroll(e: UIEvent) {
+function onScroll(e: Event) {
   const ta = e.target as HTMLTextAreaElement
   if (backdropRef.value) {
     backdropRef.value.scrollTop = ta.scrollTop
@@ -431,13 +445,17 @@ const enabledCount = computed(() => {
   return toolList.value.filter((t) => props.enabledTools?.[t.name] !== false).length
 })
 
-// ===== Skill 列表 =====
+// ===== Skill 列表（/ 命令菜单数据源） =====
 const skills = ref<SkillItem[]>([])
 const copiedName = ref<string | null>(null)
+const SKILL_TTL = 30_000
+let skillsLoadedAt = 0
 
-async function loadSkills() {
+async function loadSkills(force = false) {
+  if (!force && skillsLoadedAt && Date.now() - skillsLoadedAt < SKILL_TTL) return
   try {
     skills.value = await window.api.skill.list()
+    skillsLoadedAt = Date.now()
   } catch {
     skills.value = []
   }
@@ -460,10 +478,6 @@ async function copySkillName(name: string) {
       copiedName.value = null
     }, 1500)
   } catch { /* ignore */ }
-}
-
-function onSkillDropdownOpen(open: boolean) {
-  if (open) loadSkills()
 }
 
 // ===== Skill 编辑 =====
@@ -494,7 +508,7 @@ async function saveEdit() {
       editForm.value.content,
     )
     editDialogOpen.value = false
-    await loadSkills()
+    await loadSkills(true)
   } catch { /* ignore */ }
   editSaving.value = false
 }
@@ -518,7 +532,7 @@ async function confirmDelete() {
   deleteTarget.value = null
   try {
     await window.api.skill.delete(target.name)
-    await loadSkills()
+    await loadSkills(true)
   } catch { /* ignore */ }
 }
 
@@ -630,10 +644,8 @@ const Kbd: FunctionalComponent<{ tone?: 'invert' }> = (props, { slots }) =>
                   class="absolute inset-0 rounded-lg bg-muted"
                   :transition="reduce ? { duration: 0 } : { type: 'spring', stiffness: 650, damping: 40, mass: 0.5 }"
                 />
-                <button
-                  type="button"
-                  tabindex="-1"
-                  class="relative z-10 flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
+                <div
+                  class="relative z-10 flex w-full cursor-default items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
                   @mouseenter="active = i"
                   @mousedown.prevent="insert(r)"
                 >
@@ -670,13 +682,49 @@ const Kbd: FunctionalComponent<{ tone?: 'invert' }> = (props, { slots }) =>
                       >{{ r.hint }}</span>
                     </span>
                   </template>
+                  <!-- skill 行：复制/编辑/删除；普通行：回车提示 -->
                   <span
+                    v-if="r.skill"
+                    class="flex flex-none items-center gap-0.5 transition-opacity"
+                    :class="i === active ? 'opacity-100' : 'opacity-0'"
+                  >
+                    <button
+                      class="rounded p-0.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+                      title="复制名称"
+                      @mousedown.stop.prevent
+                      @click.stop="copySkillName(r.skill.name)"
+                    >
+                      <component
+                        :is="copiedName === r.skill.name ? Check : Copy"
+                        class="size-3"
+                        :class="copiedName === r.skill.name && 'text-green-500'"
+                      />
+                    </button>
+                    <button
+                      class="rounded p-0.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+                      title="编辑"
+                      @mousedown.stop.prevent
+                      @click.stop="openEditDialog(r.skill.name)"
+                    >
+                      <Pencil class="size-3" />
+                    </button>
+                    <button
+                      class="rounded p-0.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-destructive"
+                      title="删除"
+                      @mousedown.stop.prevent
+                      @click.stop="requestDelete(r.skill)"
+                    >
+                      <Trash2 class="size-3" />
+                    </button>
+                  </span>
+                  <span
+                    v-else
                     class="flex-none transition-opacity"
                     :class="i === active ? 'opacity-100' : 'opacity-0'"
                   >
                     <Kbd>↵</Kbd>
                   </span>
-                </button>
+                </div>
               </li>
             </Motion>
           </AnimatePresence>
@@ -754,80 +802,6 @@ const Kbd: FunctionalComponent<{ tone?: 'invert' }> = (props, { slots }) =>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator v-if="gi < groupedTools.length - 1" />
                 </template>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <!-- Skill 列表 -->
-            <DropdownMenu @update:open="onSkillDropdownOpen">
-              <DropdownMenuTrigger as-child>
-                <button
-                  type="button"
-                  class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-                  :disabled="isStreaming"
-                >
-                  <ScrollText class="size-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="top"
-                align="start"
-                class="w-72 max-h-80 overflow-y-auto"
-              >
-                <DropdownMenuLabel class="flex items-center justify-between">
-                  <span>Skill 列表</span>
-                  <span class="text-xs font-normal text-muted-foreground">{{ skills.length }}</span>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <template v-if="skills.length">
-                  <DropdownMenuItem
-                    v-for="skill in skills"
-                    :key="skill.name"
-                    class="flex items-center justify-between gap-2"
-                    @select.prevent="copySkillName(skill.name)"
-                  >
-                    <div
-                      class="min-w-0 flex-1 flex flex-col gap-0.5"
-                      @click="copySkillName(skill.name)"
-                    >
-                      <span class="font-mono text-xs">{{ skill.name }}</span>
-                      <span class="truncate text-[11px] leading-tight text-muted-foreground">{{ skill.description }}</span>
-                    </div>
-                    <div class="flex shrink-0 items-center gap-0.5">
-                      <button
-                        class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title="复制名称"
-                        @click.stop="copySkillName(skill.name)"
-                      >
-                        <component
-                          :is="copiedName === skill.name ? Check : Copy"
-                          class="size-3"
-                          :class="copiedName === skill.name && 'text-green-500'"
-                        />
-                      </button>
-                      <button
-                        class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title="编辑"
-                        @click.stop="openEditDialog(skill.name)"
-                      >
-                        <Pencil class="size-3" />
-                      </button>
-                      <button
-                        class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-                        title="删除"
-                        @click.stop="requestDelete(skill)"
-                      >
-                        <Trash2 class="size-3" />
-                      </button>
-                    </div>
-                  </DropdownMenuItem>
-                </template>
-                <DropdownMenuItem
-                  v-else
-                  disabled
-                  class="justify-center text-xs text-muted-foreground"
-                >
-                  暂无 Skill，对 AI 说"保存 skill"即可创建
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -969,6 +943,12 @@ const Kbd: FunctionalComponent<{ tone?: 'invert' }> = (props, { slots }) =>
     rgba(212,212,216,.62) 108deg,
     rgba(161,161,170,0)   168deg,
     rgba(161,161,170,0)   360deg);
+  /* 仅保留边缘环带：壁纸模式会把 --card 透明化，卡片背景不可靠遮挡光环 */
+  padding: 3px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 .compose-root:focus-within .compose-ring {
   opacity: 1;
