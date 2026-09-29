@@ -1,7 +1,7 @@
 <!-- 共享快捷键动作列表：按分组展示全部快捷键动作，支持按名称/键位/全局搜索 -->
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Globe } from 'lucide-vue-next'
 import { useShortcutStore } from '@/stores/shortcut'
 import { acceleratorToParts } from '@/lib/accelerator'
@@ -15,11 +15,16 @@ import {
   CommandList,
   CommandShortcut
 } from '@/components/ui/command'
+import ShortcutGroupFilter from './ShortcutGroupFilter.vue'
 import type { ShortcutItem } from '../../../preload/index'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   class?: HTMLAttributes['class']
-}>()
+  /** 是否显示分类过滤按钮行（输入框下方） */
+  showGroupFilter?: boolean
+}>(), {
+  showGroupFilter: false
+})
 
 const emit = defineEmits<{
   (e: 'select', item: ShortcutItem): void
@@ -38,17 +43,30 @@ function searchableText(item: ShortcutItem): string {
   return [item.label, keys, item.global ? '全局 global' : ''].filter(Boolean).join(' ')
 }
 
+/** 分类过滤：空字符串表示全部 */
+const activeGroup = ref('')
+
 const groupedShortcuts = computed(() =>
-  store.groups.map(group => ({
-    ...group,
-    items: store.getShortcutsByGroup(group.key)
-  }))
+  store.groups
+    .filter(group => !activeGroup.value || group.key === activeGroup.value)
+    .map(group => ({
+      ...group,
+      items: store.getShortcutsByGroup(group.key)
+    }))
 )
 </script>
 
 <template>
   <Command :class="props.class">
-    <CommandInput placeholder="搜索快捷键动作或按键..." />
+    <CommandInput
+      size="lg"
+      placeholder="搜索快捷键动作或按键..."
+    />
+    <ShortcutGroupFilter
+      v-if="props.showGroupFilter"
+      v-model="activeGroup"
+      :groups="store.groups"
+    />
     <CommandList>
       <CommandEmpty>未找到匹配的快捷键动作</CommandEmpty>
       <CommandGroup

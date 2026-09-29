@@ -48,6 +48,7 @@ import DebuggerPage from '@/components/debugger/DebuggerPage.vue'
 import { useIpcEvent } from '@/composables/useIpc'
 import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
 import { registerShortcutActionHandler } from '@/lib/shortcut-action'
+import { useShortcutStore } from '@/stores/shortcut'
 import type { TabImplementation } from '../preload'
 
 type ImmersiveEdge = 'top' | 'left' | 'right' | 'bottom'
@@ -77,7 +78,7 @@ const immersiveMode = ref(localStorage.getItem(IMMERSIVE_STORAGE_KEY) === '1')
 const verticalTabAddDialog = ref(false)
 const tabOverviewOpen = ref(false)
 const commandPaletteOpen = ref(false)
-const shortcutHelpOpen = ref(false)
+const shortcutStore = useShortcutStore()
 const newTabDialogOpen = ref(false)
 const siteDataPopoverOpen = ref(false)
 const tabImplementation = ref<TabImplementation>('webview')
@@ -725,7 +726,7 @@ function handleShortcutAction(actionId: string) {
       break
     }
     case 'shortcut-help':
-      shortcutHelpOpen.value = !shortcutHelpOpen.value
+      shortcutStore.toggleHelp()
       break
   }
 }
@@ -1293,8 +1294,8 @@ useIpcEvent('shortcut', (actionId) => handleShortcutAction(actionId as string))
 
     <!-- 快捷键速查弹窗 -->
     <ShortcutCommandDialog
-      :open="shortcutHelpOpen"
-      @update:open="shortcutHelpOpen = $event"
+      :open="shortcutStore.helpOpen"
+      @update:open="shortcutStore.helpOpen = $event"
     />
 
     <!-- 外部链接容器选择对话框 -->

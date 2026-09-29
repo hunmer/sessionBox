@@ -11,6 +11,7 @@ import {
   Puzzle,
   Circle,
   MessageSquare,
+  Keyboard,
 } from 'lucide-vue-next'
 
 export interface ToolbarItemDef {
@@ -30,6 +31,7 @@ export const TOOLBAR_ITEMS: ToolbarItemDef[] = [
   { id: 'plugin', label: '插件', icon: Puzzle },
   { id: 'debugger', label: '网页调试', icon: Circle },
   { id: 'chat', label: 'AI 聊天', icon: MessageSquare },
+  { id: 'shortcut', label: '快捷键', icon: Keyboard },
 ]
 
 export interface ToolbarEntry {

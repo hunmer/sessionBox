@@ -32,11 +32,13 @@ import SnifferMiniPopover from './SnifferMiniPopover.vue'
 import PluginMiniPopover from './PluginMiniPopover.vue'
 import RecordingMiniPopover from './RecordingMiniPopover.vue'
 import PluginSettings from '@/components/plugins/PluginSettings.vue'
+import { useShortcutStore } from '@/stores/shortcut'
 import { useChatUIStore } from '@/stores/chat-ui'
 
 const tabStore = useTabStore()
 const chatUIStore = useChatUIStore()
 const toolbarStore = useToolbarStore()
+const shortcutStore = useShortcutStore()
 
 /** 自定义工具栏对话框 */
 const customizeOpen = ref(false)
@@ -292,6 +294,18 @@ function openFullPage(site: string) {
                   @click="chatUIStore.togglePanel()"
                 >
                   <MessageSquare class="h-4 w-4" />
+                </Button>
+
+                <!-- 快捷键速查 -->
+                <Button
+                  v-else-if="item.id === 'shortcut'"
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8"
+                  title="快捷键速查 (Ctrl+/)"
+                  @click="shortcutStore.toggleHelp()"
+                >
+                  <Keyboard class="h-4 w-4" />
                 </Button>
               </template>
             </div>

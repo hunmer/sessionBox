@@ -56,6 +56,7 @@ function handleSelect(item: ShortcutItem) {
       <ShortcutCommandList
         ref="listRef"
         class="h-[400px]"
+        show-group-filter
         @select="handleSelect"
       />
       <div class="flex items-center gap-3 border-t px-3 py-2 text-xs text-muted-foreground">

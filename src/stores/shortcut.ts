@@ -9,6 +9,13 @@ export const useShortcutStore = defineStore('shortcut', () => {
   const groups = ref<ShortcutGroup[]>([])
   const loading = ref(false)
 
+  /** 快捷键速查弹窗开关（Ctrl+/ 与右侧面板入口共用，弹窗本体挂在 App.vue） */
+  const helpOpen = ref(false)
+
+  function toggleHelp() {
+    helpOpen.value = !helpOpen.value
+  }
+
   async function load() {
     loading.value = true
     try {
@@ -62,5 +69,5 @@ export const useShortcutStore = defineStore('shortcut', () => {
     return shortcuts.value.filter(s => s.group === group)
   }
 
-  return { shortcuts, groups, loading, load, updateShortcut, toggleEnabled, clearShortcut, resetShortcuts, getShortcutsByGroup }
+  return { shortcuts, groups, loading, helpOpen, toggleHelp, load, updateShortcut, toggleEnabled, clearShortcut, resetShortcuts, getShortcutsByGroup }
 })
