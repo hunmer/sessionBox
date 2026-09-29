@@ -62,8 +62,14 @@ class UpstreamVerificationRequired(RuntimeError):
 
 def _safe_error_context(event: dict) -> dict:
     """Retain upstream verification metadata without persisting challenge payloads."""
-    result = {"error_code": event.get("error_code")}
+    result = {
+        "error_code": event.get("error_code"),
+        "error_msg": event.get("error_msg") or event.get("message"),
+        "event_keys": sorted(str(key) for key in event.keys()),
+    }
     extra = event.get("extra") or {}
+    if isinstance(extra, dict):
+        result["extra_keys"] = sorted(str(key) for key in extra.keys())
     if isinstance(extra, dict) and isinstance(extra.get("decision"), str):
         try:
             decision = json.loads(extra["decision"])

@@ -26,7 +26,6 @@ import WebviewHost from '@/components/tabs/WebviewHost.vue'
 import SiteDataPopover from '@/components/toolbar/SiteDataPopover.vue'
 import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
 import NewTabDialog from '@/components/tabs/NewTabDialog.vue'
-import CommandPaletteDialog from '@/components/command-palette/CommandPaletteDialog.vue'
 import ShortcutCommandDialog from '@/components/shortcut/ShortcutCommandDialog.vue'
 import ContainerSelectDialog from '@/components/containers/ContainerSelectDialog.vue'
 import { useSplitStore } from '@/stores/split'
@@ -77,7 +76,6 @@ const IMMERSIVE_STORAGE_KEY = 'sessionbox-immersive-mode'
 const immersiveMode = ref(localStorage.getItem(IMMERSIVE_STORAGE_KEY) === '1')
 const verticalTabAddDialog = ref(false)
 const tabOverviewOpen = ref(false)
-const commandPaletteOpen = ref(false)
 const shortcutStore = useShortcutStore()
 const newTabDialogOpen = ref(false)
 const siteDataPopoverOpen = ref(false)
@@ -656,9 +654,6 @@ function handleShortcutAction(actionId: string) {
       break
     case 'tab-overview':
       tabOverviewOpen.value = !tabOverviewOpen.value
-      break
-    case 'command-palette':
-      commandPaletteOpen.value = !commandPaletteOpen.value
       break
     case 'restore-tab':
       tabStore.restoreTab()
@@ -1281,15 +1276,6 @@ useIpcEvent('shortcut', (actionId) => handleShortcutAction(actionId as string))
     <TabOverviewDialog
       :open="tabOverviewOpen"
       @update:open="tabOverviewOpen = $event"
-    />
-
-    <!-- 命令面板 -->
-    <CommandPaletteDialog
-      :open="commandPaletteOpen"
-      :toggle-sidebar="toggleSidebar"
-      :open-settings="() => { settingsDialogOpen = true; settingsInitialTab = 'general' }"
-      :open-new-tab-dialog="() => { newTabDialogOpen = true }"
-      @update:open="commandPaletteOpen = $event"
     />
 
     <!-- 快捷键速查弹窗 -->

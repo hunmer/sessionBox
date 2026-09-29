@@ -42,6 +42,9 @@ class SafeErrorContextTests(unittest.TestCase):
         result = _safe_error_context(event)
         self.assertEqual(result["decision_type"], "verify")
         self.assertEqual(result["verify_scene"], "doubao_message_web")
+        self.assertEqual(result["error_msg"], "rate limited")
+        self.assertIn("error_code", result["event_keys"])
+        self.assertIn("secret", result["extra_keys"])
         self.assertNotIn("sensitive-challenge", str(result))
         self.assertNotIn("do-not-log", str(result))
 
