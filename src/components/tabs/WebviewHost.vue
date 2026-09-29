@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { Loader2 } from 'lucide-vue-next'
+import WebviewSkeleton from './WebviewSkeleton.vue'
 import { useTabStore } from '@/stores/tab'
 
 interface WebviewSpec {
@@ -158,10 +158,10 @@ onUnmounted(() => {
       <!-- webview 原生绘制在其加载完成前是空白，占位层需叠在其上（同容器 DOM 顺序后者居上） -->
       <div
         v-if="view.visible && shouldShowPlaceholder(view.tabId)"
-        class="fixed flex items-center justify-center bg-background"
+        class="fixed overflow-hidden bg-background"
         :style="boundsStyle(view)"
       >
-        <Loader2 class="size-8 animate-spin text-muted-foreground" />
+        <WebviewSkeleton />
       </div>
     </template>
   </div>
