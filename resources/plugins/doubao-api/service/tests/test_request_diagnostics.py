@@ -30,6 +30,10 @@ class RequestDiagnosticsTests(unittest.IsolatedAsyncioTestCase):
 
 
 class SafeErrorContextTests(unittest.TestCase):
+    def test_sessionbox_stream_text_fragments_are_not_dropped(self):
+        self.assertEqual(BrowserClient._extract_text({"_sessionbox_stream": True, "text": "我是"}), "我是")
+        self.assertEqual(BrowserClient._extract_text({"_sessionbox_stream": True, "text": "豆包"}), "豆包")
+
     def test_reports_verify_decision_without_opaque_challenge(self):
         event = {
             "error_code": 710022004,

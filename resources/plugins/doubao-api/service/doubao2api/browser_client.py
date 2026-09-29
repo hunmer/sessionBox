@@ -1040,15 +1040,25 @@ class BrowserClient:
                     if item.get("http_status", 0) >= 400:
                         yield {"error": True, "status": item.get("http_status"), "body": body[:500]}
                         return
+                    parsed_count = 0
+                    parsed_text_length = 0
                     for line in body.splitlines():
                         if not line.startswith("data: "):
                             continue
                         try:
                             event = json.loads(line[6:])
                             event["_event"] = event.get("_event", "")
+                            event["_sessionbox_stream"] = True
+                            parsed_count += 1
+                            parsed_text_length += len(event.get("text", "")) if isinstance(event.get("text"), str) else 0
                             yield event
                         except json.JSONDecodeError:
                             continue
+                    if result and result.get("done"):
+                        log.info("DOUBAO_DIAG %s", json.dumps({"event": "sessionbox_tab_response",
+                            "page_id": self.page_id, "request_id": request_id,
+                            "body_length": len(body), "event_count": parsed_count,
+                            "text_length": parsed_text_length}))
             if result and result.get("done"):
                 await self._execute_sessionbox(f"delete window.__sessionboxDoubao.queues[{json.dumps(request_id)}]")
                 return
@@ -1188,6 +1198,11 @@ class BrowserClient:
         event_type = event.get("_event", "")
 
         if event_type == "CHUNK_DELTA" and "text" in event:
+            return event["text"]
+
+        # SessionBox-tab responses may omit the event name while retaining the
+        # compact text delta shape. Do not discard those fragments.
+        if event.get("_sessionbox_stream") and isinstance(event.get("text"), str):
             return event["text"]
 
         if "patch_op" in event:

@@ -155,10 +155,12 @@ onUnmounted(() => {
           pointerEvents: view.visible ? 'auto' : 'none'
         }"
       />
-      <!-- webview 原生绘制在其加载完成前是空白，占位层需叠在其上（同容器 DOM 顺序后者居上） -->
+      <!-- webview 原生绘制在其加载完成前是空白，占位层需叠在其上（同容器 DOM 顺序后者居上）。
+           bg-popover 是壁纸透明化机制中保持不透明的表面（见 wallpaper.ts OPAQUE_SURFACES），
+           避免半透明的 bg-background 透出主题壁纸 -->
       <div
         v-if="view.visible && shouldShowPlaceholder(view.tabId)"
-        class="fixed overflow-hidden bg-background"
+        class="fixed overflow-hidden bg-popover"
         :style="boundsStyle(view)"
       >
         <WebviewSkeleton />
