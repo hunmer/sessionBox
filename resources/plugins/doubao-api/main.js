@@ -19,7 +19,9 @@ module.exports = {
         ...process.env,
         PYTHONPATH: serviceDir,
         SESSIONBOX_API_URL: `http://127.0.0.1:${sessionConfig.port}`,
-        SESSIONBOX_API_TOKEN: sessionConfig.token
+        SESSIONBOX_API_TOKEN: sessionConfig.token,
+        DOUBAO_HEADLESS: 'auto',
+        DOUBAO_SESSIONBOX_TAB: 'true'
       },
       stdio: ['ignore', 'pipe', 'pipe']
     })

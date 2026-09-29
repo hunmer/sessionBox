@@ -283,7 +283,7 @@ def create_app(
         if current:
             await current.stop()
         client = BrowserClient(
-            headless=os.environ.get("DOUBAO_HEADLESS", "true").strip().lower() == "true",
+            headless=os.environ.get("DOUBAO_HEADLESS", "auto").strip().lower() == "true",
             page_id=page_id,
             sessionbox_url=os.environ.get("SESSIONBOX_API_URL", "http://127.0.0.1:19100").strip(),
         )

@@ -19,6 +19,7 @@ import logging
 import os
 import time
 import uuid
+import hashlib
 from typing import AsyncGenerator, Optional, Dict, Any, List
 from urllib.parse import urlencode
 
@@ -44,6 +45,7 @@ class BrowserClient:
         self.user_data_dir = user_data_dir
         self.page_id = page_id
         self.sessionbox_url = sessionbox_url
+        self.sessionbox_tab_mode = os.environ.get("DOUBAO_SESSIONBOX_TAB", "true").lower() not in ("0", "false", "no")
         self._playwright = None
         self._context: Optional[BrowserContext] = None
         self._page: Optional[Page] = None
@@ -63,6 +65,7 @@ class BrowserClient:
         # Stream bridge: request_id -> asyncio.Queue for SSE chunks
         self._stream_queues: Dict[str, asyncio.Queue] = {}
         self._bridge_ready: bool = False
+        self._sessionbox_tab_ready: bool = False
 
     async def _load_sessionbox_cookies(self) -> None:
         if not self.page_id:
@@ -74,6 +77,24 @@ class BrowserClient:
         if not cookies:
             raise RuntimeError(f"SessionBox page {self.page_id} has no cookies for {DOUBAO_URL}")
         self._sessionbox_cookies = cookies
+        log.info("DOUBAO_DIAG %s", json.dumps({"event": "source_cookies",
+            "page_id": self.page_id, **self._cookie_summary(cookies)}))
+
+    @staticmethod
+    def _cookie_summary(cookies: List[Dict[str, Any]]) -> Dict[str, Any]:
+        rows = []
+        for cookie in cookies:
+            value = str(cookie.get("value") or "")
+            rows.append({
+                "name": cookie.get("name", ""),
+                "domain": cookie.get("domain", ""),
+                "path": cookie.get("path", "/"),
+                "value_length": len(value),
+                "value_hash": hashlib.sha256(value.encode()).hexdigest()[:12],
+                "secure": bool(cookie.get("secure")),
+                "http_only": bool(cookie.get("httpOnly")),
+            })
+        return {"count": len(rows), "cookies": sorted(rows, key=lambda row: (row["name"], row["domain"]))}
 
     @property
     def is_ready(self) -> bool:
@@ -163,7 +184,44 @@ class BrowserClient:
 
         log.info("Starting BrowserClient (headless=%s, page_id=%s)", self.headless, self.page_id)
         await self._load_sessionbox_cookies()
+        if self.sessionbox_tab_mode:
+            await self._start_sessionbox_tab()
+            return
         self._playwright = await async_playwright().start()
+
+    async def _execute_sessionbox(self, code: str) -> Any:
+        from .sessionbox_api import SessionBoxClient
+        result = await SessionBoxClient(
+            self.sessionbox_url, token=os.environ.get("SESSIONBOX_API_TOKEN", "")
+        ).execute(self.page_id, code)
+        if isinstance(result, str):
+            try:
+                return json.loads(result)
+            except json.JSONDecodeError:
+                return result
+        return result
+
+    async def _start_sessionbox_tab(self):
+        state = await self._execute_sessionbox("""JSON.stringify((() => ({
+            url: location.href,
+            title: document.title,
+            has_login_button: [...document.querySelectorAll('button,a')].some(el =>
+                el.textContent?.trim() === '登录' && !!el.getClientRects().length),
+            has_frontier_sign: typeof window.bdms?.frontierSign === 'function'
+        }))())""")
+        if not isinstance(state, dict) or not str(state.get("url", "")).startswith(DOUBAO_URL + "/"):
+            raise RuntimeError("SessionBox Doubao tab is not open; open the selected page in SessionBox first")
+        self._sessionbox_tab_ready = True
+        await self._inspect_sessionbox_identity()
+        await self._extract_params()
+        await self._seed_ms_token()
+        self._ready = not bool(state.get("has_login_button")) and bool(self._device_id or self._web_id)
+        log.info("DOUBAO_DIAG %s", json.dumps({"event": "sessionbox_tab_ready", "page_id": self.page_id,
+            "url": state.get("url"), "headless": False, "has_frontier_sign": bool(state.get("has_frontier_sign")),
+            "ready": self._ready}))
+        if not self._ready:
+            raise RuntimeError("SessionBox Doubao tab is not authenticated")
+        return
 
         launch_args = [
             "--disable-blink-features=AutomationControlled",
@@ -213,6 +271,11 @@ class BrowserClient:
                     ({k: v for k, v in cookie.items() if k in {"name", "value", "domain", "path", "secure", "httpOnly"}} | ({"expires": cookie["expirationDate"]} if cookie.get("expirationDate") else {}))
                     for cookie in self._sessionbox_cookies
                 ])
+                log.info("DOUBAO_DIAG %s", json.dumps({"event": "clone_cookies",
+                    "page_id": self.page_id, "same_summary": self._cookie_summary(self._sessionbox_cookies) ==
+                    self._cookie_summary(await ctx.cookies(DOUBAO_URL)),
+                    "source": self._cookie_summary(self._sessionbox_cookies),
+                    "clone": self._cookie_summary(await ctx.cookies(DOUBAO_URL))}))
                 return ctx, page
 
         try:
@@ -264,11 +327,13 @@ class BrowserClient:
         try:
             source = await SessionBoxClient(
                 self.sessionbox_url, token=os.environ.get("SESSIONBOX_API_TOKEN", "")
-            ).execute(self.page_id, '''(() => {
+            ).execute(self.page_id, '''JSON.stringify((() => {
                 try {
                     return {web_id: JSON.parse(localStorage.getItem('__tea_cache_tokens_497858') || '{}').web_id || ''};
                 } catch (_) { return {web_id: ''}; }
-            })()''')
+            })())''')
+            if isinstance(source, str):
+                source = json.loads(source)
             web_id = source.get("web_id") if isinstance(source, dict) else None
             if not isinstance(web_id, str) or not web_id.isdigit() or not 10 <= len(web_id) <= 24:
                 log.warning("DOUBAO_DIAG %s", json.dumps({"event": "source_identity", "page_id": self.page_id,
@@ -301,10 +366,17 @@ class BrowserClient:
         self._page = None
         self._ready = False
         self._bridge_ready = False
+        self._sessionbox_tab_ready = False
         log.info("BrowserClient stopped")
 
     async def is_alive(self) -> bool:
         """Check if browser process is still responsive."""
+        if self.sessionbox_tab_mode:
+            try:
+                state = await self._execute_sessionbox("({url: location.href})")
+                return isinstance(state, dict) and str(state.get("url", "")).startswith(DOUBAO_URL + "/")
+            except Exception:
+                return False
         if not self._page or not self._context:
             return False
         if self._page.is_closed():
@@ -452,7 +524,7 @@ class BrowserClient:
     async def _extract_params(self):
         """Extract device_id, web_id, fp from localStorage/cookies."""
         for _ in range(5):
-            params = await self._page.evaluate("""() => {
+            code = """() => JSON.stringify((() => {
                 const result = {};
                 try {
                     const samWeb = JSON.parse(localStorage.getItem('samantha_web_web_id') || '{}');
@@ -467,7 +539,10 @@ class BrowserClient:
                     .find(c => c.startsWith('s_v_web_id='));
                 result.fp = fpCookie ? fpCookie.split('=')[1] : '';
                 return result;
-            }""")
+            })())"""
+            params = await (self._execute_sessionbox(f"({code})()") if self.sessionbox_tab_mode else self._page.evaluate(code))
+            if isinstance(params, str):
+                params = json.loads(params)
             self._device_id = params.get("device_id", "")
             self._web_id = params.get("web_id", "")
             self._fp = params.get("fp", "")
@@ -628,7 +703,7 @@ class BrowserClient:
 
     async def _seed_ms_token(self):
         """Seed initial msToken from browser cookies."""
-        cookies = await self._context.cookies("https://www.doubao.com")
+        cookies = self._sessionbox_cookies if self.sessionbox_tab_mode else await self._context.cookies("https://www.doubao.com")
         for c in cookies:
             if c["name"] == "msToken":
                 self._ms_token = c["value"]
@@ -644,9 +719,8 @@ class BrowserClient:
         last_error = None
         for attempt in range(3):
             try:
-                sig = await self._page.evaluate(
-                    f'window.bdms.frontierSign("{query_string}")'
-                )
+                expression = f'window.bdms.frontierSign({json.dumps(query_string)})'
+                sig = await (self._execute_sessionbox(expression) if self.sessionbox_tab_mode else self._page.evaluate(expression))
 
                 if isinstance(sig, dict):
                     if "a_bogus" in sig:
@@ -847,6 +921,11 @@ class BrowserClient:
             },
         }
 
+        if self.sessionbox_tab_mode:
+            async for event in self._sessionbox_chat_stream(payload, conversation_id, use_deep_think):
+                yield event
+            return
+
         # Build URL with query params and X-Bogus signature via bdms.frontierSign
         query_params = self._build_query_params()
         url = await self._sign_url("/chat/completion", query_params)
@@ -863,7 +942,9 @@ class BrowserClient:
             "page_id": self.page_id, "request_id": request_id, "headless": self.headless,
             "source_web_id_matches": bool(self._source_web_id and self._web_id == self._source_web_id),
             "has_sessionid": "sessionid" in cookie_names, "has_csrf": "passport_csrf_token" in cookie_names,
-            "has_ms_token": bool(self._ms_token), "fetch_hook": self._bridge_ready}))
+            "has_ms_token": bool(self._ms_token), "fetch_hook": self._bridge_ready,
+            "navigator_webdriver": await self._page.evaluate("() => Boolean(navigator.webdriver)"),
+            "user_agent": (await self._page.evaluate("() => navigator.userAgent"))[:180]}))
 
         # Launch browser fetch in background with completion watcher
         eval_task = asyncio.create_task(
@@ -918,6 +999,61 @@ class BrowserClient:
                     eval_task.result()
                 except Exception:
                     pass
+
+    async def _sessionbox_chat_stream(self, payload: Dict[str, Any], conversation_id: Optional[str], use_deep_think: int):
+        """Run chat fetch in the existing SessionBox tab and poll its SSE queue."""
+        query_params = self._build_query_params()
+        url = await self._sign_url("/chat/completion", query_params)
+        request_id = f"sb_{uuid.uuid4().hex[:16]}"
+        payload_json = json.dumps(payload, ensure_ascii=False)
+        script = """
+        ([url, payloadJson, requestId]) => {
+            window.__sessionboxDoubao = window.__sessionboxDoubao || {queues: {}};
+            const state = window.__sessionboxDoubao;
+            state.queues[requestId] = {items: [], done: false};
+            (async () => {
+                try {
+                    const csrf = document.cookie.match(/passport_csrf_token=([^;]+)/);
+                    const headers = {'Content-Type': 'application/json', 'agw-js-conv': 'str'};
+                    if (csrf) headers['x-tt-passport-csrf-token'] = csrf[1];
+                    const response = await fetch(url, {method: 'POST', headers, body: payloadJson, credentials: 'include'});
+                    const body = await response.text();
+                    state.queues[requestId].items.push({http_status: response.status, body});
+                } catch (error) {
+                    state.queues[requestId].items.push({error: String(error)});
+                } finally { state.queues[requestId].done = true; }
+            })();
+            return true;
+        }
+        """
+        await self._execute_sessionbox(f"({script})({json.dumps([url, payload_json, request_id], ensure_ascii=False)})")
+        log.info("DOUBAO_DIAG %s", json.dumps({"event": "sessionbox_tab_request", "page_id": self.page_id,
+            "request_id": request_id, "conversation_id": conversation_id or "new", "headless": False}))
+        for _ in range(360):
+            result = await self._execute_sessionbox(f"(() => {{ const q = window.__sessionboxDoubao?.queues?.[{json.dumps(request_id)}]; if (!q) return null; const items=q.items.splice(0); return {{items,done:q.done}}; }})()")
+            if result and result.get("items"):
+                for item in result["items"]:
+                    if item.get("error"):
+                        yield {"error": True, "status": 0, "body": item["error"]}
+                        return
+                    body = item.get("body", "")
+                    if item.get("http_status", 0) >= 400:
+                        yield {"error": True, "status": item.get("http_status"), "body": body[:500]}
+                        return
+                    for line in body.splitlines():
+                        if not line.startswith("data: "):
+                            continue
+                        try:
+                            event = json.loads(line[6:])
+                            event["_event"] = event.get("_event", "")
+                            yield event
+                        except json.JSONDecodeError:
+                            continue
+            if result and result.get("done"):
+                await self._execute_sessionbox(f"delete window.__sessionboxDoubao.queues[{json.dumps(request_id)}]")
+                return
+            await asyncio.sleep(0.25)
+        yield {"error": True, "status": 504, "body": "SessionBox tab stream timeout"}
 
     async def _browser_fetch_stream(
         self, url: str, payload: Dict[str, Any], request_id: str
@@ -1100,6 +1236,12 @@ class BrowserClient:
         Returns True if deletion succeeded, False otherwise.
         """
         if not conversation_id or str(conversation_id).strip() in ("0", ""):
+            return False
+
+        if self.sessionbox_tab_mode:
+            log.info("DOUBAO_DIAG %s", json.dumps({"event": "conversation_delete_skipped",
+                "page_id": self.page_id, "conversation_id": conversation_id,
+                "reason": "sessionbox_tab_mode"}))
             return False
 
         if not self._ready or self._page is None:
