@@ -27,6 +27,7 @@ import SiteDataPopover from '@/components/toolbar/SiteDataPopover.vue'
 import TabOverviewDialog from '@/components/tabs/TabOverviewDialog.vue'
 import NewTabDialog from '@/components/tabs/NewTabDialog.vue'
 import CommandPaletteDialog from '@/components/command-palette/CommandPaletteDialog.vue'
+import ShortcutCommandDialog from '@/components/shortcut/ShortcutCommandDialog.vue'
 import ContainerSelectDialog from '@/components/containers/ContainerSelectDialog.vue'
 import { useSplitStore } from '@/stores/split'
 import { useWallpaperStore } from '@/stores/wallpaper'
@@ -46,6 +47,7 @@ import ChatPanel from '@/components/chat/ChatPanel.vue'
 import DebuggerPage from '@/components/debugger/DebuggerPage.vue'
 import { useIpcEvent } from '@/composables/useIpc'
 import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
+import { registerShortcutActionHandler } from '@/lib/shortcut-action'
 import type { TabImplementation } from '../preload'
 
 type ImmersiveEdge = 'top' | 'left' | 'right' | 'bottom'
@@ -75,6 +77,7 @@ const immersiveMode = ref(localStorage.getItem(IMMERSIVE_STORAGE_KEY) === '1')
 const verticalTabAddDialog = ref(false)
 const tabOverviewOpen = ref(false)
 const commandPaletteOpen = ref(false)
+const shortcutHelpOpen = ref(false)
 const newTabDialogOpen = ref(false)
 const siteDataPopoverOpen = ref(false)
 const tabImplementation = ref<TabImplementation>('webview')
@@ -589,11 +592,11 @@ useIpcEvent('tab:request-bounds', () => {
   nextTick(() => syncWebContentsViewVisibility())
 })
 
-useIpcEvent('shortcut', (actionId) => {
-  const action = actionId as string
-  console.log('[App] 收到快捷键事件:', action)
+// 快捷键动作统一执行入口：主进程 on:shortcut 事件、命令面板 provider、快捷键速查弹窗共用
+function handleShortcutAction(actionId: string) {
+  console.log('[App] 快捷键动作触发:', actionId)
   const tab = tabStore.activeTab
-  switch (action) {
+  switch (actionId) {
     case 'new-tab': {
       newTabDialogOpen.value = true
       break
@@ -721,8 +724,14 @@ useIpcEvent('shortcut', (actionId) => {
       input?.focus()
       break
     }
+    case 'shortcut-help':
+      shortcutHelpOpen.value = !shortcutHelpOpen.value
+      break
   }
-})
+}
+
+registerShortcutActionHandler(handleShortcutAction)
+useIpcEvent('shortcut', (actionId) => handleShortcutAction(actionId as string))
 </script>
 
 <template>
@@ -1280,6 +1289,12 @@ useIpcEvent('shortcut', (actionId) => {
       :open-settings="() => { settingsDialogOpen = true; settingsInitialTab = 'general' }"
       :open-new-tab-dialog="() => { newTabDialogOpen = true }"
       @update:open="commandPaletteOpen = $event"
+    />
+
+    <!-- 快捷键速查弹窗 -->
+    <ShortcutCommandDialog
+      :open="shortcutHelpOpen"
+      @update:open="shortcutHelpOpen = $event"
     />
 
     <!-- 外部链接容器选择对话框 -->

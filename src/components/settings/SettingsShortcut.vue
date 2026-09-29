@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useShortcutStore } from '@/stores/shortcut'
+import { acceleratorToParts } from '@/lib/accelerator'
 import { Kbd } from '@/components/ui/kbd'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -73,21 +74,6 @@ function keyToAcceleratorPart(e: KeyboardEvent): string {
 
   parts.push(key)
   return parts.join('+')
-}
-
-/** 将 accelerator 字符串拆分为显示用的按键数组 */
-function acceleratorToParts(accelerator: string): string[] {
-  if (!accelerator) return []
-  return accelerator.split('+').map(part => {
-    const map: Record<string, string> = {
-      CmdOrCtrl: 'Ctrl',
-      Control: 'Ctrl',
-      Meta: 'Win',
-      Shift: 'Shift',
-      Alt: 'Alt'
-    }
-    return map[part] || part
-  })
 }
 
 /** 判断是否是修饰键 */

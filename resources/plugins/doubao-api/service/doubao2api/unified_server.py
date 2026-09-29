@@ -55,6 +55,26 @@ from .token_counter import count_tokens, count_messages_tokens, SAFETY_FACTOR
 
 log = logging.getLogger("doubao_unified")
 
+
+class UpstreamVerificationRequired(RuntimeError):
+    pass
+
+
+def _safe_error_context(event: dict) -> dict:
+    """Retain upstream verification metadata without persisting challenge payloads."""
+    result = {"error_code": event.get("error_code")}
+    extra = event.get("extra") or {}
+    if isinstance(extra, dict) and isinstance(extra.get("decision"), str):
+        try:
+            decision = json.loads(extra["decision"])
+            if isinstance(decision, dict):
+                for key in ("type", "subtype", "verify_scene", "log_id", "code"):
+                    if key in decision:
+                        result["decision_type" if key == "type" else key] = decision[key]
+        except (ValueError, TypeError):
+            result["decision_parse_failed"] = True
+    return result
+
 # ── Tool Name Obfuscation (enabled via QIANWEN_OBFUSCATE_TOOLS=true) ──
 _tool_obfuscator = ToolNameObfuscator(
     enabled=os.environ.get("QIANWEN_OBFUSCATE_TOOLS", "false").lower() == "true"
@@ -588,16 +608,15 @@ def create_app(
         await bucket.acquire()
         client = _get_client()
 
-        # ── Self-healing captcha check: verify if a real captcha modal is actually visible in DOM ──
+        # A verification decision can be returned without a visible modal in the cloned browser.
         if client.needs_captcha:
-            if not await client.is_captcha_visible():
-                log.info("Auto-healed: cleared false alarm captcha flag (no visible captcha in DOM)")
+            if client.verification_retry_due():
+                log.info("DOUBAO_DIAG %s", json.dumps({"event": "verification_retry",
+                    "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "page_id": client.page_id}))
                 client.clear_captcha()
             else:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Captcha verification required. Please complete the slider in the browser window.",
-                )
+                raise HTTPException(status_code=503,
+                    detail="豆包要求验证 (710022004)，请在 SessionBox 对应页面确认账号能否正常发送消息；60 秒后可重试，详情见插件日志")
 
         # ── Request Dispatch Smoothing (anti-burst rate limit) ──
         global _last_dispatch_time
@@ -676,6 +695,8 @@ def create_app(
                     conversation_id=body.conversation_id, bot_id=body.bot_id,
                 )
                 finish_reason = "stop"
+        except UpstreamVerificationRequired as exc:
+            raise HTTPException(status_code=503, detail=str(exc))
         except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc))
 
@@ -1295,8 +1316,14 @@ def create_app(
             if event.get("error_code"):
                 code = event.get("error_code", 0)
                 msg = event.get("error_msg", "")
-                log.error("RAW DOUBAO ERROR EVENT: %s", json.dumps(event, ensure_ascii=False))
+                details = _safe_error_context(event)
+                log.error("DOUBAO_DIAG %s", json.dumps({"event": "chat_error",
+                    "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "page_id": client.page_id, "headless": client.headless,
+                    **details}, ensure_ascii=False))
                 client.record_failure(code)
+                if code == 710022004 and details.get("decision_type") == "verify":
+                    raise UpstreamVerificationRequired("豆包要求验证 (710022004)，请在 SessionBox 对应页面确认账号能否正常发送消息；60 秒后可重试，详情见插件日志")
                 raise RuntimeError(f"Error code={code}: {msg}")
 
             # Extract conversation_id for multi-turn
@@ -1446,8 +1473,14 @@ def create_app(
                 if event_type == "STREAM_ERROR" or event.get("error_code"):
                     code = event.get("error_code", 0)
                     msg = event.get("error_msg", "unknown error")
-                    log.error("RAW DOUBAO STREAM ERROR EVENT: %s", json.dumps(event, ensure_ascii=False))
+                    details = _safe_error_context(event)
+                    log.error("DOUBAO_DIAG %s", json.dumps({"event": "chat_stream_error",
+                        "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "page_id": client.page_id, "headless": client.headless,
+                        **details}, ensure_ascii=False))
                     client.record_failure(code)
+                    if code == 710022004 and details.get("decision_type") == "verify":
+                        msg = "豆包要求验证，请在 SessionBox 对应页面确认账号能否正常发送消息；详情见插件日志"
                     chunk = _make_chunk(
                         {"content": f"[Error code={code}: {msg}]"}
                     )

@@ -6,6 +6,7 @@ import { createHistoryProvider } from './history'
 import { createWorkspaceProvider } from './workspace'
 import { createSearchProvider } from './search'
 import { createGlobalCommandProvider } from './global'
+import { createShortcutCommandProvider } from './shortcut'
 
 interface GlobalCallbacks {
   toggleSidebar: () => void
@@ -17,6 +18,7 @@ interface GlobalCallbacks {
 export function createAllProviders(callbacks: GlobalCallbacks): CommandProvider[] {
   return [
     createGlobalCommandProvider(callbacks),
+    createShortcutCommandProvider(),
     createWorkspaceProvider(),
     createSearchProvider(),
     createBookmarkProvider(),

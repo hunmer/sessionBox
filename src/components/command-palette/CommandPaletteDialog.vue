@@ -7,6 +7,7 @@ import CommandList from '@/components/ui/command/CommandList.vue'
 import CommandEmpty from '@/components/ui/command/CommandEmpty.vue'
 import CommandGroup from '@/components/ui/command/CommandGroup.vue'
 import CommandItem from '@/components/ui/command/CommandItem.vue'
+import { Kbd } from '@/components/ui/kbd'
 import { Search, X } from 'lucide-vue-next'
 import { useCommandPalette } from '@/composables/useCommandPalette'
 import { createAllProviders } from './providers'
@@ -333,9 +334,13 @@ onBeforeUnmount(() => {
           </div>
           <span
             v-if="item.shortcut"
-            class="ml-2 text-xs text-muted-foreground"
+            class="ml-2 flex items-center gap-0.5"
           >
-            {{ item.shortcut }}
+            <Kbd
+              v-for="key in item.shortcut.split('+')"
+              :key="key"
+              class="h-5 min-w-[20px] px-1 text-[10px]"
+            >{{ key }}</Kbd>
           </span>
         </CommandItem>
       </CommandGroup>

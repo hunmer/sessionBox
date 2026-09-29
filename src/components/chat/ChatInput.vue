@@ -1,12 +1,137 @@
+<!--
+  ChatInput 聊天输入框
+  来源：React Compose 组件移植（framer-motion → motion-v，React hooks → Composition API）
+  附加：图片上传、模型选择、工具开关、Skill 管理（沿用旧版 ChatInput 功能）
+  用法：
+    <ChatInput
+      :is-streaming="chat.isStreaming"
+      :disabled="!model"
+      :tools="tools"
+      :enabled-tools="enabledTools"
+      @send="(content, images) => {}"
+      @stop="() => {}"
+      @toggle-tool="(name) => {}"
+    />
+-->
+<script lang="ts">
+import type { Component } from 'vue'
+import type { ToolDisplayItem } from '@/types'
+
+export interface ComposeMention {
+  id: string
+  label: string
+  sublabel?: string
+  avatar?: string
+}
+
+export interface ComposeCommand {
+  id: string
+  label: string
+  hint?: string
+  icon?: Component
+}
+
+interface Trigger {
+  type: '@' | '/'
+  start: number
+  query: string
+}
+
+const CARET_PROPS = [
+  'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+  'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+  'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+  'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
+  'lineHeight', 'fontFamily', 'textAlign', 'textTransform', 'textIndent',
+  'letterSpacing', 'wordSpacing', 'tabSize', 'whiteSpace', 'wordWrap', 'wordBreak',
+] as const
+
+/** 镜像测量 textarea 中指定光标位置的坐标（用于定位 @ / / 弹出菜单） */
+function caretCoords(el: HTMLTextAreaElement, pos: number) {
+  const doc = document.createElement('div')
+  const s = doc.style
+  const cs = window.getComputedStyle(el)
+  s.position = 'absolute'
+  s.visibility = 'hidden'
+  s.whiteSpace = 'pre-wrap'
+  s.wordWrap = 'break-word'
+  s.top = '0'
+  s.left = '-9999px'
+  for (const p of CARET_PROPS) {
+    s[p] = cs[p]
+  }
+  s.height = 'auto'
+  s.overflow = 'hidden'
+  doc.textContent = el.value.slice(0, pos)
+  const marker = document.createElement('span')
+  marker.textContent = el.value.slice(pos) || '.'
+  doc.appendChild(marker)
+  document.body.appendChild(doc)
+  const x = marker.offsetLeft
+  const y = marker.offsetTop
+  document.body.removeChild(doc)
+  return { x, y, lineHeight: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4 }
+}
+
+/** 从光标位置向左扫描，判断是否处于 @mention / /command 触发态 */
+function detectTrigger(text: string, caret: number): Trigger | null {
+  let i = caret - 1
+  while (i >= 0) {
+    const ch = text[i]
+    if (ch === '@' || ch === '/') {
+      const before = i === 0 ? ' ' : text[i - 1]
+      if (i === 0 || /\s/.test(before)) {
+        const query = text.slice(i + 1, caret)
+        if (!/\s/.test(query)) return { type: ch, start: i, query }
+      }
+      return null
+    }
+    if (/\s/.test(ch)) return null
+    i--
+  }
+  return null
+}
+
+function escapeRe(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+interface Seg {
+  text: string
+  kind: 'text' | 'mention' | 'command'
+}
+
+/** 将文本切分为普通文本 / mention / command 片段（背景层高亮用） */
+function segment(text: string, mentionForms: string[], commandForms: string[]): Seg[] {
+  const forms = [
+    ...mentionForms.map((f) => ({ f, kind: 'mention' as const })),
+    ...commandForms.map((f) => ({ f, kind: 'command' as const })),
+  ].sort((a, b) => b.f.length - a.f.length)
+  if (forms.length === 0) return [{ text, kind: 'text' }]
+
+  const kindOf = new Map(forms.map((x) => [x.f, x.kind]))
+  const re = new RegExp(
+    `(${forms.map((x) => escapeRe(x.f)).join('|')})(?=$|[^\\w])`,
+    'g',
+  )
+  const out: Seg[] = []
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    const prev = m.index === 0 ? '' : text[m.index - 1]
+    if (prev && /\w/.test(prev)) continue
+    if (m.index > last) out.push({ text: text.slice(last, m.index), kind: 'text' })
+    out.push({ text: m[0], kind: kindOf.get(m[0]) ?? 'mention' })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) out.push({ text: text.slice(last), kind: 'text' })
+  return out.length ? out : [{ text, kind: 'text' }]
+}
+</script>
+
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupTextarea,
-  InputGroupText,
-} from '@/components/ui/input-group'
+import { ref, computed, watch, onMounted, onBeforeUnmount, useId, h, type FunctionalComponent } from 'vue'
+import { Motion, AnimatePresence, useReducedMotion } from 'motion-v'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,12 +160,10 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
 import {
-  ImagePlus, Send, Square, Trash2, Wrench, ScrollText,
+  ImagePlus, Square, Trash2, Wrench, ScrollText,
   Copy, Check, Pencil, Loader2,
 } from 'lucide-vue-next'
-import type { ToolDisplayItem } from '@/types'
 import ModelSelector from './ModelSelector.vue'
 
 interface SkillItem {
@@ -57,47 +180,200 @@ interface SkillFull {
   updated: string
 }
 
-const props = defineProps<{
+/** 菜单行统一模型（mention / command 归一化，简化模板） */
+interface Row {
+  id: string
+  label: string
+  sublabel?: string
+  avatar?: string
+  hint?: string
+  icon?: Component
+}
+
+const props = withDefaults(defineProps<{
   isStreaming: boolean
   disabled?: boolean
   tools?: ToolDisplayItem[]
   enabledTools?: Record<string, boolean>
-}>()
+  mentions?: ComposeMention[]
+  commands?: ComposeCommand[]
+  placeholder?: string
+  submitLabel?: string
+  ariaLabel?: string
+  autoFocus?: boolean
+}>(), {
+  placeholder: '输入消息... (Enter 发送, Shift+Enter 换行)',
+  submitLabel: '发送',
+  ariaLabel: '消息输入框',
+  autoFocus: false,
+})
 
 const emit = defineEmits<{
   send: [content: string, images: string[]]
   stop: []
   toggleTool: [toolName: string]
+  command: [command: ComposeCommand]
 }>()
+
+const uid = useId()
+const reduce = useReducedMotion()
+const taRef = ref<HTMLTextAreaElement | null>(null)
+const backdropRef = ref<HTMLDivElement | null>(null)
+let pendingCaret: number | null = null
+let flashTimer: number | null = null
 
 const inputText = ref('')
 const images = ref<string[]>([])
 
-const toolList = computed(() => props.tools ?? [])
+// ===== @ / / 触发菜单 =====
+const trigger = ref<Trigger | null>(null)
+const menu = ref({ x: 0, top: 0, bottom: 0, flip: false })
+const active = ref(0)
+const flash = ref<string | null>(null)
 
-/** 按分类分组工具列表 */
-const groupedTools = computed(() => {
-  const groups = new Map<string, ToolDisplayItem[]>()
-  for (const tool of toolList.value) {
-    const list = groups.get(tool.category) ?? []
-    list.push(tool)
-    groups.set(tool.category, list)
+const mentionForms = computed(() => (props.mentions ?? []).map((m) => '@' + m.label))
+const commandForms = computed(() => (props.commands ?? []).map((c) => '/' + c.label))
+const segs = computed(() => segment(inputText.value, mentionForms.value, commandForms.value))
+const popIndex = computed(() => {
+  if (!flash.value) return -1
+  return segs.value.findIndex((s) => s.kind !== 'text' && s.text.trim() === flash.value)
+})
+
+const results = computed<Row[]>(() => {
+  if (!trigger.value) return []
+  const q = trigger.value.query.toLowerCase()
+  const src = trigger.value.type === '@' ? (props.mentions ?? []) : (props.commands ?? [])
+  return src
+    .filter((x) => x.label.toLowerCase().includes(q))
+    .slice(0, 6)
+    .map((x) => ({
+      id: x.id,
+      label: x.label,
+      sublabel: (x as ComposeMention).sublabel,
+      avatar: (x as ComposeMention).avatar,
+      hint: (x as ComposeCommand).hint,
+      icon: (x as ComposeCommand).icon,
+    }))
+})
+
+const menuStyle = computed(() => {
+  const style: { left: string; transformOrigin: string; top?: string; bottom?: string } = {
+    left: `${Math.max(8, menu.value.x)}px`,
+    transformOrigin: menu.value.flip ? 'bottom left' : 'top left',
   }
-  return Array.from(groups.entries())
+  if (menu.value.flip) style.bottom = `${menu.value.bottom}px`
+  else style.top = `${menu.value.top}px`
+  return style
 })
 
-/** 已启用工具数量 */
-const enabledCount = computed(() => {
-  return toolList.value.filter((t) => props.enabledTools?.[t.name] !== false).length
+function refreshTrigger() {
+  const ta = taRef.value
+  if (!ta) return
+  const caret = ta.selectionStart ?? 0
+  const t = detectTrigger(ta.value, caret)
+  trigger.value = t
+  if (t) {
+    const c = caretCoords(ta, caret)
+    const caretLineTop = c.y - ta.scrollTop
+    const rect = ta.getBoundingClientRect()
+    const lineBottomVp = rect.top + caretLineTop + c.lineHeight
+    const flip = window.innerHeight - lineBottomVp < 252 && caretLineTop > 120
+    menu.value = {
+      x: c.x - ta.scrollLeft,
+      top: caretLineTop + c.lineHeight + 6,
+      bottom: ta.offsetHeight - caretLineTop + 6,
+      flip,
+    }
+    active.value = 0
+  }
+}
+
+// 文本更新后恢复待定光标位置（flush post：等 textarea DOM 同步后再设置选区）
+watch(inputText, () => {
+  if (pendingCaret != null && taRef.value) {
+    const pos = pendingCaret
+    pendingCaret = null
+    taRef.value.focus()
+    taRef.value.setSelectionRange(pos, pos)
+    refreshTrigger()
+  }
+}, { flush: 'post' })
+
+onBeforeUnmount(() => {
+  if (flashTimer) window.clearTimeout(flashTimer)
 })
 
-function handleKeydown(e: KeyboardEvent) {
+function insert(choice: Row) {
+  const ta = taRef.value
+  if (!ta || !trigger.value) return
+  const isCommand = trigger.value.type === '/'
+  const caret = ta.selectionStart ?? 0
+  const token = (isCommand ? '/' : '@') + choice.label
+  const next = ta.value.slice(0, trigger.value.start) + token + ' ' + ta.value.slice(caret)
+  pendingCaret = trigger.value.start + token.length + 1
+  inputText.value = next
+  trigger.value = null
+  flash.value = token
+  if (flashTimer) window.clearTimeout(flashTimer)
+  flashTimer = window.setTimeout(() => (flash.value = null), 480)
+  if (isCommand) emit('command', choice)
+}
+
+function initialsOf(label: string) {
+  const parts = label.trim().split(/\s+/)
+  return (parts.length === 1 ? parts[0].slice(0, 2) : parts.slice(0, 2).map((w) => w[0]).join('')).toUpperCase()
+}
+
+const NAV_KEYS = ['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape']
+
+function onKeyUp(e: KeyboardEvent) {
+  if (trigger.value && results.value.length && NAV_KEYS.includes(e.key)) return
+  refreshTrigger()
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if (trigger.value && results.value.length) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      active.value = (active.value + 1) % results.value.length
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      active.value = (active.value - 1 + results.value.length) % results.value.length
+      return
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault()
+      insert(results.value[active.value])
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      trigger.value = null
+      return
+    }
+  }
+  // Enter 发送，Shift+Enter 换行（沿用聊天页交互）
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
     handleSend()
   }
 }
 
+function onBlur() {
+  window.setTimeout(() => (trigger.value = null), 120)
+}
+
+function onScroll(e: UIEvent) {
+  const ta = e.target as HTMLTextAreaElement
+  if (backdropRef.value) {
+    backdropRef.value.scrollTop = ta.scrollTop
+    backdropRef.value.scrollLeft = ta.scrollLeft
+  }
+}
+
+// ===== 发送 =====
 function handleSend() {
   const text = inputText.value.trim()
   if (!text || props.isStreaming) return
@@ -106,6 +382,7 @@ function handleSend() {
   images.value = []
 }
 
+// ===== 图片上传 =====
 function handleImageUpload() {
   const input = document.createElement('input')
   input.type = 'file'
@@ -137,6 +414,23 @@ function removeImage(index: number) {
   images.value.splice(index, 1)
 }
 
+// ===== 工具列表 =====
+const toolList = computed(() => props.tools ?? [])
+
+const groupedTools = computed(() => {
+  const groups = new Map<string, ToolDisplayItem[]>()
+  for (const tool of toolList.value) {
+    const list = groups.get(tool.category) ?? []
+    list.push(tool)
+    groups.set(tool.category, list)
+  }
+  return Array.from(groups.entries())
+})
+
+const enabledCount = computed(() => {
+  return toolList.value.filter((t) => props.enabledTools?.[t.name] !== false).length
+})
+
 // ===== Skill 列表 =====
 const skills = ref<SkillItem[]>([])
 const copiedName = ref<string | null>(null)
@@ -149,7 +443,14 @@ async function loadSkills() {
   }
 }
 
-onMounted(loadSkills)
+onMounted(() => {
+  loadSkills()
+  if (props.autoFocus && taRef.value) {
+    const end = taRef.value.value.length
+    taRef.value.focus()
+    taRef.value.setSelectionRange(end, end)
+  }
+})
 
 async function copySkillName(name: string) {
   try {
@@ -220,225 +521,362 @@ async function confirmDelete() {
     await loadSkills()
   } catch { /* ignore */ }
 }
+
+// ===== 小组件 =====
+const Kbd: FunctionalComponent<{ tone?: 'invert' }> = (props, { slots }) =>
+  h('kbd', {
+    class: [
+      'inline-flex h-4 min-w-4 items-center justify-center rounded border px-1 font-sans text-[10px] leading-none',
+      props.tone === 'invert'
+        ? 'border-current/25'
+        : 'border-border bg-muted text-muted-foreground',
+    ],
+  }, slots.default?.())
 </script>
 
 <template>
   <div class="p-3">
-    <InputGroup>
-      <!-- 图片预览 -->
-      <InputGroupAddon
-        v-if="images.length"
-        align="block-start"
-        class="flex-wrap gap-2"
-      >
+    <div class="compose-root relative isolate w-full">
+      <div aria-hidden="true" class="compose-ring pointer-events-none absolute -inset-[2px] -z-10 rounded-[18px] blur-[2px]" />
+
+      <div class="relative rounded-2xl border border-border bg-card shadow-[0_1px_2px_rgba(24,24,27,0.04),0_16px_40px_-24px_rgba(24,24,27,0.22)]">
+        <!-- 图片预览 -->
         <div
-          v-for="(img, i) in images"
-          :key="i"
-          class="relative group"
+          v-if="images.length"
+          class="flex flex-wrap gap-2 px-4 pt-3"
         >
-          <img
-            :src="`data:image/png;base64,${img}`"
-            class="w-12 h-12 rounded border object-cover"
+          <div
+            v-for="(img, i) in images"
+            :key="i"
+            class="group relative"
           >
-          <button
-            class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-            @click="removeImage(i)"
-          >
-            ×
-          </button>
+            <img
+              :src="`data:image/png;base64,${img}`"
+              class="h-12 w-12 rounded border object-cover"
+            >
+            <button
+              class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
+              @click="removeImage(i)"
+            >
+              ×
+            </button>
+          </div>
         </div>
-      </InputGroupAddon>
 
-      <!-- 输入框 -->
-      <InputGroupTextarea
-        v-model="inputText"
-        :disabled="disabled"
-        placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
-        class="max-h-[200px] min-h-[36px] py-2"
-        @keydown="handleKeydown"
-      />
-
-      <!-- 底部工具栏 -->
-      <InputGroupAddon align="block-end">
-        <!-- 模型选择 -->
-        <ModelSelector />
-
-        <!-- 图片上传 -->
-        <InputGroupButton
-          variant="ghost"
-          size="icon-xs"
-          :disabled="isStreaming"
-          @click="handleImageUpload"
-        >
-          <ImagePlus class="size-4" />
-        </InputGroupButton>
-
-        <!-- 工具选择 -->
-        <DropdownMenu v-if="toolList.length">
-          <DropdownMenuTrigger as-child>
-            <InputGroupButton
-              variant="ghost"
-              size="xs"
-              :disabled="isStreaming"
-              class="relative gap-1"
-            >
-              <Wrench class="size-3.5" />
+        <div class="relative">
+          <!-- 背景高亮层：镜像 textarea 文本，高亮 @mention / /command -->
+          <div
+            ref="backdropRef"
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-4 py-3.5 text-transparent text-[15px] leading-[1.6] font-normal tracking-normal"
+          >
+            <template v-for="(s, i) in segs" :key="i">
+              <span v-if="s.kind === 'text'">{{ s.text }}</span>
               <span
-                v-if="enabledCount < toolList.length"
-                class="text-amber-500 text-[10px]"
-              >
-                {{ enabledCount }}
-              </span>
-            </InputGroupButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side="top"
-            align="start"
-            class="w-64 max-h-80 overflow-y-auto"
-          >
-            <DropdownMenuLabel class="flex items-center justify-between">
-              <span>工具列表</span>
-              <span class="text-xs font-normal text-muted-foreground">
-                {{ enabledCount }}/{{ toolList.length }}
-              </span>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <template
-              v-for="([category, categoryTools], gi) in groupedTools"
-              :key="category"
+                v-else
+                class="box-decoration-clone rounded-[5px] py-[3px] bg-muted"
+                :class="i === popIndex ? 'compose-pop' : ''"
+              >{{ s.text }}</span>
+            </template>
+            {{ '\n' }}
+          </div>
+
+          <textarea
+            ref="taRef"
+            v-model="inputText"
+            rows="3"
+            :disabled="disabled"
+            :placeholder="placeholder"
+            :aria-label="ariaLabel"
+            role="combobox"
+            :aria-expanded="Boolean(trigger && results.length)"
+            :aria-controls="`${uid}-list`"
+            :aria-activedescendant="trigger && results.length ? `${uid}-opt-${active}` : undefined"
+            spellcheck
+            class="compose-scroll relative block max-h-64 min-h-[104px] w-full resize-none bg-transparent px-4 py-3.5 text-[15px] leading-[1.6] font-normal tracking-normal text-foreground caret-foreground outline-none placeholder:text-muted-foreground"
+            @keydown="onKeyDown"
+            @keyup="onKeyUp"
+            @click="refreshTrigger"
+            @scroll="onScroll"
+            @blur="onBlur"
+          />
+
+          <!-- @ / / 触发菜单 -->
+          <AnimatePresence>
+            <Motion
+              v-if="trigger && results.length"
+              key="picker"
+              as="ul"
+              :id="`${uid}-list`"
+              role="listbox"
+              :initial="reduce ? { opacity: 0 } : { opacity: 0, y: menu.flip ? 6 : -6, scale: 0.97 }"
+              :animate="reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }"
+              :exit="reduce ? { opacity: 0 } : { opacity: 0, y: menu.flip ? 4 : -4, scale: 0.98 }"
+              :transition="reduce ? { duration: 0.12 } : { type: 'spring', stiffness: 620, damping: 36, mass: 0.6 }"
+              class="compose-scroll absolute z-30 max-h-[236px] w-[236px] overflow-auto rounded-xl border border-border bg-popover/95 p-1 shadow-[0_10px_36px_-10px_rgba(24,24,27,0.3)] backdrop-blur-xl"
+              :style="menuStyle"
             >
-              <DropdownMenuLabel
-                v-if="gi > 0"
-                class="text-xs text-muted-foreground pt-1"
+              <li
+                v-for="(r, i) in results"
+                :key="r.id"
+                role="option"
+                :id="`${uid}-opt-${i}`"
+                :aria-selected="i === active"
+                class="relative"
               >
-                {{ category }}
-              </DropdownMenuLabel>
-              <DropdownMenuItem
-                v-for="tool in categoryTools"
-                :key="tool.name"
-                class="flex items-center justify-between gap-3"
-                @select.prevent
-              >
-                <div class="flex flex-col gap-0.5 min-w-0">
-                  <span class="font-mono text-xs">{{ tool.name }}</span>
-                  <span class="text-[11px] text-muted-foreground leading-tight">{{ tool.description }}</span>
-                </div>
-                <Switch
-                  :model-value="enabledTools?.[tool.name] !== false"
-                  class="shrink-0"
-                  @update:model-value="emit('toggleTool', tool.name)"
+                <Motion
+                  v-if="i === active"
+                  :layout-id="`${uid}-hl`"
+                  class="absolute inset-0 rounded-lg bg-muted"
+                  :transition="reduce ? { duration: 0 } : { type: 'spring', stiffness: 650, damping: 40, mass: 0.5 }"
                 />
-              </DropdownMenuItem>
-              <DropdownMenuSeparator v-if="gi < groupedTools.length - 1" />
-            </template>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <!-- Skill 列表 -->
-        <DropdownMenu @update:open="onSkillDropdownOpen">
-          <DropdownMenuTrigger as-child>
-            <InputGroupButton
-              variant="ghost"
-              size="icon-xs"
-              :disabled="isStreaming"
-            >
-              <ScrollText class="size-4" />
-            </InputGroupButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side="top"
-            align="start"
-            class="w-72 max-h-80 overflow-y-auto"
-          >
-            <DropdownMenuLabel class="flex items-center justify-between">
-              <span>Skill 列表</span>
-              <span class="text-xs font-normal text-muted-foreground">{{ skills.length }}</span>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <template v-if="skills.length">
-              <DropdownMenuItem
-                v-for="skill in skills"
-                :key="skill.name"
-                class="flex items-center justify-between gap-2"
-                @select.prevent="copySkillName(skill.name)"
-              >
-                <div
-                  class="flex flex-col gap-0.5 min-w-0 flex-1"
-                  @click="copySkillName(skill.name)"
+                <button
+                  type="button"
+                  tabindex="-1"
+                  class="relative z-10 flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
+                  @mouseenter="active = i"
+                  @mousedown.prevent="insert(r)"
                 >
-                  <span class="font-mono text-xs">{{ skill.name }}</span>
-                  <span class="text-[11px] text-muted-foreground leading-tight truncate">{{ skill.description }}</span>
-                </div>
-                <div class="flex items-center gap-0.5 shrink-0">
-                  <button
-                    class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    title="复制名称"
-                    @click.stop="copySkillName(skill.name)"
+                  <template v-if="trigger?.type === '@'">
+                    <img
+                      v-if="r.avatar"
+                      :src="r.avatar"
+                      alt=""
+                      aria-hidden="true"
+                      class="h-6 w-6 flex-none rounded-full object-cover ring-1 ring-border/50"
+                    >
+                    <span
+                      v-else
+                      class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground ring-1 ring-border/50"
+                    >{{ initialsOf(r.label) }}</span>
+                    <span class="min-w-0 flex-1 leading-tight">
+                      <span class="block truncate text-[13px] font-medium text-foreground">{{ r.label }}</span>
+                      <span
+                        v-if="r.sublabel"
+                        class="block truncate text-[11px] text-muted-foreground"
+                      >{{ r.sublabel }}</span>
+                    </span>
+                  </template>
+                  <template v-else>
+                    <span class="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-[8px] bg-linear-to-b from-muted to-muted/70 text-foreground shadow-sm ring-1 ring-inset ring-border/60 [&_svg]:size-4">
+                      <component :is="r.icon" v-if="r.icon" />
+                      <span v-else class="font-mono text-[13px] font-medium">/</span>
+                    </span>
+                    <span class="min-w-0 flex-1 leading-tight">
+                      <span class="block truncate text-[13px] font-medium text-foreground">{{ r.label }}</span>
+                      <span
+                        v-if="r.hint"
+                        class="block truncate text-[11px] text-muted-foreground"
+                      >{{ r.hint }}</span>
+                    </span>
+                  </template>
+                  <span
+                    class="flex-none transition-opacity"
+                    :class="i === active ? 'opacity-100' : 'opacity-0'"
                   >
-                    <component
-                      :is="copiedName === skill.name ? Check : Copy"
-                      class="size-3"
-                      :class="copiedName === skill.name && 'text-green-500'"
-                    />
-                  </button>
-                  <button
-                    class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    title="编辑"
-                    @click.stop="openEditDialog(skill.name)"
-                  >
-                    <Pencil class="size-3" />
-                  </button>
-                  <button
-                    class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
-                    title="删除"
-                    @click.stop="requestDelete(skill)"
-                  >
-                    <Trash2 class="size-3" />
-                  </button>
-                </div>
-              </DropdownMenuItem>
-            </template>
-            <DropdownMenuItem
-              v-else
-              disabled
-              class="text-muted-foreground text-xs justify-center"
+                    <Kbd>↵</Kbd>
+                  </span>
+                </button>
+              </li>
+            </Motion>
+          </AnimatePresence>
+        </div>
+
+        <!-- 底部工具栏 -->
+        <div class="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+          <div class="flex items-center gap-1">
+            <!-- 模型选择 -->
+            <ModelSelector />
+
+            <!-- 图片上传 -->
+            <button
+              type="button"
+              class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              :disabled="isStreaming"
+              :aria-label="'上传图片'"
+              @click="handleImageUpload"
             >
-              暂无 Skill，对 AI 说"保存 skill"即可创建
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <ImagePlus class="size-4" />
+            </button>
 
-        <InputGroupText class="ml-auto">
-          {{ inputText.length }}
-        </InputGroupText>
+            <!-- 工具选择 -->
+            <DropdownMenu v-if="toolList.length">
+              <DropdownMenuTrigger as-child>
+                <button
+                  type="button"
+                  class="relative inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                  :disabled="isStreaming"
+                >
+                  <Wrench class="size-4" />
+                  <span
+                    v-if="enabledCount < toolList.length"
+                    class="absolute -top-0.5 -right-0.5 text-[10px] font-medium text-amber-500"
+                  >{{ enabledCount }}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                class="w-64 max-h-80 overflow-y-auto"
+              >
+                <DropdownMenuLabel class="flex items-center justify-between">
+                  <span>工具列表</span>
+                  <span class="text-xs font-normal text-muted-foreground">
+                    {{ enabledCount }}/{{ toolList.length }}
+                  </span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <template
+                  v-for="([category, categoryTools], gi) in groupedTools"
+                  :key="category"
+                >
+                  <DropdownMenuLabel
+                    v-if="gi > 0"
+                    class="pt-1 text-xs text-muted-foreground"
+                  >
+                    {{ category }}
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem
+                    v-for="tool in categoryTools"
+                    :key="tool.name"
+                    class="flex items-center justify-between gap-3"
+                    @select.prevent
+                  >
+                    <div class="flex min-w-0 flex-col gap-0.5">
+                      <span class="font-mono text-xs">{{ tool.name }}</span>
+                      <span class="text-[11px] leading-tight text-muted-foreground">{{ tool.description }}</span>
+                    </div>
+                    <Switch
+                      :model-value="enabledTools?.[tool.name] !== false"
+                      class="shrink-0"
+                      @update:model-value="emit('toggleTool', tool.name)"
+                    />
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator v-if="gi < groupedTools.length - 1" />
+                </template>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-        <Separator
-          orientation="vertical"
-          class="!h-4"
-        />
+            <!-- Skill 列表 -->
+            <DropdownMenu @update:open="onSkillDropdownOpen">
+              <DropdownMenuTrigger as-child>
+                <button
+                  type="button"
+                  class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                  :disabled="isStreaming"
+                >
+                  <ScrollText class="size-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                class="w-72 max-h-80 overflow-y-auto"
+              >
+                <DropdownMenuLabel class="flex items-center justify-between">
+                  <span>Skill 列表</span>
+                  <span class="text-xs font-normal text-muted-foreground">{{ skills.length }}</span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <template v-if="skills.length">
+                  <DropdownMenuItem
+                    v-for="skill in skills"
+                    :key="skill.name"
+                    class="flex items-center justify-between gap-2"
+                    @select.prevent="copySkillName(skill.name)"
+                  >
+                    <div
+                      class="min-w-0 flex-1 flex flex-col gap-0.5"
+                      @click="copySkillName(skill.name)"
+                    >
+                      <span class="font-mono text-xs">{{ skill.name }}</span>
+                      <span class="truncate text-[11px] leading-tight text-muted-foreground">{{ skill.description }}</span>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-0.5">
+                      <button
+                        class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title="复制名称"
+                        @click.stop="copySkillName(skill.name)"
+                      >
+                        <component
+                          :is="copiedName === skill.name ? Check : Copy"
+                          class="size-3"
+                          :class="copiedName === skill.name && 'text-green-500'"
+                        />
+                      </button>
+                      <button
+                        class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title="编辑"
+                        @click.stop="openEditDialog(skill.name)"
+                      >
+                        <Pencil class="size-3" />
+                      </button>
+                      <button
+                        class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                        title="删除"
+                        @click.stop="requestDelete(skill)"
+                      >
+                        <Trash2 class="size-3" />
+                      </button>
+                    </div>
+                  </DropdownMenuItem>
+                </template>
+                <DropdownMenuItem
+                  v-else
+                  disabled
+                  class="justify-center text-xs text-muted-foreground"
+                >
+                  暂无 Skill，对 AI 说"保存 skill"即可创建
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-        <!-- 发送/停止 -->
-        <InputGroupButton
-          v-if="isStreaming"
-          variant="destructive"
-          size="icon-xs"
-          class="rounded-full"
-          @click="$emit('stop')"
-        >
-          <Square class="size-3.5" />
-        </InputGroupButton>
-        <InputGroupButton
-          v-else
-          variant="default"
-          size="icon-xs"
-          class="rounded-full"
-          :disabled="!inputText.trim() || disabled"
-          @click="handleSend"
-        >
-          <Send class="size-4" />
-        </InputGroupButton>
-      </InputGroupAddon>
-    </InputGroup>
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] tabular-nums text-muted-foreground">{{ inputText.length }}</span>
+
+            <!-- 停止 / 发送 -->
+            <button
+              v-if="isStreaming"
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl bg-destructive px-3.5 py-2 text-[13px] font-semibold text-destructive-foreground shadow-sm transition-all duration-150 hover:bg-destructive/90 active:scale-[0.97]"
+              @click="emit('stop')"
+            >
+              <Square class="size-3.5" />
+              停止
+            </button>
+            <button
+              v-else
+              type="button"
+              :disabled="!inputText.trim() || disabled"
+              class="group inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:bg-primary/90 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
+              @click="handleSend"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                class="transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                aria-hidden="true"
+              >
+                <path
+                  d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              {{ submitLabel }}
+              <span class="ml-0.5 hidden items-center gap-0.5 opacity-60 sm:inline-flex">
+                <Kbd tone="invert">↵</Kbd>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 编辑对话框 -->
     <Dialog v-model:open="editDialogOpen">
@@ -452,7 +890,7 @@ async function confirmDelete() {
             <label class="text-xs font-medium text-muted-foreground">名称</label>
             <input
               v-model="editForm.name"
-              class="w-full rounded-md border bg-transparent px-3 py-1.5 text-sm font-mono"
+              class="w-full rounded-md border bg-transparent px-3 py-1.5 font-mono text-sm"
               disabled
             >
           </div>
@@ -467,7 +905,7 @@ async function confirmDelete() {
             <label class="text-xs font-medium text-muted-foreground">内容 (Markdown)</label>
             <textarea
               v-model="editForm.content"
-              class="w-full rounded-md border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring min-h-[200px] resize-y"
+              class="min-h-[200px] w-full resize-y rounded-md border bg-transparent px-3 py-2 font-mono text-sm outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
@@ -484,7 +922,7 @@ async function confirmDelete() {
           >
             <Loader2
               v-if="editSaving"
-              class="size-4 mr-1 animate-spin"
+              class="mr-1 size-4 animate-spin"
             />
             保存
           </Button>
@@ -514,3 +952,75 @@ async function confirmDelete() {
     </AlertDialog>
   </div>
 </template>
+
+<style>
+@property --compose-a { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+@keyframes compose-spin { to { --compose-a: 360deg; } }
+@keyframes compose-pop {
+  0%   { box-shadow: 0 0 0 3px rgba(113,113,122,.16); }
+  100% { box-shadow: 0 0 0 0 rgba(113,113,122,0); }
+}
+.compose-ring {
+  opacity: 0;
+  transition: opacity .5s ease;
+  background: conic-gradient(from var(--compose-a),
+    rgba(161,161,170,0)   0deg,
+    rgba(161,161,170,.42)  60deg,
+    rgba(212,212,216,.62) 108deg,
+    rgba(161,161,170,0)   168deg,
+    rgba(161,161,170,0)   360deg);
+}
+.compose-root:focus-within .compose-ring {
+  opacity: 1;
+  animation: compose-spin 5s linear infinite;
+}
+.compose-pop { animation: compose-pop .5s ease-out; }
+.compose-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(161,161,170,.28) transparent;
+}
+.compose-scroll:hover, .compose-scroll:focus {
+  scrollbar-color: rgba(113,113,122,.5) transparent;
+}
+.compose-scroll::-webkit-scrollbar { width: 11px; height: 11px; }
+.compose-scroll::-webkit-scrollbar-track { background: transparent; }
+.compose-scroll::-webkit-scrollbar-thumb {
+  background: rgba(161,161,170,.28);
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  transition: background-color .2s ease;
+}
+.compose-scroll:hover::-webkit-scrollbar-thumb,
+.compose-scroll:focus::-webkit-scrollbar-thumb {
+  background: rgba(113,113,122,.5);
+  background-clip: padding-box;
+}
+.compose-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(82,82,91,.65);
+  background-clip: padding-box;
+}
+.dark .compose-scroll {
+  scrollbar-color: rgba(228,228,231,.2) transparent;
+}
+.dark .compose-scroll:hover, .dark .compose-scroll:focus {
+  scrollbar-color: rgba(228,228,231,.34) transparent;
+}
+.dark .compose-scroll::-webkit-scrollbar-thumb {
+  background: rgba(228,228,231,.2);
+  background-clip: padding-box;
+}
+.dark .compose-scroll:hover::-webkit-scrollbar-thumb,
+.dark .compose-scroll:focus::-webkit-scrollbar-thumb {
+  background: rgba(228,228,231,.34);
+  background-clip: padding-box;
+}
+.dark .compose-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(244,244,245,.5);
+  background-clip: padding-box;
+}
+@media (prefers-reduced-motion: reduce) {
+  .compose-root:focus-within .compose-ring { animation: none; }
+  .compose-pop { animation: none; }
+}
+</style>

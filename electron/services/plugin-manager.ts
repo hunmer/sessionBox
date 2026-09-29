@@ -350,10 +350,11 @@ class PluginManager {
     shell.openPath(dir)
   }
 
-  openPluginLog(pluginId: string): { success: boolean; error?: string } {
+  async openPluginLog(pluginId: string): Promise<{ success: boolean; error?: string }> {
     if (!this.plugins.has(pluginId)) return { success: false, error: '插件未找到' }
     try {
-      shell.showItemInFolder(ensurePluginLog(this.userDataPath, pluginId))
+      const error = await shell.openPath(ensurePluginLog(this.userDataPath, pluginId))
+      if (error) return { success: false, error }
       return { success: true }
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : String(err) }

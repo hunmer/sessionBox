@@ -3,6 +3,7 @@
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
+const readline = require('node:readline')
 let serviceProcess = null
 
 module.exports = {
@@ -24,6 +25,11 @@ module.exports = {
     })
     serviceProcess.stdout.pipe(log)
     serviceProcess.stderr.pipe(log)
+    for (const stream of [serviceProcess.stdout, serviceProcess.stderr]) {
+      readline.createInterface({ input: stream }).on('line', (line) => {
+        if (line.startsWith('DOUBAO_DIAG ')) context.logger.info(line)
+      })
+    }
     serviceProcess.on('error', (error) => context.logger.error(`Doubao 服务启动失败: ${error.message}`))
     context.logger.info('Doubao API Bridge 已激活，使用 DOUBAO_PAGE_ID 选择页面')
   },

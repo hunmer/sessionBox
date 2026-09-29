@@ -52,12 +52,14 @@ class BrowserClient:
         self._device_id: Optional[str] = None
         self._web_id: Optional[str] = None
         self._fp: Optional[str] = None
+        self._source_web_id: Optional[str] = None
         # msToken rotation: updated from x-ms-token response header
         self._ms_token: str = ""
         # Robustness: failure tracking
         self._consecutive_failures: int = 0
         self._last_error_code: int = 0
         self._needs_captcha: bool = False
+        self._verification_retry_at: float = 0
         # Stream bridge: request_id -> asyncio.Queue for SSE chunks
         self._stream_queues: Dict[str, asyncio.Queue] = {}
         self._bridge_ready: bool = False
@@ -98,12 +100,17 @@ class BrowserClient:
         self._consecutive_failures = 0
         self._last_error_code = 0
         self._needs_captcha = False
+        self._verification_retry_at = 0
 
     def clear_captcha(self):
         """Manually or automatically clear the needs_captcha flag."""
         self._needs_captcha = False
+        self._verification_retry_at = 0
         self._consecutive_failures = 0
         log.info("Captcha flag cleared")
+
+    def verification_retry_due(self) -> bool:
+        return self._needs_captcha and time.monotonic() >= self._verification_retry_at
 
     async def is_captcha_visible(self) -> bool:
         """Check whether a real captcha modal/slider is actually visible in the browser DOM."""
@@ -136,6 +143,7 @@ class BrowserClient:
         self._last_error_code = error_code
         if error_code == 710022004:
             self._needs_captcha = True
+            self._verification_retry_at = time.monotonic() + 60
             log.warning("Captcha flag marked on 710022004")
         if self._consecutive_failures >= 10:
             log.error("10 consecutive failures - marking not ready")
@@ -231,6 +239,7 @@ class BrowserClient:
                 raise
 
         # Stealth patches
+        await self._inspect_sessionbox_identity()
         stealth = Stealth(navigator_languages_override=("zh-CN", "zh"))
         await stealth.apply_stealth_async(self._page)
 
@@ -247,6 +256,30 @@ class BrowserClient:
 
         await self._check_login_state()
         # Authentication is deliberately managed in SessionBox, never by this service.
+
+    async def _inspect_sessionbox_identity(self):
+        """Compare public web identifiers without logging their values."""
+        from .sessionbox_api import SessionBoxClient
+
+        try:
+            source = await SessionBoxClient(
+                self.sessionbox_url, token=os.environ.get("SESSIONBOX_API_TOKEN", "")
+            ).execute(self.page_id, '''(() => {
+                try {
+                    return {web_id: JSON.parse(localStorage.getItem('__tea_cache_tokens_497858') || '{}').web_id || ''};
+                } catch (_) { return {web_id: ''}; }
+            })()''')
+            web_id = source.get("web_id") if isinstance(source, dict) else None
+            if not isinstance(web_id, str) or not web_id.isdigit() or not 10 <= len(web_id) <= 24:
+                log.warning("DOUBAO_DIAG %s", json.dumps({"event": "source_identity", "page_id": self.page_id,
+                    "time": datetime.now(timezone.utc).isoformat(), "available": False}))
+                return
+            self._source_web_id = web_id
+            log.info("DOUBAO_DIAG %s", json.dumps({"event": "source_identity", "page_id": self.page_id,
+                "time": datetime.now(timezone.utc).isoformat(), "available": True}))
+        except Exception as e:
+            log.warning("DOUBAO_DIAG %s", json.dumps({"event": "source_identity", "page_id": self.page_id,
+                "time": datetime.now(timezone.utc).isoformat(), "available": False, "error_type": type(e).__name__}))
 
     async def stop(self):
         """Close browser and httpx client."""
@@ -441,8 +474,10 @@ class BrowserClient:
             if self._device_id and self._web_id:
                 break
             await asyncio.sleep(1)
-        log.info("Params: device_id=%s, web_id=%s, fp=%s",
-                 self._device_id, self._web_id, self._fp[:20] if self._fp else "")
+        log.info("DOUBAO_DIAG %s", json.dumps({"event": "browser_identity", "page_id": self.page_id,
+            "time": datetime.now(timezone.utc).isoformat(), "has_device_id": bool(self._device_id),
+            "has_web_id": bool(self._web_id), "source_web_id_matches": bool(self._source_web_id and self._web_id == self._source_web_id),
+            "has_fp": bool(self._fp)}))
 
     async def _wait_for_signing(self):
         """Wait for bdms.frontierSign to become available (legacy, kept for upload signing)."""
@@ -822,6 +857,13 @@ class BrowserClient:
 
         log.info("POST %s (conv=%s, deep_think=%s) [browser fetch]",
                  url.split("?")[0], conversation_id or "new", use_deep_think)
+        cookies = await self._context.cookies(DOUBAO_URL)
+        cookie_names = {cookie["name"] for cookie in cookies}
+        log.info("DOUBAO_DIAG %s", json.dumps({"event": "chat_request", "time": datetime.now(timezone.utc).isoformat(),
+            "page_id": self.page_id, "request_id": request_id, "headless": self.headless,
+            "source_web_id_matches": bool(self._source_web_id and self._web_id == self._source_web_id),
+            "has_sessionid": "sessionid" in cookie_names, "has_csrf": "passport_csrf_token" in cookie_names,
+            "has_ms_token": bool(self._ms_token), "fetch_hook": self._bridge_ready}))
 
         # Launch browser fetch in background with completion watcher
         eval_task = asyncio.create_task(

@@ -42,6 +42,7 @@
     "eventemitter2": "^6.4.9",
     "langchain": "^1.3.3",
     "lucide-vue-next": "^0.460.0",
+    "motion-v": "^2.5.1",
     "pinia": "^2.3.0",
     "queue": "^7.0.0",
     "radix-vue": "^1.9.11",
@@ -75,7 +76,8 @@
     "typescript-eslint": "^8.58.2",
     "vite": "^6.1.0",
     "vite-plugin-static-copy": "^4.0.1",
-    "vite-plugin-vue-devtools": "^8.1.1"
+    "vite-plugin-vue-devtools": "^8.1.1",
+    "vue-tsc": "2.2.12"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

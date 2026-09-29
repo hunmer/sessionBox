@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { Search } from 'lucide-vue-next'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { Search, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
@@ -66,10 +66,55 @@ const filteredHistory = computed(() => {
     .slice(0, 20)
 })
 
+const ITEM_WIDTH = 64
+const ITEM_GAP = 8
+const COLLAPSED_ROWS = 3
+const MAX_ROWS = 6
+
+function createRowLimiter() {
+  const perRow = ref(1)
+  const expanded = ref(false)
+  let observer: ResizeObserver | undefined
+
+  function measure(el: HTMLElement) {
+    perRow.value = Math.max(1, Math.floor((el.clientWidth + ITEM_GAP) / (ITEM_WIDTH + ITEM_GAP)))
+  }
+
+  function setEl(el: unknown) {
+    observer?.disconnect()
+    observer = undefined
+    const target = el as HTMLElement | null
+    if (!target) return
+    measure(target)
+    observer = new ResizeObserver(() => measure(target))
+    observer.observe(target)
+  }
+
+  onBeforeUnmount(() => {
+    observer?.disconnect()
+  })
+
+  function visible<T>(items: T[]) {
+    const rows = expanded.value ? MAX_ROWS : COLLAPSED_ROWS
+    return items.slice(0, perRow.value * rows)
+  }
+
+  function needToggle(total: number) {
+    return total > perRow.value * COLLAPSED_ROWS
+  }
+
+  return { setEl, expanded, visible, needToggle }
+}
+
+const pagesLimiter = createRowLimiter()
+const historyLimiter = createRowLimiter()
+
 watch(() => props.open, (open) => {
   if (open) {
     urlInput.value = ''
     loadRecords()
+    pagesLimiter.expanded.value = false
+    historyLimiter.expanded.value = false
   }
 })
 
@@ -136,9 +181,12 @@ function handleSelectHistory(record: UrlRecord) {
           <div class="mb-1.5 px-1 text-xs text-muted-foreground">
             页面
           </div>
-          <div class="flex flex-wrap gap-2">
+          <div
+            :ref="pagesLimiter.setEl"
+            class="flex flex-wrap gap-2"
+          >
             <button
-              v-for="page in pages"
+              v-for="page in pagesLimiter.visible(pages)"
               :key="page.id"
               class="flex w-16 flex-shrink-0 flex-col items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-accent"
               :title="page.name"
@@ -153,15 +201,33 @@ function handleSelectHistory(record: UrlRecord) {
               <span class="w-full truncate text-center text-[11px] leading-tight">{{ page.name }}</span>
             </button>
           </div>
+          <div
+            v-if="pagesLimiter.needToggle(pages.length)"
+            class="mt-1.5 flex justify-center"
+          >
+            <button
+              class="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              @click="pagesLimiter.expanded = !pagesLimiter.expanded"
+            >
+              <component
+                :is="pagesLimiter.expanded ? ChevronUp : ChevronDown"
+                class="h-3.5 w-3.5"
+              />
+              {{ pagesLimiter.expanded ? '收起' : '展开更多' }}
+            </button>
+          </div>
         </div>
 
         <div v-if="filteredHistory.length > 0">
           <div class="mb-1.5 px-1 text-xs text-muted-foreground">
             历史记录
           </div>
-          <div class="flex flex-wrap gap-2">
+          <div
+            :ref="historyLimiter.setEl"
+            class="flex flex-wrap gap-2"
+          >
             <button
-              v-for="record in filteredHistory"
+              v-for="record in historyLimiter.visible(filteredHistory)"
               :key="record.url"
               class="flex w-16 flex-shrink-0 flex-col items-center gap-1 rounded-lg p-1.5 transition-colors hover:bg-accent"
               :title="record.url"
@@ -171,6 +237,21 @@ function handleSelectHistory(record: UrlRecord) {
                 <EmojiRenderer :url="record.url" />
               </span>
               <span class="w-full truncate text-center text-[11px] leading-tight">{{ getUrlLabel(record.url) }}</span>
+            </button>
+          </div>
+          <div
+            v-if="historyLimiter.needToggle(filteredHistory.length)"
+            class="mt-1.5 flex justify-center"
+          >
+            <button
+              class="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              @click="historyLimiter.expanded = !historyLimiter.expanded"
+            >
+              <component
+                :is="historyLimiter.expanded ? ChevronUp : ChevronDown"
+                class="h-3.5 w-3.5"
+              />
+              {{ historyLimiter.expanded ? '收起' : '展开更多' }}
             </button>
           </div>
         </div>
