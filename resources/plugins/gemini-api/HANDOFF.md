@@ -41,8 +41,13 @@
 ## 4. 运行注意（实测踩坑）
 
 - gemini.google.com 首页 set-cookie 极多，Node 默认 16KB 响应头溢出 → `--max-http-header-size=262144`（main.js 已注入）。
-- Google 域需代理：`GEMINI_PROXY`（或 HTTPS_PROXY）+ `NODE_USE_ENV_PROXY=1`（Node ≥ 24；Electron 44 内嵌 Node 22 时可能不生效，main.js 会告警）。
+- **Google 域需代理且 Node fetch 不读系统代理**：SessionBox GUI 主进程 env 通常没有 HTTPS_PROXY
+  （只有 `npm_config_https_proxy` 这类 Node 不识别的变量），插件服务会直连失败（现象：网关 chat 返回
+  `fetch failed`）。main.js `detectProxyUrl()` 按序解析：`GEMINI_PROXY > HTTPS_PROXY/HTTP_PROXY >
+  npm_config_https_proxy/npm_config_proxy > Electron session.resolveProxy(系统代理)`，注入
+  `NODE_USE_ENV_PROXY=1 + HTTPS_PROXY`（Electron 44 内嵌 Node 24.21 已验证支持）。
 - bridge 限 cookie 读取需标签页打开，accounts.mjs 自动 openPage 后轮询重读。
+- 非流式回复偶见句内重复片段（Gemini 流式帧 flicker，text 帧间非纯前缀追加时聚合取末帧全文），已知问题。
 
 ## 5. 已验证 / 未验证（2026-10-01 真实账号全链路实测）
 
@@ -53,7 +58,7 @@
 | 非流式对话 + 多轮记忆 | ✅（"我叫小明"→"你叫小明！"） |
 | 流式 SSE | ✅ 增量 delta + stop + [DONE] |
 | 多模态图片输入 | ✅ dataURL → content-push 上传 → 正确识色（回复带 [cite: N] 标记，后续可过滤） |
-| 文生图 images/generations | ✅ 15-20s 出图（默认 Flash 模型内嵌 nano banana），url 模式返回本服务中转可直下（JPEG 512px），b64_json ✓ |
+| 文生图 images/generations | ✅ 30-40s 出全尺寸原图（默认 Flash 模型内嵌 nano banana；经 c8o8Fe RPC 换全尺寸直链，实测 2816x1536 / 3.4MB），url 模式返回本服务中转可直下，b64_json ✓ |
 | 生视频 videos/generations | ✅ 默认模型直接生成（81s，7.6MB MP4，含 206 轮询），中转 URL 可直下 |
 | 错误码 1185 | ✅ 生图频率限制（已映射 IMAGE_RATE_LIMITED），连续快速生图会触发，约 1-2 分钟后恢复 |
 
@@ -67,6 +72,10 @@
    与 gemini.google.com 域 cookie 不同。`fetchBinary` 支持 redirectCookieHeader，server 按页面缓存 1h。
 3. **url 模式中转**：直链要求登录态且过期快，images/videos/chat 的 url 统一下载后经 `GET /v1/files/:id`
    中转（内存缓存 30 分钟 TTL，上限 200 条）；b64_json 直接返回 base64。
+4. **gg-dl 流内 URL 是降采样预览**（约 512px；真实尺寸元数据在 candidate `[0][3][15]` = [宽,高,字节]）。
+   全尺寸需 RPC `c8o8Fe`（payload 结构见 api-client `getFullSizeImageUrl`，两层文本跳转到 `rd-gg-dl` 直链），
+   **且依赖会话历史：temporary 会话报错误码 1003**，故 images/generations 与 images/edits 固定走普通会话
+   （代价：生图会写入账号的 Gemini 网页历史）。失败自动回退预览图。
 
 ## 6. 验收路径（已完成 2026-10-01）
 

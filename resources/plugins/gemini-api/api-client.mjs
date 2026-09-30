@@ -422,6 +422,47 @@ export function createGeminiClient({ cookies = [], onLog = () => {}, urls = {} }
   }
 
   /**
+   * 全尺寸图片解析（RPC c8o8Fe，gemini_webapi _get_full_size_image 同构）。
+   * gg-dl 流内 URL 为降采样预览（约 512px），真实尺寸见 candidate 元数据 [0][3][17]。
+   * @returns {Promise<string|null>} 最终可下载的全尺寸 URL（两层文本跳转后）
+   */
+  async function getFullSizeImageUrl({ cid, rid, rcid, imageId }) {
+    if (!state.running) await init();
+    const payload = JSON.stringify([
+      [
+        [null, null, null, [null, null, null, null, null, '']],
+        [imageId, 0],
+        null,
+        [19, ''],
+        null, null, null, null, null, '',
+      ],
+      [rid, rcid, cid, null, ''],
+      1,
+      0,
+      1,
+    ]);
+    const frames = await batchExecute('c8o8Fe', payload);
+    for (const part of frames) {
+      if (getNested(part, [1]) !== 'c8o8Fe') continue;
+      const bodyStr = getNested(part, [2]);
+      if (!bodyStr) continue;
+      let url;
+      try { url = getNested(JSON.parse(bodyStr), [0]); } catch { continue; }
+      if (typeof url !== 'string' || !url.startsWith('http')) continue;
+      // 两层文本跳转: {url}=d-I?alr=yes → 文本(跳转URL) → 文本(最终下载URL)
+      const r1 = await request(`${url}=d-I?alr=yes`, { timeoutMs: 30000 });
+      if (!r1.ok) continue;
+      const hop1 = (await r1.text()).trim();
+      if (!hop1.startsWith('http')) continue;
+      const r2 = await request(hop1, { timeoutMs: 30000 });
+      if (!r2.ok) continue;
+      const finalUrl = (await r2.text()).trim();
+      return finalUrl.startsWith('http') ? finalUrl : hop1;
+    }
+    return null;
+  }
+
+  /**
    * 上传文件到 content-push，返回文件标识（用于 message_content[3]）。
    * @param {{buffer:Buffer, filename:string}} file
    */
@@ -646,6 +687,7 @@ export function createGeminiClient({ cookies = [], onLog = () => {}, urls = {} }
     uploadFile,
     generateContent,
     generateOnce,
+    getFullSizeImageUrl,
     get models() {
       return state.models;
     },
@@ -672,10 +714,15 @@ function parseCandidate(candidateData) {
     genImages.forEach((img, i) => {
       const url = getNested(img, [0, 3, 3]);
       if (url) {
+        // [0][3][15] = [宽, 高, 字节数]（真实尺寸，gg-dl 预览为降采样）
+        const dims = getNested(img, [0, 3, 15]);
         images.push({
           url,
           alt: getNested(img, [0, 3, 2], ''),
           imageId: getNested(img, [1, 0]) || `http://googleusercontent.com/image_generation_content/${i}`,
+          width: Array.isArray(dims) ? dims[0] : null,
+          height: Array.isArray(dims) ? dims[1] : null,
+          size: Array.isArray(dims) ? dims[2] : null,
         });
       }
     });

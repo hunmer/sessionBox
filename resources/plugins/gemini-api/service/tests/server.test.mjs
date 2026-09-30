@@ -113,6 +113,7 @@ async function startMockGemini() {
     // 每次生成的脚本: (body) => parts 数组（makePart 结果）
     script: null,
   };
+  let base = '';
   const server = createServer((req, res) => {
     let body = '';
     req.on('data', (c) => (body += c));
@@ -134,7 +135,7 @@ async function startMockGemini() {
           return;
         }
         res.writeHead(200, { 'content-type': 'image/png' });
-        res.end(Buffer.from('fake-png-bytes'));
+        res.end(Buffer.from(path.includes('fullsize') ? 'full-size-png-bytes!' : 'fake-png-bytes'));
         return;
       }
 
@@ -158,17 +159,31 @@ async function startMockGemini() {
         return;
       }
 
-      // 模型发现
+      // RPC: 模型发现(otAQ7b) / 全尺寸图片(c8o8Fe)
       if (path.endsWith('/batchexecute')) {
-        assert.equal(url.searchParams.get('rpcids'), 'otAQ7b');
+        const rpcid = url.searchParams.get('rpcids');
+        assert.ok(['otAQ7b', 'c8o8Fe'].includes(rpcid), 'rpcid 应已知: ' + rpcid);
         assert.ok(req.headers.cookie.includes('PSID_AAA'), '应带登录 cookie');
+        res.writeHead(200, { 'content-type': 'application/json' });
+        if (rpcid === 'c8o8Fe') {
+          state.fullSizeRpcs = (state.fullSizeRpcs || 0) + 1;
+          // 全尺寸原始 URL 指回 mock 自身（两层文本跳转可达）
+          res.end(googleResponse([[null, 'c8o8Fe', JSON.stringify([`http://${req.headers.host}/fs-original`]), null, 'generic']]));
+          return;
+        }
         const bodyArr = new Array(18).fill(null);
         bodyArr[14] = 1000; // 账号状态正常
         bodyArr[15] = state.models;
         bodyArr[16] = [];
         bodyArr[17] = [];
-        res.writeHead(200, { 'content-type': 'application/json' });
         res.end(googleResponse([[null, 'otAQ7b', JSON.stringify(bodyArr), null, 'generic']]));
+        return;
+      }
+
+      // 全尺寸两层文本跳转: fs-original(=d-I) → fs-hop2 → 媒体直链
+      if (path.startsWith('/fs-original') || path === '/fs-hop2') {
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        res.end(path.startsWith('/fs-original') ? `http://${req.headers.host}/fs-hop2` : `${base}/media/fullsize1.png`);
         return;
       }
 
@@ -192,7 +207,7 @@ async function startMockGemini() {
     });
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  const base = `http://127.0.0.1:${server.address().port}`;
+  base = `http://127.0.0.1:${server.address().port}`;
   return { server, state, urls: { baseUrl: base, uploadUrl: `${base}/upload` }, mediaBase: base };
 }
 
@@ -360,15 +375,15 @@ test('服务: 模型发现 / 账号发现 / 对话 / 流式 / 生图 / 生视频
   assert.ok(/\/v1\/files\/[a-f0-9]+$/.test(img.data[0].url), `应返回本服务中转地址: ${img.data[0].url}`);
   const proxied = await fetch(img.data[0].url);
   assert.equal(proxied.status, 200);
-  assert.equal(await proxied.text(), 'fake-png-bytes');
-  assert.equal(gemini.state.uploads.length >= 0, true);
+  assert.equal(await proxied.text(), 'full-size-png-bytes!', '生图应经 c8o8Fe 全尺寸链路下载');
+  assert.ok(gemini.state.fullSizeRpcs >= 1, '应发起全尺寸 RPC');
   // b64_json 模式: 下载转 base64
   const imgB64 = await jsonOf(await fetch(`${base}/v1/images/generations`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ prompt: '一只橘猫', response_format: 'b64_json' }),
   }));
-  assert.equal(Buffer.from(imgB64.data[0].b64_json, 'base64').toString(), 'fake-png-bytes');
+  assert.equal(Buffer.from(imgB64.data[0].b64_json, 'base64').toString(), 'full-size-png-bytes!', 'b64 也应走全尺寸链路');
   // 生图指令注入（body 为 urlencoded）
   assert.match(decodeURIComponent(gemini.state.generates.at(-1).body).replace(/\+/g, ' '), /IMAGE GENERATION ENABLED/);
   gemini.state.script = null;

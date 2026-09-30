@@ -171,6 +171,16 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
         model,
         temporary: tmp ?? useTemporary,
       });
+      // gg-dl 流内 URL 为降采样预览，经 RPC c8o8Fe 换全尺寸直链（失败回退预览）
+      for (const img of output.images) {
+        if (img.imageId && output.cid && output.rid && output.rcid) {
+          try {
+            img.fullUrl = await client.getFullSizeImageUrl({
+              cid: output.cid, rid: output.rid, rcid: output.rcid, imageId: img.imageId,
+            });
+          } catch { /* 全尺寸解析失败，用预览 */ }
+        }
+      }
       return { output, cookieHeader: client.cookieHeader, redirectCookieHeader: await fifeCookieHeader(page.id) };
     });
   }
@@ -285,12 +295,13 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
       const prompt = String(body.prompt || '');
       if (!prompt) return json(400, errPayload('缺少 prompt', 'invalid_request_error'));
       const model = body.model || '';
-      const { output, cookieHeader, redirectCookieHeader } = await generateForMedia(req, { prompt: `${IMAGE_INSTRUCTION}\n\n${prompt}`, model });
+      // 全尺寸原图 RPC（c8o8Fe）依赖会话历史，须用普通会话（会写入账号 Gemini 网页历史）
+      const { output, cookieHeader, redirectCookieHeader } = await generateForMedia(req, { prompt: `${IMAGE_INSTRUCTION}\n\n${prompt}`, model, temporary: false });
       log(`images/generations model=${model || 'auto'} images=${output.images.length}`);
       if (!output.images.length) {
         return json(502, errPayload(`模型未返回图片${output.text ? `（回复: ${String(output.text).slice(0, 200)}）` : ''}`, 'NO_IMAGE'));
       }
-      return json(200, await toImageData(output.images.map((i) => i.url), body.response_format, body.n, cookieHeader, redirectCookieHeader, req));
+      return json(200, await toImageData(output.images, body.response_format, body.n, cookieHeader, redirectCookieHeader, req));
     }
 
     if (req.method === 'POST' && path === '/v1/images/edits') {
@@ -319,7 +330,7 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
             prompt: `<|im_start|>user\n${IMAGE_INSTRUCTION}\n\n${prompt}\n<|im_end|>\n<|im_start|>assistant\n`,
             files,
             model: str(form.get('model')) || undefined,
-            temporary: useTemporary,
+            temporary: false,
           }),
           cookieHeader: client.cookieHeader,
           redirectCookieHeader: await fifeCookieHeader(page.id),
@@ -329,7 +340,7 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
       if (!output.images.length) {
         return json(502, errPayload(`模型未返回图片${output.text ? `（回复: ${String(output.text).slice(0, 200)}）` : ''}`, 'NO_IMAGE'));
       }
-      return json(200, await toImageData(output.images.map((i) => i.url), str(form.get('response_format')), undefined, cookieHeader, redirectCookieHeader, req));
+      return json(200, await toImageData(output.images, str(form.get('response_format')), undefined, cookieHeader, redirectCookieHeader, req));
     }
 
     if (req.method === 'POST' && path === '/v1/videos/generations') {
@@ -519,10 +530,11 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
   }
 
   /** urls → OpenAI images 响应 data（url 走本服务中转，或 b64_json） */
-  async function toImageData(urls, responseFormat, n, cookieHeader = '', redirectCookieHeader = '', req) {
-    const list = typeof n === 'number' && n > 0 ? urls.slice(0, n) : urls;
-    const downloads = await Promise.all(list.map(async (u) => {
-      const { buffer, contentType } = await fetchBinary(u, 120000, cookieHeader, redirectCookieHeader);
+  async function toImageData(items, responseFormat, n, cookieHeader = '', redirectCookieHeader = '', req) {
+    const list = typeof n === 'number' && n > 0 ? items.slice(0, n) : items;
+    const downloads = await Promise.all(list.map(async (item) => {
+      const url = typeof item === 'string' ? item : (item.fullUrl || item.url);
+      const { buffer, contentType } = await fetchBinary(url, 120000, cookieHeader, redirectCookieHeader);
       return { buffer, contentType };
     }));
     if (responseFormat === 'b64_json') {
