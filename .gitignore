@@ -17,3 +17,6 @@ server/data/
 service.log
 *.log
 .tmp-reverse/
+
+# 逆向参考仓库克隆（Gemini-FastAPI 等）
+tmp/
