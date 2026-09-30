@@ -1,0 +1,10 @@
+{
+  "id": "sessionbox.jimeng-api",
+  "name": "Jimeng API Bridge",
+  "version": "0.1.0",
+  "description": "将 SessionBox 管理的即梦（jimeng.jianying.com）账号暴露为 OpenAI 兼容 API（文生图/图生图/视频生成），账号和登录由 SessionBox 管理。移植自 iptag/jimeng-api（GPL-3.0）",
+  "author": { "name": "SessionBox" },
+  "tags": ["即梦", "Jimeng", "API", "会话", "生图", "视频"],
+  "hasView": false,
+  "defaultBehavior": { "type": "browserWindow", "url": "file://PLUGIN_DIR/demo.html" }
+}

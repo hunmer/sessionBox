@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>Jimeng API 调试</title>
+<style>
+body{font:14px system-ui;margin:24px;max-width:1020px;color:#202124}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:15px;margin:18px 0 6px}
+.meta{color:#5f6368;font-size:12px;margin-bottom:12px}
+label{display:block;margin:8px 0 2px;font-weight:600}
+select,textarea,input{padding:8px;margin:2px 0;width:100%;box-sizing:border-box;font:inherit}
+textarea{min-height:90px;font-family:monospace}
+.row{display:flex;gap:8px}.row>*{flex:1}
+button{padding:8px 16px;margin:8px 8px 0 0;cursor:pointer}
+button.sec{background:#f1f3f4;border:none}
+#result{white-space:pre-wrap;background:#f8f9fa;border:1px solid #e0e0e0;padding:12px;min-height:120px;font-family:monospace;font-size:13px;overflow:auto;max-height:420px}
+#result img{max-width:360px;display:block;margin:6px 0}
+#result video{display:block;margin:6px 0;max-width:480px}
+</style></head>
+<body>
+<h1>即梦 API 在线调试</h1>
+<div class="meta" id="meta">加载中...</div>
+
+<h2>账号（SessionBox 页面）</h2>
+<div class="row"><div><label>当前账号</label><select id="page"></select></div>
+<div><label>账号 / 积分</label><div id="account" style="padding:8px 0;font-family:monospace;font-size:13px">未查询</div></div></div>
+<div><button class="sec" id="reload">刷新账号</button><button class="sec" id="refresh">清空凭据缓存</button><button class="sec" id="receive">收取今日积分</button></div>
+
+<h2>请求调试</h2>
+<label>操作</label>
+<select id="api">
+  <option value="image">文生图（images/generations）</option>
+  <option value="compose">图生图（images/compositions，需图片 URL）</option>
+  <option value="video">生成视频（videos/generations，较慢且消耗积分）</option>
+  <option value="models">模型列表（含 ?live=1 线上视频模型）</option>
+  <option value="logs">服务日志（尾部 100 行）</option>
+</select>
+<label>模型</label><select id="model"></select>
+<label>prompt（compose 时另需在下方填参考图 URL）</label>
+<textarea id="input">一只可爱的橘猫坐在窗台上，温暖阳光，水彩插画风格</textarea>
+<div class="row">
+  <div><label>比例 ratio</label><input id="ratio" value="1:1"></div>
+  <div><label>分辨率 resolution</label><input id="resolution" value="1k"></div>
+  <div><label>时长秒（仅视频）</label><input id="duration" value="5"></div>
+</div>
+<label>参考图 URL（仅 compose，多张逗号分隔）</label>
+<input id="images" placeholder="https://...jpg, https://...png">
+<button id="run" style="font-weight:700">执行</button>
+
+<h2>结果</h2>
+<div id="result">-</div>
+
+<script>
+const query = new URLSearchParams(location.search);
+const service = query.get('service') || 'http://127.0.0.1:19203';
+const $ = (id) => document.getElementById(id);
+const pageSel = $('page'), apiSel = $('api'), modelSel = $('model'), result = $('result');
+
+async function call(method, path, body, extraHeaders = {}) {
+  const headers = { 'content-type': 'application/json', ...extraHeaders };
+  if (pageSel.value && pageSel.value !== 'auto') headers['x-session-page'] = pageSel.value;
+  const started = performance.now();
+  const res = await fetch(service + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  return { status: res.status, ms: Math.round(performance.now() - started), data };
+}
+
+async function loadPages() {
+  $('meta').textContent = `服务 ${service} · 检测中...`;
+  try {
+    const h = await call('GET', '/health');
+    $('meta').textContent = `服务 ${service} · 正常 (${h.data.service})`;
+    const pages = await call('GET', '/v1/sessionbox/pages');
+    pageSel.innerHTML = '<option value="auto">自动（open 的优先）</option>'
+      + pages.data.pages.map((p) => `<option value="${p.id}">${p.name}${p.ready ? '' : '（未就绪）'}</option>`).join('');
+    const models = await call('GET', '/v1/models');
+    modelSel.innerHTML = models.data.data.map((m) => `<option value="${m.id}">${m.id}（${m.meta.type}）</option>`).join('');
+  } catch (err) {
+    $('meta').textContent = `服务 ${service} · 不可达（插件是否已启用？）`;
+  }
+}
+$('reload').onclick = loadPages;
+$('refresh').onclick = async () => { result.textContent = JSON.stringify((await call('POST', '/v1/sessionbox/refresh', {})).data, null, 2); };
+$('receive').onclick = async () => { result.textContent = JSON.stringify((await call('POST', '/v1/token/receive', {})).data, null, 2); };
+
+pageSel.onchange = async () => {
+  if (pageSel.value === 'auto') return;
+  const a = await call('GET', '/v1/sessionbox/account');
+  $('account').textContent = a.data.error ? `错误: ${a.data.error.message}` : `${a.data.name} · 积分 ${a.data.credit?.totalCredit}（赠${a.data.credit?.giftCredit}/购${a.data.credit?.purchaseCredit}/VIP${a.data.credit?.vipCredit}）`;
+};
+
+$('run').onclick = async () => {
+  result.textContent = '请求中...（视频可能需要数分钟）';
+  const model = modelSel.value;
+  const prompt = $('input').value.trim();
+  const ratio = $('ratio').value.trim();
+  const resolution = $('resolution').value.trim();
+  try {
+    let r;
+    if (apiSel.value === 'image') r = await call('POST', '/v1/images/generations', { model, prompt, ratio, resolution });
+    else if (apiSel.value === 'compose') r = await call('POST', '/v1/images/compositions', { model, prompt, ratio, resolution, images: $('images').value.split(',').map((s) => s.trim()).filter(Boolean) });
+    else if (apiSel.value === 'video') r = await call('POST', '/v1/videos/generations', { model, prompt, ratio, duration: Number($('duration').value) || 5 });
+    else if (apiSel.value === 'models') r = await call('GET', '/v1/models?live=1');
+    else if (apiSel.value === 'logs') r = await call('GET', '/v1/admin/logs?lines=100');
+    if (r.data?.error) { result.textContent = `HTTP ${r.status} (${r.ms}ms)\n` + JSON.stringify(r.data, null, 2); return; }
+    if (apiSel.value === 'image' || apiSel.value === 'compose') {
+      result.innerHTML = `HTTP ${r.status} (${r.ms}ms)<br>` + r.data.data.map((d) => `<img src="${d.url}">`).join('');
+    } else if (apiSel.value === 'video') {
+      result.innerHTML = `HTTP ${r.status} (${r.ms}ms)<br><video controls src="${r.data.data[0].url}"></video>`;
+    } else {
+      result.textContent = `HTTP ${r.status} (${r.ms}ms)\n` + JSON.stringify(r.data, null, 2);
+    }
+  } catch (err) {
+    result.textContent = `请求失败: ${err.message}`;
+  }
+};
+loadPages();
+</script>
+</body></html>
