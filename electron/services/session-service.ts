@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse, type Server } 
 import { URL } from 'node:url'
 import { webviewManager } from './webview-manager'
 import { getPageById, getSessionApiSettings, listPages } from './store'
+import { pluginGateway } from './plugin-gateway'
 
 export interface SessionCookie {
   name: string
@@ -76,6 +77,9 @@ export function startSessionApiServer(port = getSessionApiSettings().port, token
   if (activeServer) return activeServer
   const server = createServer(async (req, res) => {
     try {
+      // 插件 API 网关（/api/{pluginId}/**）优先：不做 Bearer 校验（与插件直连端口同等暴露面，仅 127.0.0.1），
+      // CORS 预检一并转发由插件服务自行处理
+      if (await pluginGateway.proxy(req, res, new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`))) return
       if (req.method === 'OPTIONS') return json(res, 204, {})
       if (token && req.headers.authorization !== `Bearer ${token}`) return json(res, 401, { error: 'unauthorized' })
       const parsed = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`)

@@ -10,6 +10,7 @@ let serviceProcess = null
 module.exports = {
   activate(context) {
     const sessionConfig = context.sessionServer.start()
+    context.gateway?.register(19201)
     const serviceDir = path.join(__dirname, 'service')
     // Electron 主进程里 process.execPath 是 electron.exe，ELECTRON_RUN_AS_NODE 使其按 Node 运行
     serviceProcess = spawn(process.execPath, [path.join(serviceDir, 'server.mjs')], {

@@ -5,6 +5,8 @@ const { spawn } = require('node:child_process')
 const path = require('node:path')
 const readline = require('node:readline')
 
+const SERVICE_PORT = 19203
+
 let serviceProcess = null
 
 module.exports = {
@@ -19,7 +21,7 @@ module.exports = {
         ELECTRON_RUN_AS_NODE: '1',
         SESSIONBOX_API_URL: `http://127.0.0.1:${sessionConfig.port}`,
         SESSIONBOX_API_TOKEN: sessionConfig.token,
-        JIMENG_PORT: '19203',
+        JIMENG_PORT: String(SERVICE_PORT),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -31,7 +33,9 @@ module.exports = {
     serviceProcess.on('exit', (code) => {
       if (code && code !== 0) context.logger.warn(`jimeng-api 服务退出 code=${code}`)
     })
-    context.logger.info('Jimeng API Bridge 已激活: http://127.0.0.1:19203 （账号选择: x-session-page 头，缺省自动）')
+    // 注册统一网关路由：/api/jimeng-api/** → 本服务（卸载时由 plugin-manager 自动注销）
+    context.gateway?.register(SERVICE_PORT)
+    context.logger.info(`Jimeng API Bridge 已激活: http://127.0.0.1:${SERVICE_PORT} （网关: http://127.0.0.1:${sessionConfig.port}/api/jimeng-api/）`)
   },
   deactivate(context) {
     if (serviceProcess && !serviceProcess.killed) serviceProcess.kill()

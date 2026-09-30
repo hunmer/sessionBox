@@ -5,6 +5,7 @@ import type { PluginContext, PluginInfo } from './plugin-types'
 import { sessionService, startSessionApiServer, stopSessionApiServer } from './session-service'
 import { getSessionApiSettings } from './store'
 import { writePluginLog } from './plugin-log'
+import { pluginGateway } from './plugin-gateway'
 
 export function createPluginContext(
   pluginInfo: PluginInfo,
@@ -28,6 +29,10 @@ export function createPluginContext(
   const context: PluginContext = {
     session: sessionService,
     sessionServer: { start: () => { const config = getSessionApiSettings(); startSessionApiServer(config.port, config.token); return config }, stop: stopSessionApiServer },
+    gateway: {
+      register: (port: number) => pluginGateway.register(pluginInfo.id, port),
+      unregister: () => pluginGateway.unregister(pluginInfo.id)
+    },
     events: {
       on(event: string, handler: (...args: any[]) => void): void {
         registeredHandlers.push({ event, handler })

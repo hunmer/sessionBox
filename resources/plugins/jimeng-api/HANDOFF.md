@@ -70,6 +70,20 @@ GET  /v1/tasks/:historyId
 ```
 账号选择：`x-session-page` 头 > Bearer pageId > body.page_id > 自动（open 优先）。
 
+### 统一插件网关（2026-09-30 新增，推荐入口）
+
+外部调用统一走 SessionBox bridge 端口（19100）的网关路由，不再依赖各插件直连端口：
+
+```
+http://127.0.0.1:19100/api/{pluginId}/**   →   http://127.0.0.1:{插件端口}/**
+例: http://127.0.0.1:19100/api/jimeng-api/v1/sessionbox/pages
+    pluginId 支持短名（jimeng-api）与全名（sessionbox.jimeng-api）
+```
+
+- 端口由各插件 activate 时 `context.gateway.register(port)` 运行时注册（electron/services/plugin-gateway.ts），新增插件零主进程改动。
+- 网关路由免 Bearer（与直连端口同等暴露面，仅 127.0.0.1）；`/api/v1/**` 仍是 bridge 自身（需 token）。
+- 插件直连端口（本插件 19203）保留兼容，demo.html 双击直开时用直连，经插件管理打开时自动用网关地址。
+
 ## 7. 已知坑与实测数据
 
 - 生成图 URL 带签名（x-expires 数小时），**b64_json 模式会实时下载**，URL 引用要及时消费。

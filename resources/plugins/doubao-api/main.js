@@ -9,6 +9,7 @@ let serviceProcess = null
 module.exports = {
   activate(context) {
     const sessionConfig = context.sessionServer.start()
+    context.gateway?.register(9090)
     const serviceDir = path.join(__dirname, 'service')
     const log = fs.createWriteStream(path.join(serviceDir, 'service.log'), { flags: 'a' })
     const bundledPython = 'G:/doubao2api-1/.venv/Scripts/python.exe'

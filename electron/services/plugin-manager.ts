@@ -7,8 +7,23 @@ import AdmZip from 'adm-zip'
 import { pluginEventBus } from './plugin-event-bus'
 import { PluginStorage } from './plugin-storage'
 import { createPluginContext } from './plugin-context'
+import { pluginGateway } from './plugin-gateway'
 import { ensurePluginLog } from './plugin-log'
 import type { PluginInfo, PluginMeta, PluginInstance } from './plugin-types'
+
+/** 按魔术字节嗅探图片 MIME（与 favicon-cache.ts 的 detectImageType 同思路），兜底 png */
+function sniffImageMime(buf: Buffer): string {
+  if (buf.length >= 12) {
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'image/png'
+    if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg'
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return 'image/gif'
+    if (buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return 'image/webp'
+    if (buf[0] === 0x00 && buf[1] === 0x00 && (buf[2] === 0x01 || buf[2] === 0x02) && buf[3] === 0x00) return 'image/x-icon'
+  }
+  const head = buf.toString('utf8', 0, Math.min(buf.length, 256)).trimStart()
+  if (head.startsWith('<?xml') || head.startsWith('<svg')) return 'image/svg+xml'
+  return 'image/png'
+}
 
 class PluginManager {
   private plugins: Map<string, PluginInstance> = new Map()
@@ -142,8 +157,9 @@ class PluginManager {
       }
     }
     instance.context.logger.info('插件已卸载')
-    // 清理该插件注册的所有事件监听器
+    // 清理该插件注册的所有事件监听器与网关路由
     instance.cleanupEvents()
+    pluginGateway.unregister(pluginId)
     this.plugins.delete(pluginId)
     console.log(`[PluginManager] 插件已卸载: ${instance.info.name}`)
   }
@@ -180,8 +196,9 @@ class PluginManager {
       }
     }
     instance.context.logger.info('插件已禁用')
-    // 清理该插件注册的所有事件监听器
+    // 清理该插件注册的所有事件监听器与网关路由
     instance.cleanupEvents()
+    pluginGateway.unregister(pluginId)
     instance.enabled = false
     this.disabledIds.add(pluginId)
     this.saveDisabledList()
@@ -212,14 +229,9 @@ class PluginManager {
       ? pathToFileURL(join(instance.dir, behavior.url.slice('file://PLUGIN_DIR/'.length))).toString()
       : behavior.url.replace('PLUGIN_DIR', instance.dir.replace(/\\/g, '/'))
     const separator = baseUrl.includes('?') ? '&' : '?'
-    const servicePorts: Record<string, number> = {
-      'sessionbox.qianwen-api': 9091,
-      'sessionbox.liblib-api': 19201,
-      'sessionbox.l0veyou-api': 19202,
-      'sessionbox.dola-api': 19204
-    }
-    const servicePort = servicePorts[pluginId] ?? 9090
-    const url = `${baseUrl}${separator}api=${encodeURIComponent(`http://127.0.0.1:${config.port}`)}&service=${encodeURIComponent(`http://127.0.0.1:${servicePort}`)}&token=${encodeURIComponent(config.token)}`
+    // 统一网关地址（/api/{短插件id}/**），端口由插件 activate 时注册，无需在此维护映射
+    const serviceUrl = `http://127.0.0.1:${config.port}/api/${pluginId.replace(/^sessionbox\./, '')}`
+    const url = `${baseUrl}${separator}api=${encodeURIComponent(`http://127.0.0.1:${config.port}`)}&service=${encodeURIComponent(serviceUrl)}&token=${encodeURIComponent(config.token)}`
     const win = new BrowserWindow({ width: 1280, height: 860, show: false, autoHideMenuBar: true, title: instance.info.name, webPreferences: { sandbox: false } })
     void win.loadURL(url)
     win.once('ready-to-show', () => win.show())
@@ -249,7 +261,9 @@ class PluginManager {
     if (!existsSync(iconPath)) return null
     try {
       const buffer = readFileSync(iconPath)
-      return `data:image/png;base64,${buffer.toString('base64')}`
+      // 图标文件名固定 icon.png，但内容可能是从站点下载的 ico/svg 等（见 favicon-cache.ts 的下载策略），按魔术字节嗅探真实 MIME
+      const mime = sniffImageMime(buffer)
+      return `data:${mime};base64,${buffer.toString('base64')}`
     } catch {
       return null
     }

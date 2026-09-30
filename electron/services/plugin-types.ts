@@ -51,6 +51,11 @@ export interface PluginMeta {
 export interface PluginContext {
   session: import('./session-service').SessionService
   sessionServer: { start(): { port: number; token: string }; stop(): void }
+  /** 统一 API 网关：注册后外部可经 /api/{pluginId}/** 访问本插件服务（bridge 端口 127.0.0.1） */
+  gateway: {
+    register(port: number): void
+    unregister(): void
+  }
   events: {
     on(event: string, handler: (...args: any[]) => void): void
     once(event: string, handler: (...args: any[]) => void): void
