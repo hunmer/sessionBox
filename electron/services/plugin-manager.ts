@@ -215,7 +215,8 @@ class PluginManager {
     const servicePorts: Record<string, number> = {
       'sessionbox.qianwen-api': 9091,
       'sessionbox.liblib-api': 19201,
-      'sessionbox.l0veyou-api': 19202
+      'sessionbox.l0veyou-api': 19202,
+      'sessionbox.dola-api': 19204
     }
     const servicePort = servicePorts[pluginId] ?? 9090
     const url = `${baseUrl}${separator}api=${encodeURIComponent(`http://127.0.0.1:${config.port}`)}&service=${encodeURIComponent(`http://127.0.0.1:${servicePort}`)}&token=${encodeURIComponent(config.token)}`

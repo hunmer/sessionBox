@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Dola API Bridge 调试台</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; color: #1f2328; }
+  h1 { font-size: 20px; } h2 { font-size: 15px; margin-top: 28px; }
+  select, textarea, input { font: inherit; padding: 6px 8px; border: 1px solid #d0d7de; border-radius: 6px; }
+  textarea { width: 100%; box-sizing: border-box; }
+  button { font: inherit; padding: 6px 14px; border: 1px solid #d0d7de; border-radius: 6px; background: #f6f8fa; cursor: pointer; }
+  button:hover { background: #eef1f4; }
+  pre { background: #f6f8fa; padding: 10px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+  .chat { border: 1px solid #d0d7de; border-radius: 8px; padding: 12px; min-height: 120px; max-height: 320px; overflow: auto; }
+  .think { color: #8b949e; font-size: 12px; }
+  .muted { color: #8b949e; font-size: 12px; }
+  code { background: #f6f8fa; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>Dola API Bridge 调试台</h1>
+<p class="muted">服务地址 <code id="base">http://127.0.0.1:19204</code> · 账号选择 <code>x-session-page</code>（缺省自动）</p>
+
+<h2>1. SessionBox 账号页面</h2>
+<div class="row"><button id="load-pages">刷新账号列表</button><span id="pages-status" class="muted"></span></div>
+<pre id="pages">未加载</pre>
+
+<h2>2. 对话测试</h2>
+<div class="row">
+  账号 <select id="page"><option value="">（自动）</option></select>
+  模型 <select id="model"></select>
+</div>
+<textarea id="prompt" rows="3" placeholder="输入消息，如：用一句话介绍你自己"></textarea>
+<div class="row">
+  <button id="send">发送</button>
+  <label><input type="checkbox" id="stream" checked> 流式</label>
+  <span id="chat-status" class="muted"></span>
+</div>
+<div class="chat" id="chat"><span class="muted">回复将显示在这里</span></div>
+
+<h2>3. 图像生成（Seedream 4.5，约 20s）</h2>
+<textarea id="img-prompt" rows="2" placeholder="图像描述，如：水彩风格的蓝色山雀站在枝头"></textarea>
+<div class="row">
+  比例 <select id="img-ratio"></select>
+  张数 <select id="img-n"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+  <button id="img-gen">生成图片</button>
+  <span id="img-status" class="muted"></span>
+</div>
+<div class="row" id="img-out"></div>
+
+<h2>4. 视频生成（Seedance，约 3-6 分钟，时长 4-15 秒）</h2>
+<textarea id="video-prompt" rows="2" placeholder="视频描述，如：一只橘猫在窗台晒太阳，5秒"></textarea>
+<div class="row">
+  <button id="video-gen">生成视频</button>
+  <span id="video-status" class="muted"></span>
+</div>
+<div class="row" id="video-out"></div>
+
+<h2>5. 模型列表</h2>
+<pre id="models">未加载</pre>
+
+<script>
+const BASE = location.port && location.port !== '19204' && location.protocol === 'http:' ? `${location.protocol}//${location.hostname}:19204` : 'http://127.0.0.1:19204';
+document.getElementById('base').textContent = BASE;
+const $ = (id) => document.getElementById(id);
+
+async function loadPages() {
+  $('pages-status').textContent = '加载中…';
+  try {
+    const data = await (await fetch(`${BASE}/v1/sessionbox/pages`)).json();
+    $('pages').textContent = JSON.stringify(data, null, 2);
+    const sel = $('page');
+    sel.innerHTML = '<option value="">（自动）</option>' + (data.pages || []).map((p) =>
+      `<option value="${p.id}">${p.name}${p.open ? ' ·已打开' : ''}${p.ready ? ' ·已登录' : ' ·未就绪'}</option>`).join('');
+    $('pages-status').textContent = '';
+  } catch (e) { $('pages-status').textContent = '失败: ' + e.message; }
+}
+
+async function loadModels() {
+  try {
+    const data = await (await fetch(`${BASE}/v1/models`)).json();
+    $('models').textContent = JSON.stringify(data, null, 2);
+    $('model').innerHTML = (data.data || []).map((m) => `<option value="${m.id}">${m.id}（${m.meta?.label || ''}）</option>`).join('');
+  } catch (e) { $('models').textContent = '失败: ' + e.message; }
+}
+
+$('load-pages').onclick = loadPages;
+
+$('send').onclick = async () => {
+  const prompt = $('prompt').value.trim();
+  if (!prompt) return;
+  const headers = { 'content-type': 'application/json' };
+  if ($('page').value) headers['x-session-page'] = $('page').value;
+  const body = { model: $('model').value || 'dola', messages: [{ role: 'user', content: prompt }] };
+  const chatEl = $('chat');
+  const t0 = Date.now();
+  if ($('stream').checked) {
+    body.stream = true;
+    chatEl.innerHTML = '';
+    const out = document.createElement('div');
+    const think = document.createElement('div'); think.className = 'think';
+    chatEl.append(think, out);
+    $('chat-status').textContent = '请求中…';
+    try {
+      const res = await fetch(`${BASE}/v1/chat/completions`, { method: 'POST', headers, body: JSON.stringify(body) });
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) >= 0) {
+          const block = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          const line = block.split('\n').find((l) => l.startsWith('data:'));
+          if (!line) continue;
+          const payload = line.slice(5).trim();
+          if (payload === '[DONE]') continue;
+          const obj = JSON.parse(payload);
+          if (obj.error) { out.textContent += `\n[错误] ${obj.error.message}`; continue; }
+          const delta = obj.choices?.[0]?.delta || {};
+          if (delta.reasoning_content) think.textContent += delta.reasoning_content;
+          if (delta.content) out.textContent += delta.content;
+          chatEl.scrollTop = chatEl.scrollHeight;
+        }
+      }
+      $('chat-status').textContent = `完成（${((Date.now() - t0) / 1000).toFixed(1)}s）`;
+    } catch (e) { $('chat-status').textContent = '失败: ' + e.message; }
+  } else {
+    chatEl.textContent = '请求中…';
+    $('chat-status').textContent = '请求中…';
+    try {
+      const res = await fetch(`${BASE}/v1/chat/completions`, { method: 'POST', headers, body: JSON.stringify(body) });
+      const data = await res.json();
+      chatEl.textContent = data.error ? JSON.stringify(data.error, null, 2) : (data.choices?.[0]?.message?.content || '(空)');
+      $('chat-status').textContent = `完成（${((Date.now() - t0) / 1000).toFixed(1)}s）`;
+    } catch (e) { chatEl.textContent = ''; $('chat-status').textContent = '失败: ' + e.message; }
+  }
+};
+
+// ---- 图像生成 ----
+$('img-gen').onclick = async () => {
+  const prompt = $('img-prompt').value.trim();
+  if (!prompt) return;
+  const headers = { 'content-type': 'application/json' };
+  if ($('page').value) headers['x-session-page'] = $('page').value;
+  const body = { model: 'dola-seedream', prompt, ratio: $('img-ratio').value || '1:1', n: Number($('img-n').value) };
+  $('img-status').textContent = '生成中（约 20s）…';
+  $('img-out').innerHTML = '';
+  const t0 = Date.now();
+  try {
+    const res = await fetch(`${BASE}/v1/images/generations`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (data.error) { $('img-status').textContent = '失败: ' + data.error.message; return; }
+    for (const img of data.data || []) {
+      const el = document.createElement('a');
+      el.href = img.url; el.target = '_blank'; el.title = '点击打开大图';
+      const pic = document.createElement('img');
+      pic.src = img.thumb || img.url; pic.style = 'max-width:180px;max-height:180px;margin:4px;border-radius:8px;border:1px solid #d0d7de';
+      el.append(pic);
+      $('img-out').append(el);
+    }
+    $('img-status').textContent = `完成（${((Date.now() - t0) / 1000).toFixed(1)}s，${(data.data || []).length} 张）`;
+  } catch (e) { $('img-status').textContent = '失败: ' + e.message; }
+};
+
+// ---- 视频生成 ----
+$('video-gen').onclick = async () => {
+  const prompt = $('video-prompt').value.trim();
+  if (!prompt) return;
+  const headers = { 'content-type': 'application/json' };
+  if ($('page').value) headers['x-session-page'] = $('page').value;
+  const body = { model: 'dola-seedance', prompt };
+  $('video-status').textContent = '生成中（约 3-6 分钟，请勿关闭页面）…';
+  $('video-out').innerHTML = '';
+  const t0 = Date.now();
+  const tick = setInterval(() => { $('video-status').textContent = `生成中（已等 ${((Date.now() - t0) / 1000).toFixed(0)}s / 预计 180-360s）…`; }, 1000);
+  try {
+    const res = await fetch(`${BASE}/v1/videos/generations`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const data = await res.json();
+    clearInterval(tick);
+    if (data.error) { $('video-status').textContent = '失败: ' + data.error.message; return; }
+    const v = data.data?.[0];
+    if (v?.cover_url) {
+      const pic = document.createElement('img');
+      pic.src = v.cover_url; pic.style = 'max-width:240px;border-radius:8px;border:1px solid #d0d7de';
+      $('video-out').append(pic);
+    }
+    if (v?.video_url) {
+      const vid = document.createElement('video');
+      vid.src = v.video_url; vid.controls = true; vid.style = 'max-width:480px;display:block';
+      $('video-out').append(vid);
+    }
+    $('video-status').textContent = `完成（${((Date.now() - t0) / 1000).toFixed(0)}s，${v?.duration || '?'}s 视频）`;
+  } catch (e) { clearInterval(tick); $('video-status').textContent = '失败: ' + e.message; }
+};
+
+loadPages();
+loadModels();
+// 填充图像比例选项（与 /v1/models meta.ratios 一致）
+(async () => {
+  try {
+    const data = await (await fetch(`${BASE}/v1/models`)).json();
+    const img = (data.data || []).find((m) => m.id === 'dola-seedream');
+    $('img-ratio').innerHTML = ((img?.meta?.ratios) || ['1:1']).map((r) => `<option>${r}</option>`).join('');
+  } catch { /* models 加载失败时保持空 */ }
+})();
+</script>
+</body>
+</html>
