@@ -46,6 +46,7 @@
 | image | `imageList: [{url}]` | text2image / image2image |
 | audio | `audioList: [{url}]` | text2audio |
 | video | `imageList: ["纯URL字符串"]` + `imageListV2: [{url,width,height}]` + `imageLabelList` | text2video / **frames2video**（1张也是它）/ singleImage2video |
+| video | **mixed2video 全能参考（默认，单图/多图均可，均已真实验证出片）**：`mixedList: [{url,type:"image"}]` + `imageListV2`（imageList/imageLabelList 置空），prompt 用 `{{Mixed 1}}`/`{{Mixed 2}}` 引用素材；≥2 张参考图**必须**走此模式（frames2video 双图=首尾帧语义，传设计稿会秒失败 status 3） | mixed2video |
 | text | imageList 同 image（多模态输入） | — |
 
 视频传对象数组会报"请上传所需的图片素材"。视频还需 `resolution/enableSound/extendPrompt` 参数。

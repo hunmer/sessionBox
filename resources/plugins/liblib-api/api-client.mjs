@@ -289,10 +289,12 @@ export function createClient({ token, webid, useruuid, urls = {}, onLog } = {}) 
 
   /**
    * 创建视频生成任务
-   * 视频参考图与图片模态不同：imageList 为纯 URL 字符串数组 + imageListV2 带宽高 + imageLabelList
-   * refs 传参考图（本地路径自动上传，1张=首帧，2张=首尾帧）
+   * 参考模式（modeType）:
+   *   - mixed2video  全能参考（默认，单图/多图均可）：参考图进 mixedList + imageListV2，prompt 用 {{Mixed 1}}/{{Mixed 2}} 引用素材
+   *   - frames2video 首尾帧（显式传 mode 使用）：1张=首帧，2张=首尾帧，imageList 为纯 URL 字符串数组
+   *   - text2video   纯文本（无参考图）
    */
-  async function createVideoGeneration({ prompt, projectId, model = 'wanx3.0', ratio = '16:9', resolution = '720P', duration = 2, refs = [], enableSound = 'on', extendPrompt = 1 }) {
+  async function createVideoGeneration({ prompt, projectId, model = 'wanx3.0', ratio = '16:9', resolution = '720P', duration = 2, refs = [], enableSound = 'on', extendPrompt = 1, mode }) {
     const entry = MODELS.video.find(m => m.id === model) || { provider: 'Wan' };
     const urls = [];
     const v2 = [];
@@ -306,11 +308,18 @@ export function createClient({ token, webid, useruuid, urls = {}, onLog } = {}) 
         urls.push(cdnUrl); v2.push({ url: cdnUrl, width: size.width, height: size.height });
       }
     }
-    const modeType = urls.length === 0 ? 'text2video' : 'frames2video';
+    const modeType = mode || (urls.length === 0 ? 'text2video' : 'mixed2video');
     return call('POST', `${U.tv}/api/task/generation/create`, {
       params: {
         prompt, model, modeType, count: 1, ratio, resolution, duration, enableSound, extendPrompt,
-        textList: [], imageList: urls, imageLabelList: urls.map(() => ''), videoList: [], imageListV2: v2, audioList: [], infiniteSwitch: 0,
+        textList: [],
+        imageList: modeType === 'mixed2video' ? [] : urls,
+        imageLabelList: modeType === 'mixed2video' ? [] : urls.map(() => ''),
+        videoList: [],
+        imageListV2: v2,
+        audioList: [],
+        mixedList: modeType === 'mixed2video' ? urls.map((url) => ({ url, type: 'image' })) : [],
+        infiniteSwitch: 0,
       },
       metadata: buildMetadata(projectId, 'v-'),
       provider: entry.provider, model, taskType: 'video',

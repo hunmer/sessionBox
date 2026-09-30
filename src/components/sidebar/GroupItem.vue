@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { onBeforeUnmount, reactive, watch } from 'vue'
+import { reactive, watch } from 'vue'
 import { ChevronRight, MoreHorizontal, Pencil, Trash2, Plus } from "lucide-vue-next"
 import draggable from 'vuedraggable'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
 import PageTreeNode from './PageTreeNode.vue'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
-import { useTabStore } from '@/stores/tab'
 import type { PageItem } from './page-tree'
 import {
   Collapsible,
@@ -30,7 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Group, Page, Tab } from '@/types'
+import type { Group, Page } from '@/types'
 
 interface Workspace {
   id: string
@@ -57,7 +56,6 @@ const emit = defineEmits<{
 
 const containerStore = useContainerStore()
 const pageStore = usePageStore()
-const tabStore = useTabStore()
 
 // 为每个 workspace 维护独立的折叠状态，持久化到 localStorage
 const COLLAPSE_STORAGE_KEY = 'sessionbox-group-collapse-states'
@@ -80,114 +78,6 @@ props.workspaces.forEach((w) => {
 
 watch(openStates, () => {
   localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify({ ...openStates }))
-})
-
-// ====== 分组标题点击：单击切换到该组已激活 tab，双击新增 tab ======
-
-// 临时调试日志（渲染进程 console 会转发到 procm 结构化日志）
-function debugLog(event: string, data: Record<string, unknown> = {}) {
-  console.log(`[GroupItem:debug] ${event}`, JSON.stringify(data))
-}
-
-// 每个分组最近激活的 tab（由全局激活 tab 按所属页面反推分组）
-const groupActiveTabIds = reactive<Record<string, string>>({})
-
-watch(
-  () => tabStore.activeTabId,
-  (tabId) => {
-    if (!tabId) return
-    const tab = tabStore.tabs.find((t) => t.id === tabId)
-    if (!tab?.pageId) return
-    const groupId = pageStore.getPage(tab.pageId)?.groupId
-    if (groupId) groupActiveTabIds[groupId] = tabId
-  },
-  { immediate: true }
-)
-
-// 分组下排序最前的页面（order 升序），作为无激活记录时的兜底
-function getGroupFirstPage(groupId: string): Page | undefined {
-  const pages = pageStore.pagesByGroup.get(groupId) || []
-  return [...pages].sort((a, b) => a.order - b.order)[0]
-}
-
-// 分组当前应聚焦的 tab：优先最近激活的，其次按排序取该组第一个
-function getGroupActiveTab(groupId: string): Tab | undefined {
-  const recorded = groupActiveTabIds[groupId]
-  const recordedTab = recorded ? tabStore.tabs.find((t) => t.id === recorded) : undefined
-  if (recordedTab) {
-    debugLog('getGroupActiveTab:hit-recorded', { groupId, tabId: recordedTab.id, pageId: recordedTab.pageId })
-    return recordedTab
-  }
-  const pageIds = new Set((pageStore.pagesByGroup.get(groupId) || []).map((p) => p.id))
-  const fallback = tabStore.sortedTabs.find((t) => t.pageId && pageIds.has(t.pageId))
-  debugLog('getGroupActiveTab:fallback', { groupId, recordedMissing: !!recorded, groupPageCount: pageIds.size, resultTabId: fallback?.id ?? null })
-  return fallback
-}
-
-// 单击：切换到该组已激活的 tab；该组尚无 tab 时为其首个页面新建（与点击页面行为一致）
-async function activateGroupTab(groupId: string) {
-  debugLog('activateGroupTab:enter', { groupId })
-  openStates[groupId] = true
-  const tab = getGroupActiveTab(groupId)
-  if (tab) {
-    debugLog('activateGroupTab:switchTab', { groupId, tabId: tab.id })
-    await tabStore.switchTab(tab.id)
-    return
-  }
-  const firstPage = getGroupFirstPage(groupId)
-  if (firstPage) {
-    debugLog('activateGroupTab:createTab-by-first-page', { groupId, pageId: firstPage.id })
-    await tabStore.createTab(firstPage.id)
-  } else {
-    debugLog('activateGroupTab:no-page-noop', { groupId })
-  }
-}
-
-// 双击：为该组新开一个 tab（挂在最近激活的页面，无则首个页面）
-async function createGroupTab(groupId: string) {
-  debugLog('createGroupTab:enter', { groupId })
-  openStates[groupId] = true
-  const activeTab = getGroupActiveTab(groupId)
-  const firstPage = getGroupFirstPage(groupId)
-  const pageId = activeTab?.pageId ?? firstPage?.id
-  debugLog('createGroupTab:resolve-page', { groupId, activeTabId: activeTab?.id ?? null, activeTabPageId: activeTab?.pageId ?? null, firstPageId: firstPage?.id ?? null, pageId: pageId ?? null })
-  if (pageId) await tabStore.createTab(pageId)
-  else debugLog('createGroupTab:noop-no-page', { groupId })
-}
-
-// 单击延迟判定 + 双击自检测：不依赖浏览器 dblclick 派发
-// （click 上的 preventDefault、两次点击 target 不一致等都会抑制 dblclick 派发）
-const DBLCLICK_INTERVAL = 350
-let groupClickTimer: ReturnType<typeof setTimeout> | null = null
-let lastGroupClickAt = 0
-let lastGroupClickGroupId = ''
-
-function handleGroupClick(groupId: string) {
-  const now = Date.now()
-  const isDouble = lastGroupClickGroupId === groupId && now - lastGroupClickAt < DBLCLICK_INTERVAL
-  debugLog('click', { groupId, hadPendingTimer: !!groupClickTimer, isDouble, gapMs: now - lastGroupClickAt })
-  lastGroupClickAt = now
-  lastGroupClickGroupId = groupId
-
-  if (groupClickTimer) {
-    clearTimeout(groupClickTimer)
-    groupClickTimer = null
-  }
-
-  if (isDouble) {
-    // 判定为双击：清空记录防止三连击再开一个 tab
-    lastGroupClickGroupId = ''
-    void createGroupTab(groupId)
-    return
-  }
-  groupClickTimer = setTimeout(() => {
-    groupClickTimer = null
-    void activateGroupTab(groupId)
-  }, 220)
-}
-
-onBeforeUnmount(() => {
-  if (groupClickTimer) clearTimeout(groupClickTimer)
 })
 
 // 分组拖拽排序
@@ -222,8 +112,6 @@ function onPageReorder(reordered: PageItem[]) {
                 class="flex items-center gap-1 group/menu-button-wrapper"
                 :class="openStates[workspace.group.id] && workspace.pages.length > 0 ? 'rounded-t-lg' : 'rounded-lg'"
                 :style="workspace.color ? { '--hover-bg': workspace.color + '20' } : undefined"
-                @click.capture="debugLog('probe:click-capture', { groupId: workspace.group.id })"
-                @dblclick.capture="debugLog('probe:dblclick-capture', { groupId: workspace.group.id })"
               >
                 <SidebarMenuButton
                   as-child
@@ -232,12 +120,11 @@ function onPageReorder(reordered: PageItem[]) {
                   <a
                     href="#"
                     class="flex-1 flex items-center gap-2"
-                    @click.prevent="handleGroupClick(workspace.group.id)"
+                    @click.prevent="openStates[workspace.group.id] = !openStates[workspace.group.id]"
                   >
                     <ChevronRight
                       class="w-4 h-4 transition-transform group-data-[collapsible=icon]:hidden shrink-0"
                       :class="openStates[workspace.group.id] ? 'rotate-90' : ''"
-                      @click.stop.prevent="openStates[workspace.group.id] = !openStates[workspace.group.id]"
                     />
                     <EmojiRenderer
                       v-if="workspace.emoji"

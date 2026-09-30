@@ -1,0 +1,10 @@
+{
+  "id": "sessionbox.l0veyou-api",
+  "name": "L0veyou API Bridge",
+  "version": "0.1.0",
+  "description": "将 SessionBox 管理的 l0veyou.com 账号暴露为 OpenAI 兼容图片生成 API（GPT Image 2/2.5），账号和登录由 SessionBox 管理",
+  "author": { "name": "SessionBox" },
+  "tags": ["l0veyou", "API", "会话", "生图"],
+  "hasView": false,
+  "defaultBehavior": { "type": "browserWindow", "url": "file://PLUGIN_DIR/demo.html" }
+}

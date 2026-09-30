@@ -212,7 +212,12 @@ class PluginManager {
       ? pathToFileURL(join(instance.dir, behavior.url.slice('file://PLUGIN_DIR/'.length))).toString()
       : behavior.url.replace('PLUGIN_DIR', instance.dir.replace(/\\/g, '/'))
     const separator = baseUrl.includes('?') ? '&' : '?'
-    const servicePort = pluginId === 'sessionbox.qianwen-api' ? 9091 : 9090
+    const servicePorts: Record<string, number> = {
+      'sessionbox.qianwen-api': 9091,
+      'sessionbox.liblib-api': 19201,
+      'sessionbox.l0veyou-api': 19202
+    }
+    const servicePort = servicePorts[pluginId] ?? 9090
     const url = `${baseUrl}${separator}api=${encodeURIComponent(`http://127.0.0.1:${config.port}`)}&service=${encodeURIComponent(`http://127.0.0.1:${servicePort}`)}&token=${encodeURIComponent(config.token)}`
     const win = new BrowserWindow({ width: 1280, height: 860, show: false, autoHideMenuBar: true, title: instance.info.name, webPreferences: { sandbox: false } })
     void win.loadURL(url)

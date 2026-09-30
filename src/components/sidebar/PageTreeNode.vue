@@ -184,8 +184,45 @@ async function handlePageDrop(event: DragEvent) {
   await tabStore.navigate(createdTab.id, url)
 }
 
+// ====== 单击切换已激活 tab / 双击新增 tab ======
+
+// 临时调试日志（渲染进程 console 会转发到 procm 结构化日志）
+function debugLog(event: string, data: Record<string, unknown> = {}) {
+  console.log(`[PageTreeNode:debug] ${event}`, JSON.stringify(data))
+}
+
+// 双击自检测：click 上的 preventDefault 会抑制 dblclick 派发，故不监听 dblclick 事件
+const PAGE_DBLCLICK_INTERVAL = 350
+let pageClickTimer: ReturnType<typeof setTimeout> | null = null
+let lastPageClickAt = 0
+
+function handlePageClick() {
+  const now = Date.now()
+  const isDouble = now - lastPageClickAt < PAGE_DBLCLICK_INTERVAL
+  debugLog('click', { pageId: props.pageItem.id, hadPendingTimer: !!pageClickTimer, isDouble, gapMs: now - lastPageClickAt })
+  lastPageClickAt = now
+
+  if (pageClickTimer) {
+    clearTimeout(pageClickTimer)
+    pageClickTimer = null
+  }
+
+  if (isDouble) {
+    // 判定为双击：清空记录防止三连击再开一个 tab
+    lastPageClickAt = 0
+    debugLog('createPageTab', { pageId: props.pageItem.id })
+    void tabStore.createTab(props.pageItem.id)
+    return
+  }
+  pageClickTimer = setTimeout(() => {
+    pageClickTimer = null
+    void emit('selectPage', props.pageItem.id)
+  }, 220)
+}
+
 onBeforeUnmount(() => {
   clearHoverActivateTimer()
+  if (pageClickTimer) clearTimeout(pageClickTimer)
 })
 
 // 子页面拖拽排序（仅在同层内排序，order 只在兄弟节点间有意义）
@@ -201,7 +238,10 @@ function onChildrenReorder(reordered: PageItem[]) {
   >
     <ContextMenu>
       <ContextMenuTrigger as-child>
-        <div class="flex items-center gap-1 w-full group/page-row">
+        <div
+          class="flex items-center gap-1 w-full group/page-row"
+          @dblclick.capture="debugLog('probe:dblclick-capture', { pageId: pageItem.id })"
+        >
           <SidebarMenuSubButton
             as-child
             class="flex-1"
@@ -211,7 +251,7 @@ function onChildrenReorder(reordered: PageItem[]) {
               href="#"
               class="flex items-center gap-2 w-full text-left rounded-md transition-colors"
               :class="isDropTarget ? 'bg-accent/60 text-accent-foreground' : ''"
-              @click.prevent="emit('selectPage', pageItem.id)"
+              @click.prevent="handlePageClick"
               @dragover.stop="handlePageDragOver($event)"
               @dragleave.stop="handlePageDragLeave($event)"
               @drop.stop="handlePageDrop($event)"

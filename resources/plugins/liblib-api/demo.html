@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>Liblib API 调试</title>
+<style>
+body{font:14px system-ui;margin:24px;max-width:1020px;color:#202124}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:15px;margin:18px 0 6px}
+.meta{color:#5f6368;font-size:12px;margin-bottom:12px}
+label{display:block;margin:8px 0 2px;font-weight:600}
+select,textarea,input{padding:8px;margin:2px 0;width:100%;box-sizing:border-box;font:inherit}
+textarea{min-height:110px;font-family:monospace}
+.row{display:flex;gap:8px}.row>*{flex:1}
+button{padding:8px 16px;margin:8px 8px 0 0;cursor:pointer}
+button.sec{background:#f1f3f4;border:none}
+#result{white-space:pre-wrap;background:#f8f9fa;border:1px solid #e0e0e0;padding:12px;min-height:120px;font-family:monospace;font-size:13px;overflow:auto;max-height:420px}
+#result img{max-width:360px;display:block;margin:6px 0}
+#result audio,#result video{display:block;margin:6px 0;max-width:480px}
+.badge{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;margin-left:6px}
+.badge.ok{background:#e6f4ea;color:#137333}.badge.off{background:#fce8e6;color:#c5221f}
+.badge.warn{background:#fef7e0;color:#b06000}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid #e0e0e0;padding:4px 8px;text-align:left}
+</style></head>
+<body>
+<h1>Liblib API 在线调试</h1>
+<div class="meta" id="meta">加载中...</div>
+
+<h2>账号（SessionBox 页面）</h2>
+<div class="row"><div><label>当前账号</label><select id="page"></select></div>
+<div><label>账号积分</label><div id="account" style="padding:8px 0;font-family:monospace;font-size:13px">未查询</div></div></div>
+<div><button class="sec" id="reload">刷新账号</button><button class="sec" id="refresh">清空凭据缓存</button></div>
+
+<h2>请求调试</h2>
+<label>操作</label>
+<select id="api">
+  <option value="chat">文本对话（chat/completions）</option>
+  <option value="image">生成图片（images/generations）</option>
+  <option value="audio">生成音频（audio/generations）</option>
+  <option value="video">生成视频（video/generations，较慢）</option>
+  <option value="account">查询账号信息</option>
+  <option value="models">模型列表</option>
+  <option value="logs">服务日志（尾部 100 行）</option>
+</select>
+<label>模型</label><select id="model"></select>
+<label>参数（chat 为消息文本；image/audio/video 为 prompt；其他忽略）</label>
+<textarea id="input">你好，请用一句话介绍自己</textarea>
+<div class="row"><div><label>图片尺寸（仅 image）</label><input id="size" value="1024x1024"></div></div>
+<button id="run" style="font-weight:700">执行</button>
+
+<h2>结果</h2>
+<div id="result">-</div>
+
+<script>
+const query = new URLSearchParams(location.search);
+const service = query.get('service') || 'http://127.0.0.1:19201';
+const $ = (id) => document.getElementById(id);
+const pageSel = $('page'), apiSel = $('api'), modelSel = $('model'), result = $('result');
+
+async function call(method, path, body) {
+  const headers = { 'content-type': 'application/json' };
+  if (pageSel.value && pageSel.value !== 'auto') headers['x-session-page'] = pageSel.value;
+  const started = performance.now();
+  const res = await fetch(service + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  if (!res.ok) throw new Error(typeof data === 'object' ? (data.error?.message || text) : text);
+  return { data, ms: Math.round(performance.now() - started) };
+}
+
+function render(obj, ms, media) {
+  result.innerHTML = '';
+  if (media) for (const m of media) result.appendChild(m);
+  const pre = document.createElement('div');
+  pre.textContent = (ms != null ? `耗时 ${ms}ms\n\n` : '') + JSON.stringify(obj, null, 2);
+  result.appendChild(pre);
+}
+
+function mediaEl(url, tag) {
+  const el = document.createElement(tag);
+  el.src = url; el.controls = true;
+  return el;
+}
+
+async function loadPages() {
+  pageSel.innerHTML = '';
+  pageSel.add(new Option('自动（open 优先）', 'auto'));
+  try {
+    const { data } = await call('GET', '/v1/sessionbox/pages');
+    for (const p of data.pages) {
+      const opt = new Option(`${p.name}${p.ready ? ' ✓' : ''}`, p.id);
+      pageSel.add(opt);
+    }
+    const rows = data.pages.map((p) => {
+      const badge = p.ready ? '<span class="badge ok">凭据就绪</span>' : (p.open ? '<span class="badge warn">已打开未登录</span>' : '<span class="badge off">未打开</span>');
+      return `<tr><td>${p.name}</td><td>${p.id.slice(0, 8)}...</td><td>${badge}</td><td style="color:#5f6368">${p.reason ? p.reason.slice(0, 80) : ''}</td></tr>`;
+    }).join('');
+    result.innerHTML = `账号 ${data.pages.length} 个\n<table><tr><th>名称</th><th>id</th><th>状态</th><th>说明</th></tr>${rows}</table>`;
+  } catch (e) {
+    result.textContent = '加载账号失败：' + e.message + '\n\n请确认 SessionBox 已启用 Liblib API Bridge 插件';
+  }
+}
+
+async function loadModels() {
+  modelSel.innerHTML = '';
+  try {
+    const { data } = await call('GET', '/v1/models');
+    const groups = {};
+    for (const m of data.data) (groups[m.meta.type] ||= []).push(m);
+    const defaults = { text: 'qwen-3-vl-flash', image: 'qwen-edit', audio: 'seed-audio-1.0', video: 'MiniMax-Hailuo-o2' };
+    for (const [type, list] of Object.entries(groups)) {
+      const g = document.createElement('optgroup'); g.label = type;
+      for (const m of list) g.append(new Option(`${m.id}（${m.meta.power}power）`, m.id));
+      modelSel.append(g);
+    }
+    modelSel.dataset.defaults = JSON.stringify(defaults);
+    syncModel();
+  } catch (e) { console.error(e); }
+}
+
+function syncModel() {
+  const typeMap = { chat: 'text', image: 'image', audio: 'audio', video: 'video' };
+  const want = typeMap[apiSel.value];
+  const defaults = JSON.parse(modelSel.dataset.defaults || '{}');
+  for (const g of modelSel.options) {
+    const label = g.parentElement?.label || '';
+    g.hidden = !!want && label !== want;
+  }
+  if (want && defaults[want]) modelSel.value = defaults[want];
+}
+
+async function loadAccount() {
+  try {
+    const { data } = await call('GET', '/v1/sessionbox/account');
+    $('account').textContent = `${data.name} | 积分 ${data.power.usable ?? '?'}/${data.power.total ?? '?'} | 并发上限 ${data.power.concurrent ?? '?'} | 会员 ${data.member.level || '无'}`;
+  } catch (e) { $('account').textContent = '查询失败: ' + e.message; }
+}
+
+apiSel.onchange = () => {
+  const hints = {
+    chat: '你好，请用一句话介绍自己',
+    image: '一只可爱的猫在窗边，暖色调',
+    audio: '请生成一段轻快的背景音乐',
+    video: '一只小猫在草地上奔跑，镜头跟随',
+  };
+  if (hints[apiSel.value]) $('input').value = hints[apiSel.value];
+  syncModel();
+};
+
+$('run').onclick = async () => {
+  result.textContent = '请求中...';
+  try {
+    const input = $('input').value, model = modelSel.value;
+    if (apiSel.value === 'chat') {
+      const { data, ms } = await call('POST', '/v1/chat/completions', { model, messages: [{ role: 'user', content: input }] });
+      render(data, ms);
+    } else if (apiSel.value === 'image') {
+      const { data, ms } = await call('POST', '/v1/images/generations', { model, prompt: input, size: $('size').value });
+      render(data, ms, data.data.map((d) => mediaEl(d.url, 'img')));
+    } else if (apiSel.value === 'audio') {
+      const { data, ms } = await call('POST', '/v1/audio/generations', { model, prompt: input });
+      render(data, ms, data.data.map((d) => mediaEl(d.url, 'audio')));
+    } else if (apiSel.value === 'video') {
+      const { data, ms } = await call('POST', '/v1/video/generations', { model, prompt: input });
+      render(data, ms, data.data.map((d) => mediaEl(d.url, 'video')));
+    } else if (apiSel.value === 'account') {
+      const { data, ms } = await call('GET', '/v1/sessionbox/account');
+      render(data, ms); loadAccount();
+    } else if (apiSel.value === 'models') {
+      const { data, ms } = await call('GET', '/v1/models');
+      render(data, ms);
+    } else if (apiSel.value === 'logs') {
+      const { data, ms } = await call('GET', '/v1/admin/logs?lines=100');
+      result.textContent = data.lines.join('\n') || '（无日志）';
+      result.insertAdjacentText('afterbegin', `耗时 ${ms}ms，最近 ${data.lines.length} 行：\n\n`);
+    }
+  } catch (e) {
+    result.textContent = '执行失败：' + e.message;
+  }
+};
+
+$('reload').onclick = () => { loadPages(); loadAccount(); };
+$('refresh').onclick = async () => {
+  try { const { data } = await call('POST', '/v1/sessionbox/refresh'); result.textContent = JSON.stringify(data, null, 2); } catch (e) { result.textContent = '失败: ' + e.message; }
+};
+
+$('meta').textContent = `服务 ${service} | 插件由 SessionBox 管理账号，凭据实时取自页面 cookie`;
+loadPages(); loadModels(); loadAccount();
+</script></body></html>

@@ -16,3 +16,4 @@ data/
 server/data/
 service.log
 *.log
+.tmp-reverse/

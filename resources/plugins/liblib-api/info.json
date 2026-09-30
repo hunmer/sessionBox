@@ -5,5 +5,6 @@
   "description": "将 SessionBox 管理的 liblib.tv 账号暴露为 OpenAI 兼容 API（文本/图片/音频/视频四模态），账号和登录由 SessionBox 管理",
   "author": { "name": "SessionBox" },
   "tags": ["Liblib", "API", "会话", "生图"],
-  "hasView": false
+  "hasView": false,
+  "defaultBehavior": { "type": "browserWindow", "url": "file://PLUGIN_DIR/demo.html" }
 }

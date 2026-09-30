@@ -148,6 +148,19 @@ test('服务: 模型列表 / 账号发现 / 聊天生成 / 账号选择 / 图片
   assert.equal(lib.state.taskCreates[0].headers.token, 'TOKEN_BBB', 'x-session-page 应切换账号');
   assert.equal(lib.state.taskCreates[0].headers.webid, 'WEBID_BBB');
 
+  // 图片编辑（OpenAI images/edits，multipart 图生图）
+  const fd = new FormData();
+  fd.append('model', 'qwen-edit');
+  fd.append('prompt', '把猫变成狗');
+  fd.append('size', '1024x1024');
+  fd.append('image', new File([Buffer.from('fake-png-bytes')], 'cat.png', { type: 'image/png' }));
+  const edit = await jsonOf(await fetch(`${base}/v1/images/edits`, { method: 'POST', body: fd }));
+  assert.equal(edit.data[0].url, 'https://cdn.liblib.art/img.png');
+  const editCreate = lib.state.taskCreates.at(-1);
+  assert.equal(editCreate.body.taskType, 'image');
+  assert.equal(editCreate.body.params.modeType, 'image2image', '传参考图应切换 image2image');
+  assert.ok(editCreate.body.params.imageList[0].url.startsWith('https://cdn.liblib.art/upload-images/UUID_AAA/'), '参考图应先上传 OSS');
+
   // 图片生成
   const img = await jsonOf(await fetch(`${base}/v1/images/generations`, {
     method: 'POST',
@@ -175,7 +188,7 @@ test('服务: 模型列表 / 账号发现 / 聊天生成 / 账号选择 / 图片
     body: JSON.stringify({ filename: 'a.png', content_base64: Buffer.from('pngdata').toString('base64') }),
   }));
   assert.ok(up.url.startsWith('https://cdn.liblib.art/upload-images/UUID_AAA/'), 'useruuid 应取自 cookie');
-  assert.equal(lib.state.ossPuts, 1);
+  assert.equal(lib.state.ossPuts, 2, 'edits 参考图 + 本处文件共两次 OSS 上传');
 
   // 音频
   const audio = await jsonOf(await fetch(`${base}/v1/audio/generations`, {
@@ -193,7 +206,40 @@ test('服务: 模型列表 / 账号发现 / 聊天生成 / 账号选择 / 图片
   }));
   assert.equal(video.data[0].url, 'https://cdn.liblib.art/v.mp4');
 
+  // 视频全能参考（≥2 图默认 mixed2video）
+  const videoMixed = await jsonOf(await fetch(`${base}/v1/video/generations`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model: 'wanx3.0', prompt: '参考 {{Mixed 2}} 的场景', refs: ['https://cdn.liblib.art/r1.png', 'https://cdn.liblib.art/r2.png'] }),
+  }));
+  assert.equal(videoMixed.data[0].url, 'https://cdn.liblib.art/v.mp4');
+  const mixedCreate = lib.state.taskCreates.at(-1);
+  assert.equal(mixedCreate.body.params.modeType, 'mixed2video', '双图应走全能参考');
+  assert.deepEqual(mixedCreate.body.params.mixedList.map((m) => m.type), ['image', 'image']);
+  assert.deepEqual(mixedCreate.body.params.imageList, [], 'mixed 模式 imageList 应为空');
+  // 单图默认也走全能参考
+  await jsonOf(await fetch(`${base}/v1/video/generations`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model: 'wanx3.0', prompt: '让 {{Mixed 1}} 动起来', refs: ['https://cdn.liblib.art/only.png'] }),
+  }));
+  assert.equal(lib.state.taskCreates.at(-1).body.params.modeType, 'mixed2video', '单图默认应走全能参考');
+  // 显式 frames2video 覆盖
+  await jsonOf(await fetch(`${base}/v1/video/generations`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model: 'wanx3.0', prompt: 'x', refs: ['https://cdn.liblib.art/only.png'], modeType: 'frames2video' }),
+  }));
+  const framesCreate = lib.state.taskCreates.at(-1);
+  assert.equal(framesCreate.body.params.modeType, 'frames2video', '显式 modeType 应覆盖默认');
+  assert.deepEqual(framesCreate.body.params.imageList, ['https://cdn.liblib.art/only.png'], 'frames 模式 imageList 应为 URL 数组');
+
+
   // 进度查询
   const prog = await jsonOf(await fetch(`${base}/v1/tasks/task-1`));
   assert.equal(prog.progresses[0].taskId, 'task-1');
+
+  // 调试日志端点
+  const logs = await jsonOf(await fetch(`${base}/v1/admin/logs?lines=5`));
+  assert.ok(Array.isArray(logs.lines) && logs.lines.length <= 5 && logs.lines.every((l) => typeof l === 'string'));
 });

@@ -189,6 +189,14 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
       return json(200, { refreshed: true });
     }
 
+    if (req.method === 'GET' && path === '/v1/admin/logs') {
+      const lines = Math.min(Number(url.searchParams.get('lines')) || 100, 1000);
+      let text = '';
+      try { text = readFileSync(LOG_FILE, 'utf8'); } catch { /* 尚无日志 */ }
+      const all = text ? text.trimEnd().split('\n') : [];
+      return json(200, { lines: all.slice(-lines) });
+    }
+
     if (req.method === 'GET' && path === '/v1/sessionbox/account') {
       // 当前账号的会员/积分信息（liblib getAccount）
       const data = await runWithAccount(req, {}, (api) => api.getAccount());
@@ -257,6 +265,44 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
       return json(200, { created: Math.floor(Date.now() / 1000), data: images.map((img) => ({ url: img.previewPath || img.url })) });
     }
 
+    if (req.method === 'POST' && path === '/v1/images/edits') {
+      // OpenAI images/edits: multipart/form-data（image 文件 + prompt），mask 忽略（liblib 无对应参数）
+      const form = await parseForm(req, rawBody);
+      const body2 = { model: str(form.get('model')), size: str(form.get('size')), n: form.get('n') || 1, prompt: str(form.get('prompt')) };
+      requireModel(body2, 'image');
+      const mask = form.get('mask');
+      if (mask) log('images/edits 收到 mask，已忽略（liblib 未暴露局部重绘参数）');
+
+      const imageFiles = [...form.getAll('image'), ...form.getAll('image[]'), ...form.getAll('images')].filter((f) => f && typeof f === 'object');
+      if (imageFiles.length === 0) {
+        return json(400, errPayload('multipart 表单缺少 image 文件字段', 'invalid_request_error'));
+      }
+      const refs = [];
+      for (const file of imageFiles.slice(0, 4)) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const up = await runWithAccount(req, body2, (api) => api.uploadFile({
+          buffer, filename: file.name || 'upload.png', contentType: file.type || undefined,
+        }));
+        refs.push(up.cdnUrl);
+      }
+      const result = await runWithAccount(req, body2, (api) => (async () => {
+        const task = await api.createImageGeneration({
+          prompt: body2.prompt || '', model: body2.model, ratio: toRatio(body2.size),
+          quality: str(form.get('quality')) || 'medium', resolution: str(form.get('resolution')) || '2K',
+          count: Math.min(Number(body2.n) || 1, 4), refs,
+        });
+        log(`task create(edits) model=${body2.model} refs=${refs.length} taskId=${task.taskId} power=${task.power}`);
+        return api.waitForTask(task.taskId, { timeoutMs: 300000 });
+      })());
+      const images = result.images || [];
+      if (str(form.get('response_format')) === 'b64_json') {
+        const encoded = [];
+        for (const img of images) encoded.push(Buffer.from(await (await fetch(img.previewPath || img.url)).arrayBuffer()).toString('base64'));
+        return json(200, { created: Math.floor(Date.now() / 1000), data: encoded.map((b64) => ({ b64_json: b64 })) });
+      }
+      return json(200, { created: Math.floor(Date.now() / 1000), data: images.map((img) => ({ url: img.previewPath || img.url })) });
+    }
+
     if (req.method === 'POST' && path === '/v1/audio/generations') {
       requireModel(body, 'audio');
       const result = await runWithAccount(req, body, (api) => (async () => {
@@ -292,7 +338,7 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
         const task = await api.createVideoGeneration({
           prompt: body.prompt || '', model: body.model,
           ratio: toRatio(body.size || body.ratio), resolution: body.resolution || '720P',
-          duration: Number(body.duration) || 2, refs,
+          duration: Number(body.duration) || 2, refs, mode: body.modeType,
         });
         log(`task create model=${body.model} taskId=${task.taskId} power=${task.power}`);
         return api.waitForTask(task.taskId, { timeoutMs: 900000, intervalMs: 8000 });
@@ -362,6 +408,18 @@ function parseJsonBody(req, rawBody) {
   if (!rawBody.length || !(req.headers['content-type'] || '').includes('application/json')) return {};
   try { return JSON.parse(rawBody.toString('utf8')); } catch { return {}; }
 }
+
+/** 解析 multipart/form-data（借助 Node 内置 Request.formData，零依赖） */
+async function parseForm(req, rawBody) {
+  const contentType = req.headers['content-type'];
+  if (!contentType || !contentType.includes('multipart/form-data')) {
+    throw Object.assign(new Error('content-type 需为 multipart/form-data'), { code: 'INVALID_CONTENT_TYPE', status: 400 });
+  }
+  const request = new Request('http://localhost', { method: 'POST', headers: { 'content-type': contentType }, body: rawBody });
+  return request.formData();
+}
+
+const str = (v) => (v == null ? undefined : String(v));
 
 function parseFileBody(req, url, body, rawBody) {
   if (body.content_base64) {

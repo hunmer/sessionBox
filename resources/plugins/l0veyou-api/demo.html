@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>L0veyou API 调试</title>
+<style>
+body{font:14px system-ui;margin:24px;max-width:1020px;color:#202124}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:15px;margin:18px 0 6px}
+.meta{color:#5f6368;font-size:12px;margin-bottom:12px}
+label{display:block;margin:8px 0 2px;font-weight:600}
+select,textarea,input{padding:8px;margin:2px 0;width:100%;box-sizing:border-box;font:inherit}
+textarea{min-height:90px;font-family:monospace}
+.row{display:flex;gap:8px}.row>*{flex:1}
+button{padding:8px 16px;margin:8px 8px 0 0;cursor:pointer}
+button.sec{background:#f1f3f4;border:none}
+#result{white-space:pre-wrap;background:#f8f9fa;border:1px solid #e0e0e0;padding:12px;min-height:120px;font-family:monospace;font-size:13px;overflow:auto;max-height:480px}
+#result img{max-width:360px;display:block;margin:6px 0}
+.badge{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;margin-left:6px}
+</style></head>
+<body>
+<h1>L0veyou 图片 API 在线调试</h1>
+<div class="meta" id="meta">加载中...</div>
+
+<h2>账号（SessionBox 页面）</h2>
+<div class="row"><div><label>当前账号</label><select id="page"></select></div>
+<div><label>账号信息</label><div id="account" style="padding:8px 0;font-family:monospace;font-size:13px">未查询</div></div></div>
+<div><button class="sec" id="reload">刷新账号</button><button class="sec" id="refresh">清空凭据缓存</button></div>
+
+<h2>生成图片</h2>
+<label>模型</label><select id="model"></select>
+<label>提示词</label>
+<textarea id="prompt">动漫角色设定图</textarea>
+<div class="row">
+  <div><label>比例（size / aspect_ratio）</label>
+    <select id="ratio"><option>1024x1024</option><option>1792x1024</option><option>1024x1792</option><option>1:1</option><option>16:9</option><option>9:16</option><option>4:3</option><option>3:4</option></select></div>
+  <div><label>张数 n（仅 2.5 系列 >1）</label><input id="n" type="number" value="1" min="1" max="2"></div>
+</div>
+<label>参考图（可多选，仅 PNG/JPEG/WebP/GIF ≤8MiB；多张仅 2.5 系列）</label><input id="refs" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+<button id="run" style="font-weight:700">生成</button>
+
+<h2>结果</h2>
+<div id="result">-</div>
+
+<script>
+const query = new URLSearchParams(location.search);
+const service = query.get('service') || 'http://127.0.0.1:19202';
+const $ = (id) => document.getElementById(id);
+const pageSel = $('page'), modelSel = $('model'), result = $('result');
+
+async function call(method, path, body) {
+  const headers = {};
+  const payload = body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined;
+  if (payload !== undefined && !(body instanceof FormData)) headers['content-type'] = 'application/json';
+  if (pageSel.value && pageSel.value !== 'auto') headers['x-session-page'] = pageSel.value;
+  const started = performance.now();
+  const res = await fetch(service + path, { method, headers, body: payload });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  if (!res.ok) throw new Error(typeof data === 'object' ? (data.error?.message || text) : text);
+  return { data, ms: Math.round(performance.now() - started) };
+}
+
+function render(obj, ms, images) {
+  result.innerHTML = '';
+  if (images) for (const u of images) { const img = document.createElement('img'); img.src = u; result.appendChild(img); }
+  const pre = document.createElement('div');
+  pre.textContent = (ms != null ? `耗时 ${ms}ms\n\n` : '') + JSON.stringify(obj, null, 2);
+  result.appendChild(pre);
+}
+
+async function loadPages() {
+  try {
+    const { data } = await call('GET', '/v1/sessionbox/pages');
+    pageSel.innerHTML = '<option value="auto">自动（open 的优先）</option>' +
+      data.pages.map((p) => `<option value="${p.id}">${p.name}${p.open ? '' : '（未打开）'}${p.ready ? '' : ' 🔴'}</option>`).join('');
+    const ready = data.pages.filter((p) => p.ready).length;
+    $('meta').textContent = `服务 ${service} · 页面 ${data.pages.length} 个，凭据就绪 ${ready} 个`;
+  } catch (err) { $('meta').textContent = `服务不可达: ${err.message}`; }
+}
+
+async function loadModels() {
+  const { data } = await call('GET', '/v1/models');
+  modelSel.innerHTML = data.data.map((m) => `<option value="${m.id}">${m.meta.label}（${m.id}，≤${m.meta.maxRefs} 参考图）</option>`).join('');
+}
+
+$('reload').onclick = async () => {
+  await loadPages();
+  try {
+    const { data } = await call('GET', '/v1/sessionbox/account');
+    $('account').textContent = `balance=${data.balance} concurrency=${data.concurrency} 多参考图=${data.multi_reference_enabled ? '开' : '关'}`;
+  } catch (err) { $('account').textContent = `查询失败: ${err.message}`; }
+};
+$('refresh').onclick = async () => { await call('POST', '/v1/sessionbox/refresh'); await loadPages(); };
+
+$('run').onclick = async () => {
+  result.textContent = '生成中...（轮询直至完成，通常 10-40s）';
+  const files = [...$('refs').files].slice(0, 2);
+  try {
+    let data, ms;
+    if (files.length) {
+      const form = new FormData();
+      form.append('model', modelSel.value);
+      form.append('prompt', $('prompt').value);
+      form.append('size', $('ratio').value);
+      for (const f of files) form.append('image', f);
+      ({ data, ms } = await call('POST', '/v1/images/edits', form));
+    } else {
+      ({ data, ms } = await call('POST', '/v1/images/generations', {
+        model: modelSel.value, prompt: $('prompt').value, size: $('ratio').value, n: Number($('n').value) || 1,
+      }));
+    }
+    render(data, ms, (data.data || []).map((d) => d.url).filter(Boolean));
+  } catch (err) { render({ error: String(err.message) }); }
+};
+
+loadPages().then(loadModels).catch(() => {});
+</script>
+</body></html>
