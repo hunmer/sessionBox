@@ -20,7 +20,8 @@ import {
   Tags,
   Layers,
   Palette,
-  Image
+  Image,
+  Globe
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -234,6 +235,17 @@ function handleZoomReset() {
             <span class="flex-1">按容器名称分组</span>
             <Check
               v-if="tabStore.tabGroupMode === 'account'"
+              class="size-4 text-primary"
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="setGroupMode('site')"
+          >
+            <Globe class="size-4 mr-2" />
+            <span class="flex-1">按网站分组</span>
+            <Check
+              v-if="tabStore.tabGroupMode === 'site'"
               class="size-4 text-primary"
             />
           </DropdownMenuItem>

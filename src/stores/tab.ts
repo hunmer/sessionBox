@@ -11,7 +11,7 @@ import { useHistoryStore } from './history'
 const api = window.api
 
 export type TabLayout = 'horizontal' | 'vertical'
-export type TabGroupMode = 'none' | 'group' | 'account'
+export type TabGroupMode = 'none' | 'group' | 'account' | 'site'
 
 const TAB_LAYOUT_KEY = 'sessionbox-tab-layout'
 const BOOKMARK_BAR_KEY = 'sessionbox-bookmark-bar-visible'
@@ -75,7 +75,7 @@ interface TabStoreContext {
 function loadTabGroupMode(): TabGroupMode {
   const stored = localStorage.getItem(TAB_GROUP_KEY)
   if (stored === 'true') return 'group'
-  if (stored === 'group' || stored === 'account') return stored
+  if (stored === 'group' || stored === 'account' || stored === 'site') return stored
   return 'none'
 }
 
@@ -120,31 +120,69 @@ function cleanupTabState(
 
 // ====== 分组构建 ======
 
-function buildGroupedTabs(tabs: Tab[], groupByContainer: boolean): GroupedTab[] {
-  const pageStore = usePageStore()
+// 常见二级公共后缀：命中时公共后缀占两段（bbc.co.uk -> bbc）
+const SECOND_LEVEL_SUFFIXES = new Set([
+  'co.uk', 'org.uk', 'ac.uk', 'gov.uk',
+  'com.cn', 'net.cn', 'org.cn', 'gov.cn', 'edu.cn',
+  'com.tw', 'com.hk', 'com.au', 'net.au', 'co.nz',
+  'co.jp', 'or.jp', 'ne.jp', 'co.kr',
+  'com.br', 'com.mx', 'com.ar', 'co.in'
+])
+
+/**
+ * 提取站点名作为分组显示：取注册域去掉公共后缀，子域名并入同一组
+ * www.douyin.com / mail.google.com / bbc.co.uk -> douyin / google / bbc；IP/localhost 原样保留
+ */
+function getSiteGroupName(url: string): string {
+  let host = ''
+  try {
+    host = url ? new URL(url).hostname : ''
+  } catch {
+    host = url
+  }
+  if (!host) return '其他'
+  host = host.replace(/\.$/, '')
+  // IP 或单段主机名（localhost 等）不是域名，原样返回
+  if (/^\d+(\.\d+){3}$/.test(host) || !host.includes('.')) return host
+  const parts = host.split('.')
+  const suffixLen = SECOND_LEVEL_SUFFIXES.has(parts.slice(-2).join('.')) && parts.length >= 3 ? 2 : 1
+  if (parts.length <= suffixLen) return host
+  return parts[parts.length - suffixLen - 1] || host
+}
+
+function resolveGroupInfo(
+  tab: Tab,
+  mode: TabGroupMode
+): { key: string; name: string; color?: string } {
   const containerStore = useContainerStore()
+  const pageStore = usePageStore()
+  if (mode === 'site') {
+    const name = getSiteGroupName(tab.url)
+    return { key: name, name }
+  }
+  const page = pageStore.getPage(tab.pageId)
+  if (mode === 'account') {
+    const key = page?.containerId || '__default__'
+    const container = page?.containerId ? containerStore.getContainer(page.containerId) : undefined
+    return { key, name: container?.name ?? '默认容器' }
+  }
+  const group = containerStore.getGroup(page?.groupId ?? '')
+  return { key: group?.id ?? '__ungrouped__', name: group?.name ?? '未分组', color: group?.color }
+}
+
+function buildGroupedTabs(tabs: Tab[], mode: TabGroupMode): GroupedTab[] {
+  const pageStore = usePageStore()
 
   const groupMap = new Map<string, { name: string; color?: string; tabs: Tab[] }>()
   const internalTabs: GroupedTab[] = []
 
   for (const tab of tabs) {
-    const page = pageStore.getPage(tab.pageId)
-    if (!page) {
+    if (mode !== 'site' && !pageStore.getPage(tab.pageId)) {
       internalTabs.push({ ...tab, groupName: '', groupColor: undefined, isGroupStart: false })
       continue
     }
 
-    let key: string, name: string, color: string | undefined
-    if (groupByContainer) {
-      key = page.containerId || '__default__'
-      const container = page.containerId ? containerStore.getContainer(page.containerId) : undefined
-      name = container?.name ?? '默认容器'
-    } else {
-      const group = containerStore.getGroup(page.groupId)
-      key = group?.id ?? '__ungrouped__'
-      name = group?.name ?? '未分组'
-      color = group?.color
-    }
+    const { key, name, color } = resolveGroupInfo(tab, mode)
     if (!groupMap.has(key)) groupMap.set(key, { name, color, tabs: [] })
     groupMap.get(key)!.tabs.push(tab)
   }
@@ -165,26 +203,14 @@ function buildGroupedTabs(tabs: Tab[], groupByContainer: boolean): GroupedTab[] 
   return result
 }
 
-function buildGroupedTabsNoInternal(tabs: Tab[], groupByContainer: boolean): GroupedTab[] {
+function buildGroupedTabsNoInternal(tabs: Tab[], mode: TabGroupMode): GroupedTab[] {
   const pageStore = usePageStore()
-  const containerStore = useContainerStore()
 
   const groupMap = new Map<string, { name: string; color?: string; tabs: Tab[] }>()
   for (const tab of tabs) {
-    const page = pageStore.getPage(tab.pageId)
-    if (!page) continue
+    if (mode !== 'site' && !pageStore.getPage(tab.pageId)) continue
 
-    let key: string, name: string, color: string | undefined
-    if (groupByContainer) {
-      key = page.containerId || '__default__'
-      const container = page.containerId ? containerStore.getContainer(page.containerId) : undefined
-      name = container?.name ?? '默认容器'
-    } else {
-      const group = containerStore.getGroup(page.groupId)
-      key = group?.id ?? '__ungrouped__'
-      name = group?.name ?? '未分组'
-      color = group?.color
-    }
+    const { key, name, color } = resolveGroupInfo(tab, mode)
     if (!groupMap.has(key)) groupMap.set(key, { name, color, tabs: [] })
     groupMap.get(key)!.tabs.push(tab)
   }
@@ -761,6 +787,8 @@ export const useTabStore = defineStore('tab', () => {
   function setTabGroupMode(mode: TabGroupMode) {
     tabGroupMode.value = mode
     localStorage.setItem(TAB_GROUP_KEY, mode)
+    // 过滤键语义随模式变化（分组 id / 容器 id / 站点名），切换时清掉旧过滤，避免误隐藏标签
+    tabGroupFilterId.value = null
   }
   function setTabGroupFilter(groupId: string | null) { tabGroupFilterId.value = groupId }
   function clearTabGroupFilter() { tabGroupFilterId.value = null }
@@ -783,22 +811,27 @@ export const useTabStore = defineStore('tab', () => {
       return true
     })
     if (tabGroupFilterId.value) {
-      const filteredPageIds = new Set(
-        usePageStore().pages.filter((p) => p.groupId === tabGroupFilterId.value).map((p) => p.id)
-      )
-      result = result.filter((t) => filteredPageIds.has(t.pageId) || !t.pageId)
+      if (tabGroupMode.value === 'site') {
+        // site 模式过滤键为站点名
+        result = result.filter((t) => getSiteGroupName(t.url) === tabGroupFilterId.value)
+      } else {
+        const filteredPageIds = new Set(
+          usePageStore().pages.filter((p) => p.groupId === tabGroupFilterId.value).map((p) => p.id)
+        )
+        result = result.filter((t) => filteredPageIds.has(t.pageId) || !t.pageId)
+      }
     }
     return result
   })
 
   const groupedSortedTabs = computed(() => {
     if (!tabGroupEnabled.value) return sortedTabs.value
-    return buildGroupedTabsNoInternal(sortedTabs.value, tabGroupMode.value === 'account')
+    return buildGroupedTabsNoInternal(sortedTabs.value, tabGroupMode.value)
   })
 
   const groupedWorkspaceTabs = computed(() => {
     if (!tabGroupEnabled.value) return workspaceTabs.value
-    return buildGroupedTabs(workspaceTabs.value, tabGroupMode.value === 'account')
+    return buildGroupedTabs(workspaceTabs.value, tabGroupMode.value)
   })
 
   const activeTab = computed(() => tabs.value.find((t) => t.id === activeTabId.value) ?? null)

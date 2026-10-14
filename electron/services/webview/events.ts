@@ -364,6 +364,16 @@ function buildContextMenuItems(
       label: '复制图片地址',
       click: () => clipboard.writeText(params.srcURL)
     })
+    items.push({
+      label: '下载图片',
+      click: () => {
+        const entry = views.get(tabId)
+        if (entry && !entry.view.webContents.isDestroyed()) {
+          // 触发 session 的 will-download，复用 aria2 / 系统下载兜底管线
+          entry.view.webContents.downloadURL(params.srcURL)
+        }
+      }
+    })
   }
 
   if (params.selectionText) {
