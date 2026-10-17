@@ -1,0 +1,9 @@
+{
+  "id": "sessionbox.chatglm-api",
+  "name": "ChatGLM API Bridge",
+  "version": "1.0.0",
+  "description": "将智谱清言（chatglm.cn）已登录会话反代为 OpenAI 兼容 API：AI 聊天与 AI 生图。账号和登录由 SessionBox 页面管理。",
+  "author": { "name": "SessionBox" },
+  "tags": ["ChatGLM", "智谱清言", "API", "会话"],
+  "hasView": false
+}
