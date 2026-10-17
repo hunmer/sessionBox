@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>ChatGLM API 调试</title>
+<style>
+  body { font: 14px system-ui; margin: 0; background: #0f1420; color: #e2e8f0; }
+  header { padding: 16px 24px; background: #161d2e; border-bottom: 1px solid #26304a; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; margin-right: auto; }
+  main { max-width: 960px; margin: 0 auto; padding: 20px 24px 60px; }
+  input[type=text], textarea, select { padding: 8px 10px; background: #1a2336; color: #e2e8f0; border: 1px solid #2c3a5c; border-radius: 6px; box-sizing: border-box; }
+  textarea { width: 100%; min-height: 72px; resize: vertical; }
+  button { padding: 8px 18px; background: #3b6ef5; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+  button:hover { background: #5583f8; }
+  button:disabled { background: #2c3a5c; cursor: not-allowed; }
+  .tabs { display: flex; gap: 6px; margin: 18px 0; }
+  .tabs button { background: #1a2336; color: #9fb0cc; }
+  .tabs button.active { background: #3b6ef5; color: #fff; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .row { display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap; align-items: center; }
+  .row > * { flex: 0 0 auto; }
+  .row input[type=text] { flex: 1; min-width: 160px; }
+  pre { background: #131a2b; border: 1px solid #26304a; border-radius: 8px; padding: 12px; white-space: pre-wrap; word-break: break-word; max-height: 340px; overflow: auto; font-size: 13px; }
+  .think { color: #8b9bbd; border-left: 3px solid #2c3a5c; padding-left: 10px; margin: 8px 0; font-size: 13px; max-height: 140px; overflow: auto; }
+  .imgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin: 12px 0; }
+  .imgs figure { margin: 0; background: #131a2b; border-radius: 8px; overflow: hidden; border: 1px solid #26304a; }
+  .imgs img { width: 100%; display: block; cursor: zoom-in; }
+  .imgs figcaption { padding: 6px 8px; font-size: 12px; color: #9fb0cc; max-height: 84px; overflow: auto; }
+  .compare { display: flex; gap: 12px; flex-wrap: wrap; }
+  .compare figure { margin: 0; flex: 1; min-width: 240px; background: #131a2b; border-radius: 8px; overflow: hidden; border: 1px solid #26304a; }
+  .compare figcaption { padding: 6px 10px; font-size: 12px; color: #9fb0cc; text-align: center; }
+  .status { padding: 8px 12px; border-radius: 6px; background: #131a2b; color: #9fb0cc; margin: 10px 0; }
+  .status.ok { color: #5ad18b; }
+  .status.err { color: #f2777c; }
+  .hint { color: #67779a; font-size: 12px; }
+  #preview { max-height: 160px; border-radius: 6px; border: 1px solid #26304a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ChatGLM API 调试</h1>
+  <label class="hint">服务地址</label>
+  <input type="text" id="base" value="http://127.0.0.1:19206" style="width:220px">
+  <button id="health">健康检查</button>
+  <span id="healthStatus" class="hint">未检查</span>
+</header>
+<main>
+  <div class="tabs">
+    <button data-tab="chat" class="active">💬 聊天</button>
+    <button data-tab="image">🎨 生图</button>
+    <button data-tab="edit">🖼️ 图片编辑</button>
+  </div>
+
+  <div class="panel active" id="panel-chat">
+    <div class="row">
+      <select id="chatModel">
+        <option value="glm-5.3-flash">glm-5.3-flash</option>
+      </select>
+      <select id="chatMode">
+        <option value="">普通模式</option>
+        <option value="deep_thinking">深度思考</option>
+      </select>
+      <label><input type="checkbox" id="stream" checked> 流式输出</label>
+      <label><input type="checkbox" id="networking"> 联网搜索</label>
+      <button id="chatRun">发送</button>
+    </div>
+    <textarea id="chatInput">用一句话介绍你自己</textarea>
+    <div id="chatThink" class="think" style="display:none"></div>
+    <pre id="chatOut">点击「发送」测试聊天接口</pre>
+  </div>
+
+  <div class="panel" id="panel-image">
+    <div class="row">
+      <select id="imgSize">
+        <option value="1024x1024">1:1 (1024x1024)</option>
+        <option value="1280x720">16:9</option>
+        <option value="720x1280">9:16</option>
+        <option value="1024x768">4:3</option>
+        <option value="768x1024">3:4</option>
+      </select>
+      <button id="imgRun">生成 4 张</button>
+    </div>
+    <textarea id="imgInput">一只黑白小猫趴在地毯上</textarea>
+    <div id="imgGrid" class="imgs"></div>
+    <pre id="imgOut">点击「生成」测试生图接口（CogView，约 15 秒）</pre>
+  </div>
+
+  <div class="panel" id="panel-edit">
+    <div class="row">
+      <input type="file" id="editFile" accept="image/*">
+      <img id="preview" style="display:none">
+      <button id="editRun" disabled>智能编辑</button>
+    </div>
+    <textarea id="editInput" placeholder="编辑指令，例如：给背景增加一轮明月">给背景增加一轮明月</textarea>
+    <div class="compare" id="editCompare"></div>
+    <pre id="editOut">选择本地图片 + 输入指令后测试（自动保持原图比例）</pre>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const base = () => $('base').value.replace(/\/$/, '');
+const setStatus = (el, text, cls) => { el.textContent = text; el.className = cls || 'status'; };
+
+document.querySelectorAll('.tabs button').forEach(btn => btn.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + btn.dataset.tab));
+});
+
+$('health').onclick = async () => {
+  setStatus($('healthStatus'), '检查中…', 'hint');
+  try {
+    const r = await fetch(base() + '/health');
+    const data = await r.json();
+    if (data.logged_in) setStatus($('healthStatus'), `✅ 已登录（页面：${data.page?.name || data.page?.id}）`, 'status ok');
+    else setStatus($('healthStatus'), '❌ 页面未登录 chatglm.cn', 'status err');
+  } catch (e) { setStatus($('healthStatus'), '❌ 服务不可达：' + e.message, 'status err'); }
+};
+
+// ---------- 聊天 ----------
+$('chatRun').onclick = async () => {
+  const btn = $('chatRun'); btn.disabled = true;
+  const out = $('chatOut'), think = $('chatThink');
+  out.textContent = '请求中…'; think.style.display = 'none'; think.textContent = '';
+  const body = {
+    model: $('chatModel').value,
+    messages: [{ role: 'user', content: $('chatInput').value }],
+    chat_mode: $('chatMode').value,
+    is_networking: $('networking').checked,
+    stream: $('stream').checked
+  };
+  const t0 = performance.now();
+  try {
+    if (!body.stream) {
+      const r = await fetch(base() + '/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await r.json();
+      if (!r.ok) throw Error(JSON.stringify(data));
+      const msg = data.choices?.[0]?.message || {};
+      if (msg.reasoning_content) { think.style.display = 'block'; think.textContent = msg.reasoning_content; }
+      out.textContent = msg.content || JSON.stringify(data, null, 2);
+      out.textContent += `\n\n⏱ ${((performance.now() - t0) / 1000).toFixed(1)}s`;
+    } else {
+      const r = await fetch(base() + '/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!r.ok) throw Error((await r.text()).slice(0, 300));
+      const reader = r.body.getReader(), dec = new TextDecoder();
+      let buf = '', content = '', hasThink = false;
+      out.textContent = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n\n')) !== -1) {
+          const line = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (payload === '[DONE]') continue;
+          try {
+            const d = JSON.parse(payload);
+            const delta = d.choices?.[0]?.delta || {};
+            if (delta.reasoning_content) { hasThink = true; think.style.display = 'block'; think.textContent += delta.reasoning_content; }
+            if (delta.content) { content += delta.content; out.textContent = content; }
+          } catch {}
+        }
+      }
+      out.textContent = content + `\n\n⏱ ${((performance.now() - t0) / 1000).toFixed(1)}s` + (hasThink ? '（思考过程见上方灰条）' : '');
+    }
+  } catch (e) { out.textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+};
+
+// ---------- 生图 ----------
+$('imgRun').onclick = async () => {
+  const btn = $('imgRun'); btn.disabled = true;
+  $('imgOut').textContent = '生成中…（CogView 4 张，约 15-20 秒）';
+  $('imgGrid').innerHTML = '';
+  const t0 = performance.now();
+  try {
+    const r = await fetch(base() + '/v1/images/generations', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: $('imgInput').value, size: $('imgSize').value })
+    });
+    const data = await r.json();
+    if (!r.ok) throw Error(JSON.stringify(data));
+    const descs = data.chatglm?.descriptions || [];
+    data.data.forEach((d, i) => {
+      const fig = document.createElement('figure');
+      const img = document.createElement('img'); img.src = d.url; img.loading = 'lazy';
+      img.onclick = () => window.open(d.url);
+      const cap = document.createElement('figcaption'); cap.textContent = descs[i] || d.url;
+      fig.append(img, cap); $('imgGrid').append(fig);
+    });
+    $('imgOut').textContent = `✅ ${data.data.length} 张 · ⏱ ${((performance.now() - t0) / 1000).toFixed(1)}s\n\n` + data.data.map((d, i) => `[${i + 1}] ${d.url}`).join('\n');
+  } catch (e) { $('imgOut').textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+};
+
+// ---------- 图片编辑 ----------
+let editBlob = null;
+$('editFile').onchange = () => {
+  const f = $('editFile').files[0];
+  editBlob = f || null;
+  $('editRun').disabled = !f;
+  const pv = $('preview');
+  if (f) { pv.src = URL.createObjectURL(f); pv.style.display = 'block'; } else pv.style.display = 'none';
+};
+$('editRun').onclick = async () => {
+  if (!editBlob) return;
+  const btn = $('editRun'); btn.disabled = true;
+  $('editOut').textContent = '上传并编辑中…（约 10-20 秒）';
+  $('editCompare').innerHTML = '';
+  const t0 = performance.now();
+  try {
+    const fd = new FormData();
+    fd.append('image', editBlob, editBlob.name || 'image.png');
+    fd.append('prompt', $('editInput').value);
+    const r = await fetch(base() + '/v1/images/edits', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw Error(JSON.stringify(data));
+    const mk = (src, cap) => {
+      const fig = document.createElement('figure');
+      const img = document.createElement('img'); img.src = src; img.style.width = '100%'; img.style.display = 'block';
+      img.onclick = () => window.open(src);
+      const c = document.createElement('figcaption'); c.textContent = cap;
+      fig.append(img, c); return fig;
+    };
+    $('editCompare').append(mk(URL.createObjectURL(editBlob), '原图'), mk(data.data[0].url, '编辑结果（点击放大）'));
+    $('editOut').textContent = `✅ ⏱ ${((performance.now() - t0) / 1000).toFixed(1)}s · 比例 ${data.chatglm?.source_ratio || '?'} · 会话 ${data.chatglm?.conversation_id || ''}\n\n${data.data[0].url}`;
+  } catch (e) { $('editOut').textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+};
+
+$('health').click();
+</script>
+</body>
+</html>

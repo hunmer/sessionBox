@@ -40,14 +40,18 @@ class SessionBoxClient {
     this.token = token
   }
 
-  async request(method, path) {
+  async request(method, path, body) {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
-      headers: this.token ? { Authorization: `Bearer ${this.token}` } : {}
+      headers: {
+        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+        ...(body ? { 'Content-Type': 'application/json' } : {})
+      },
+      ...(body ? { body } : {})
     })
-    const body = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(`SessionBox bridge ${method} ${path} -> ${res.status}: ${JSON.stringify(body)}`)
-    return body
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(`SessionBox bridge ${method} ${path} -> ${res.status}: ${JSON.stringify(data)}`)
+    return data
   }
 
   async findPage() {
@@ -57,12 +61,26 @@ class SessionBoxClient {
     return page
   }
 
-  async getCookies() {
+  /** 页面未打开时自动通过 bridge 打开标签页，等待加载后重试 */
+  async getCookies(retry = true) {
     const page = await this.findPage()
-    const { cookies } = await this.request('GET', `/api/v1/pages/${encodeURIComponent(page.id)}/cookies?url=${BASE}/`)
-    const map = {}
-    for (const c of cookies || []) map[c.name] = c.value
-    return { page, cookieMap: map }
+    try {
+      const { cookies } = await this.request('GET', `/api/v1/pages/${encodeURIComponent(page.id)}/cookies?url=${BASE}/`)
+      const map = {}
+      for (const c of cookies || []) map[c.name] = c.value
+      return { page, cookieMap: map }
+    } catch (e) {
+      if (retry && /没有打开的标签页/.test(e.message)) {
+        await this.request('POST', `/api/v1/pages/${encodeURIComponent(page.id)}/open`, JSON.stringify({ url: `${BASE}/main/alltoolsdetail?lang=zh` }))
+        await new Promise((r) => setTimeout(r, 4000))
+        return this.getCookies(false)
+      }
+      throw e
+    }
+  }
+
+  async openPage(pageId, url) {
+    return this.request('POST', `/api/v1/pages/${encodeURIComponent(pageId)}/open`, JSON.stringify({ url }))
   }
 }
 
