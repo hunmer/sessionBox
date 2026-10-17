@@ -460,6 +460,21 @@ function registerBookmarkIpc(): void {
     return { success: true }
   })
 
+  // ====== 数据导入 / 导出 ======
+
+  ipcMain.handle('data:exportSaveFile', async (e, content: string, defaultFileName?: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return { success: false }
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: '导出数据',
+      defaultPath: defaultFileName || 'export.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    })
+    if (canceled || !filePath) return { success: false }
+    writeFileSync(filePath, content, 'utf-8')
+    return { success: true }
+  })
+
   ipcMain.handle(
     'bookmark:batchCreate',
     (

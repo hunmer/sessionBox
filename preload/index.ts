@@ -609,6 +609,11 @@ const api = {
       ipcRenderer.invoke('sync:applyBookmarks', data),
   },
 
+  data: {
+    exportSaveFile: (content: string, defaultFileName?: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('data:exportSaveFile', content, defaultFileName),
+  },
+
   sniffer: {
     toggle: (tabId: string, enabled: boolean): Promise<void> =>
       ipcRenderer.invoke('sniffer:toggle', tabId, enabled),

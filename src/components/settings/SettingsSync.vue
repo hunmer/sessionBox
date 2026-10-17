@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { CloudCog, Loader2, PlugZap, RefreshCw } from 'lucide-vue-next'
+import { CloudCog, Download, Loader2, PlugZap, RefreshCw } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -28,6 +28,7 @@ const types = ref<Record<SyncTypeKey, boolean>>({
 })
 
 const testing = ref(false)
+const exporting = ref(false)
 const testResult = ref<string | null>(null)
 const syncing = ref(false)
 const result = ref<SyncRunResult | null>(null)
@@ -109,6 +110,30 @@ async function handleSync() {
     toast.error('同步失败: ' + (error instanceof Error ? error.message : String(error)))
   } finally {
     syncing.value = false
+  }
+}
+
+async function handleExport() {
+  exporting.value = true
+  try {
+    // 导出前重新加载，确保数据与主进程一致
+    await Promise.all([containerStore.loadGroups(), containerStore.loadContainers()])
+    const payload = {
+      version: 1,
+      type: 'accounts',
+      exportedAt: new Date().toISOString(),
+      groups: containerStore.groups,
+      containers: containerStore.containers,
+    }
+    const res = await api.data.exportSaveFile(
+      JSON.stringify(payload, null, 2),
+      `sessionbox-accounts-${new Date().toISOString().slice(0, 10)}.json`,
+    )
+    if (res.success) toast.success('导出成功')
+  } catch (error) {
+    toast.error('导出失败: ' + (error instanceof Error ? error.message : String(error)))
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -242,6 +267,47 @@ onMounted(loadConfig)
           class="text-xs text-muted-foreground"
         >
           未勾选任何同步内容
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据导入 / 导出 -->
+    <div class="space-y-3">
+      <div class="text-sm font-medium">
+        导入 / 导出
+      </div>
+      <div class="flex items-center justify-between gap-4 rounded-md border p-3">
+        <div>
+          <div class="text-sm">
+            账号分组数据
+          </div>
+          <div class="text-xs text-muted-foreground">
+            将全部分组与账号（容器）列表导出为 JSON 文件，不含 Cookies 与代理凭据
+          </div>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <Button
+            variant="outline"
+            :disabled="exporting"
+            @click="handleExport"
+          >
+            <Loader2
+              v-if="exporting"
+              class="w-4 h-4 animate-spin"
+            />
+            <Download
+              v-else
+              class="w-4 h-4"
+            />
+            导出
+          </Button>
+          <Button
+            variant="outline"
+            disabled
+            title="暂未开放"
+          >
+            导入
+          </Button>
         </div>
       </div>
     </div>
