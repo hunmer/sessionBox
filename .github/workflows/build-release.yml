@@ -51,17 +51,23 @@ jobs:
       - name: Build application
         run: npx electron-vite build
 
-      # CI 上 pnpm 安装出的 electron/dist 符号链接被物化, codesign 报
-      # "bundle format is ambiguous"; 用 ditto 重新解压到隔离目录恢复符号链接
+      # macOS: pnpm 装出的 electron/dist 在 CI 上不存在（electron>=44 移除了 postinstall，
+      # 二进制改为运行时懒下载），且旧路径解压出的符号链接被物化会导致 codesign 报
+      # "bundle format is ambiguous"；直接下载官方 zip 用 ditto 解压恢复符号链接
       - name: Prepare Electron dist (macOS)
         if: matrix.platform == 'mac'
         run: |
-          ls -la "node_modules/electron/dist/Electron.app/Contents/Frameworks/Electron Framework.framework/"
           ELECTRON_VERSION=$(node -p "require('./node_modules/electron/package.json').version")
           curl -fL -o /tmp/electron.zip "https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}/electron-v${ELECTRON_VERSION}-darwin-${{ matrix.arch }}.zip"
           rm -rf .electron-dist-ci && mkdir -p .electron-dist-ci
           ditto -x -k /tmp/electron.zip .electron-dist-ci
           ls -la ".electron-dist-ci/Electron.app/Contents/Frameworks/Electron Framework.framework/"
+
+      # Windows: electron-builder.json 的 electronDist 指向 node_modules/electron/dist，
+      # electron>=44 无 postinstall，CI 需手动触发二进制下载
+      - name: Install Electron binary (Windows)
+        if: matrix.platform == 'win'
+        run: node node_modules/electron/install.js
 
       - name: Package (macOS)
         if: matrix.platform == 'mac'
