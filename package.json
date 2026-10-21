@@ -1,6 +1,6 @@
 {
   "name": "session-box",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "\u591a\u8d26\u53f7\u6d4f\u89c8\u5668\u5de5\u5177\uff0c\u652f\u6301 partition \u9694\u79bb\u3001\u4ee3\u7406\u7ba1\u7406\u3001\u62d6\u62fd\u6392\u5e8f",
   "author": "hunmer",
   "packageManager": "pnpm@10.17.1",
