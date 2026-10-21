@@ -1,7 +1,7 @@
 {
   "name": "session-box",
   "version": "1.2.0",
-  "description": "多账号浏览器工具，支持 partition 隔离、代理管理、拖拽排序",
+  "description": "\u591a\u8d26\u53f7\u6d4f\u89c8\u5668\u5de5\u5177\uff0c\u652f\u6301 partition \u9694\u79bb\u3001\u4ee3\u7406\u7ba1\u7406\u3001\u62d6\u62fd\u6392\u5e8f",
   "author": "hunmer",
   "packageManager": "pnpm@10.17.1",
   "main": "./out/main/index.js",
@@ -85,6 +85,9 @@
       "electron",
       "esbuild",
       "vue-demi"
-    ]
+    ],
+    "overrides": {
+      "proxy-addr": "2.0.8"
+    }
   }
 }
