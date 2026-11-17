@@ -355,23 +355,30 @@ onBeforeUnmount(clearTimers)
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent class="w-48">
-          <ContextMenuItem @click="tabStore.toggleMute(tab.id)">
-            <VolumeX
-              v-if="isMuted"
-              class="w-3.5 h-3.5 mr-2"
-            />
-            <Volume2
-              v-else
-              class="w-3.5 h-3.5 mr-2"
-            />
-            {{ isMuted ? '取消静音' : '静音标签' }}
-          </ContextMenuItem>
-          <ContextMenuItem
-            v-if="isWebPage"
-            @click="handleToggleSiteMute"
-          >
-            {{ isSiteMuted ? '取消静音此网站' : '静音此网站' }}
-          </ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <VolumeX
+                v-if="isMuted"
+                class="w-3.5 h-3.5 mr-2"
+              />
+              <Volume2
+                v-else
+                class="w-3.5 h-3.5 mr-2"
+              />
+              静音
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent class="w-40">
+              <ContextMenuItem @click="tabStore.toggleMute(tab.id)">
+                {{ isMuted ? '取消静音标签' : '静音标签' }}
+              </ContextMenuItem>
+              <ContextMenuItem
+                v-if="isWebPage"
+                @click="handleToggleSiteMute"
+              >
+                {{ isSiteMuted ? '取消静音此网站' : '静音此网站' }}
+              </ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
           <ContextMenuItem @click="tabStore.togglePin(tab.id)">
             <PinOff
               v-if="isPinned"

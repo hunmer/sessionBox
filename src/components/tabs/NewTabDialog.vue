@@ -127,13 +127,33 @@ function getUrlLabel(url: string) {
   }
 }
 
-function handleUrlSubmit() {
-  let url = urlInput.value.trim()
-  if (!url) return
-
-  if (!/^https?:\/\//i.test(url)) {
-    url = `https://${url}`
+// 判定输入是否为 URL 形态：带协议直接用；localhost/IP/域名补 https://；否则返回 null（交给搜索）
+function normalizeInputToUrl(input: string): string | null {
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(input)) return input
+  if (/^(localhost|\d{1,3}(\.\d{1,3}){3})(:\d+)?(\/|$)/.test(input) || /^[\w-]+(\.[\w-]+)+/.test(input)) {
+    return `https://${input}`
   }
+  return null
+}
+
+// 用默认搜索引擎构造搜索 URL（无可用引擎时兜底 Google）
+async function buildSearchUrl(query: string): Promise<string> {
+  const [engines, defaultId] = await Promise.all([
+    window.api.searchEngine.list(),
+    window.api.searchEngine.getDefault()
+  ])
+  const engine = engines.find((e) => e.id === defaultId) || engines[0]
+  if (!engine) return `https://www.google.com/search?q=${encodeURIComponent(query)}`
+  return engine.url.includes('%s')
+    ? engine.url.replace('%s', encodeURIComponent(query))
+    : `${engine.url}${encodeURIComponent(query)}`
+}
+
+async function handleUrlSubmit() {
+  const input = urlInput.value.trim()
+  if (!input) return
+
+  const url = normalizeInputToUrl(input) ?? await buildSearchUrl(input)
 
   saveRecord(url)
   emit('navigate', url)
@@ -170,7 +190,7 @@ function handleSelectHistory(record: UrlRecord) {
         <input
           v-model="urlInput"
           type="text"
-          placeholder="输入网址访问..."
+          placeholder="输入网址或搜索..."
           class="h-9 w-full rounded-md border border-input bg-transparent pl-9 pr-3 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           @keydown.enter.prevent="handleUrlSubmit"
         >

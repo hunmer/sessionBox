@@ -679,6 +679,10 @@ function handleShortcutAction(actionId: string) {
     case 'toggle-bookmark-bar':
       tabStore.toggleBookmarkBar()
       break
+    case 'toggle-favorite':
+      // 收藏切换与新增对话框在 TabLayoutMenu 内部，通过全局事件复用（与 new-container 同模式）
+      window.dispatchEvent(new CustomEvent('shortcut:toggle-favorite'))
+      break
     case 'open-downloads':
       tabStore.openInternalPage('downloads')
       break

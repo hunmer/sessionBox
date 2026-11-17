@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import {
   PanelTop,
   PanelLeft,
@@ -84,6 +84,13 @@ function toggleBookmark() {
     bookmarkDialogOpen.value = true
   }
 }
+
+// Ctrl+D 收藏快捷键：由 App.vue handleShortcutAction 转发全局事件到此（TabBar/TabBarVertical 同时仅挂载一份）
+function handleToggleFavoriteShortcut() {
+  toggleBookmark()
+}
+onMounted(() => window.addEventListener('shortcut:toggle-favorite', handleToggleFavoriteShortcut))
+onBeforeUnmount(() => window.removeEventListener('shortcut:toggle-favorite', handleToggleFavoriteShortcut))
 
 // ====== 密码/笔记 ======
 const passwordDialogOpen = ref(false)

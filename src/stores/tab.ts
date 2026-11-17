@@ -907,7 +907,10 @@ export const useTabStore = defineStore('tab', () => {
     await api.tab.openAtTaskbar(tabId)
     await closeTabAction(ctx, tabId)
   }
-  const openInBrowser = (tabId: string) => api.tab.openInBrowser(tabId)
+  const openInBrowser = async (tabId: string) => {
+    await api.tab.openInBrowser(tabId)
+    await closeTabAction(ctx, tabId)
+  }
   const toggleMute = (tabId: string) => toggleMuteAction(ctx, tabId)
   const muteSite = async (hostname: string) => {
     await api.mutedSites.add(hostname)
