@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide, reactive, ref, watch } from 'vue'
+import { computed, provide, reactive, ref, watch, type VNode } from 'vue'
 import { FolderOpen, Tag } from 'lucide-vue-next'
 import FolderTreeBaseCategories from './FolderTreeBaseCategories.vue'
 import FolderTreeHeader from './FolderTreeHeader.vue'
@@ -13,7 +13,11 @@ import {
   flattenVisible,
   folderTreeKey,
   type BaseCategoryData,
+  type FolderTreeApi,
   type FolderTreeNodeData,
+  type FolderTreeDropMarker,
+  type FolderTreeDropPayload,
+  type FolderTreeDropPosition,
 } from './types'
 
 const props = withDefaults(
@@ -27,6 +31,23 @@ const props = withDefaults(
     baseCategories?: BaseCategoryData[]
     defaultShowSearch?: boolean
     emptyText?: string
+    /** 不渲染标题栏（嵌入已有标题区时使用，隐藏后搜索入口不可用） */
+    hideHeader?: boolean
+    /**
+     * 树滚动区最大高度：缺省 16rem；false 时不限高不滚动（随外层容器滚动）；
+     * 其余字符串作为 CSS max-height（如 "300px"）
+     */
+    maxHeight?: string | false
+    /** 不渲染内置空状态（由业务自渲染） */
+    hideEmpty?: boolean
+    /** 启用内部拖拽排序（HTML5 DnD），落定后 emit nodeDrop */
+    draggable?: boolean
+    /** 初始展开状态（键值优先级高于 node.open），业务可持久化后回传 */
+    openStates?: Record<string, boolean>
+    /** 右键菜单内容渲染器；提供后行将包右键菜单 */
+    menuRenderer?: (node: FolderTreeNodeData) => VNode | null
+    /** 行尾操作区渲染器 */
+    actionsRenderer?: (node: FolderTreeNodeData) => VNode | null
   }>(),
   { itemType: 'folder', nodes: () => [], showBaseCategories: false, defaultShowSearch: false },
 )
@@ -34,9 +55,24 @@ const props = withDefaults(
 /** 选中节点 id（v-model:selected-key） */
 const selectedKey = defineModel<string | undefined>('selectedKey', { default: undefined })
 
-const emit = defineEmits<{ select: [id: string] }>()
+const emit = defineEmits<{
+  select: [id: string]
+  /** 行点击（无论该行是否触发 select/toggle） */
+  nodeClick: [id: string]
+  /** 任意展开/折叠后上抛完整快照 */
+  openChange: [states: Record<string, boolean>]
+  /** 内部拖拽落定（dragId 移动到 targetId 的 position 位置） */
+  nodeDrop: [payload: FolderTreeDropPayload]
+  /** 外部拖放悬停（业务可 preventDefault 接管并决定 dropEffect） */
+  nodeExternalDragover: [node: FolderTreeNodeData, event: DragEvent]
+  /** 外部拖放离开该行（业务清理悬停计时等） */
+  nodeExternalDragleave: [node: FolderTreeNodeData]
+  /** 外部拖放在该行落下 */
+  nodeExternalDrop: [node: FolderTreeNodeData, event: DragEvent]
+}>()
 
 const isFolder = computed(() => props.itemType === 'folder')
+console.log('[FolderTree:debug] setup rerun', new Date().toISOString())
 const sectionTitle = computed(() => props.title ?? (isFolder.value ? '文件夹' : '标签'))
 const defaultIcon = computed(() => (isFolder.value ? 'folder' : 'label'))
 
@@ -48,8 +84,11 @@ const treeData = computed(() =>
   searching.value ? filterNodes(props.nodes, searchQuery.value.trim()) : props.nodes,
 )
 
-/* ---- 展开状态：node.open 收集初始值；数据更新时合并（用户手动操作优先，避免 count 刷新重置展开态） ---- */
-const openMap = reactive<Record<string, boolean>>(collectInitialOpen(props.nodes))
+/* ---- 展开状态：node.open / openStates 收集初始值；数据更新时合并新增（用户手动操作优先，避免 count 刷新重置展开态） ---- */
+const openMap = reactive<Record<string, boolean>>({
+  ...collectInitialOpen(props.nodes),
+  ...(props.openStates ?? {}),
+})
 watch(
   () => props.nodes,
   (nodes) => {
@@ -59,16 +98,70 @@ watch(
     }
   },
 )
+watch(
+  () => props.openStates,
+  (states) => {
+    // 业务回传新快照时合并（仅写入差异键，避免与本地交互形成循环）
+    if (!states) return
+    for (const [key, value] of Object.entries(states)) {
+      if (openMap[key] !== value) openMap[key] = value
+    }
+  },
+)
 /** 搜索时强制全部展开（命中子节点也要能看到父链） */
 const isOpen = (id: string) => (searching.value ? true : !!openMap[id])
 const toggle = (id: string) => {
   openMap[id] = !openMap[id]
+  emit('openChange', { ...openMap })
 }
 
 const select = (id: string) => {
   selectedKey.value = id
   emit('select', id)
 }
+
+/* ---- 内部拖拽 / 外部拖放状态 ---- */
+const draggingId = ref<string | null>(null)
+const dropTarget = ref<FolderTreeDropMarker | null>(null)
+const externalDropId = ref<string | null>(null)
+
+function beginInternalDrag(id: string) {
+  draggingId.value = id
+}
+function endInternalDrag() {
+  draggingId.value = null
+  dropTarget.value = null
+}
+function setDropTarget(marker: FolderTreeDropMarker) {
+  dropTarget.value = marker
+}
+function consumeDrop(targetId: string) {
+  const dragId = draggingId.value
+  const position: FolderTreeDropPosition =
+    dropTarget.value?.id === targetId ? dropTarget.value.position : 'after'
+  draggingId.value = null
+  dropTarget.value = null
+  if (dragId && dragId !== targetId) {
+    emit('nodeDrop', { dragId, targetId, position })
+  }
+}
+function forwardExternalDragover(node: FolderTreeNodeData, event: DragEvent) {
+  emit('nodeExternalDragover', node, event)
+  // 业务 preventDefault 即视为接受外部拖放，行做高亮反馈
+  if (event.defaultPrevented) externalDropId.value = node.id
+}
+function forwardExternalDrop(node: FolderTreeNodeData, event: DragEvent) {
+  externalDropId.value = null
+  emit('nodeExternalDrop', node, event)
+}
+function clearRowFeedback(node: FolderTreeNodeData) {
+  if (dropTarget.value?.id === node.id) dropTarget.value = null
+  if (externalDropId.value === node.id) {
+    externalDropId.value = null
+    emit('nodeExternalDragleave', node)
+  }
+}
+
 
 /* ---- 可见行集合与索引（分支线只画可见行） ---- */
 const visibleIds = computed(
@@ -92,7 +185,21 @@ provide(folderTreeKey, {
   toggle,
   select,
   hover: setHover,
-})
+  nodeClick: (id: string) => emit('nodeClick', id),
+  draggable: computed(() => props.draggable === true),
+  menuRenderer: (node: FolderTreeNodeData) => props.menuRenderer?.(node) ?? null,
+  actionsRenderer: (node: FolderTreeNodeData) => props.actionsRenderer?.(node) ?? null,
+  draggingId,
+  dropTarget,
+  externalDropId,
+  beginInternalDrag,
+  endInternalDrag,
+  setDropTarget,
+  consumeDrop,
+  forwardExternalDragover,
+  forwardExternalDrop,
+  clearRowFeedback,
+} satisfies FolderTreeApi)
 
 /* ---- 基础分类 ---- */
 const cats = computed<BaseCategoryData[]>(
@@ -101,12 +208,23 @@ const cats = computed<BaseCategoryData[]>(
     (isFolder.value && props.showBaseCategories ? DEFAULT_BASE_CATEGORIES : []),
 )
 const showBase = computed(() => isFolder.value && props.showBaseCategories && cats.value.length > 0)
+
+/* ---- 滚动区高度 ---- */
+const scrollStyle = computed(() => {
+  if (typeof props.maxHeight === 'string') return { maxHeight: props.maxHeight }
+  return undefined
+})
 </script>
 
 <template>
   <div class="ft-root">
     <!-- 标题栏 + 搜索框 -->
-    <FolderTreeHeader v-model:show-search="showSearch" v-model:query="searchQuery" :title="sectionTitle" />
+    <FolderTreeHeader
+      v-if="!hideHeader"
+      v-model:show-search="showSearch"
+      v-model:query="searchQuery"
+      :title="sectionTitle"
+    />
 
     <!-- 基础分类（仅 folder 模式） -->
     <FolderTreeBaseCategories
@@ -118,7 +236,7 @@ const showBase = computed(() => isFolder.value && props.showBaseCategories && ca
     />
 
     <!-- 树滚动区 + SVG 分支线层 -->
-    <div class="ft-scroll">
+    <div class="ft-scroll" :class="{ 'ft-scroll--fill': maxHeight === false }" :style="scrollStyle">
       <div ref="layerRef" class="ft-branch-layer">
         <div ref="rowsRef" role="tree" :aria-label="sectionTitle">
           <FolderTreeNode
@@ -130,7 +248,7 @@ const showBase = computed(() => isFolder.value && props.showBaseCategories && ca
           />
         </div>
         <svg class="ft-branch-svg" :width="size.w" :height="size.h" aria-hidden="true">
-          <!-- ① 基础层：灰色 + SMIL 描画入场（stroke 走 CSS 类：presentation attribute 不支持 var()） -->
+          <!-- ① 基础层：灰色 + CSS 描画入场（SMIL 对 v-for 动态插入/复用元素的冻结行为不确定，曾致部分线不可见） -->
           <g>
             <path
               v-for="p in paths"
@@ -139,12 +257,10 @@ const showBase = computed(() => isFolder.value && props.showBaseCategories && ca
               :d="p.d"
               fill="none"
               :stroke-width="1.5"
-              :path-length="100"
+              :pathLength="100"
               stroke-dasharray="100 200"
-              :stroke-dashoffset="105"
-            >
-              <animate attributeName="stroke-dashoffset" from="105" to="0" dur="0.3s" fill="freeze" />
-            </path>
+              :stroke-dashoffset="0"
+            />
           </g>
           <!-- ② hover 层：半透明点亮（动态颜色必须走内联 style） -->
           <g opacity="0.45">
@@ -155,7 +271,7 @@ const showBase = computed(() => isFolder.value && props.showBaseCategories && ca
               :d="p.d"
               fill="none"
               :stroke-width="1.75"
-              :path-length="100"
+              :pathLength="100"
               stroke-dasharray="100 200"
               :style="{ stroke: p.stroke, strokeDashoffset: hoverKeys.has(p.key) ? 0 : 105 }"
             />
@@ -169,7 +285,7 @@ const showBase = computed(() => isFolder.value && props.showBaseCategories && ca
               :d="p.d"
               fill="none"
               :stroke-width="1.75"
-              :path-length="100"
+              :pathLength="100"
               stroke-dasharray="100 200"
               :style="{ stroke: p.stroke, strokeDashoffset: activeKeys.has(p.key) ? 0 : 105 }"
             />
@@ -178,7 +294,7 @@ const showBase = computed(() => isFolder.value && props.showBaseCategories && ca
       </div>
 
       <!-- 空状态 -->
-      <div v-if="treeData.length === 0" class="ft-empty">
+      <div v-if="treeData.length === 0 && !hideEmpty" class="ft-empty">
         <component :is="isFolder ? FolderOpen : Tag" />
         <p>{{ props.emptyText ?? `暂无${sectionTitle}，点击右上角 + 添加` }}</p>
       </div>
@@ -214,6 +330,12 @@ const showBase = computed(() => isFolder.value && props.showBaseCategories && ca
   margin-right: -4px;
 }
 
+/* maxHeight=false：不限高不滚动，随外层容器滚动 */
+.ft-scroll.ft-scroll--fill {
+  max-height: none;
+  overflow: visible;
+}
+
 .ft-scroll::-webkit-scrollbar {
   display: none;
 }
@@ -233,9 +355,19 @@ const showBase = computed(() => isFolder.value && props.showBaseCategories && ca
   pointer-events: none;
 }
 
-/* base 灰线走 CSS 类（stroke attribute 不支持 var()） */
+/* base 灰线走 CSS 类（stroke attribute 不支持 var()）；CSS 描画入场，forwards 保证终态可见 */
 .ft-branch-base {
   stroke: var(--ft-border);
+  animation: ft-branch-draw-in 0.3s ease-out forwards;
+}
+
+@keyframes ft-branch-draw-in {
+  from {
+    stroke-dashoffset: 105;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .ft-branch-hover {

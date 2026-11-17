@@ -84,6 +84,40 @@ export function useBranchLines(options: {
       w: Math.max(1, Math.ceil(layer.scrollWidth)),
       h: Math.max(1, Math.ceil(layer.scrollHeight)),
     }
+    console.log(
+      '[FolderTree:debug] measure',
+      JSON.stringify({
+        rows: rowEls.length,
+        visible: visibleIds.value.size,
+        paths: next.length,
+        w: size.value.w,
+        h: size.value.h,
+        keys: next.slice(0, 20).map((p) => `${p.key}@y:${/A [\d.]+ [\d.]+ 0 0 0 [\d.]+ ([\d.]+)/.exec(p.d)?.[1] ?? '?'}`),
+      })
+    )
+    // DOM 探针：等 Vue patch + 动画稳定后，读 base path 元素的真实渲染状态
+    window.setTimeout(() => {
+      const layer2 = layerRef.value
+      if (!layer2) return
+      const svg = layer2.querySelector('svg')
+      const basePaths = Array.from(layer2.querySelectorAll('path.ft-branch-base'))
+      const probe = basePaths.slice(0, 24).map((p, i) => {
+        const cs = window.getComputedStyle(p)
+        const r = p.getBoundingClientRect()
+        const yAttr = /A [\d.]+ [\d.]+ 0 0 0 [\d.]+ ([\d.]+)/.exec(p.getAttribute('d') ?? '')?.[1] ?? '?'
+        return `${i}:y=${yAttr} d=${p.getAttribute('d')?.slice(0, 18)} bbox=${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.top - layer2.getBoundingClientRect().top)} off=${cs.strokeDashoffset} stroke=${cs.stroke === 'none' ? 'none' : 'ok'} disp=${cs.display} pl=${p.getAttribute('pathLength')} da=${p.getAttribute('stroke-dasharray')}`
+      })
+      console.log(
+        '[FolderTree:debug] dom-probe',
+        JSON.stringify({
+          svgW: svg?.getAttribute('width'),
+          svgH: svg?.getAttribute('height'),
+          baseCount: basePaths.length,
+          layerH: Math.round(layer2.getBoundingClientRect().height),
+          rows: probe,
+        })
+      )
+    }, 400)
   }
 
   let frame = 0

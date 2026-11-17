@@ -1,4 +1,4 @@
-import type { Component, InjectionKey, Ref } from 'vue'
+import type { Component, InjectionKey, Ref, VNode } from 'vue'
 import { BookmarkX, Folder, FolderOpen, Star, Tag, Trash2 } from 'lucide-vue-next'
 
 /* ============================================================
@@ -18,6 +18,8 @@ export interface FolderTreeNodeData {
   children?: FolderTreeNodeData[]
   /** 初始展开 */
   open?: boolean
+  /** 行点击是否触发选中（默认 true）；设为 false 的行（如分组）点击仅折叠/展开 */
+  selectable?: boolean
 }
 
 /** 基础分类（全部素材 / 未分类 / 未打标 / 回收站） */
@@ -143,12 +145,54 @@ export function isHttpUrl(icon?: string) {
  * 树内部注入 API（主组件 provide，递归节点 inject）
  * ============================================================ */
 
+/** 内部拖拽落点位置：目标行前 / 后 / 内部（成为子节点） */
+export type FolderTreeDropPosition = 'before' | 'after' | 'inside'
+
+/** 拖拽过程中目标行标记 */
+export interface FolderTreeDropMarker {
+  id: string
+  position: FolderTreeDropPosition
+}
+
+/** 拖拽落定后上抛给业务的数据 */
+export interface FolderTreeDropPayload {
+  dragId: string
+  targetId: string
+  position: FolderTreeDropPosition
+}
+
 export interface FolderTreeApi {
   selectedKey: Readonly<Ref<string | undefined>>
   isOpen: (id: string) => boolean
   toggle: (id: string) => void
   select: (id: string) => void
   hover: (id: string | null) => void
+  /** 行点击（无论该行是否触发 select/toggle），供业务做单击/双击等判定 */
+  nodeClick: (id: string) => void
+  /** 是否启用内部拖拽排序 */
+  draggable: Readonly<Ref<boolean>>
+  /** 右键菜单内容渲染器；不提供时行不包右键菜单 */
+  menuRenderer?: (node: FolderTreeNodeData) => VNode | null
+  /** 行尾操作区渲染器（VNode 内可用 .ft-action-hover 类实现"行 hover 才显示"） */
+  actionsRenderer?: (node: FolderTreeNodeData) => VNode | null
+  /** 拖拽中的节点 id（源行降透明） */
+  draggingId: Readonly<Ref<string | null>>
+  /** 当前拖拽目标行与落点 */
+  dropTarget: Readonly<Ref<FolderTreeDropMarker | null>>
+  /** 外部拖放悬停高亮行（dragover 被业务 preventDefault 后标记） */
+  externalDropId: Readonly<Ref<string | null>>
+  beginInternalDrag: (id: string) => void
+  endInternalDrag: () => void
+  setDropTarget: (marker: FolderTreeDropMarker) => void
+  /** 结束一次内部拖放：组装 {dragId, targetId, position} 上抛并清空状态 */
+  consumeDrop: (targetId: string) => void
+  forwardExternalDragover: (node: FolderTreeNodeData, event: DragEvent) => void
+  forwardExternalDrop: (node: FolderTreeNodeData, event: DragEvent) => void
+  /** dragleave：清目标行反馈；外部拖放行同时通知业务清理悬停计时 */
+  clearRowFeedback: (node: FolderTreeNodeData) => void
 }
 
 export const folderTreeKey: InjectionKey<FolderTreeApi> = Symbol('FolderTreeApi')
+
+/** 内部拖拽排序使用的 dataTransfer MIME 类型 */
+export const FOLDER_TREE_DRAG_MIME = 'application/x-folder-tree'

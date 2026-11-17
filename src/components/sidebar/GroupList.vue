@@ -1,11 +1,27 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, h, onBeforeUnmount, reactive, ref, watch, type VNode } from 'vue'
+import {
+  ChevronRight,
+  ExternalLink,
+  FolderX,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-vue-next'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
 import { useTabStore } from '@/stores/tab'
-import GroupItem from './GroupItem.vue'
 import EmojiRenderer from '@/components/common/EmojiRenderer.vue'
-import { buildPageTree, flattenPageItems } from './page-tree'
+import { buildPageTree, flattenPageItems, type PageItem } from './page-tree'
+import FolderTree from '@/components/ui/folder-tree/FolderTree.vue'
+import type {
+  FolderTreeNodeData,
+  FolderTreeDropPayload,
+} from '@/components/ui/folder-tree/types'
+import { extractNavigableDropUrl, hasSupportedExternalDrop } from '@/lib/external-drop'
+import { getDomain, getFaviconUrl } from '@/lib/utils'
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -18,14 +34,24 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Collapsible,
-  CollapsibleContent,
-} from '@/components/ui/collapsible'
-import { Pencil, Trash2, Plus, ChevronRight, X, FolderX } from 'lucide-vue-next'
-import type { Group, Page } from '@/types'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+} from '@/components/ui/context-menu'
+import type { Group, Page, Tab } from '@/types'
 
 const props = defineProps<{
   collapsed: boolean
@@ -45,7 +71,7 @@ const containerStore = useContainerStore()
 const pageStore = usePageStore()
 const tabStore = useTabStore()
 
-// 将 workspaceGroups 及其页面转换为 GroupItem 需要的格式（页面按 parentId 组装为树）
+// 将 workspaceGroups 及其页面转换为树数据（页面按 parentId 组装为树）
 const workspaces = computed(() => {
   return containerStore.workspaceGroups.map((g) => ({
     id: g.id,
@@ -71,6 +97,489 @@ const ungroupedTabs = computed(() => {
 })
 
 const ungroupedOpen = ref(true)
+
+/* ==================== 展开态：FolderTree 渲染 ==================== */
+
+// id → Group / PageItem 索引（分组与页面 id 均为 UUID，不会冲突）
+const groupMap = computed(() => new Map(containerStore.workspaceGroups.map((g) => [g.id, g])))
+
+const pageMap = computed(() => {
+  const map = new Map<string, PageItem>()
+  const walk = (items: PageItem[]) => {
+    for (const item of items) {
+      map.set(item.id, item)
+      walk(item.children)
+    }
+  }
+  for (const w of workspaces.value) walk(w.pages)
+  return map
+})
+
+// 页面图标：自定义图标 → favicon（带版本号破缓存）
+function pageIcon(page: Page): string | undefined {
+  if (page.icon) return page.icon
+  if (!page.url) return undefined
+  return getFaviconUrl(page.url, tabStore.faviconVersions.get(getDomain(page.url)))
+}
+
+function pageToNode(item: PageItem): FolderTreeNodeData {
+  return {
+    id: item.id,
+    label: item.name,
+    icon: pageIcon(item.page),
+    children: item.children.map(pageToNode),
+    open: true,
+  }
+}
+
+// FolderTreeNodeData 树：分组（不可选中，点击仅折叠）→ 页面树
+const treeNodes = computed<FolderTreeNodeData[]>(() =>
+  workspaces.value.map((w) => ({
+    id: w.id,
+    label: w.name,
+    icon: w.emoji,
+    color: w.color,
+    selectable: false,
+    open: true,
+    children: w.pages.map(pageToNode),
+  })),
+)
+
+// 高亮：仅跟随当前活动标签页所属页面（FolderTree 内部 select 写入被丢弃）
+const selectedKey = computed({
+  get: () => tabStore.activeTab?.pageId ?? '',
+  set: () => {},
+})
+
+/* ---- 折叠状态持久化（沿用原两个 localStorage key，默认展开） ---- */
+const GROUP_OPEN_KEY = 'sessionbox-group-collapse-states'
+const PAGE_OPEN_KEY = 'sessionbox-page-collapse-states'
+
+function loadOpenStates(key: string): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+const groupOpenStates = reactive<Record<string, boolean>>(loadOpenStates(GROUP_OPEN_KEY))
+const pageOpenStates = reactive<Record<string, boolean>>(loadOpenStates(PAGE_OPEN_KEY))
+
+watch(groupOpenStates, () => {
+  localStorage.setItem(GROUP_OPEN_KEY, JSON.stringify({ ...groupOpenStates }))
+})
+
+watch(pageOpenStates, () => {
+  localStorage.setItem(PAGE_OPEN_KEY, JSON.stringify({ ...pageOpenStates }))
+})
+
+const openStates = computed<Record<string, boolean>>(() => ({
+  ...groupOpenStates,
+  ...pageOpenStates,
+}))
+
+function onOpenChange(states: Record<string, boolean>) {
+  for (const [id, open] of Object.entries(states)) {
+    if (groupMap.value.has(id)) groupOpenStates[id] = open
+    else if (pageMap.value.has(id)) pageOpenStates[id] = open
+  }
+}
+
+// 新增子页面时自动展开父页面，保证新建结果可见（对齐原 PageTreeNode 行为）
+let prevPageIds = new Set<string>()
+watch(
+  () => pageStore.pages,
+  (pages) => {
+    const nextIds = new Set(pages.map((p) => p.id))
+    for (const p of pages) {
+      if (prevPageIds.has(p.id) || !p.parentId) continue
+      if (pageOpenStates[p.parentId] === false) pageOpenStates[p.parentId] = true
+    }
+    prevPageIds = nextIds
+  },
+  { immediate: true },
+)
+
+/* ---- 单击选中 / 双击新开标签页（350ms 自检测，对齐原 PageTreeNode） ---- */
+const PAGE_DBLCLICK_INTERVAL = 350
+let pageClickTimer: ReturnType<typeof setTimeout> | null = null
+let lastPageClickAt = 0
+
+function onNodeClick(id: string) {
+  if (groupMap.value.has(id)) return // 分组行点击仅折叠，无单击/双击语义
+  const now = Date.now()
+  const isDouble = now - lastPageClickAt < PAGE_DBLCLICK_INTERVAL
+  lastPageClickAt = now
+
+  if (pageClickTimer) {
+    clearTimeout(pageClickTimer)
+    pageClickTimer = null
+  }
+
+  if (isDouble) {
+    // 判定为双击：清空记录防止三连击再开一个 tab
+    lastPageClickAt = 0
+    void tabStore.createTab(id)
+    return
+  }
+  pageClickTimer = setTimeout(() => {
+    pageClickTimer = null
+    emit('selectPage', id)
+  }, 220)
+}
+
+/* ---- 内部拖拽排序（对齐原 vuedraggable：分组同层 / 页面仅同父同层） ---- */
+function onNodeDrop({ dragId, targetId, position }: FolderTreeDropPayload) {
+  if (dragId === targetId) return
+
+  // 分组排序
+  if (groupMap.value.has(dragId)) {
+    if (!groupMap.value.has(targetId) || position === 'inside') return
+    const ids = containerStore.workspaceGroups.map((g) => g.id)
+    ids.splice(ids.indexOf(dragId), 1)
+    const to = ids.indexOf(targetId)
+    ids.splice(position === 'before' ? to : to + 1, 0, dragId)
+    void containerStore.reorderGroups(ids)
+    return
+  }
+
+  // 页面排序：仅同父（同层）内有效，不支持跨层移动
+  const dragItem = pageMap.value.get(dragId)
+  const targetItem = pageMap.value.get(targetId)
+  if (!dragItem || !targetItem || position === 'inside') return
+  if ((dragItem.page.parentId ?? null) !== (targetItem.page.parentId ?? null)) return
+  if (
+    dragItem.page.parentId === null &&
+    dragItem.page.groupId !== targetItem.page.groupId
+  ) {
+    return
+  }
+
+  const siblings = (pageStore.pagesByGroup.get(dragItem.page.groupId) || [])
+    .filter((p) => (p.parentId ?? null) === (dragItem.page.parentId ?? null))
+    .slice()
+    .sort((a, b) => a.order - b.order)
+  const ids = siblings.map((p) => p.id)
+  ids.splice(ids.indexOf(dragId), 1)
+  const to = ids.indexOf(targetId)
+  ids.splice(position === 'before' ? to : to + 1, 0, dragId)
+  void pageStore.reorderPages(ids)
+}
+
+/* ---- 外部 URL 拖放：悬停 200ms 激活首个标签页，松手导航（对齐原 PageTreeNode） ---- */
+let hoverActivateTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearHoverActivateTimer() {
+  if (!hoverActivateTimer) return
+  clearTimeout(hoverActivateTimer)
+  hoverActivateTimer = null
+}
+
+function pageTabsOf(pageId: string): Tab[] {
+  return tabStore.sortedTabs.filter((tab) => tab.pageId === pageId)
+}
+
+function onExternalDragover(node: FolderTreeNodeData, event: DragEvent) {
+  if (groupMap.value.has(node.id)) return
+  if (!hasSupportedExternalDrop(event)) return
+
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+
+  const firstTab = pageTabsOf(node.id)[0]
+  if (hoverActivateTimer || tabStore.activeTabId === firstTab?.id) return
+  hoverActivateTimer = setTimeout(() => {
+    hoverActivateTimer = null
+    const tab = pageTabsOf(node.id)[0]
+    if (tab) void tabStore.switchTab(tab.id)
+  }, 200)
+}
+
+function onExternalDragleave(node: FolderTreeNodeData) {
+  if (groupMap.value.has(node.id)) return
+  clearHoverActivateTimer()
+}
+
+async function onExternalDrop(node: FolderTreeNodeData, event: DragEvent) {
+  clearHoverActivateTimer()
+  if (groupMap.value.has(node.id)) return
+
+  const url = extractNavigableDropUrl(event)
+  if (!url) return
+  event.preventDefault()
+
+  const firstTab = pageTabsOf(node.id)[0]
+  if (firstTab) {
+    await tabStore.switchTab(firstTab.id)
+    await tabStore.navigate(firstTab.id, url)
+    return
+  }
+
+  const createdTab = await tabStore.createTab(node.id)
+  await tabStore.navigate(createdTab.id, url)
+}
+
+/* ---- 桌面快捷方式 ---- */
+const SHORTCUT_MODES = [
+  { mode: 'app', label: '软件内' },
+  { mode: 'window', label: '新窗口' },
+  { mode: 'taskbar-mobile', label: '任务栏 - 手机视图' },
+  { mode: 'taskbar-desktop', label: '任务栏 - 桌面视图' },
+] as const
+
+async function createDesktopShortcut(pageId: string, mode: (typeof SHORTCUT_MODES)[number]['mode']) {
+  try {
+    await window.api.page.createDesktopShortcut(pageId, mode)
+  } catch (error) {
+    console.error('创建页面快捷方式失败', error)
+  }
+}
+
+/* ---- 右键菜单 / 行尾操作（渲染函数注入 FolderTree） ---- */
+
+function groupMenuItems(group: Group, Item: typeof ContextMenuItem): VNode[] {
+  return [
+    h(Item, { onClick: () => emit('addPage', group.id) }, () => [
+      h(Plus, { class: 'w-4 h-4 mr-2' }),
+      '新建页面',
+    ]),
+    h(Item, { onClick: () => emit('editGroup', group) }, () => [
+      h(Pencil, { class: 'w-4 h-4 mr-2' }),
+      '编辑分组',
+    ]),
+    h(ContextMenuSeparator),
+    h(Item, { class: 'text-destructive', onClick: () => emit('deleteGroup', group) }, () => [
+      h(Trash2, { class: 'w-4 h-4 mr-2' }),
+      '删除分组',
+    ]),
+  ]
+}
+
+function menuRenderer(node: FolderTreeNodeData): VNode {
+  const group = groupMap.value.get(node.id)
+  if (group) {
+    return h('div', { class: 'flex flex-col' }, groupMenuItems(group, ContextMenuItem))
+  }
+
+  const item = pageMap.value.get(node.id)
+  if (!item) return h('div')
+
+  const page = item.page
+  return h('div', { class: 'flex flex-col' }, [
+    h(ContextMenuItem, { onClick: () => emit('addSubPage', page.id) }, () => [
+      h(Plus, { class: 'w-4 h-4 mr-2' }),
+      '新建子页面',
+    ]),
+    h(ContextMenuItem, { onClick: () => emit('editPage', page) }, () => [
+      h(Pencil, { class: 'w-4 h-4 mr-2' }),
+      '编辑',
+    ]),
+    h(ContextMenuSub, null, {
+      trigger: () =>
+        h(ContextMenuSubTrigger, null, () => [
+          h(ExternalLink, { class: 'w-4 h-4 mr-2' }),
+          '在桌面创建快捷方式',
+        ]),
+      default: () =>
+        h(
+          ContextMenuSubContent,
+          null,
+          () =>
+            SHORTCUT_MODES.map(({ mode, label }) =>
+              h(ContextMenuItem, {
+                key: mode,
+                onClick: () => void createDesktopShortcut(page.id, mode),
+              }, () => label),
+            ),
+        ),
+    }),
+    h(ContextMenuSeparator),
+    h(ContextMenuItem, { class: 'text-destructive', onClick: () => emit('deletePage', page) }, () => [
+      h(Trash2, { class: 'w-4 h-4 mr-2' }),
+      '删除',
+    ]),
+  ])
+}
+
+// 页签徽标：1 个标签页 → X 直接关闭；多个 → 数字按钮 Popover 列表（常显，对齐原行为）
+function renderTabBadge(pageId: string): VNode | null {
+  const tabs = pageTabsOf(pageId)
+  if (tabs.length === 0) return null
+
+  if (tabs.length === 1) {
+    return h(
+      'button',
+      {
+        class:
+          'p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0',
+        onClick: (e: MouseEvent) => {
+          e.stopPropagation()
+          void tabStore.closeTab(tabs[0].id)
+        },
+      },
+      () => h(X, { class: 'w-3.5 h-3.5' }),
+    )
+  }
+
+  return h(Popover, null, {
+    trigger: () =>
+      h(PopoverTrigger, { asChild: true }, () =>
+        h(
+          'button',
+          {
+            class:
+              'p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0 inline-flex items-center gap-0.5',
+            onClick: (e: MouseEvent) => e.stopPropagation(),
+          },
+          () => h('span', { class: 'text-[10px] leading-none' }, String(tabs.length)),
+        ),
+      ),
+    default: () =>
+      h(
+        PopoverContent,
+        {
+          align: 'end',
+          class: 'p-2 w-56',
+          onClick: (e: MouseEvent) => e.stopPropagation(),
+        },
+        () => [
+          h('div', { class: 'flex items-center justify-between mb-1.5 px-1' }, [
+            h('span', { class: 'text-xs font-medium text-muted-foreground' }, () => '打开的标签页'),
+            h(
+              'button',
+              {
+                class: 'text-xs text-destructive hover:underline',
+                onClick: () => {
+                  for (const tab of tabs) void tabStore.closeTab(tab.id)
+                },
+              },
+              () => '全部关闭',
+            ),
+          ]),
+          h('div', { class: 'flex flex-col gap-0.5 max-h-48 overflow-y-auto' }, () =>
+            tabs.map((tab) =>
+              h(
+                'div',
+                {
+                  key: tab.id,
+                  class: 'flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted group/tab-item',
+                },
+                [
+                  h(
+                    'span',
+                    { class: 'flex-1 text-xs truncate', title: tab.title || tab.url },
+                    () => tab.title || tab.url,
+                  ),
+                  h(
+                    'button',
+                    {
+                      class:
+                        'opacity-0 group-hover/tab-item:opacity-100 p-0.5 rounded hover:bg-destructive/10 text-destructive transition-opacity shrink-0',
+                      onClick: () => void tabStore.closeTab(tab.id),
+                    },
+                    () => h(X, { class: 'w-3 h-3' }),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+  })
+}
+
+// 行尾操作区：页签徽标（常显）+ MoreHorizontal 下拉（hover 才显示）
+function actionsRenderer(node: FolderTreeNodeData): VNode {
+  const group = groupMap.value.get(node.id)
+  if (group) {
+    return h('div', { class: 'inline-flex items-center gap-1' }, [
+      renderMoreMenu([
+        h(DropdownMenuItem, { onClick: () => emit('addPage', group.id) }, () => [
+          h(Plus, { class: 'w-4 h-4 mr-2' }),
+          '新建页面',
+        ]),
+        h(DropdownMenuItem, { onClick: () => emit('editGroup', group) }, () => [
+          h(Pencil, { class: 'w-4 h-4 mr-2' }),
+          '编辑分组',
+        ]),
+        h(DropdownMenuSeparator),
+        h(DropdownMenuItem, { class: 'text-destructive', onClick: () => emit('deleteGroup', group) }, () => [
+          h(Trash2, { class: 'w-4 h-4 mr-2' }),
+          '删除分组',
+        ]),
+      ]),
+    ])
+  }
+
+  const item = pageMap.value.get(node.id)
+  if (!item) return h('div')
+
+  const page = item.page
+  return h('div', { class: 'inline-flex items-center gap-1' }, [
+    renderTabBadge(node.id),
+    renderMoreMenu([
+      h(DropdownMenuItem, { onClick: () => emit('addSubPage', page.id) }, () => [
+        h(Plus, { class: 'w-4 h-4 mr-2' }),
+        '新建子页面',
+      ]),
+      h(DropdownMenuItem, { onClick: () => emit('editPage', page) }, () => [
+        h(Pencil, { class: 'w-4 h-4 mr-2' }),
+        '编辑',
+      ]),
+      h(DropdownMenuSub, null, {
+        trigger: () =>
+          h(DropdownMenuSubTrigger, null, () => [
+            h(ExternalLink, { class: 'w-4 h-4 mr-2' }),
+            '在桌面创建快捷方式',
+          ]),
+        default: () =>
+          h(
+            DropdownMenuSubContent,
+            null,
+            () =>
+              SHORTCUT_MODES.map(({ mode, label }) =>
+                h(DropdownMenuItem, {
+                  key: mode,
+                  onClick: () => void createDesktopShortcut(page.id, mode),
+                }, () => label),
+              ),
+          ),
+      }),
+      h(DropdownMenuSeparator),
+      h(DropdownMenuItem, { class: 'text-destructive', onClick: () => emit('deletePage', page) }, () => [
+        h(Trash2, { class: 'w-4 h-4 mr-2' }),
+        '删除',
+      ]),
+    ]),
+  ])
+}
+
+function renderMoreMenu(items: VNode[]): VNode {
+  return h(DropdownMenu, null, {
+    trigger: () =>
+      h(DropdownMenuTrigger, { asChild: true }, () =>
+        h(
+          'button',
+          {
+            class:
+              'ft-action-hover p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-opacity',
+            onClick: (e: MouseEvent) => e.stopPropagation(),
+          },
+          () => h(MoreHorizontal, { class: 'w-4 h-4' }),
+        ),
+      ),
+    default: () => h(DropdownMenuContent, { align: 'start' }, () => items),
+  })
+}
+
+onBeforeUnmount(() => {
+  clearHoverActivateTimer()
+  if (pageClickTimer) clearTimeout(pageClickTimer)
+})
 </script>
 
 <template>
@@ -137,18 +646,27 @@ const ungroupedOpen = ref(true)
     </SidebarMenu>
   </template>
 
-  <!-- 展开状态：显示完整列表 -->
+  <!-- 展开状态：FolderTree 渲染分组与页面树 -->
   <template v-else>
-    <GroupItem
+    <FolderTree
       v-if="containerStore.workspaceGroups.length > 0"
-      :workspaces="workspaces"
-      @select-page="emit('selectPage', $event)"
-      @edit-group="emit('editGroup', $event)"
-      @delete-group="emit('deleteGroup', $event)"
-      @add-page="emit('addPage', $event)"
-      @add-sub-page="emit('addSubPage', $event)"
-      @edit-page="emit('editPage', $event)"
-      @delete-page="emit('deletePage', $event)"
+      v-model:selected-key="selectedKey"
+      item-type="folder"
+      title="分组"
+      hide-header
+      :max-height="false"
+      :hide-empty="true"
+      draggable
+      :nodes="treeNodes"
+      :open-states="openStates"
+      :menu-renderer="menuRenderer"
+      :actions-renderer="actionsRenderer"
+      @node-click="onNodeClick"
+      @open-change="onOpenChange"
+      @node-drop="onNodeDrop"
+      @node-external-dragover="onExternalDragover"
+      @node-external-dragleave="onExternalDragleave"
+      @node-external-drop="onExternalDrop"
     />
 
     <!-- 未分组标签页 -->
