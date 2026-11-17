@@ -1,7 +1,7 @@
 {
   "name": "session-box",
   "version": "1.3.0",
-  "description": "\u591a\u8d26\u53f7\u6d4f\u89c8\u5668\u5de5\u5177\uff0c\u652f\u6301 partition \u9694\u79bb\u3001\u4ee3\u7406\u7ba1\u7406\u3001\u62d6\u62fd\u6392\u5e8f",
+  "description": "多账号浏览器工具，支持 partition 隔离、代理管理、拖拽排序",
   "author": "hunmer",
   "packageManager": "pnpm@10.17.1",
   "main": "./out/main/index.js",
@@ -19,7 +19,6 @@
     "pack:mac": "node scripts/pack-mac-quick.js"
   },
   "dependencies": {
-    "@dagrejs/dagre": "^3.0.0",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
     "@hunmer/procm-mcp-sdk": "^0.1.1",
@@ -27,12 +26,6 @@
     "@langchain/core": "^1.1.40",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@mozilla/readability": "^0.6.0",
-    "@vue-flow/background": "^1.3.2",
-    "@vue-flow/controls": "^1.1.3",
-    "@vue-flow/core": "^1.48.2",
-    "@vue-flow/minimap": "^1.5.4",
-    "@vue-flow/node-resizer": "^1.5.1",
-    "@vue-flow/node-toolbar": "^1.1.1",
     "@vueuse/core": "^12.8.2",
     "adm-zip": "^0.5.17",
     "class-variance-authority": "^0.7.1",
