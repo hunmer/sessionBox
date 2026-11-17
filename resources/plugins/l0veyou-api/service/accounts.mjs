@@ -1,5 +1,6 @@
 /**
  * l0veyou 账号管理：从 SessionBox bridge 发现页面并提取凭据（localStorage）
+ * 骨架（页面发现/账号选择/execute 重试/错误类）共享自 ../../_shared/accounts.mjs
  *
  * 与 liblib-api 的关键差异：l0veyou 的凭据不在 cookie，而在页面 localStorage
  *   auth_token / refresh_token / token_expires_at（同源全局键）
@@ -7,6 +8,9 @@
  * token 过期后用 refresh_token 换新并写回页面 localStorage（保持页面会话与服务同步）。
  */
 import { createClient } from '../api-client.mjs';
+import { SessionBoxAccountError, listSitePages, createPageExecutor, createAccountPicker } from '../../_shared/accounts.mjs';
+
+export { SessionBoxAccountError };
 
 const DEFAULT_HOST_RE = /l0veyou\.com/i;
 const SITE_URL = 'https://l0veyou.com/chat';
@@ -22,30 +26,13 @@ export function createAccountManager({ bridge, baseUrl, l0veyouHostRe = DEFAULT_
   // pageId -> { creds, client, fetchedAt }
   const cache = new Map();
 
-  function isL0veyouPage(page) {
-    return l0veyouHostRe.test(page.url || '') || l0veyouHostRe.test(page.currentUrl || '');
-  }
-
   /** 列出 l0veyou 账号页面（open 的排前面） */
-  async function listL0veyouPages() {
-    const pages = (await bridge.listPages()).filter(isL0veyouPage);
-    return pages.sort((a, b) => Number(b.open) - Number(a.open));
+  function listL0veyouPages() {
+    return listSitePages(bridge, l0veyouHostRe);
   }
 
   /** 在页面主世界执行；标签页未打开时经 bridge 打开后重试 */
-  async function execute(page, code) {
-    try {
-      return await bridge.execute(page.id, code);
-    } catch (err) {
-      if (!/没有打开的标签页/.test(String(err.message))) throw err;
-      await bridge.openPage(page.id, SITE_URL);
-      for (let i = 0; i < 10; i++) {
-        await new Promise((r) => setTimeout(r, 800));
-        try { return await bridge.execute(page.id, code); } catch { /* 继续等 */ }
-      }
-      throw err;
-    }
-  }
+  const execute = createPageExecutor({ bridge, openUrl: SITE_URL });
 
   /** 读取某页面的 l0veyou 凭据 */
   async function fetchCreds(page) {
@@ -124,50 +111,7 @@ export function createAccountManager({ bridge, baseUrl, l0veyouHostRe = DEFAULT_
     }
   }
 
-  /**
-   * 解析请求指定的账号:
-   *   显式 pageId → 校验存在并解析凭据（失败即报错）
-   *   自动 → 按序（open 优先）尝试各页面，取第一个凭据可读的；全部失败时报汇总原因
-   */
-  async function pick(pageId) {
-    const pages = await listL0veyouPages();
-    if (pages.length === 0) {
-      throw new SessionBoxAccountError(
-        'SessionBox 中没有 l0veyou 页面，请先添加 url 为 l0veyou.com 的页面并登录',
-        'NO_ACCOUNT',
-      );
-    }
-    if (pageId) {
-      const found = pages.find((p) => p.id === pageId);
-      if (!found) {
-        throw new SessionBoxAccountError(
-          `指定的页面 ${pageId} 不存在或不是 l0veyou 页面。可用: ${pages.map((p) => `${p.id}(${p.name})`).join(', ')}`,
-          'PAGE_NOT_FOUND',
-        );
-      }
-      return { page: found, entry: await resolve(found.id) };
-    }
-    const errors = [];
-    for (const p of pages) {
-      try {
-        return { page: p, entry: await resolve(p.id) };
-      } catch (err) {
-        errors.push(`${p.name}(${p.id.slice(0, 8)}): ${String(err.message).slice(0, 150)}`);
-      }
-    }
-    throw new SessionBoxAccountError(
-      `没有可用的 l0veyou 账号（${pages.length} 个页面均未打开或未登录）: ${errors.join('; ')}`,
-      'NO_ACCOUNT',
-    );
-  }
+  const pick = createAccountPicker({ listPages: listL0veyouPages, resolve, siteName: ' l0veyou ', siteUrlHint: 'l0veyou.com' });
 
   return { listL0veyouPages, resolve, invalidate, withClient, pick };
-}
-
-export class SessionBoxAccountError extends Error {
-  constructor(message, code) {
-    super(message);
-    this.name = 'SessionBoxAccountError';
-    this.code = code;
-  }
 }

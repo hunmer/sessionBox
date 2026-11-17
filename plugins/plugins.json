@@ -1,23 +1,132 @@
 [
   {
-    "id": "sessionbox.qianwen-api",
-    "name": "Qianwen API Bridge",
+    "id": "sessionbox.chatglm-api",
+    "name": "ChatGLM API Bridge",
     "version": "1.0.0",
-    "description": "通过 SessionBox 页面会话提供通义千问 API",
-    "author": { "name": "SessionBox" },
-    "tags": ["Qianwen", "API", "会话"],
+    "description": "将智谱清言（chatglm.cn）已登录会话反代为 OpenAI 兼容 API：AI 聊天与 AI 生图。账号和登录由 SessionBox 页面管理。",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "ChatGLM",
+      "智谱清言",
+      "API",
+      "会话"
+    ],
     "hasView": false,
-    "downloadUrl": "qianwen-api.zip"
+    "downloadUrl": "chatglm-api.zip",
+    "iconUrl": "chatglm-api/icon.png"
+  },
+  {
+    "id": "sessionbox.dola-api",
+    "name": "Dola API Bridge",
+    "version": "0.1.0",
+    "description": "将 SessionBox 管理的 dola.com（Doubao 海外版）账号暴露为 OpenAI 兼容对话 API，账号和登录由 SessionBox 管理",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "Dola",
+      "API",
+      "会话",
+      "对话"
+    ],
+    "hasView": false,
+    "downloadUrl": "dola-api.zip",
+    "iconUrl": "dola-api/icon.png"
   },
   {
     "id": "sessionbox.doubao-api",
     "name": "Doubao API Bridge",
     "version": "1.0.0",
-    "description": "通过页面 ID 将 SessionBox 会话提供给 Doubao API",
-    "author": { "name": "SessionBox" },
-    "tags": ["Doubao", "API", "会话"],
+    "description": "通过页面 ID 将 SessionBox 会话提供给 Doubao API，账号和登录由 SessionBox 管理",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "Doubao",
+      "API",
+      "会话"
+    ],
     "hasView": false,
-    "downloadUrl": "doubao-api.zip"
+    "downloadUrl": "doubao-api.zip",
+    "iconUrl": "doubao-api/icon.png"
+  },
+  {
+    "id": "sessionbox.gemini-api",
+    "name": "Gemini API Bridge",
+    "version": "0.1.0",
+    "description": "将 SessionBox 管理的 Gemini（gemini.google.com）账号暴露为 OpenAI 兼容 API（文本对话/生图/生视频，多模态输入），账号和登录由 SessionBox 管理。协议移植自 Nativu5/Gemini-FastAPI 与 HanaokaYuzu/Gemini-API（MIT）",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "Gemini",
+      "Google",
+      "API",
+      "会话",
+      "生图",
+      "视频"
+    ],
+    "hasView": false,
+    "downloadUrl": "gemini-api.zip",
+    "iconUrl": "gemini-api/icon.png"
+  },
+  {
+    "id": "sessionbox.jimeng-api",
+    "name": "Jimeng API Bridge",
+    "version": "0.1.0",
+    "description": "将 SessionBox 管理的即梦（jimeng.jianying.com）账号暴露为 OpenAI 兼容 API（文生图/图生图/视频生成），账号和登录由 SessionBox 管理。移植自 iptag/jimeng-api（GPL-3.0）",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "即梦",
+      "Jimeng",
+      "API",
+      "会话",
+      "生图",
+      "视频"
+    ],
+    "hasView": false,
+    "downloadUrl": "jimeng-api.zip",
+    "iconUrl": "jimeng-api/icon.png"
+  },
+  {
+    "id": "sessionbox.l0veyou-api",
+    "name": "L0veyou API Bridge",
+    "version": "0.1.0",
+    "description": "将 SessionBox 管理的 l0veyou.com 账号暴露为 OpenAI 兼容图片生成 API（GPT Image 2/2.5），账号和登录由 SessionBox 管理",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "l0veyou",
+      "API",
+      "会话",
+      "生图"
+    ],
+    "hasView": false,
+    "downloadUrl": "l0veyou-api.zip",
+    "iconUrl": "l0veyou-api/icon.png"
+  },
+  {
+    "id": "sessionbox.liblib-api",
+    "name": "Liblib API Bridge",
+    "version": "0.1.0",
+    "description": "将 SessionBox 管理的 liblib.tv 账号暴露为 OpenAI 兼容 API（文本/图片/音频/视频四模态），账号和登录由 SessionBox 管理",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "Liblib",
+      "API",
+      "会话",
+      "生图"
+    ],
+    "hasView": false,
+    "downloadUrl": "liblib-api.zip",
+    "iconUrl": "liblib-api/icon.png"
   },
   {
     "id": "sessionbox.group-tab-filter",
@@ -33,8 +142,25 @@
       "过滤"
     ],
     "hasView": true,
-    "downloadUrl": "group-tab-filter.zip",
-    "iconUrl": "group-tab-filter/icon.png"
+    "downloadUrl": "plugin-1776139403056.zip",
+    "iconUrl": "plugin-1776139403056/icon.png"
+  },
+  {
+    "id": "sessionbox.qianwen-api",
+    "name": "Qianwen API Bridge",
+    "version": "1.0.0",
+    "description": "通过 SessionBox 页面会话提供通义千问 API",
+    "author": {
+      "name": "SessionBox"
+    },
+    "tags": [
+      "Qianwen",
+      "API",
+      "会话"
+    ],
+    "hasView": false,
+    "downloadUrl": "qianwen-api.zip",
+    "iconUrl": "qianwen-api/icon.png"
   },
   {
     "id": "sessionbox.test-plugin",

@@ -18,83 +18,34 @@
  * 环境变量: DOLA_PORT(19204) SESSIONBOX_API_URL(127.0.0.1:19100) SESSIONBOX_API_TOKEN
  */
 import { createServer } from 'node:http';
-import { appendFileSync, readFileSync, writeFileSync, statSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { createBridgeClient } from './sessionbox.mjs';
-import { createAccountManager, SessionBoxAccountError } from './accounts.mjs';
+import { createAccountManager } from './accounts.mjs';
 import { MODELS, messagesToPrompt, IMAGE_RATIOS } from '../api-client.mjs';
+import {
+  createLogger, createMask, errPayload, parseJsonBody,
+  createPickAccount, createRunWithAccount, createRequestHandler,
+} from '../../_shared/server-kit.mjs';
 
 const DEFAULT_MODEL = 'dola';
 const ALL_MODELS = MODELS;
 const LOG_FILE = new URL('./service.log', import.meta.url);
-const LOG_MAX_BYTES = 5 * 1024 * 1024;
-
-/** 服务日志：stdout（由插件 main.js 转发到主进程日志）+ service.log 双写，超 5MB 截断 */
-const log = (...args) => {
-  const line = `${new Date().toISOString()} ${args.join(' ')}`;
-  console.log(`DOLA_API ${line}`);
-  try {
-    if (statSync(LOG_FILE).size > LOG_MAX_BYTES) {
-      const tail = readFileSync(LOG_FILE, 'utf8').slice(-LOG_MAX_BYTES / 2);
-      writeFileSync(LOG_FILE, tail.slice(tail.indexOf('\n') + 1));
-    }
-  } catch { /* 文件不存在时忽略 */ }
-  try { appendFileSync(LOG_FILE, `${line}\n`); } catch { /* 日志失败不中断服务 */ }
-};
-const mask = (s) => (s ? `${String(s).slice(0, 8)}...` : '-');
+const log = createLogger({ prefix: 'DOLA_API', logFile: LOG_FILE });
+const mask = createMask(8);
 
 export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bridgeToken = '' } = {}) {
   const bridge = createBridgeClient({ baseUrl: bridgeUrl, token: bridgeToken });
   const accounts = createAccountManager({ bridge, onLog: log });
 
-  /** 从请求解析账号选择，返回 { page, entry } */
-  async function pickAccount(req, body = {}) {
-    let explicit = req.headers['x-session-page'] || body.page_id || body.session_page || '';
-    const auth = String(req.headers.authorization || '');
-    const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-    if (!explicit && bearer) {
-      const pages = await accounts.listDolaPages();
-      if (pages.some((p) => p.id === bearer)) explicit = bearer; // api key 形式传 pageId
-    }
-    return accounts.pick(explicit || undefined);
-  }
+  const pickAccount = createPickAccount({ accounts, listPages: () => accounts.listDolaPages() });
+  const runWithAccount = createRunWithAccount({ pickAccount, accounts, log });
 
-  async function runWithAccount(req, body, fn) {
-    const { page, entry } = await pickAccount(req, body);
-    log(`account page=${page.id}(${page.name})`);
-    return accounts.withClient(page.id, fn);
-  }
-
-  const server = createServer((req, res) => {
-    const started = Date.now();
-    const url = new URL(req.url, 'http://x');
-    const path = url.pathname;
-
-    res.setHeader('access-control-allow-origin', '*');
-    res.setHeader('access-control-allow-headers', 'authorization, content-type, x-session-page');
-    res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
-
-    req.on('error', () => {});
-    const chunks = [];
-    req.on('data', (c) => chunks.push(c));
-
-    req.on('end', () => {
-      handle(req, res, path, url, Buffer.concat(chunks))
-        .catch((err) => {
-          const { status, payload } = toErrorResponse(err);
-          if (!res.headersSent) {
-            res.writeHead(status, { 'content-type': 'application/json' });
-            res.end(JSON.stringify(payload));
-          } else res.end();
-          const cause = err.cause ? ` cause=${String(err.cause?.message || err.cause).slice(0, 120)}` : '';
-          log(`${req.method} ${path} -> ${status} (${Date.now() - started}ms) error=${err.code || ''} ${String(err.message).slice(0, 300)}${cause}`);
-        })
-        .finally(() => {
-          if (res.writableEnded) log(`${req.method} ${path} -> ${res.statusCode} (${Date.now() - started}ms)`);
-        });
-    });
-  });
+  const server = createServer(createRequestHandler({
+    handle,
+    log,
+    allowHeaders: 'authorization, content-type, x-session-page',
+    withCause: true,
+  }));
 
   async function handle(req, res, path, url, rawBody) {
     const body = parseJsonBody(req, rawBody);
@@ -271,15 +222,6 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
   };
 }
 
-function parseJsonBody(req, rawBody) {
-  if (!rawBody.length || !(req.headers['content-type'] || '').includes('application/json')) return {};
-  let parsed;
-  try { parsed = JSON.parse(rawBody.toString('utf8')); } catch {
-    throw Object.assign(new Error(`请求体不是合法 JSON: ${rawBody.toString('utf8').slice(0, 60)}`), { code: 'INVALID_JSON', status: 400 });
-  }
-  return parsed && typeof parsed === 'object' ? parsed : {};
-}
-
 /** OpenAI size（1024x1024 等）或原生比例（16:9）→ dola 支持的比例（就近匹配） */
 function toRatio(size) {
   if (!size) return '1:1';
@@ -295,19 +237,6 @@ function toRatio(size) {
     if (diff < bestDiff) { bestDiff = diff; best = r; }
   }
   return best;
-}
-
-function errPayload(message, code, type = 'invalid_request_error') {
-  return { error: { message, type, code } };
-}
-
-function toErrorResponse(err) {
-  if (err instanceof SessionBoxAccountError) {
-    const status = err.code === 'NO_ACCOUNT' || err.code === 'PAGE_NOT_FOUND' ? 400 : 401;
-    return { status, payload: errPayload(err.message, err.code, 'account_error') };
-  }
-  const status = Number(err.status) || 500;
-  return { status, payload: errPayload(String(err.message).slice(0, 500), err.code || 'api_error', status >= 500 ? 'server_error' : 'invalid_request_error') };
 }
 
 // ---------- main ----------

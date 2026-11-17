@@ -21,32 +21,22 @@
  * 环境变量: LIBLIB_PORT(19201) SESSIONBOX_API_URL(127.0.0.1:19100) SESSIONBOX_API_TOKEN
  */
 import { createServer } from 'node:http';
-import { appendFileSync, readFileSync, writeFileSync, statSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { createBridgeClient } from './sessionbox.mjs';
-import { createAccountManager, SessionBoxAccountError } from './accounts.mjs';
+import { createAccountManager } from './accounts.mjs';
 import { MODELS } from '../api-client.mjs';
+import {
+  createLogger, createMask, str, errPayload, parseJsonBody, parseForm,
+  createPickAccount, createRunWithAccount, createRequestHandler,
+} from '../../_shared/server-kit.mjs';
 
 const DEFAULT_MODEL = { text: 'qwen-3-vl-flash', image: 'qwen-edit', audio: 'seed-audio-1.0', video: 'MiniMax-Hailuo-o2' };
 const ALL_MODELS = Object.entries(MODELS).flatMap(([type, list]) => list.map((m) => ({ ...m, type })));
 const RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9'];
 
 const LOG_FILE = new URL('./service.log', import.meta.url);
-const LOG_MAX_BYTES = 5 * 1024 * 1024;
-
-/** 服务日志：stdout（由插件 main.js 转发到主进程日志）+ service.log 双写，超 5MB 截断 */
-const log = (...args) => {
-  const line = `${new Date().toISOString()} ${args.join(' ')}`;
-  console.log(`LIBLIB_API ${line}`);
-  try {
-    if (statSync(LOG_FILE).size > LOG_MAX_BYTES) {
-      const tail = readFileSync(LOG_FILE, 'utf8').slice(-LOG_MAX_BYTES / 2);
-      writeFileSync(LOG_FILE, tail.slice(tail.indexOf('\n') + 1));
-    }
-  } catch { /* 文件不存在时忽略 */ }
-  try { appendFileSync(LOG_FILE, `${line}\n`); } catch { /* 日志失败不中断服务 */ }
-};
-const mask = (s) => (s ? `${String(s).slice(0, 6)}...` : '-');
+const log = createLogger({ prefix: 'LIBLIB_API', logFile: LOG_FILE });
+const mask = createMask(6);
 
 /** OpenAI size（1024x1024）或原生比例（16:9）→ liblib ratio */
 function toRatio(size) {
@@ -105,56 +95,18 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
   const bridge = createBridgeClient({ baseUrl: bridgeUrl, token: bridgeToken });
   const accounts = createAccountManager({ bridge, urls, liblibHostRe, onLog: log });
 
-  /** 从请求解析账号选择与凭据，返回 { page, entry } */
-  async function pickAccount(req, body = {}) {
-    let explicit = req.headers['x-session-page'] || body.page_id || body.session_page || '';
-    const auth = String(req.headers.authorization || '');
-    const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-    if (!explicit && bearer) {
-      const pages = await accounts.listLiblibPages();
-      if (pages.some((p) => p.id === bearer)) explicit = bearer; // api key 形式传 pageId
-    }
-    return accounts.pick(explicit || undefined);
-  }
+  const pickAccount = createPickAccount({ accounts, listPages: () => accounts.listLiblibPages() });
+  const runWithAccount = createRunWithAccount({ pickAccount, accounts, log, describeEntry: (entry) => ` token=${mask(entry.creds.token)}` });
 
-  async function runWithAccount(req, body, fn) {
-    const { page, entry } = await pickAccount(req, body);
-    log(`account page=${page.id}(${page.name}) token=${mask(entry.creds.token)}`);
-    return accounts.withClient(page.id, fn);
-  }
-
-  const server = createServer((req, res) => {
-    const started = Date.now();
-    const url = new URL(req.url, 'http://x');
-    const path = url.pathname;
-
-    res.setHeader('access-control-allow-origin', '*');
-    res.setHeader('access-control-allow-headers', 'authorization, content-type, x-session-page, x-filename');
-    res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
-
-    req.on('error', () => {});
-    const chunks = [];
-    req.on('data', (c) => chunks.push(c));
-
-    req.on('end', () => {
-      handle(req, res, path, url, Buffer.concat(chunks))
-        .catch((err) => {
-          const { status, payload } = toErrorResponse(err);
-          if (!res.headersSent) {
-            res.writeHead(status, { 'content-type': 'application/json' });
-            res.end(JSON.stringify(payload));
-          } else res.end();
-          log(`${req.method} ${path} -> ${status} (${Date.now() - started}ms) error=${err.code || ''} ${String(err.message).slice(0, 300)}`);
-        })
-        .finally(() => {
-          if (res.writableEnded) log(`${req.method} ${path} -> ${res.statusCode} (${Date.now() - started}ms)`);
-        });
-    });
-  });
+  const server = createServer(createRequestHandler({
+    handle,
+    log,
+    allowHeaders: 'authorization, content-type, x-session-page, x-filename',
+  }));
 
   async function handle(req, res, path, url, rawBody) {
-    const body = parseJsonBody(req, rawBody);
+    // liblib 宽容语义：非法 JSON 静默返回 {}（区别于 dola/gemini/l0veyou 的 INVALID_JSON 400）
+    const body = parseJsonBody(req, rawBody, { strict: false });
     const json = (status, data) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
 
     if (req.method === 'GET' && path === '/health') {
@@ -404,23 +356,6 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
   };
 }
 
-function parseJsonBody(req, rawBody) {
-  if (!rawBody.length || !(req.headers['content-type'] || '').includes('application/json')) return {};
-  try { return JSON.parse(rawBody.toString('utf8')); } catch { return {}; }
-}
-
-/** 解析 multipart/form-data（借助 Node 内置 Request.formData，零依赖） */
-async function parseForm(req, rawBody) {
-  const contentType = req.headers['content-type'];
-  if (!contentType || !contentType.includes('multipart/form-data')) {
-    throw Object.assign(new Error('content-type 需为 multipart/form-data'), { code: 'INVALID_CONTENT_TYPE', status: 400 });
-  }
-  const request = new Request('http://localhost', { method: 'POST', headers: { 'content-type': contentType }, body: rawBody });
-  return request.formData();
-}
-
-const str = (v) => (v == null ? undefined : String(v));
-
 function parseFileBody(req, url, body, rawBody) {
   if (body.content_base64) {
     return { filename: body.filename || 'upload.bin', buffer: Buffer.from(body.content_base64, 'base64') };
@@ -431,19 +366,6 @@ function parseFileBody(req, url, body, rawBody) {
   const filename = body.filename || req.headers['x-filename'] || url.searchParams.get('filename') || 'upload.bin';
   if (!rawBody.length) throw Object.assign(new Error('请求体为空'), { code: 'EMPTY_BODY', status: 400 });
   return { filename, buffer: rawBody };
-}
-
-function errPayload(message, code, type = 'invalid_request_error') {
-  return { error: { message, type, code } };
-}
-
-function toErrorResponse(err) {
-  if (err instanceof SessionBoxAccountError) {
-    const status = err.code === 'NO_ACCOUNT' || err.code === 'PAGE_NOT_FOUND' ? 400 : 401;
-    return { status, payload: errPayload(err.message, err.code, 'account_error') };
-  }
-  const status = Number(err.status) || 500;
-  return { status, payload: errPayload(String(err.message).slice(0, 500), err.code || 'api_error', status >= 500 ? 'server_error' : 'invalid_request_error') };
 }
 
 // ---------- main ----------

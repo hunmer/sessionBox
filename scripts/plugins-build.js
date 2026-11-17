@@ -11,17 +11,70 @@
 
 const fs = require('fs')
 const path = require('path')
+const os = require('os')
 const { execSync } = require('child_process')
 const { copyFileSync } = fs
 
 const RESOURCES_DIR = path.resolve(__dirname, '..', 'resources')
 const PLUGINS_DIR = path.join(RESOURCES_DIR, 'plugins')
 const OUTPUT_DIR = path.resolve(__dirname, '..', 'plugins')
+// 五家 AI 网关插件的公共库目录（源码树中位于 resources/plugins/_shared，
+// 插件 service/*.mjs 以 '../../_shared/xxx.mjs' 相对引用）
+const SHARED_DIR = path.join(PLUGINS_DIR, '_shared')
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true })
   }
+}
+
+/** 插件内是否有 .mjs 引用了源码树共享库（../../_shared/ 形式） */
+function referencesShared(pluginDir) {
+  if (!fs.existsSync(SHARED_DIR)) return false
+  let found = false
+  function walk(dir) {
+    if (found) return
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (found) return
+      if (e.name === 'node_modules' || e.name === '.git') continue
+      const p = path.join(dir, e.name)
+      if (e.isDirectory()) walk(p)
+      else if (e.name.endsWith('.mjs') && fs.readFileSync(p, 'utf8').includes('../_shared/')) found = true
+    }
+  }
+  walk(pluginDir)
+  return found
+}
+
+/**
+ * 构建自包含 staging 目录：插件内容 + _shared（注入插件根）。
+ * 并把各 .mjs 里指向源码树 resources/plugins/_shared 的相对 import
+ * （从文件到插件根 d 层时写作 '../'×(d+1)+'_shared/'）重写为 zip 内布局
+ * 的正确路径（'../'×d+'_shared/'，即指向插件根下的 _shared/）。
+ * 未引用 _shared 的文件保持逐字不变。
+ */
+function buildStaging(pluginDir) {
+  const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-zip-'))
+  fs.cpSync(pluginDir, staging, { recursive: true })
+  fs.cpSync(SHARED_DIR, path.join(staging, '_shared'), { recursive: true })
+  function rewrite(dir, depth) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name)
+      if (e.isDirectory()) {
+        if (e.name === 'node_modules' || e.name === '.git') continue
+        rewrite(p, depth + 1)
+      } else if (e.name.endsWith('.mjs')) {
+        const src = fs.readFileSync(p, 'utf8')
+        const from = `${'../'.repeat(depth + 1)}_shared/`
+        const to = `${'../'.repeat(depth)}_shared/`
+        if (src.includes(from)) {
+          fs.writeFileSync(p, src.split(from).join(to), 'utf8')
+        }
+      }
+    }
+  }
+  rewrite(staging, 0)
+  return staging
 }
 
 function build() {
@@ -61,6 +114,9 @@ function build() {
     }
 
     // 打包为 zip（使用 node 内置或系统 zip 命令）
+    // 引用了 _shared 共享库的插件：先构建自包含 staging（注入 _shared + 重写相对 import）
+    const needsShared = referencesShared(pluginDir)
+    const zipSource = needsShared ? buildStaging(pluginDir) : pluginDir
     const zipName = `${entry.name}.zip`
     const zipPath = path.join(OUTPUT_DIR, zipName)
 
@@ -73,16 +129,18 @@ function build() {
       // 使用 PowerShell (Windows) 或 zip (Unix) 打包
       if (process.platform === 'win32') {
         // PowerShell Compress-Archive
-        const psCmd = `Compress-Archive -Path "${pluginDir}\\*" -DestinationPath "${zipPath}" -Force`
+        const psCmd = `Compress-Archive -Path "${zipSource}\\*" -DestinationPath "${zipPath}" -Force`
         execSync(`powershell -Command "${psCmd}"`, { stdio: 'pipe' })
       } else {
         // Unix: 使用 cd + zip 避免包含完整路径
-        execSync(`cd "${pluginDir}" && zip -r "${zipPath}" .`, { stdio: 'pipe' })
+        execSync(`cd "${zipSource}" && zip -r "${zipPath}" .`, { stdio: 'pipe' })
       }
-      console.log(`打包: ${zipName}`)
+      console.log(`打包: ${zipName}${needsShared ? ' (含 _shared)' : ''}`)
     } catch (err) {
       console.warn(`打包失败: ${entry.name}`, err.message)
       continue
+    } finally {
+      if (needsShared) fs.rmSync(zipSource, { recursive: true, force: true })
     }
 
     // 复制 icon.png 到输出目录，确保 iconUrl 可访问

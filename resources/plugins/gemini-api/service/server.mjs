@@ -26,28 +26,18 @@
  */
 import { createServer } from 'node:http';
 import crypto from 'node:crypto';
-import { appendFileSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createBridgeClient } from './sessionbox.mjs';
-import { createAccountManager, SessionBoxAccountError } from './accounts.mjs';
+import { createAccountManager } from './accounts.mjs';
 import { fetchBinary, pollMediaUrl } from '../api-client.mjs';
+import {
+  createLogger, createMask, errPayload, parseJsonBody, parseForm,
+  createPickAccount, createRunWithAccount, createRequestHandler,
+} from '../../_shared/server-kit.mjs';
 
 const LOG_FILE = new URL('./service.log', import.meta.url);
-const LOG_MAX_BYTES = 5 * 1024 * 1024;
-
-/** 服务日志：stdout（由插件 main.js 转发到主进程日志）+ service.log 双写，超 5MB 截断 */
-const log = (...args) => {
-  const line = `${new Date().toISOString()} ${args.join(' ')}`;
-  console.log(`GEMINI_API ${line}`);
-  try {
-    if (statSync(LOG_FILE).size > LOG_MAX_BYTES) {
-      const tail = readFileSync(LOG_FILE, 'utf8').slice(-LOG_MAX_BYTES / 2);
-      writeFileSync(LOG_FILE, tail.slice(tail.indexOf('\n') + 1));
-    }
-  } catch { /* 文件不存在时忽略 */ }
-  try { appendFileSync(LOG_FILE, `${line}\n`); } catch { /* 日志失败不中断服务 */ }
-};
-const mask = (s) => (s ? `${String(s).slice(0, 6)}...` : '-');
+const log = createLogger({ prefix: 'GEMINI_API', logFile: LOG_FILE });
+const mask = createMask(6);
 
 // 生图指令（移植自 Gemini-FastAPI _build_image_generation_instruction）
 const IMAGE_INSTRUCTION = [
@@ -135,23 +125,19 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
     return header;
   }
 
-  async function pickAccount(req, body = {}) {
-    let explicit = req.headers['x-session-page'] || body.page_id || body.session_page || '';
-    const auth = String(req.headers.authorization || '');
-    const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-    if (!explicit && bearer && !bearer.startsWith('sk-') && !bearer.startsWith('gsk_')) {
-      const pages = await accounts.listGeminiPages();
-      if (pages.some((p) => p.id === bearer)) explicit = bearer; // api key 形式传 pageId
-    }
-    return accounts.pick(explicit || undefined);
-  }
+  const pickAccount = createPickAccount({
+    accounts,
+    listPages: () => accounts.listGeminiPages(),
+    bearerExclude: (b) => b.startsWith('sk-') || b.startsWith('gsk_'),
+  });
 
   /** 非流式账号调用 */
-  async function runWithAccount(req, body, fn) {
-    const { page, entry } = await pickAccount(req, body);
-    log(`account page=${page.id}(${page.name}) 1psid=${mask(entry.creds.cookies.find((c) => c.name === '__Secure-1PSID')?.value)}`);
-    return accounts.withClient(page.id, fn);
-  }
+  const runWithAccount = createRunWithAccount({
+    pickAccount,
+    accounts,
+    log,
+    describeEntry: (entry) => ` 1psid=${mask(entry.creds.cookies.find((c) => c.name === '__Secure-1PSID')?.value)}`,
+  });
 
   /** 收集一个完整 chat 输出（供 images / videos 端点复用） */
   async function generateForMedia(req, { prompt, images = [], model, temporary: tmp }) {
@@ -185,38 +171,15 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
     });
   }
 
-  const server = createServer((req, res) => {
-    const started = Date.now();
-    const url = new URL(req.url, 'http://x');
-    const path = url.pathname;
-
-    res.setHeader('access-control-allow-origin', '*');
-    res.setHeader('access-control-allow-headers', 'authorization, content-type, x-session-page');
-    res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
-
-    req.on('error', () => {});
-    const chunks = [];
-    req.on('data', (c) => chunks.push(c));
-
-    req.on('end', () => {
-      handle(req, res, path, url, Buffer.concat(chunks))
-        .catch((err) => {
-          const { status, payload } = toErrorResponse(err);
-          if (!res.headersSent) {
-            res.writeHead(status, { 'content-type': 'application/json' });
-            res.end(JSON.stringify(payload));
-          } else res.end();
-          log(`${req.method} ${path} -> ${status} (${Date.now() - started}ms) error=${err.code || ''} ${String(err.message).slice(0, 300)}`);
-        })
-        .finally(() => {
-          if (res.writableEnded) log(`${req.method} ${path} -> ${res.statusCode} (${Date.now() - started}ms)`);
-        });
-    });
-  });
+  const server = createServer(createRequestHandler({
+    handle,
+    log,
+    allowHeaders: 'authorization, content-type, x-session-page',
+  }));
 
   async function handle(req, res, path, url, rawBody) {
-    const body = parseJsonBody(req, rawBody);
+    // gemini 宽容语义：非法 JSON 静默返回 {}（区别于 dola/l0veyou 的 INVALID_JSON 400）
+    const body = parseJsonBody(req, rawBody, { strict: false });
     const json = (status, data) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
 
     if (req.method === 'GET' && path === '/health') {
@@ -546,16 +509,6 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
     };
   }
 
-  /** 解析 multipart/form-data（借助 Node 内置 Request.formData，零依赖） */
-  async function parseForm(req, rawBody) {
-    const contentType = req.headers['content-type'];
-    if (!contentType || !contentType.includes('multipart/form-data')) {
-      throw Object.assign(new Error('content-type 需为 multipart/form-data'), { code: 'INVALID_CONTENT_TYPE', status: 400 });
-    }
-    const request = new Request('http://localhost', { method: 'POST', headers: { 'content-type': contentType }, body: rawBody });
-    return request.formData();
-  }
-
   await new Promise((r) => server.listen(port, host, r));
   log(`gemini-api 服务已启动 ${host}:${server.address().port} bridge=${bridgeUrl}`);
   return {
@@ -563,24 +516,6 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
     port: server.address().port,
     close: () => new Promise((r) => server.close(r)),
   };
-}
-
-function parseJsonBody(req, rawBody) {
-  if (!rawBody.length || !(req.headers['content-type'] || '').includes('application/json')) return {};
-  try { return JSON.parse(rawBody.toString('utf8')); } catch { return {}; }
-}
-
-function errPayload(message, code, type = 'invalid_request_error') {
-  return { error: { message, type, code } };
-}
-
-function toErrorResponse(err) {
-  if (err instanceof SessionBoxAccountError) {
-    const status = err.code === 'NO_ACCOUNT' || err.code === 'PAGE_NOT_FOUND' ? 400 : 401;
-    return { status, payload: errPayload(err.message, err.code, 'account_error') };
-  }
-  const status = Number(err.status) || 500;
-  return { status, payload: errPayload(String(err.message).slice(0, 500), err.code || 'api_error', status >= 500 ? 'server_error' : 'invalid_request_error') };
 }
 
 // ---------- main ----------

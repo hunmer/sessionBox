@@ -19,30 +19,20 @@
  * 环境变量: LOVEYOU_PORT(19202) SESSIONBOX_API_URL(127.0.0.1:19100) SESSIONBOX_API_TOKEN
  */
 import { createServer } from 'node:http';
-import { appendFileSync, readFileSync, writeFileSync, statSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { createBridgeClient } from './sessionbox.mjs';
-import { createAccountManager, SessionBoxAccountError } from './accounts.mjs';
+import { createAccountManager } from './accounts.mjs';
 import { MODELS, ASPECT_RATIOS } from '../api-client.mjs';
+import {
+  createLogger, createMask, str, errPayload, toErrorResponse, parseJsonBody, parseForm,
+  createPickAccount, createRunWithAccount, createRequestHandler,
+} from '../../_shared/server-kit.mjs';
 
 const DEFAULT_MODEL = 'gpt-image-2';
 const ALL_MODELS = MODELS.image;
 const LOG_FILE = new URL('./service.log', import.meta.url);
-const LOG_MAX_BYTES = 5 * 1024 * 1024;
-
-/** 服务日志：stdout（由插件 main.js 转发到主进程日志）+ service.log 双写，超 5MB 截断 */
-const log = (...args) => {
-  const line = `${new Date().toISOString()} ${args.join(' ')}`;
-  console.log(`L0VEYOU_API ${line}`);
-  try {
-    if (statSync(LOG_FILE).size > LOG_MAX_BYTES) {
-      const tail = readFileSync(LOG_FILE, 'utf8').slice(-LOG_MAX_BYTES / 2);
-      writeFileSync(LOG_FILE, tail.slice(tail.indexOf('\n') + 1));
-    }
-  } catch { /* 文件不存在时忽略 */ }
-  try { appendFileSync(LOG_FILE, `${line}\n`); } catch { /* 日志失败不中断服务 */ }
-};
-const mask = (s) => (s ? `${String(s).slice(0, 8)}...` : '-');
+const log = createLogger({ prefix: 'L0VEYOU_API', logFile: LOG_FILE });
+const mask = createMask(8);
 
 /** OpenAI size（1024x1024、1536x1024 等）或原生比例（16:9）→ l0veyou aspect_ratio */
 function toRatio(size) {
@@ -76,53 +66,14 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
   const bridge = createBridgeClient({ baseUrl: bridgeUrl, token: bridgeToken });
   const accounts = createAccountManager({ bridge, baseUrl, onLog: log });
 
-  /** 从请求解析账号选择与凭据，返回 { page, entry } */
-  async function pickAccount(req, body = {}) {
-    let explicit = req.headers['x-session-page'] || body.page_id || body.session_page || '';
-    const auth = String(req.headers.authorization || '');
-    const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-    if (!explicit && bearer) {
-      const pages = await accounts.listL0veyouPages();
-      if (pages.some((p) => p.id === bearer)) explicit = bearer; // api key 形式传 pageId
-    }
-    return accounts.pick(explicit || undefined);
-  }
+  const pickAccount = createPickAccount({ accounts, listPages: () => accounts.listL0veyouPages() });
+  const runWithAccount = createRunWithAccount({ pickAccount, accounts, log, describeEntry: (entry) => ` token=${mask(entry.creds.token)}` });
 
-  async function runWithAccount(req, body, fn) {
-    const { page, entry } = await pickAccount(req, body);
-    log(`account page=${page.id}(${page.name}) token=${mask(entry.creds.token)}`);
-    return accounts.withClient(page.id, fn);
-  }
-
-  const server = createServer((req, res) => {
-    const started = Date.now();
-    const url = new URL(req.url, 'http://x');
-    const path = url.pathname;
-
-    res.setHeader('access-control-allow-origin', '*');
-    res.setHeader('access-control-allow-headers', 'authorization, content-type, x-session-page, x-filename');
-    res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
-
-    req.on('error', () => {});
-    const chunks = [];
-    req.on('data', (c) => chunks.push(c));
-
-    req.on('end', () => {
-      handle(req, res, path, url, Buffer.concat(chunks))
-        .catch((err) => {
-          const { status, payload } = toErrorResponse(err);
-          if (!res.headersSent) {
-            res.writeHead(status, { 'content-type': 'application/json' });
-            res.end(JSON.stringify(payload));
-          } else res.end();
-          log(`${req.method} ${path} -> ${status} (${Date.now() - started}ms) error=${err.code || ''} ${String(err.message).slice(0, 300)}`);
-        })
-        .finally(() => {
-          if (res.writableEnded) log(`${req.method} ${path} -> ${res.statusCode} (${Date.now() - started}ms)`);
-        });
-    });
-  });
+  const server = createServer(createRequestHandler({
+    handle,
+    log,
+    allowHeaders: 'authorization, content-type, x-session-page, x-filename',
+  }));
 
   async function handle(req, res, path, url, rawBody) {
     const body = parseJsonBody(req, rawBody);
@@ -271,41 +222,6 @@ export async function startServer({ port = 0, host = '127.0.0.1', bridgeUrl, bri
     port: server.address().port,
     close: () => new Promise((r) => server.close(r)),
   };
-}
-
-function parseJsonBody(req, rawBody) {
-  if (!rawBody.length || !(req.headers['content-type'] || '').includes('application/json')) return {};
-  let parsed;
-  try { parsed = JSON.parse(rawBody.toString('utf8')); } catch {
-    // 明确报错而非静默返回 {}：否则字段校验会误报（如 body 实为 "[object Object]"）
-    throw Object.assign(new Error(`请求体不是合法 JSON: ${rawBody.toString('utf8').slice(0, 60)}`), { code: 'INVALID_JSON', status: 400 });
-  }
-  return parsed && typeof parsed === 'object' ? parsed : {};
-}
-
-/** 解析 multipart/form-data（借助 Node 内置 Request.formData，零依赖） */
-async function parseForm(req, rawBody) {
-  const contentType = req.headers['content-type'];
-  if (!contentType || !contentType.includes('multipart/form-data')) {
-    throw Object.assign(new Error('content-type 需为 multipart/form-data'), { code: 'INVALID_CONTENT_TYPE', status: 400 });
-  }
-  const request = new Request('http://localhost', { method: 'POST', headers: { 'content-type': contentType }, body: rawBody });
-  return request.formData();
-}
-
-const str = (v) => (v == null ? undefined : String(v));
-
-function errPayload(message, code, type = 'invalid_request_error') {
-  return { error: { message, type, code } };
-}
-
-function toErrorResponse(err) {
-  if (err instanceof SessionBoxAccountError) {
-    const status = err.code === 'NO_ACCOUNT' || err.code === 'PAGE_NOT_FOUND' ? 400 : 401;
-    return { status, payload: errPayload(err.message, err.code, 'account_error') };
-  }
-  const status = Number(err.status) || 500;
-  return { status, payload: errPayload(String(err.message).slice(0, 500), err.code || 'api_error', status >= 500 ? 'server_error' : 'invalid_request_error') };
 }
 
 // ---------- main ----------
