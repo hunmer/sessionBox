@@ -4,7 +4,7 @@
 
 ## 简介
 
-Electron 主进程：应用生命周期、窗口、`WebContentsView`（标签页 WebView）生命周期、IPC（30+ 模块）、数据持久化（electron-store + JsonStore）、代理、自定义协议、Chrome 扩展、Aria2 下载、系统托盘、自动更新、快捷键、标签冻结、AI 代理网关（API Key 中转 + SSE + tool_use 多轮）、MCP Server、插件系统、密码/Favicon/技能存储、页面提取、rrweb 调试器与操作录制/回放。
+Electron 主进程：应用生命周期、多 Profile 启动（`bootstrap.ts` 重定向 userData）、窗口、`WebContentsView`（标签页 WebView）生命周期、IPC（20 模块）、数据持久化（electron-store + JsonStore）、代理、自定义协议、Chrome 扩展（vendored `packages/electron-chrome-extensions`）、Aria2 下载、系统托盘、自动更新、快捷键、标签冻结、AI 代理网关（API Key 中转 + SSE + tool_use 多轮）、MCP Server、插件系统、密码/Favicon/技能存储、页面提取、操作录制/回放、数据同步客户端（sync-* ↔ `server/sync-server.mjs`）、悬浮球（floating-ball-preload）。
 
 ## 约定（高优先级）
 
@@ -33,6 +33,6 @@ Electron 主进程：应用生命周期、窗口、`WebContentsView`（标签页
 
 ## 扫描状态
 
-- 更新时间：2026-07-29 15:39
-- 已扫描：`electron/` 全部（main、ipc/、services/ 含 webview/·ai-proxy/·mcp/、utils/、composables/、调试器资产）。
-- 纠正：webview-manager 拆分；补录调试器/操作录制回放；store.ts schema 补全。
+- 更新时间：2026-11-17 23:45
+- 已扫描：`electron/` 全部（main、bootstrap、ipc/ 20 模块、services/ 50+ 含 webview/·mcp/·plugin-*·sync-*·external-auth-*、utils/、composables/、floating-ball-preload.ts）。
+- 纠正：移除已删的调试器窗口资产（debugger-window.html / debugger-preload.ts 等）；ipc 现为 20 模块；新增 sync-*、procm、悬浮球。

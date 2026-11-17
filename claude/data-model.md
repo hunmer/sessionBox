@@ -32,7 +32,7 @@ SniffedResource (嗅探到的网络资源)
 
 ### 1. electron-store（核心结构化数据，`electron/services/store.ts`）
 
-`StoreSchema` keys：`workspaces`、`groups`、`containers`、`pages`、`proxies`、`tabs`、`extensions`、`containerExtensions`、`windowState`、`tabFreezeMinutes`、`restoreLastUrl`、`minimizeOnClose`、`shortcuts`、`mutedSites`、`splitStates`、`splitSchemes`、`trayWindowSizes`、`updateSources`、`activeUpdateSourceId`、`snifferDomains`、`searchEngines`、`defaultSearchEngineId`、`defaultContainerId`、`zoomPreferences`、`aiProviders`。
+`StoreSchema` keys：`workspaces`、`groups`、`containers`、`pages`、`proxies`、`tabs`、`extensions`、`containerExtensions`、`windowState`、`tabFreezeMinutes`、`restoreLastUrl`、`tabImplementation`、`minimizeOnClose`、`shortcuts`、`mutedSites`、`splitStates`、`splitSchemes`、`trayWindowSizes`、`floatingBallStates`、`updateSources`、`activeUpdateSourceId`、`snifferDomains`、`searchEngines`、`defaultSearchEngineId`、`defaultContainerId`、`zoomPreferences`、`aiProviders`。
 
 > 书签 / 密码已从 electron-store 迁出到独立 JsonStore。
 

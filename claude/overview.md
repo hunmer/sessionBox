@@ -12,11 +12,11 @@ SessionBox 是一个基于 **Electron + Vue 3** 的**多账号浏览器管理桌
 
 | 进程 | 目录 | 运行时 | 职责摘要 |
 |------|------|--------|----------|
-| 主进程 | `electron/` | Node + Electron | 窗口、WebContentsView 生命周期、IPC（30+ 模块）、数据持久化、代理、自定义协议、扩展、Aria2、托盘、自动更新、快捷键、AI 代理网关、MCP Server、插件、密码/Favicon/技能存储、页面提取、rrweb 调试器与操作录制/回放 |
-| 预加载 | `preload/` | 隔离上下文 | `contextBridge` 暴露类型安全的 `window.api`（32 个命名空间） |
-| 渲染进程 | `src/` | Chromium | Vue 3 + Pinia（21 Store）+ Tailwind 4 + shadcn-vue + Dexie(IndexedDB) 历史/聊天 + AI Agent |
+| 主进程 | `electron/` | Node + Electron 44 | 窗口、WebContentsView 生命周期、IPC（20 模块）、数据持久化、代理、自定义协议、扩展、Aria2、托盘、自动更新、快捷键、AI 代理网关、MCP Server、插件、密码/Favicon/技能存储、页面提取、操作录制/回放、数据同步客户端 |
+| 预加载 | `preload/` | 隔离上下文 | `contextBridge` 暴露类型安全的 `window.api`（36 个命名空间）；另有悬浮球独立预加载 `electron/floating-ball-preload.ts` |
+| 渲染进程 | `src/` | Chromium | Vue 3 + Pinia（23 Store）+ Tailwind 4 + shadcn-vue + Dexie(IndexedDB) 历史/聊天 + AI Agent |
 
-> 注：调试器有独立窗口与预加载脚本（`electron/debugger-window.html`、`electron/debugger-preload.ts`、`electron/debugger-replay.html`、`electron/debugger-replay-preload.ts`），由 `electron.vite.config.ts` 额外构建入口产出。
+外围模块（非三进程）：`server/sync-server.mjs`（独立同步后端）、`resources/plugins/`（内置 AI 网关插件源码，构建产物 `plugins/*.zip`）、`packages/electron-chrome-extensions`（vendored workspace 子包，扩展宿主支持库 GPL 魔改）。
 
 ## 数据流向
 
@@ -24,6 +24,7 @@ SessionBox 是一个基于 **Electron + Vue 3** 的**多账号浏览器管理桌
 2. **AI 聊天**：渲染进程构造请求 → `chat:completions` IPC → 主进程 `ai-proxy` 注入 API Key → SSE 流转发 → 渲染进程实时渲染（支持 tool_use 多轮循环）。
 3. **插件事件**：IPC handle 包装层广播 `ipc:{channel}` 事件 → `pluginEventBus` → 插件监听。
 4. **主进程推送**：`webContents.send('on:...')` → 渲染进程 Store/组件监听。
+5. **数据同步**：`src/lib/sync-merge.ts`（三方合并）+ `electron/services/sync-store.ts`/`sync-cookies.ts` ↔ 独立后端 `server/sync-server.mjs`（`/api/<user>/<type>` GET/PUT/DELETE JSON 快照，白名单类型 bookmarks/history/extensions/plugins/proxies/containers）。
 
 ## 关键设计取舍
 
@@ -33,3 +34,5 @@ SessionBox 是一个基于 **Electron + Vue 3** 的**多账号浏览器管理桌
 - **API Key 安全中转**：AI API Key 仅在主进程 `ai-proxy` 中组装，不进入渲染进程。
 - **窗口无边框**：`frame:false, transparent:true`，拖拽区由 CSS `-webkit-app-region: drag` 实现；关闭行为可配置（隐藏到托盘 / 直接退出）。
 - **类型三处同步**：`src/types/index.ts`、`electron/services/store.ts`、`preload/index.ts` 的接口定义须保持一致。
+- **扩展宿主 vendored**：`packages/electron-chrome-extensions` 以 workspace 子包形式内嵌（GPL），定制改动需在包内维护，勿在主仓库 fork 逻辑。
+- **多 Profile 启动**：`electron/bootstrap.ts` 解析 `--profile=<id>`/`--profile-selector` 重定向 userData，必须先于所有服务模块 import。

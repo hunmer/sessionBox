@@ -5,7 +5,7 @@
 | 子目录 | 职责 |
 |--------|------|
 | `src/components/` | UI 组件（15 业务子目录 + `ui/` shadcn 基础组件） |
-| `src/stores/` | Pinia 状态管理（21 Store） |
+| `src/stores/` | Pinia 状态管理（23 Store） |
 | `src/composables/` | 组合函数（5 个） |
 | `src/lib/` | 工具函数（含 `agent/`） |
 | `src/types/` | 类型定义（index/split/plugin/command） |

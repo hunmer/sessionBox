@@ -6,15 +6,20 @@
 
 ```bash
 pnpm install          # 安装依赖（包管理器固定为 pnpm@10.17.1）
-pnpm dev              # 开发模式（热重载，electron-vite dev）
-pnpm build            # 构建（main + preload + renderer）
+pnpm dev              # 开发模式（先 build:extensions 再 electron-vite dev 热重载）
+pnpm build            # 构建（先 build:extensions 再 main + preload + renderer）
 pnpm preview          # 预览构建结果
+pnpm type-check       # vue-tsc 类型检查（渲染进程）
 pnpm pack             # 生产打包（scripts/build-production.js local）
 pnpm pack:release     # 发布打包
 pnpm pack:dir         # 仅打包目录（不生成安装包）
+pnpm pack:mac         # mac 快速打包（scripts/pack-mac-quick.js）
+pnpm sync-server      # 启动数据同步后端（默认 :37400）
+pnpm sync-server:test # 跑同步后端 node:test 测试
+pnpm build:extensions # 单独构建 packages/electron-chrome-extensions 子包
 ```
 
-> 无测试命令、无 lint 脚本入口（见 [testing-and-quality.md](testing-and-quality.md)）。
+> 无统一 test/lint 脚本入口；零散 node:test 文件清单见 [testing-and-quality.md](testing-and-quality.md)。
 
 ## 高优先级约定（对 Agent 最重要）
 
@@ -32,14 +37,16 @@ pnpm pack:dir         # 仅打包目录（不生成安装包）
 - 样式：Tailwind CSS 4 + CSS 变量主题（6 种预设：默认 / Apple / Google / Tesla / Spotify / NVIDIA）。
 - 组件库：基于 Radix Vue / reka-ui 的 shadcn-vue 组件（`src/components/ui/`）。
 - 图标：`lucide-vue-next`，动态解析器在 `src/lib/lucide-resolver.ts`。
-- 状态管理：Pinia Composition API 风格，21 个 Store。
+- 状态管理：Pinia Composition API 风格，23 个 Store。
+- 同步：`src/lib/sync-merge.ts` 三方合并 + `server/sync-server.mjs` 后端（明文、免密，仅可信内网）。
 - 拖拽排序：`vuedraggable`（分组/标签页）+ 自定义拖拽协议（书签）。
 - 持久化分层：electron-store（核心）/ JsonStore（书签·密码·插件）/ Dexie（历史·聊天）/ 文件目录（图标·截图·技能）。
 - 下载：Aria2 RPC，内置 aria2c 二进制（Windows）。
 - 扩展：`electron-chrome-extensions`。
 - AI 代理：主进程 `ai-proxy` SSE 流 + tool_use 多轮循环；`@langchain/anthropic` + `langchain`。
 - MCP Server：`@modelcontextprotocol/sdk`，SSE 传输，默认端口 **9527**。
-- 调试器：rrweb（CDN 注入录制/回放）+ 操作录制/回放（`action-recorder`/`action-player`）。
+- 调试器：操作录制/回放（`action-recorder`/`action-player`，IPC `electron/ipc/debugger.ts`）。
+- 插件体系：`resources/plugins/*` 为内置 AI 网关插件源（mjs/py 反代第三方 API），`scripts/plugins-build.js` 打成 `plugins/*.zip` 由插件系统加载。
 
 ## ESLint 规则要点（`eslint.config.js`）
 
@@ -52,4 +59,4 @@ pnpm pack:dir         # 仅打包目录（不生成安装包）
 
 - `DESIGN.md`：MiniMax 风格设计系统灵感（配色、字体、圆角、阴影、间距）。
 - `README.md`：项目结构与快速开始。
-- `docs/`：功能规划与设计文档（`docs/superpowers/specs/*`、`docs/superpowers/plans/*`）。
+- `docs/`：设计文档（3 篇）+ 功能依赖图谱（`feature_map.json` / `feature_map.html`，37 节点）。

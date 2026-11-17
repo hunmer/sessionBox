@@ -2,7 +2,7 @@
 
 # src/ 架构总览
 
-Vue 3 **渲染进程**：UI 渲染、用户交互、通过 `window.api` 与主进程通信、Pinia 状态管理（21 Store）、主题切换、布局管理、本地历史与 AI 聊天记录（Dexie）、AI Agent 工具发现、命令面板。
+Vue 3 **渲染进程**：UI 渲染、用户交互、通过 `window.api` 与主进程通信、Pinia 状态管理（23 Store）、主题切换、壁纸、布局管理、本地历史与 AI 聊天记录（Dexie）、AI Agent 工具发现、命令面板、数据同步合并（`src/lib/sync-merge.ts`）。
 
 ## 运行时形态
 

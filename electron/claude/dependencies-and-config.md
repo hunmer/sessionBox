@@ -21,7 +21,7 @@
 ## 配置/路径约定
 
 - 用户数据目录：`app.getPath('userData')` 下 `container-icons/`、`account-icons/`、`site-icons/`、`ai-screenshots/`、`skills/`、`plugin-data/`、`bookmark-store.json`、`password-store.json`。
-- rrweb：经 CDN 注入（`RRWEB_CDN`），事件上限 `MAX_EVENTS=10000`、单条 1MB。
+- rrweb CDN 注入常量（`RRWEB_CDN`/`MAX_EVENTS`）已随调试器窗口移除，代码中无引用。
 - 操作录制：`MAX_STEPS=5000`、`MAX_STEP_SIZE`、`ACTION_PREFIX`。
 - 缩放范围：`[-3, 7]`，持久化 `zoomPreferences[pageId]`。
 - MCP 默认端口 **9527**。

@@ -39,7 +39,7 @@
 | `services/ai-proxy-tools.ts` | AI 工具执行（浏览器/页面/窗口/技能/JS 注入） |
 | `services/mcp/` | server.ts / types.ts / tools/(index\|query\|tab\|cdp\|window).ts |
 | `services/plugin-manager.ts` `plugin-context.ts` `plugin-storage.ts` `plugin-event-bus.ts` `plugin-types.ts` | 插件系统 |
-| `services/debugger.ts` | rrweb 录制/回放（CDN 注入） |
+| `services/sync-store.ts` `sync-cookies.ts` | 数据同步客户端（配置/Cookie 快照，对接 `server/sync-server.mjs`） |
 | `services/action-recorder.ts` `action-player.ts` | 操作录制 / 回放 |
 
 ## 工具与 composables

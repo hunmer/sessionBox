@@ -4,6 +4,7 @@
 
 | 时间 | 操作 | 说明 |
 |------|------|------|
+| 2026-11-17 23:45 | 全量同步 | HEAD 9fb5213：stores 21→23（补 toolbar/wallpaper）；composables 5→7（新增 useNotification/useProfiles/useSync）；components 18 业务子目录 + ui/ 204；新增同步合并 `lib/sync-merge.ts`（含 node:test）；lib/agent 4 文件（agent/stream/system-prompt/tools 855 行） |
 | 2026-07-29 15:39 | 重构 + 同步现状 | 拆为 index + claude/ 详情；据当前代码纠正：移除工作流相关（lib/workflow、workflow store、workflow 组件）；stores 实为 21（补 chat-ui）；components 补 containers/proxy、移除 workflow |
 | 2026-04-17 18:08 | 增量更新 | 旧文档：新增 AI Provider/Chat/MCP/Plugin/Sniffer/Password 等 Store、Agent 系统、工作流编辑器、Dexie 聊天库、命令面板 |
 | 2026-04-13 10:44 | 增量更新 | 旧文档：14 Store、Dexie 历史、分屏布局、书签导入导出、主题预设 |

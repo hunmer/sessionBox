@@ -26,7 +26,10 @@
 | 命令面板 | `src/composables/useCommandPalette.ts`、`src/components/command-palette/`、`src/types/command.ts` |
 | 技能系统 | `electron/services/skill-store.ts`、`src/lib/agent/tools.ts` |
 | 页面内容提取 | `electron/services/page-extractor.ts` |
-| 调试器 / 操作录制回放 | `electron/services/debugger.ts`、`action-recorder.ts`、`action-player.ts`、`electron/ipc/debugger.ts`、`electron/debugger-window.html` |
+| 操作录制回放 / 调试 | `electron/ipc/debugger.ts`、`electron/services/action-recorder.ts`、`action-player.ts`（独立调试器窗口与 `electron/services/debugger.ts` 已移除） |
+| 数据同步 | `electron/services/sync-store.ts`、`electron/services/sync-cookies.ts`、`src/lib/sync-merge.ts`、`src/stores/sync.ts`、`server/sync-server.mjs` |
+| 内置 AI 网关插件 | `resources/plugins/*/service/`（源码）、`scripts/plugins-build.js`（打包）、`plugins/`（产物） |
+| 悬浮球 | `electron/floating-ball-preload.ts`、`electron/services/floating-ball*.ts`、悬浮球 UI 组件 |
 | Favicon 缓存 | `electron/services/favicon-cache.ts` |
 | 书签 | `electron/services/bookmark-store.ts`、`src/stores/bookmark.ts`、`src/components/bookmarks/` |
 
@@ -49,5 +52,6 @@
 
 ## 已知不一致（旧文档 vs 现状）
 
-- 旧 `CLAUDE.md` 描述的工作流编辑器（`src/lib/workflow/`、workflow store、workflow 组件、preload workflow 命名空间）**已不存在**于当前代码，本文档不再收录。
-- 旧文档 preload 称 33 命名空间，实际为 **32**（含 `theme`、`system`、`debugger`，无 workflow 系列）。
+- 旧 `CLAUDE.md` 描述的工作流编辑器（`src/lib/workflow/`、workflow store、workflow 组件、preload workflow 命名空间）**已不存在**于当前代码，本文档不再收录；`@vue-flow/*` 5 包与 `@dagrejs/dagre` 为遗留依赖。
+- 旧文档 preload 称 32/33 命名空间，实际为 **36**（含 `sync`、`data`、`browser`、`agent`、`skill`、`profile` 等）。
+- 独立调试器窗口（`electron/debugger-window.html`、`debugger-preload.ts`、`debugger-replay-preload.ts`）与 `electron/services/debugger.ts` 已移除；现存调试能力 = `electron/ipc/debugger.ts` + `action-recorder/player` + preload `debugger` 命名空间。

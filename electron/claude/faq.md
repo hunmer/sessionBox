@@ -13,7 +13,7 @@
 | AI Key 组装/SSE/工具循环 | `services/ai-proxy.ts`（`proxyChatCompletions`、`executeTool`、`activeRequests`） |
 | AI 工具实现 | `services/ai-proxy-tools.ts`（executeCreateTab/Window/Browser/Page/Skill/InjectJs） |
 | MCP 工具注册 | `services/mcp/tools/index.ts` → query/tab/cdp/window |
-| 操作录制/回放 | `services/action-recorder.ts`（录制）+ `action-player.ts`（回放）+ `debugger.ts`（rrweb） |
+| 操作录制/回放 | `services/action-recorder.ts`（录制）+ `action-player.ts`（回放）+ `ipc/debugger.ts`（18 通道；独立调试器窗口已移除） |
 | 插件存储 | `services/plugin-storage.ts`（每插件 `storage.json`）+ `plugin-data/disabled.json` |
 | 数据迁移幂等 | `services/migration.ts` |
 

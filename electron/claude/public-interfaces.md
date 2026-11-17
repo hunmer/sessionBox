@@ -34,6 +34,10 @@
 **快捷键** — `electron/ipc/shortcut.ts`：`list update clear reset`
 **自动更新** — `electron/ipc/updater.ts`：`check download install get-version get-info`
 **网络嗅探** — `electron/ipc/sniffer.ts`：`toggle setDomainEnabled getDomainList clearResources getState`
+**站点数据** — `electron/ipc/site-data.ts`：`siteData:getInfo clear importCookies exportCookies`
+**数据同步** — `electron/ipc/sync.ts`：`sync:getConfig setConfig testConnection getContainerCookies setContainerCookies applyContainers applyProxies applyBookmarks`
+**多 Profile** — `electron/ipc/profile.ts`：`profile:list create current launch create-desktop-shortcut open-selector`
+**扩展下载** — `electron/ipc/extension-download.ts`：从 Chrome Web Store update2/crx 端点下载安装（配合 `extension:installFromWebStore`，有 node:test）
 
 **AI 聊天 / Agent / 浏览器交互** — `electron/ipc/chat.ts`
 - `chat:completions`（流式，SSE 经 `webContents.send` 转发）、`chat:abort`
@@ -45,10 +49,11 @@
 **MCP Server** — `electron/ipc/mcp.ts`：`start stop get-status`
 **插件** — `electron/ipc/plugin.ts`：`list enable disable get-view get-icon import-zip open-folder install uninstall`
 
-**调试器 / 操作录制回放** — `electron/ipc/debugger.ts`（`registerDebuggerIpcHandlers`，全 invoke）
-- `debugger:create-window get-tabs get-target-info`
-- `debugger:inject-action-recorder start-action-record stop-action-record get-action-run export-action-run`
-- `debugger:play-action-run stop-action-play`
+**操作录制回放** — `electron/ipc/debugger.ts`（`registerDebuggerIpcHandlers`，全 invoke；独立调试器窗口已移除，无 create-window）
+- `debugger:get-tabs get-target-info`
+- `debugger:get-action-run clear-action-steps export-action-run inject-action-recorder start-action-record stop-action-record highlight-action-step`
+- `debugger:play-action-run stop-action-play save-action-preset list-action-presets load-action-preset update-action-preset delete-action-preset`
+- 推送：`debugger:action-step`（步骤高亮）、`debugger:action-play-state`（回放状态）
 - `debugger:save-action-preset list-action-presets load-action-preset`
 - `debugger:load-url window-minimize window-maximize window-close`
 - `debugger:get-embedded-wcid set-embedded-wcid`

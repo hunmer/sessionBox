@@ -28,9 +28,16 @@
 - 暴露约 20 个工具：浏览器/工作区/书签查询、标签页控制、JS/CDP 执行、截图、独立窗口管理。详见 [electron/claude/data-model.md](../electron/claude/data-model.md)。
 - 实现在 `electron/services/mcp/`，启停 IPC：`mcp:start` / `mcp:stop` / `mcp:get-status`。
 
+## 同步后端（server/sync-server.mjs，独立 HTTP 服务）
+
+- 启动：`node server/sync-server.mjs [--port 37400] [--dir ./data]`（`pnpm sync-server`）。
+- 路由：`/api/<userId>/<type>`，GET（读快照）/ PUT（写）/ DELETE（删）；`type` 白名单 `bookmarks/history/extensions/plugins/proxies/containers`。
+- **免密、明文存储**（`data/<userId>/<type>.json` 原子写），仅供可信内网自建；单请求体上限 64MB。
+- 客户端：`electron/services/sync-store.ts` + `sync-cookies.ts`，合并策略 `src/lib/sync-merge.ts`。
+
 ## IPC 通信契约（高层）
 
-- 渲染进程通过 `window.api.{namespace}.{method}` 调用（32 个命名空间，见 [preload/claude/public-interfaces.md](../preload/claude/public-interfaces.md)）。
+- 渲染进程通过 `window.api.{namespace}.{method}` 调用（36 个命名空间，见 [preload/claude/public-interfaces.md](../preload/claude/public-interfaces.md)）。
 - 主进程→渲染进程推送：`webContents.send('on:...')`，事件前缀统一 `on:`。
 - 所有 IPC handle 调用经包装层广播 `ipc:{channel}` 到 `pluginEventBus`，供插件监听。
 

@@ -8,7 +8,7 @@
 
 `sessionbox://bookmarks` `history` `downloads` `passwords` `plugins` 等（由 `components/common/InternalPageHost.vue` 承载，不走 WebContentsView）。
 
-## Pinia Stores（src/stores/，共 21 个）
+## Pinia Stores（src/stores/，共 23 个）
 
 | Store | 文件 | 职责 |
 |-------|------|------|
@@ -33,10 +33,12 @@
 | usePluginStore | plugin.ts | 插件列表、启用/禁用、导入/安装/卸载 |
 | useSnifferStore | sniffer.ts | 网络嗅探（资源捕获、域名管理） |
 | usePasswordStore | password.ts | 密码/笔记（按站点分组） |
+| useToolbarStore | toolbar.ts | 工具栏项管理（含 node:test） |
+| useWallpaperStore | wallpaper.ts | 壁纸管理（导入/列表/删除） |
 
 > 无 workflow store（工作流已移除）。
 
-## Composables（src/composables/，5 个）
+## Composables（src/composables/，7 个）
 
 | 函数 | 文件 | 用途 |
 |------|------|------|

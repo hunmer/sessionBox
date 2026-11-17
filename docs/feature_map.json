@@ -1,0 +1,4980 @@
+{
+  "project": "SessionBox",
+  "description": "SessionBox 功能依赖图谱：哪些功能用到哪些文件",
+  "generated": "2026-11-17",
+  "head_commit": "9fb5213",
+  "legend": {
+    "types": "ts/vue=源码 mjs/js=脚本 py=Python config=配置 md=文档 data=二进制资源 sh=脚本",
+    "note": "一个文件可归属多个功能（shared）；vendored 为第三方模块级收录"
+  },
+  "tree": [
+    {
+      "id": "electron",
+      "name": "主进程 Electron",
+      "icon": "🖥️",
+      "children": [
+        {
+          "id": "main.core",
+          "name": "启动与核心装配",
+          "desc": "主进程入口、profile 启动参数、悬浮球 preload、自动更新、通用工具",
+          "files": [
+            {
+              "path": "electron/bootstrap.ts",
+              "type": "ts",
+              "lines": 43,
+              "role": "启动参数解析与 userData 重定向（--profile/--profile-selector），必须先于所有服务 import"
+            },
+            {
+              "path": "electron/composables/useAutoUpdater.ts",
+              "type": "ts",
+              "lines": 243,
+              "role": "electron-updater 自动更新封装"
+            },
+            {
+              "path": "electron/floating-ball-preload.ts",
+              "type": "ts",
+              "lines": 7,
+              "role": ""
+            },
+            {
+              "path": "electron/main.ts",
+              "type": "ts",
+              "lines": 549,
+              "role": "主进程入口：窗口创建、协议注册、服务装配、单实例锁"
+            },
+            {
+              "path": "electron/utils/json-store.ts",
+              "type": "ts",
+              "lines": 45,
+              "role": "JSON 文件存储工具（原子写）"
+            },
+            {
+              "path": "electron/utils/user-agent.ts",
+              "type": "ts",
+              "lines": 140,
+              "role": "UA 定制与 client hints 重写"
+            }
+          ]
+        },
+        {
+          "id": "main.webview",
+          "name": "WebContentsView 标签页",
+          "desc": "webview 子模块：tab-view、冻结、缩放、事件、协议拦截、嗅探",
+          "files": [
+            {
+              "path": "electron/services/webview-manager.ts",
+              "type": "ts",
+              "lines": 983,
+              "role": "WebContentsView 标签页管理核心：创建/附着/生命周期/导航"
+            },
+            {
+              "path": "electron/services/webview/blocked-protocols.ts",
+              "type": "ts",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "electron/services/webview/events.ts",
+              "type": "ts",
+              "lines": 397,
+              "role": ""
+            },
+            {
+              "path": "electron/services/webview/freeze.ts",
+              "type": "ts",
+              "lines": 36,
+              "role": ""
+            },
+            {
+              "path": "electron/services/webview/proxy.ts",
+              "type": "ts",
+              "lines": 167,
+              "role": ""
+            },
+            {
+              "path": "electron/services/webview/sniffer.ts",
+              "type": "ts",
+              "lines": 87,
+              "role": ""
+            },
+            {
+              "path": "electron/services/webview/tab-view.ts",
+              "type": "ts",
+              "lines": 74,
+              "role": ""
+            },
+            {
+              "path": "electron/services/webview/types.ts",
+              "type": "ts",
+              "lines": 48,
+              "role": ""
+            },
+            {
+              "path": "electron/services/webview/zoom.ts",
+              "type": "ts",
+              "lines": 44,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "main.ipc",
+          "name": "IPC 通道层",
+          "desc": "preload ↔ 主进程的全部 handler 注册（20 模块）",
+          "files": [
+            {
+              "path": "electron/ipc/ai-provider.ts",
+              "type": "ts",
+              "lines": 30,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/bookmark-check.ts",
+              "type": "ts",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/chat.ts",
+              "type": "ts",
+              "lines": 208,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/debugger.ts",
+              "type": "ts",
+              "lines": 404,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/download.ts",
+              "type": "ts",
+              "lines": 129,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/extension-download.ts",
+              "type": "ts",
+              "lines": 44,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/extensions.ts",
+              "type": "ts",
+              "lines": 382,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/index.ts",
+              "type": "ts",
+              "lines": 874,
+              "role": "IPC handler 总装配（容器/书签/窗口/杂项通道）"
+            },
+            {
+              "path": "electron/ipc/mcp.ts",
+              "type": "ts",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/plugin.ts",
+              "type": "ts",
+              "lines": 42,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/profile.ts",
+              "type": "ts",
+              "lines": 56,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/proxy.ts",
+              "type": "ts",
+              "lines": 103,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/shortcut.ts",
+              "type": "ts",
+              "lines": 66,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/site-data.ts",
+              "type": "ts",
+              "lines": 299,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/sniffer.ts",
+              "type": "ts",
+              "lines": 36,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/split.ts",
+              "type": "ts",
+              "lines": 35,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/sync.ts",
+              "type": "ts",
+              "lines": 135,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/tab.ts",
+              "type": "ts",
+              "lines": 372,
+              "role": ""
+            },
+            {
+              "path": "electron/ipc/updater.ts",
+              "type": "ts",
+              "lines": 98,
+              "role": ""
+            }
+          ],
+          "tests": [
+            {
+              "path": "electron/ipc/extension-download.test.ts",
+              "type": "ts",
+              "note": "单元/集成测试"
+            }
+          ]
+        },
+        {
+          "id": "main.store",
+          "name": "持久化存储",
+          "desc": "electron-store schema、书签/密码/技能/同步存储、profile 注册表、迁移",
+          "files": [
+            {
+              "path": "electron/services/bookmark-store.ts",
+              "type": "ts",
+              "lines": 222,
+              "role": ""
+            },
+            {
+              "path": "electron/services/migration.ts",
+              "type": "ts",
+              "lines": 131,
+              "role": ""
+            },
+            {
+              "path": "electron/services/password-store.ts",
+              "type": "ts",
+              "lines": 56,
+              "role": ""
+            },
+            {
+              "path": "electron/services/profile-registry.ts",
+              "type": "ts",
+              "lines": 69,
+              "role": ""
+            },
+            {
+              "path": "electron/services/profile-shortcut.ts",
+              "type": "ts",
+              "lines": 91,
+              "role": ""
+            },
+            {
+              "path": "electron/services/session-service.ts",
+              "type": "ts",
+              "lines": 126,
+              "role": ""
+            },
+            {
+              "path": "electron/services/skill-store.ts",
+              "type": "ts",
+              "lines": 302,
+              "role": ""
+            },
+            {
+              "path": "electron/services/store.ts",
+              "type": "ts",
+              "lines": 1112,
+              "role": "electron-store 全量持久化 schema（数据模型单一事实源）"
+            },
+            {
+              "path": "electron/services/sync-cookies.ts",
+              "type": "ts",
+              "lines": 107,
+              "role": ""
+            },
+            {
+              "path": "electron/services/sync-store.ts",
+              "type": "ts",
+              "lines": 52,
+              "role": ""
+            }
+          ],
+          "tests": [
+            {
+              "path": "electron/services/sync-cookies.test.ts",
+              "type": "ts",
+              "note": "单元/集成测试"
+            }
+          ]
+        },
+        {
+          "id": "main.ai",
+          "name": "AI 代理与外部认证",
+          "desc": "LLM 请求代理（Key 仅主进程）、工具 Schema、CDP 外部账号认证",
+          "files": [
+            {
+              "path": "electron/services/ai-proxy-tools.ts",
+              "type": "ts",
+              "lines": 510,
+              "role": ""
+            },
+            {
+              "path": "electron/services/ai-proxy.ts",
+              "type": "ts",
+              "lines": 514,
+              "role": ""
+            },
+            {
+              "path": "electron/services/external-auth-cdp.ts",
+              "type": "ts",
+              "lines": 671,
+              "role": ""
+            },
+            {
+              "path": "electron/services/external-auth-domains.ts",
+              "type": "ts",
+              "lines": 6,
+              "role": ""
+            },
+            {
+              "path": "electron/services/external-auth-process.ts",
+              "type": "ts",
+              "lines": 7,
+              "role": ""
+            }
+          ],
+          "tests": [
+            {
+              "path": "electron/services/external-auth-cdp.test.ts",
+              "type": "ts",
+              "note": "单元/集成测试"
+            }
+          ]
+        },
+        {
+          "id": "main.download",
+          "name": "下载体系",
+          "desc": "Aria2 接入、下载通知/路径、系统下载目录",
+          "files": [
+            {
+              "path": "electron/services/aria2.ts",
+              "type": "ts",
+              "lines": 490,
+              "role": ""
+            },
+            {
+              "path": "electron/services/download-notify.ts",
+              "type": "ts",
+              "lines": 75,
+              "role": ""
+            },
+            {
+              "path": "electron/services/download-path.ts",
+              "type": "ts",
+              "lines": 162,
+              "role": ""
+            },
+            {
+              "path": "electron/services/system-downloads.ts",
+              "type": "ts",
+              "lines": 324,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "main.extensions",
+          "name": "Chrome 扩展宿主",
+          "desc": "扩展加载/管理，配合 packages/electron-chrome-extensions",
+          "files": [
+            {
+              "path": "electron/services/extensions.ts",
+              "type": "ts",
+              "lines": 574,
+              "role": ""
+            }
+          ],
+          "tests": [
+            {
+              "path": "test-assets/chrome-popup-demo/README.md",
+              "type": "md",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/background.js",
+              "type": "js",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/manifest.json",
+              "type": "config",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/popup.html",
+              "type": "html",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/popup.js",
+              "type": "js",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/recording-mvp.js",
+              "type": "js",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/recording.html",
+              "type": "html",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/smoke-content.js",
+              "type": "js",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/smoke-icon.svg",
+              "type": "data",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/smoke-script.js",
+              "type": "js",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "test-assets/chrome-popup-demo/userscript.js",
+              "type": "js",
+              "note": "单元/集成测试"
+            }
+          ]
+        },
+        {
+          "id": "main.record",
+          "name": "操作录制与回放",
+          "desc": "action-recorder/action-player 调试器",
+          "files": [
+            {
+              "path": "electron/services/action-player.ts",
+              "type": "ts",
+              "lines": 702,
+              "role": ""
+            },
+            {
+              "path": "electron/services/action-recorder.ts",
+              "type": "ts",
+              "lines": 569,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "main.plugin",
+          "name": "插件系统",
+          "desc": "插件管理器/网关/事件总线/存储/日志/procm 控制台",
+          "files": [
+            {
+              "path": "electron/services/plugin-context.ts",
+              "type": "ts",
+              "lines": 96,
+              "role": ""
+            },
+            {
+              "path": "electron/services/plugin-event-bus.ts",
+              "type": "ts",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "electron/services/plugin-gateway.ts",
+              "type": "ts",
+              "lines": 122,
+              "role": ""
+            },
+            {
+              "path": "electron/services/plugin-log.ts",
+              "type": "ts",
+              "lines": 31,
+              "role": ""
+            },
+            {
+              "path": "electron/services/plugin-manager.ts",
+              "type": "ts",
+              "lines": 480,
+              "role": ""
+            },
+            {
+              "path": "electron/services/plugin-storage.ts",
+              "type": "ts",
+              "lines": 45,
+              "role": ""
+            },
+            {
+              "path": "electron/services/plugin-types.ts",
+              "type": "ts",
+              "lines": 80,
+              "role": ""
+            },
+            {
+              "path": "electron/services/procm.ts",
+              "type": "ts",
+              "lines": 86,
+              "role": ""
+            }
+          ],
+          "tests": [
+            {
+              "path": "electron/services/plugin-gateway.test.ts",
+              "type": "ts",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "electron/services/plugin-log.test.ts",
+              "type": "ts",
+              "note": "单元/集成测试"
+            }
+          ]
+        },
+        {
+          "id": "main.mcp",
+          "name": "MCP Server",
+          "desc": "内嵌 MCP 服务器与工具注册",
+          "files": [
+            {
+              "path": "electron/services/mcp/server.ts",
+              "type": "ts",
+              "lines": 190,
+              "role": ""
+            },
+            {
+              "path": "electron/services/mcp/tools/cdp.ts",
+              "type": "ts",
+              "lines": 123,
+              "role": ""
+            },
+            {
+              "path": "electron/services/mcp/tools/index.ts",
+              "type": "ts",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "electron/services/mcp/tools/query.ts",
+              "type": "ts",
+              "lines": 192,
+              "role": ""
+            },
+            {
+              "path": "electron/services/mcp/tools/tab.ts",
+              "type": "ts",
+              "lines": 185,
+              "role": ""
+            },
+            {
+              "path": "electron/services/mcp/tools/window.ts",
+              "type": "ts",
+              "lines": 199,
+              "role": ""
+            },
+            {
+              "path": "electron/services/mcp/types.ts",
+              "type": "ts",
+              "lines": 20,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "main.net",
+          "name": "代理与网络",
+          "desc": "代理配置管理",
+          "files": [
+            {
+              "path": "electron/services/proxy.ts",
+              "type": "ts",
+              "lines": 643,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "main.sys",
+          "name": "系统集成",
+          "desc": "托盘、快捷键、崩溃防护、favicon 缓存、页面抽取、默认浏览器、书签检查、日志",
+          "files": [
+            {
+              "path": "electron/services/bookmark-checker.ts",
+              "type": "ts",
+              "lines": 206,
+              "role": ""
+            },
+            {
+              "path": "electron/services/crash-guard.ts",
+              "type": "ts",
+              "lines": 71,
+              "role": ""
+            },
+            {
+              "path": "electron/services/default-browser.ts",
+              "type": "ts",
+              "lines": 187,
+              "role": ""
+            },
+            {
+              "path": "electron/services/favicon-cache.ts",
+              "type": "ts",
+              "lines": 164,
+              "role": ""
+            },
+            {
+              "path": "electron/services/logger.ts",
+              "type": "ts",
+              "lines": 65,
+              "role": ""
+            },
+            {
+              "path": "electron/services/page-extractor.ts",
+              "type": "ts",
+              "lines": 383,
+              "role": ""
+            },
+            {
+              "path": "electron/services/shortcut-manager.ts",
+              "type": "ts",
+              "lines": 301,
+              "role": ""
+            },
+            {
+              "path": "electron/services/tray-window.ts",
+              "type": "ts",
+              "lines": 492,
+              "role": ""
+            },
+            {
+              "path": "electron/services/tray.ts",
+              "type": "ts",
+              "lines": 247,
+              "role": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "preload",
+      "name": "预加载",
+      "icon": "🔌",
+      "children": [
+        {
+          "id": "preload.bridge",
+          "name": "预加载桥",
+          "desc": "contextBridge 暴露 window.api（37 命名空间）+ 类型声明",
+          "files": [
+            {
+              "path": "preload/CLAUDE.md",
+              "type": "md",
+              "lines": 37,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/changelog.md",
+              "type": "md",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/conventions.md",
+              "type": "md",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/data-model.md",
+              "type": "md",
+              "lines": 6,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/dependencies-and-config.md",
+              "type": "md",
+              "lines": 9,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/entrypoints.md",
+              "type": "md",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/faq.md",
+              "type": "md",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/file-map.md",
+              "type": "md",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/module-responsibilities.md",
+              "type": "md",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/overview.md",
+              "type": "md",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/public-interfaces.md",
+              "type": "md",
+              "lines": 54,
+              "role": ""
+            },
+            {
+              "path": "preload/claude/testing-and-quality.md",
+              "type": "md",
+              "lines": 7,
+              "role": ""
+            },
+            {
+              "path": "preload/index.d.ts",
+              "type": "ts",
+              "lines": 9,
+              "role": ""
+            },
+            {
+              "path": "preload/index.ts",
+              "type": "ts",
+              "lines": 135,
+              "role": "contextBridge 暴露 window.api（37 命名空间）"
+            },
+            {
+              "path": "preload/namespaces/agent.ts",
+              "type": "ts",
+              "lines": 9,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/ai-provider.ts",
+              "type": "ts",
+              "lines": 13,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/bookmark-check.ts",
+              "type": "ts",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/bookmark-folder.ts",
+              "type": "ts",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/bookmark.ts",
+              "type": "ts",
+              "lines": 28,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/browser.ts",
+              "type": "ts",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/chat.ts",
+              "type": "ts",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/container.ts",
+              "type": "ts",
+              "lines": 20,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/data.ts",
+              "type": "ts",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/debugger.ts",
+              "type": "ts",
+              "lines": 25,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/download.ts",
+              "type": "ts",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/extension.ts",
+              "type": "ts",
+              "lines": 49,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/group.ts",
+              "type": "ts",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/mcp.ts",
+              "type": "ts",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/muted-sites.ts",
+              "type": "ts",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/page.ts",
+              "type": "ts",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/password.ts",
+              "type": "ts",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/plugin.ts",
+              "type": "ts",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/profile.ts",
+              "type": "ts",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/proxy.ts",
+              "type": "ts",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/search-engine.ts",
+              "type": "ts",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/settings.ts",
+              "type": "ts",
+              "lines": 25,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/shortcut.ts",
+              "type": "ts",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/site-data.ts",
+              "type": "ts",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/skill.ts",
+              "type": "ts",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/sniffer.ts",
+              "type": "ts",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/split.ts",
+              "type": "ts",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/sync.ts",
+              "type": "ts",
+              "lines": 34,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/system.ts",
+              "type": "ts",
+              "lines": 9,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/tab.ts",
+              "type": "ts",
+              "lines": 55,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/theme.ts",
+              "type": "ts",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/types.ts",
+              "type": "ts",
+              "lines": 272,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/updater.ts",
+              "type": "ts",
+              "lines": 51,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/wallpaper.ts",
+              "type": "ts",
+              "lines": 12,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/window.ts",
+              "type": "ts",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "preload/namespaces/workspace.ts",
+              "type": "ts",
+              "lines": 15,
+              "role": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "renderer",
+      "name": "渲染进程",
+      "icon": "🎨",
+      "children": [
+        {
+          "id": "ui.shell",
+          "name": "应用外壳",
+          "desc": "根组件/入口/全局样式与导航骨架（AppSidebar、Nav*、ProfileSelector 等）",
+          "files": [
+            {
+              "path": "src/App.vue",
+              "type": "vue",
+              "lines": 1288,
+              "role": "渲染根组件：布局装配、全局快捷键分发、webview 容器管理（1311 行，最大 Vue 文件）"
+            },
+            {
+              "path": "src/components/AppSidebar.vue",
+              "type": "vue",
+              "lines": 283,
+              "role": ""
+            },
+            {
+              "path": "src/components/NavActions.vue",
+              "type": "vue",
+              "lines": 157,
+              "role": ""
+            },
+            {
+              "path": "src/components/NavBookmarks.vue",
+              "type": "vue",
+              "lines": 101,
+              "role": ""
+            },
+            {
+              "path": "src/components/NavMain.vue",
+              "type": "vue",
+              "lines": 52,
+              "role": ""
+            },
+            {
+              "path": "src/components/NavProjects.vue",
+              "type": "vue",
+              "lines": 88,
+              "role": ""
+            },
+            {
+              "path": "src/components/NavSecondary.vue",
+              "type": "vue",
+              "lines": 45,
+              "role": ""
+            },
+            {
+              "path": "src/components/NavUser.vue",
+              "type": "vue",
+              "lines": 231,
+              "role": ""
+            },
+            {
+              "path": "src/components/NavWorkspaces.vue",
+              "type": "vue",
+              "lines": 93,
+              "role": ""
+            },
+            {
+              "path": "src/components/ProfileSelector.vue",
+              "type": "vue",
+              "lines": 168,
+              "role": ""
+            },
+            {
+              "path": "src/components/TeamSwitcher.vue",
+              "type": "vue",
+              "lines": 96,
+              "role": ""
+            },
+            {
+              "path": "src/components/WorkspaceSwitcher.vue",
+              "type": "vue",
+              "lines": 262,
+              "role": ""
+            },
+            {
+              "path": "src/env.d.ts",
+              "type": "ts",
+              "lines": 35,
+              "role": ""
+            },
+            {
+              "path": "src/main.ts",
+              "type": "ts",
+              "lines": 18,
+              "role": "渲染入口：Pinia/Dexie 初始化"
+            },
+            {
+              "path": "src/styles/globals.css",
+              "type": "css",
+              "lines": 306,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.sidebar",
+          "name": "侧边栏",
+          "desc": "分组列表、书签栏、工作区侧栏交互",
+          "files": [
+            {
+              "path": "src/components/sidebar/ContainerItem.vue",
+              "type": "vue",
+              "lines": 143,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/DownloadStatus.vue",
+              "type": "vue",
+              "lines": 132,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/GroupDialog.vue",
+              "type": "vue",
+              "lines": 220,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/GroupList.vue",
+              "type": "vue",
+              "lines": 792,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/IconPickerDialog.vue",
+              "type": "vue",
+              "lines": 231,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/MemoryInfo.vue",
+              "type": "vue",
+              "lines": 62,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/PageDialog.vue",
+              "type": "vue",
+              "lines": 500,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/Sidebar.vue",
+              "type": "vue",
+              "lines": 250,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/SidebarGroups.vue",
+              "type": "vue",
+              "lines": 59,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/WorkspaceBar.vue",
+              "type": "vue",
+              "lines": 261,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/WorkspaceDialog.vue",
+              "type": "vue",
+              "lines": 153,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/WorkspaceIcon.vue",
+              "type": "vue",
+              "lines": 43,
+              "role": ""
+            },
+            {
+              "path": "src/components/sidebar/page-tree.ts",
+              "type": "ts",
+              "lines": 70,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.tabs",
+          "name": "标签页",
+          "desc": "标签项、拖拽排序、标签页切换动画",
+          "files": [
+            {
+              "path": "src/components/tabs/ChromeExtensionInstallBanner.vue",
+              "type": "vue",
+              "lines": 105,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/ExternalAuthBanner.vue",
+              "type": "vue",
+              "lines": 95,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/NewTabDialog.vue",
+              "type": "vue",
+              "lines": 288,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/SplitLayoutTree.vue",
+              "type": "vue",
+              "lines": 280,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/SplitMenuContent.vue",
+              "type": "vue",
+              "lines": 137,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/SplitView.vue",
+              "type": "vue",
+              "lines": 440,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/TabBar.vue",
+              "type": "vue",
+              "lines": 310,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/TabBarVertical.vue",
+              "type": "vue",
+              "lines": 181,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/TabItem.vue",
+              "type": "vue",
+              "lines": 476,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/TabLayoutMenu.vue",
+              "type": "vue",
+              "lines": 362,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/TabOverviewDialog.vue",
+              "type": "vue",
+              "lines": 364,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/WebviewHost.vue",
+              "type": "vue",
+              "lines": 170,
+              "role": ""
+            },
+            {
+              "path": "src/components/tabs/WebviewSkeleton.vue",
+              "type": "vue",
+              "lines": 45,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.toolbar",
+          "name": "工具栏",
+          "desc": "导航工具栏与地址条",
+          "files": [
+            {
+              "path": "src/components/toolbar/ExtensionActionList.vue",
+              "type": "vue",
+              "lines": 134,
+              "role": ""
+            },
+            {
+              "path": "src/components/toolbar/PasswordPopover.vue",
+              "type": "vue",
+              "lines": 433,
+              "role": ""
+            },
+            {
+              "path": "src/components/toolbar/SiteDataPopover.vue",
+              "type": "vue",
+              "lines": 417,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.chat",
+          "name": "AI 聊天",
+          "desc": "聊天面板、输入框、消息渲染、流式 Markdown",
+          "files": [
+            {
+              "path": "src/components/chat/BrowserViewPicker.vue",
+              "type": "vue",
+              "lines": 163,
+              "role": ""
+            },
+            {
+              "path": "src/components/chat/ChatInput.vue",
+              "type": "vue",
+              "lines": 1006,
+              "role": ""
+            },
+            {
+              "path": "src/components/chat/ChatMessage.vue",
+              "type": "vue",
+              "lines": 743,
+              "role": ""
+            },
+            {
+              "path": "src/components/chat/ChatMessageList.vue",
+              "type": "vue",
+              "lines": 103,
+              "role": ""
+            },
+            {
+              "path": "src/components/chat/ChatPanel.vue",
+              "type": "vue",
+              "lines": 162,
+              "role": ""
+            },
+            {
+              "path": "src/components/chat/ModelSelector.vue",
+              "type": "vue",
+              "lines": 86,
+              "role": ""
+            },
+            {
+              "path": "src/components/chat/ProviderManager.vue",
+              "type": "vue",
+              "lines": 384,
+              "role": ""
+            },
+            {
+              "path": "src/components/chat/SessionManager.vue",
+              "type": "vue",
+              "lines": 87,
+              "role": ""
+            },
+            {
+              "path": "src/components/chat/ThinkingBlock.vue",
+              "type": "vue",
+              "lines": 37,
+              "role": ""
+            },
+            {
+              "path": "src/components/chat/ToolCallCard.vue",
+              "type": "vue",
+              "lines": 289,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.settings",
+          "name": "设置",
+          "desc": "设置对话框全部页面",
+          "files": [
+            {
+              "path": "src/components/settings/SettingsAbout.vue",
+              "type": "vue",
+              "lines": 397,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsBookmark.vue",
+              "type": "vue",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsContainer.vue",
+              "type": "vue",
+              "lines": 270,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsDialog.vue",
+              "type": "vue",
+              "lines": 99,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsDownload.vue",
+              "type": "vue",
+              "lines": 299,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsGeneral.vue",
+              "type": "vue",
+              "lines": 307,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsMCP.vue",
+              "type": "vue",
+              "lines": 112,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsSearch.vue",
+              "type": "vue",
+              "lines": 133,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsSessionApi.vue",
+              "type": "vue",
+              "lines": 23,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsShortcut.vue",
+              "type": "vue",
+              "lines": 329,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsSites.vue",
+              "type": "vue",
+              "lines": 85,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsSync.vue",
+              "type": "vue",
+              "lines": 320,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsTabs.vue",
+              "type": "vue",
+              "lines": 166,
+              "role": ""
+            },
+            {
+              "path": "src/components/settings/SettingsTheme.vue",
+              "type": "vue",
+              "lines": 522,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.bookmarks",
+          "name": "书签",
+          "desc": "书签管理、分组、链接检查对话框",
+          "files": [
+            {
+              "path": "src/components/bookmarks/AddBookmarkDialog.vue",
+              "type": "vue",
+              "lines": 201,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/BookmarkBar.vue",
+              "type": "vue",
+              "lines": 324,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/BookmarkCheckDialog.vue",
+              "type": "vue",
+              "lines": 513,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/BookmarkDialog.vue",
+              "type": "vue",
+              "lines": 160,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/BookmarkFolderDialog.vue",
+              "type": "vue",
+              "lines": 93,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/BookmarkFolderMenu.vue",
+              "type": "vue",
+              "lines": 69,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/BookmarkItem.vue",
+              "type": "vue",
+              "lines": 108,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/BookmarkList.vue",
+              "type": "vue",
+              "lines": 201,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/BookmarksPage.vue",
+              "type": "vue",
+              "lines": 215,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/FolderTree.vue",
+              "type": "vue",
+              "lines": 80,
+              "role": ""
+            },
+            {
+              "path": "src/components/bookmarks/FolderTreeItem.vue",
+              "type": "vue",
+              "lines": 287,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.palette",
+          "name": "命令面板",
+          "desc": "Ctrl+K 命令面板",
+          "files": [
+            {
+              "path": "src/components/command-palette/providers/bookmark.ts",
+              "type": "ts",
+              "lines": 49,
+              "role": ""
+            },
+            {
+              "path": "src/components/command-palette/providers/global.ts",
+              "type": "ts",
+              "lines": 88,
+              "role": ""
+            },
+            {
+              "path": "src/components/command-palette/providers/history.ts",
+              "type": "ts",
+              "lines": 52,
+              "role": ""
+            },
+            {
+              "path": "src/components/command-palette/providers/index.ts",
+              "type": "ts",
+              "lines": 29,
+              "role": ""
+            },
+            {
+              "path": "src/components/command-palette/providers/page.ts",
+              "type": "ts",
+              "lines": 43,
+              "role": ""
+            },
+            {
+              "path": "src/components/command-palette/providers/search.ts",
+              "type": "ts",
+              "lines": 54,
+              "role": ""
+            },
+            {
+              "path": "src/components/command-palette/providers/shortcut.ts",
+              "type": "ts",
+              "lines": 51,
+              "role": ""
+            },
+            {
+              "path": "src/components/command-palette/providers/tab.ts",
+              "type": "ts",
+              "lines": 36,
+              "role": ""
+            },
+            {
+              "path": "src/components/command-palette/providers/workspace.ts",
+              "type": "ts",
+              "lines": 34,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.plugins",
+          "name": "插件 UI",
+          "desc": "插件市场/迷你弹层",
+          "files": [
+            {
+              "path": "src/components/plugins/PluginCard.vue",
+              "type": "vue",
+              "lines": 169,
+              "role": ""
+            },
+            {
+              "path": "src/components/plugins/PluginSettings.vue",
+              "type": "vue",
+              "lines": 98,
+              "role": ""
+            },
+            {
+              "path": "src/components/plugins/PluginsPage.vue",
+              "type": "vue",
+              "lines": 379,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.pages",
+          "name": "功能页面组件",
+          "desc": "下载/历史/密码/代理/扩展/调试器/快捷键/容器选择等页面",
+          "files": [
+            {
+              "path": "src/components/ContainerPickerDialog.vue",
+              "type": "vue",
+              "lines": 106,
+              "role": ""
+            },
+            {
+              "path": "src/components/containers/ContainerSelectDialog.vue",
+              "type": "vue",
+              "lines": 134,
+              "role": ""
+            },
+            {
+              "path": "src/components/debugger/DebuggerPage.vue",
+              "type": "vue",
+              "lines": 507,
+              "role": ""
+            },
+            {
+              "path": "src/components/download/AddDownloadDialog.vue",
+              "type": "vue",
+              "lines": 233,
+              "role": ""
+            },
+            {
+              "path": "src/components/download/DownloadFilterPanel.vue",
+              "type": "vue",
+              "lines": 197,
+              "role": ""
+            },
+            {
+              "path": "src/components/download/DownloadsPage.vue",
+              "type": "vue",
+              "lines": 485,
+              "role": ""
+            },
+            {
+              "path": "src/components/extensions/ExtensionsPage.vue",
+              "type": "vue",
+              "lines": 216,
+              "role": ""
+            },
+            {
+              "path": "src/components/history/HistoryPage.vue",
+              "type": "vue",
+              "lines": 200,
+              "role": ""
+            },
+            {
+              "path": "src/components/passwords/PasswordsPage.vue",
+              "type": "vue",
+              "lines": 663,
+              "role": ""
+            },
+            {
+              "path": "src/components/proxy/ProxyDialog.vue",
+              "type": "vue",
+              "lines": 462,
+              "role": ""
+            },
+            {
+              "path": "src/components/shortcut/ShortcutCommandDialog.vue",
+              "type": "vue",
+              "lines": 80,
+              "role": ""
+            },
+            {
+              "path": "src/components/shortcut/ShortcutCommandList.vue",
+              "type": "vue",
+              "lines": 105,
+              "role": ""
+            },
+            {
+              "path": "src/components/shortcut/ShortcutGroupFilter.vue",
+              "type": "vue",
+              "lines": 43,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "ui.common",
+          "name": "通用组件",
+          "desc": "跨页面复用的业务通用组件（含 PluginMiniPopover）",
+          "files": [
+            {
+              "path": "src/components/common/BookmarkMiniPopover.vue",
+              "type": "vue",
+              "lines": 97,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/ContainerMiniPopover.vue",
+              "type": "vue",
+              "lines": 203,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/DownloadMiniPopover.vue",
+              "type": "vue",
+              "lines": 197,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/EmojiRenderer.vue",
+              "type": "vue",
+              "lines": 48,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/ExtensionMiniPopover.vue",
+              "type": "vue",
+              "lines": 135,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/HistoryMiniPopover.vue",
+              "type": "vue",
+              "lines": 109,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/IconSelector.vue",
+              "type": "vue",
+              "lines": 181,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/InternalPageHost.vue",
+              "type": "vue",
+              "lines": 75,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/PluginMiniPopover.vue",
+              "type": "vue",
+              "lines": 164,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/ProxyMiniPopover.vue",
+              "type": "vue",
+              "lines": 206,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/RecordingMiniPopover.vue",
+              "type": "vue",
+              "lines": 145,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/RightPanel.vue",
+              "type": "vue",
+              "lines": 348,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/SnifferMiniPopover.vue",
+              "type": "vue",
+              "lines": 488,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/ToolbarCustomizeDialog.vue",
+              "type": "vue",
+              "lines": 86,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/UpdateNotification.vue",
+              "type": "vue",
+              "lines": 382,
+              "role": ""
+            },
+            {
+              "path": "src/components/common/WindowResizeHandles.vue",
+              "type": "vue",
+              "lines": 45,
+              "role": ""
+            }
+          ],
+          "tests": [
+            {
+              "path": "src/components/common/PluginMiniPopover.test.mjs",
+              "type": "mjs",
+              "note": "单元/集成测试"
+            }
+          ]
+        },
+        {
+          "id": "ui.base",
+          "name": "shadcn-vue 基础库",
+          "desc": "204 个 UI 原子组件（Radix/reka 封装）",
+          "files": [
+            {
+              "path": "src/components/ui/alert-dialog/AlertDialog.vue",
+              "type": "vue",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/alert-dialog/AlertDialogAction.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/alert-dialog/AlertDialogCancel.vue",
+              "type": "vue",
+              "lines": 25,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/alert-dialog/AlertDialogContent.vue",
+              "type": "vue",
+              "lines": 44,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/alert-dialog/AlertDialogDescription.vue",
+              "type": "vue",
+              "lines": 23,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/alert-dialog/AlertDialogFooter.vue",
+              "type": "vue",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/alert-dialog/AlertDialogHeader.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/alert-dialog/AlertDialogTitle.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/alert-dialog/AlertDialogTrigger.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/alert-dialog/index.ts",
+              "type": "ts",
+              "lines": 9,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/avatar/Avatar.vue",
+              "type": "vue",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/avatar/AvatarFallback.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/avatar/AvatarImage.vue",
+              "type": "vue",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/avatar/index.ts",
+              "type": "ts",
+              "lines": 3,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/badge/Badge.vue",
+              "type": "vue",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/badge/index.ts",
+              "type": "ts",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/breadcrumb/Breadcrumb.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/breadcrumb/BreadcrumbEllipsis.vue",
+              "type": "vue",
+              "lines": 23,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/breadcrumb/BreadcrumbItem.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/breadcrumb/BreadcrumbLink.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/breadcrumb/BreadcrumbList.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/breadcrumb/BreadcrumbPage.vue",
+              "type": "vue",
+              "lines": 20,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/breadcrumb/BreadcrumbSeparator.vue",
+              "type": "vue",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/breadcrumb/index.ts",
+              "type": "ts",
+              "lines": 7,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/button/Button.vue",
+              "type": "vue",
+              "lines": 31,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/button/index.ts",
+              "type": "ts",
+              "lines": 38,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/checkbox/Checkbox.vue",
+              "type": "vue",
+              "lines": 35,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/checkbox/index.ts",
+              "type": "ts",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/collapsible/Collapsible.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/collapsible/CollapsibleContent.vue",
+              "type": "vue",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/collapsible/CollapsibleTrigger.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/collapsible/index.ts",
+              "type": "ts",
+              "lines": 3,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/Command.vue",
+              "type": "vue",
+              "lines": 87,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/CommandDialog.vue",
+              "type": "vue",
+              "lines": 41,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/CommandEmpty.vue",
+              "type": "vue",
+              "lines": 28,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/CommandGroup.vue",
+              "type": "vue",
+              "lines": 49,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/CommandInput.vue",
+              "type": "vue",
+              "lines": 54,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/CommandItem.vue",
+              "type": "vue",
+              "lines": 76,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/CommandList.vue",
+              "type": "vue",
+              "lines": 25,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/CommandSeparator.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/CommandShortcut.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/command/index.ts",
+              "type": "ts",
+              "lines": 25,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenu.vue",
+              "type": "vue",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuCheckboxItem.vue",
+              "type": "vue",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuContent.vue",
+              "type": "vue",
+              "lines": 37,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuGroup.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuItem.vue",
+              "type": "vue",
+              "lines": 38,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuLabel.vue",
+              "type": "vue",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuPortal.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuRadioGroup.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuRadioItem.vue",
+              "type": "vue",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuSeparator.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuShortcut.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuSub.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuSubContent.vue",
+              "type": "vue",
+              "lines": 32,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuSubTrigger.vue",
+              "type": "vue",
+              "lines": 32,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/ContextMenuTrigger.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/context-menu/index.ts",
+              "type": "ts",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/Dialog.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/DialogClose.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/DialogContent.vue",
+              "type": "vue",
+              "lines": 53,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/DialogDescription.vue",
+              "type": "vue",
+              "lines": 23,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/DialogFooter.vue",
+              "type": "vue",
+              "lines": 30,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/DialogHeader.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/DialogOverlay.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/DialogScrollContent.vue",
+              "type": "vue",
+              "lines": 61,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/DialogTitle.vue",
+              "type": "vue",
+              "lines": 23,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/DialogTrigger.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dialog/index.ts",
+              "type": "ts",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenu.vue",
+              "type": "vue",
+              "lines": 27,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuCheckboxItem.vue",
+              "type": "vue",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuContent.vue",
+              "type": "vue",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuGroup.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuItem.vue",
+              "type": "vue",
+              "lines": 31,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuLabel.vue",
+              "type": "vue",
+              "lines": 23,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuRadioGroup.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuRadioItem.vue",
+              "type": "vue",
+              "lines": 40,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuSeparator.vue",
+              "type": "vue",
+              "lines": 23,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuShortcut.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuSub.vue",
+              "type": "vue",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuSubContent.vue",
+              "type": "vue",
+              "lines": 27,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuSubTrigger.vue",
+              "type": "vue",
+              "lines": 31,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/DropdownMenuTrigger.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/dropdown-menu/index.ts",
+              "type": "ts",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/folder-tree/FolderTree.vue",
+              "type": "vue",
+              "lines": 403,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/folder-tree/FolderTreeBaseCategories.vue",
+              "type": "vue",
+              "lines": 79,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/folder-tree/FolderTreeHeader.vue",
+              "type": "vue",
+              "lines": 197,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/folder-tree/FolderTreeNode.vue",
+              "type": "vue",
+              "lines": 500,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/folder-tree/NodeIcon.vue",
+              "type": "vue",
+              "lines": 108,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/folder-tree/README.md",
+              "type": "md",
+              "lines": 147,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/folder-tree/index.ts",
+              "type": "ts",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/folder-tree/types.ts",
+              "type": "ts",
+              "lines": 198,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/folder-tree/useBranchLines.ts",
+              "type": "ts",
+              "lines": 164,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/input-group/InputGroup.vue",
+              "type": "vue",
+              "lines": 35,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/input-group/InputGroupAddon.vue",
+              "type": "vue",
+              "lines": 36,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/input-group/InputGroupButton.vue",
+              "type": "vue",
+              "lines": 29,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/input-group/InputGroupInput.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/input-group/InputGroupText.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/input-group/InputGroupTextarea.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/input-group/index.ts",
+              "type": "ts",
+              "lines": 51,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/input/Input.vue",
+              "type": "vue",
+              "lines": 33,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/input/index.ts",
+              "type": "ts",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/kbd/Kbd.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/kbd/index.ts",
+              "type": "ts",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/Menubar.vue",
+              "type": "vue",
+              "lines": 33,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarCheckboxItem.vue",
+              "type": "vue",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarContent.vue",
+              "type": "vue",
+              "lines": 45,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarGroup.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarItem.vue",
+              "type": "vue",
+              "lines": 36,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarLabel.vue",
+              "type": "vue",
+              "lines": 20,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarMenu.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarRadioGroup.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarRadioItem.vue",
+              "type": "vue",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarSeparator.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarShortcut.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarSub.vue",
+              "type": "vue",
+              "lines": 24,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarSubContent.vue",
+              "type": "vue",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarSubTrigger.vue",
+              "type": "vue",
+              "lines": 28,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/MenubarTrigger.vue",
+              "type": "vue",
+              "lines": 28,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/menubar/index.ts",
+              "type": "ts",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/popover/Popover.vue",
+              "type": "vue",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/popover/PopoverAnchor.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/popover/PopoverContent.vue",
+              "type": "vue",
+              "lines": 45,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/popover/PopoverTrigger.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/popover/index.ts",
+              "type": "ts",
+              "lines": 4,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/progress/Progress.vue",
+              "type": "vue",
+              "lines": 38,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/progress/index.ts",
+              "type": "ts",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/resizable/ResizableHandle.vue",
+              "type": "vue",
+              "lines": 30,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/resizable/ResizablePanel.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/resizable/ResizablePanelGroup.vue",
+              "type": "vue",
+              "lines": 25,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/resizable/index.ts",
+              "type": "ts",
+              "lines": 3,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/scroll-area/ScrollArea.vue",
+              "type": "vue",
+              "lines": 33,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/scroll-area/ScrollBar.vue",
+              "type": "vue",
+              "lines": 32,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/scroll-area/index.ts",
+              "type": "ts",
+              "lines": 2,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/Select.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectContent.vue",
+              "type": "vue",
+              "lines": 51,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectGroup.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectItem.vue",
+              "type": "vue",
+              "lines": 44,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectItemText.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectLabel.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectScrollDownButton.vue",
+              "type": "vue",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectScrollUpButton.vue",
+              "type": "vue",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectSeparator.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectTrigger.vue",
+              "type": "vue",
+              "lines": 33,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/SelectValue.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/select/index.ts",
+              "type": "ts",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/separator/Separator.vue",
+              "type": "vue",
+              "lines": 29,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/separator/index.ts",
+              "type": "ts",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/Sheet.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/SheetClose.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/SheetContent.vue",
+              "type": "vue",
+              "lines": 62,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/SheetDescription.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/SheetFooter.vue",
+              "type": "vue",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/SheetHeader.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/SheetOverlay.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/SheetTitle.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/SheetTrigger.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sheet/index.ts",
+              "type": "ts",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/Sidebar.vue",
+              "type": "vue",
+              "lines": 101,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarContent.vue",
+              "type": "vue",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarFooter.vue",
+              "type": "vue",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarGroup.vue",
+              "type": "vue",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarGroupAction.vue",
+              "type": "vue",
+              "lines": 27,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarGroupContent.vue",
+              "type": "vue",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarGroupLabel.vue",
+              "type": "vue",
+              "lines": 25,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarHeader.vue",
+              "type": "vue",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarInput.vue",
+              "type": "vue",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarInset.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenu.vue",
+              "type": "vue",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenuAction.vue",
+              "type": "vue",
+              "lines": 35,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenuBadge.vue",
+              "type": "vue",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenuButton.vue",
+              "type": "vue",
+              "lines": 54,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenuButtonChild.vue",
+              "type": "vue",
+              "lines": 36,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenuItem.vue",
+              "type": "vue",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenuSkeleton.vue",
+              "type": "vue",
+              "lines": 35,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenuSub.vue",
+              "type": "vue",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenuSubButton.vue",
+              "type": "vue",
+              "lines": 36,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarMenuSubItem.vue",
+              "type": "vue",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarProvider.vue",
+              "type": "vue",
+              "lines": 82,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarRail.vue",
+              "type": "vue",
+              "lines": 33,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarSeparator.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/SidebarTrigger.vue",
+              "type": "vue",
+              "lines": 27,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/index.ts",
+              "type": "ts",
+              "lines": 60,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sidebar/utils.ts",
+              "type": "ts",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/skeleton/Skeleton.vue",
+              "type": "vue",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/skeleton/index.ts",
+              "type": "ts",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sonner/Sonner.vue",
+              "type": "vue",
+              "lines": 42,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/sonner/index.ts",
+              "type": "ts",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/switch/Switch.vue",
+              "type": "vue",
+              "lines": 40,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/switch/index.ts",
+              "type": "ts",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tabs/Tabs.vue",
+              "type": "vue",
+              "lines": 24,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tabs/TabsContent.vue",
+              "type": "vue",
+              "lines": 21,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tabs/TabsList.vue",
+              "type": "vue",
+              "lines": 24,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tabs/TabsTrigger.vue",
+              "type": "vue",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tabs/index.ts",
+              "type": "ts",
+              "lines": 4,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/textarea/Textarea.vue",
+              "type": "vue",
+              "lines": 28,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/textarea/index.ts",
+              "type": "ts",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/toggle/Toggle.vue",
+              "type": "vue",
+              "lines": 35,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/toggle/index.ts",
+              "type": "ts",
+              "lines": 28,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tooltip/Tooltip.vue",
+              "type": "vue",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tooltip/TooltipContent.vue",
+              "type": "vue",
+              "lines": 34,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tooltip/TooltipProvider.vue",
+              "type": "vue",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tooltip/TooltipTrigger.vue",
+              "type": "vue",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "src/components/ui/tooltip/index.ts",
+              "type": "ts",
+              "lines": 4,
+              "role": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "state",
+      "name": "状态与数据",
+      "icon": "📦",
+      "children": [
+        {
+          "id": "state.stores",
+          "name": "Pinia Store",
+          "desc": "24 个领域 store（tab/chat/proxy/extension 等）",
+          "files": [
+            {
+              "path": "src/stores/ai-provider.ts",
+              "type": "ts",
+              "lines": 108,
+              "role": ""
+            },
+            {
+              "path": "src/stores/bookmark.ts",
+              "type": "ts",
+              "lines": 443,
+              "role": ""
+            },
+            {
+              "path": "src/stores/chat-ui.ts",
+              "type": "ts",
+              "lines": 88,
+              "role": ""
+            },
+            {
+              "path": "src/stores/chat.ts",
+              "type": "ts",
+              "lines": 424,
+              "role": ""
+            },
+            {
+              "path": "src/stores/container.ts",
+              "type": "ts",
+              "lines": 158,
+              "role": ""
+            },
+            {
+              "path": "src/stores/download.ts",
+              "type": "ts",
+              "lines": 296,
+              "role": ""
+            },
+            {
+              "path": "src/stores/extension.ts",
+              "type": "ts",
+              "lines": 97,
+              "role": ""
+            },
+            {
+              "path": "src/stores/history.ts",
+              "type": "ts",
+              "lines": 64,
+              "role": ""
+            },
+            {
+              "path": "src/stores/homepage.ts",
+              "type": "ts",
+              "lines": 36,
+              "role": ""
+            },
+            {
+              "path": "src/stores/mcp.ts",
+              "type": "ts",
+              "lines": 51,
+              "role": ""
+            },
+            {
+              "path": "src/stores/page.ts",
+              "type": "ts",
+              "lines": 63,
+              "role": ""
+            },
+            {
+              "path": "src/stores/password.ts",
+              "type": "ts",
+              "lines": 325,
+              "role": ""
+            },
+            {
+              "path": "src/stores/plugin.ts",
+              "type": "ts",
+              "lines": 88,
+              "role": ""
+            },
+            {
+              "path": "src/stores/proxy.ts",
+              "type": "ts",
+              "lines": 58,
+              "role": ""
+            },
+            {
+              "path": "src/stores/shortcut.ts",
+              "type": "ts",
+              "lines": 73,
+              "role": ""
+            },
+            {
+              "path": "src/stores/sniffer.ts",
+              "type": "ts",
+              "lines": 127,
+              "role": ""
+            },
+            {
+              "path": "src/stores/split.ts",
+              "type": "ts",
+              "lines": 497,
+              "role": ""
+            },
+            {
+              "path": "src/stores/tab.ts",
+              "type": "ts",
+              "lines": 974,
+              "role": "标签页 Pinia store（974 行，最重 store）"
+            },
+            {
+              "path": "src/stores/theme.ts",
+              "type": "ts",
+              "lines": 411,
+              "role": ""
+            },
+            {
+              "path": "src/stores/toolbar.ts",
+              "type": "ts",
+              "lines": 112,
+              "role": ""
+            },
+            {
+              "path": "src/stores/userProfile.ts",
+              "type": "ts",
+              "lines": 48,
+              "role": ""
+            },
+            {
+              "path": "src/stores/wallpaper.ts",
+              "type": "ts",
+              "lines": 201,
+              "role": ""
+            },
+            {
+              "path": "src/stores/workspace.ts",
+              "type": "ts",
+              "lines": 129,
+              "role": ""
+            }
+          ],
+          "tests": [
+            {
+              "path": "src/stores/toolbar.test.ts",
+              "type": "ts",
+              "note": "单元/集成测试"
+            }
+          ]
+        },
+        {
+          "id": "state.agent",
+          "name": "Agent 运行时",
+          "desc": "LangChain Agent 流式执行、工具、提示词",
+          "files": [
+            {
+              "path": "src/lib/agent/agent.ts",
+              "type": "ts",
+              "lines": 79,
+              "role": "Agent 流式执行入口（经主进程 ai-proxy 注入 Key）"
+            },
+            {
+              "path": "src/lib/agent/stream.ts",
+              "type": "ts",
+              "lines": 123,
+              "role": "Agent 流式响应 IPC 监听"
+            },
+            {
+              "path": "src/lib/agent/system-prompt.ts",
+              "type": "ts",
+              "lines": 38,
+              "role": "浏览器 Agent 系统提示词"
+            },
+            {
+              "path": "src/lib/agent/tools.ts",
+              "type": "ts",
+              "lines": 855,
+              "role": "Agent 浏览器工具集定义（LangChain 结构化工具）"
+            }
+          ]
+        },
+        {
+          "id": "state.lib",
+          "name": "数据与工具库",
+          "desc": "Dexie DB、同步合并、快捷键解析、分割布局、外部拖放等",
+          "files": [
+            {
+              "path": "src/lib/accelerator.ts",
+              "type": "ts",
+              "lines": 25,
+              "role": ""
+            },
+            {
+              "path": "src/lib/chat-db.ts",
+              "type": "ts",
+              "lines": 151,
+              "role": "聊天会话/消息 Dexie 存取"
+            },
+            {
+              "path": "src/lib/db.ts",
+              "type": "ts",
+              "lines": 25,
+              "role": "Dexie IndexedDB 封装（本地历史等）"
+            },
+            {
+              "path": "src/lib/external-drop.ts",
+              "type": "ts",
+              "lines": 131,
+              "role": ""
+            },
+            {
+              "path": "src/lib/lucide-resolver.ts",
+              "type": "ts",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/lib/shortcut-action.ts",
+              "type": "ts",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/lib/split-layout.ts",
+              "type": "ts",
+              "lines": 315,
+              "role": ""
+            },
+            {
+              "path": "src/lib/sync-merge.ts",
+              "type": "ts",
+              "lines": 93,
+              "role": "同步快照三方合并策略"
+            },
+            {
+              "path": "src/lib/utils.ts",
+              "type": "ts",
+              "lines": 22,
+              "role": "cn() 等通用工具"
+            },
+            {
+              "path": "src/lib/webview-overlay.ts",
+              "type": "ts",
+              "lines": 100,
+              "role": ""
+            }
+          ],
+          "tests": [
+            {
+              "path": "src/lib/sync-merge.test.ts",
+              "type": "ts",
+              "note": "单元/集成测试"
+            }
+          ]
+        },
+        {
+          "id": "state.composables",
+          "name": "Composables",
+          "desc": "useIpc/useDragSort/useSync 等 7 个组合式函数",
+          "files": [
+            {
+              "path": "src/composables/useBookmarkDragDrop.ts",
+              "type": "ts",
+              "lines": 80,
+              "role": ""
+            },
+            {
+              "path": "src/composables/useCommandPalette.ts",
+              "type": "ts",
+              "lines": 180,
+              "role": ""
+            },
+            {
+              "path": "src/composables/useDragSort.ts",
+              "type": "ts",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/composables/useIpc.ts",
+              "type": "ts",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/composables/useNotification.ts",
+              "type": "ts",
+              "lines": 164,
+              "role": ""
+            },
+            {
+              "path": "src/composables/useProfiles.ts",
+              "type": "ts",
+              "lines": 53,
+              "role": ""
+            },
+            {
+              "path": "src/composables/useSync.ts",
+              "type": "ts",
+              "lines": 218,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "state.types",
+          "name": "共享类型",
+          "desc": "渲染进程共享 TS 类型（IPC/命令/插件/分屏）",
+          "files": [
+            {
+              "path": "src/types/command.ts",
+              "type": "ts",
+              "lines": 37,
+              "role": ""
+            },
+            {
+              "path": "src/types/index.ts",
+              "type": "ts",
+              "lines": 319,
+              "role": ""
+            },
+            {
+              "path": "src/types/plugin.ts",
+              "type": "ts",
+              "lines": 84,
+              "role": ""
+            },
+            {
+              "path": "src/types/split.ts",
+              "type": "ts",
+              "lines": 55,
+              "role": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "build",
+      "name": "构建与工具链",
+      "icon": "🛠️",
+      "children": [
+        {
+          "id": "build.config",
+          "name": "构建与工程配置",
+          "desc": "electron-vite/builder/eslint/tsconfig/pnpm workspace",
+          "files": [
+            {
+              "path": ".github/workflows/build-release.yml",
+              "type": "config",
+              "lines": 117,
+              "role": ""
+            },
+            {
+              "path": ".npmrc",
+              "type": "data",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": ".vscode/launch.json",
+              "type": "config",
+              "lines": 47,
+              "role": ""
+            },
+            {
+              "path": "build/installer.nsh",
+              "type": "config",
+              "lines": 47,
+              "role": ""
+            },
+            {
+              "path": "components.json",
+              "type": "config",
+              "lines": 20,
+              "role": ""
+            },
+            {
+              "path": "electron-builder-local.json",
+              "type": "config",
+              "lines": 90,
+              "role": ""
+            },
+            {
+              "path": "electron-builder.json",
+              "type": "config",
+              "lines": 137,
+              "role": ""
+            },
+            {
+              "path": "electron.vite.config.ts",
+              "type": "ts",
+              "lines": 113,
+              "role": ""
+            },
+            {
+              "path": "eslint.config.js",
+              "type": "js",
+              "lines": 111,
+              "role": ""
+            },
+            {
+              "path": "index.html",
+              "type": "html",
+              "lines": 12,
+              "role": ""
+            },
+            {
+              "path": "package-lock.json",
+              "type": "config",
+              "lines": 4640,
+              "role": ""
+            },
+            {
+              "path": "package.json",
+              "type": "config",
+              "lines": 86,
+              "role": ""
+            },
+            {
+              "path": "pnpm-lock.yaml",
+              "type": "config",
+              "lines": 8572,
+              "role": ""
+            },
+            {
+              "path": "pnpm-workspace.yaml",
+              "type": "config",
+              "lines": 2,
+              "role": ""
+            },
+            {
+              "path": "procm-commands.json",
+              "type": "config",
+              "lines": 30,
+              "role": ""
+            },
+            {
+              "path": "tsconfig.json",
+              "type": "config",
+              "lines": 13,
+              "role": ""
+            },
+            {
+              "path": "tsconfig.node.json",
+              "type": "config",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "tsconfig.web.json",
+              "type": "config",
+              "lines": 22,
+              "role": ""
+            }
+          ]
+        },
+        {
+          "id": "build.scripts",
+          "name": "打包与插件脚本",
+          "desc": "生产打包、mac 快速打包、插件构建/服务器",
+          "files": [
+            {
+              "path": "scripts/build-production.js",
+              "type": "js",
+              "lines": 264,
+              "role": "生产打包编排（local/release 双通道）"
+            },
+            {
+              "path": "scripts/pack-mac-quick.js",
+              "type": "js",
+              "lines": 50,
+              "role": "mac 快速打包"
+            },
+            {
+              "path": "scripts/package-lock.json",
+              "type": "config",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "scripts/package.json",
+              "type": "config",
+              "lines": 9,
+              "role": ""
+            },
+            {
+              "path": "scripts/plugins-build.js",
+              "type": "js",
+              "lines": 178,
+              "role": "内置插件构建（resources/plugins → plugins/*.zip）"
+            },
+            {
+              "path": "scripts/plugins-server.js",
+              "type": "js",
+              "lines": 75,
+              "role": "插件开发服务器"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sync",
+      "name": "同步服务",
+      "icon": "🔄",
+      "children": [
+        {
+          "id": "sync.server",
+          "name": "同步服务器",
+          "desc": "免密 JSON 快照同步后端（Node 原生 http）",
+          "files": [
+            {
+              "path": "server/README.md",
+              "type": "md",
+              "lines": 41,
+              "role": ""
+            },
+            {
+              "path": "server/sync-server.mjs",
+              "type": "mjs",
+              "lines": 211,
+              "role": "数据同步后端：免密按用户隔离的 JSON 快照 HTTP 服务"
+            }
+          ],
+          "tests": [
+            {
+              "path": "server/sync-server.test.mjs",
+              "type": "mjs",
+              "note": "单元/集成测试"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "plugins",
+      "name": "插件体系",
+      "icon": "🧩",
+      "children": [
+        {
+          "id": "plugins.gateway",
+          "name": "AI 网关插件源码",
+          "desc": "豆包/千问/Gemini/即梦/LibLib/dola/l0veyou 等第三方 API 反代插件",
+          "files": [
+            {
+              "path": "resources/plugins/_shared/accounts.mjs",
+              "type": "mjs",
+              "lines": 167,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/_shared/server-kit.mjs",
+              "type": "mjs",
+              "lines": 138,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/_shared/sessionbox.mjs",
+              "type": "mjs",
+              "lines": 66,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/demo.html",
+              "type": "html",
+              "lines": 236,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/icon.png",
+              "type": "data",
+              "lines": 4,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/info.json",
+              "type": "config",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/main.js",
+              "type": "js",
+              "lines": 44,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/service/client.js",
+              "type": "js",
+              "lines": 236,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/service/dog.jpg",
+              "type": "data",
+              "lines": 347,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/service/req1.json",
+              "type": "config",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/service/req2.json",
+              "type": "config",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/service/res1.json",
+              "type": "config",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/service/res2.json",
+              "type": "config",
+              "lines": 1,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/chatglm-api/service/server.js",
+              "type": "js",
+              "lines": 333,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/dola-api/HANDOFF.md",
+              "type": "md",
+              "lines": 115,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/dola-api/api-client.mjs",
+              "type": "mjs",
+              "lines": 531,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/dola-api/demo.html",
+              "type": "html",
+              "lines": 212,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/dola-api/icon.png",
+              "type": "data",
+              "lines": 101,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/dola-api/info.json",
+              "type": "config",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/dola-api/main.js",
+              "type": "js",
+              "lines": 43,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/dola-api/service/accounts.mjs",
+              "type": "mjs",
+              "lines": 86,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/dola-api/service/server.mjs",
+              "type": "mjs",
+              "lines": 250,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/dola-api/service/sessionbox.mjs",
+              "type": "mjs",
+              "lines": 12,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/demo.html",
+              "type": "html",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/icon.png",
+              "type": "data",
+              "lines": 154,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/info.json",
+              "type": "config",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/main.js",
+              "type": "js",
+              "lines": 45,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__init__.py",
+              "type": "py",
+              "lines": 48,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__main__.py",
+              "type": "py",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/__init__.cpython-311.pyc",
+              "type": "data",
+              "lines": 7,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/__init__.cpython-312.pyc",
+              "type": "data",
+              "lines": 7,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/__init__.cpython-38.pyc",
+              "type": "data",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/__main__.cpython-311.pyc",
+              "type": "data",
+              "lines": 3,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/browser_client.cpython-311.pyc",
+              "type": "data",
+              "lines": 1079,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/browser_client.cpython-312.pyc",
+              "type": "data",
+              "lines": 900,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/browser_client.cpython-38.pyc",
+              "type": "data",
+              "lines": 988,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/captcha_handler.cpython-311.pyc",
+              "type": "data",
+              "lines": 61,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/captcha_server.cpython-311.pyc",
+              "type": "data",
+              "lines": 221,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/client.cpython-311.pyc",
+              "type": "data",
+              "lines": 860,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/qianwen_client.cpython-311.pyc",
+              "type": "data",
+              "lines": 257,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/sessionbox_api.cpython-311.pyc",
+              "type": "data",
+              "lines": 4,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/sse.cpython-311.pyc",
+              "type": "data",
+              "lines": 29,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/token_counter.cpython-311.pyc",
+              "type": "data",
+              "lines": 24,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/tool_calling.cpython-311.pyc",
+              "type": "data",
+              "lines": 342,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__/unified_server.cpython-311.pyc",
+              "type": "data",
+              "lines": 482,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/browser_client.py",
+              "type": "py",
+              "lines": 2835,
+              "role": "豆包网页客户端自动化"
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/captcha_handler.py",
+              "type": "py",
+              "lines": 99,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/captcha_server.py",
+              "type": "py",
+              "lines": 308,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/client.py",
+              "type": "py",
+              "lines": 2368,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/qianwen_client.py",
+              "type": "py",
+              "lines": 433,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/sessionbox_api.py",
+              "type": "py",
+              "lines": 5,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/sse.py",
+              "type": "py",
+              "lines": 55,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/static/admin.html",
+              "type": "html",
+              "lines": 610,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/token_counter.py",
+              "type": "py",
+              "lines": 66,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/tool_calling.py",
+              "type": "py",
+              "lines": 1283,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/doubao2api/unified_server.py",
+              "type": "py",
+              "lines": 2066,
+              "role": "豆包 API 反代统一服务入口"
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/requirements.txt",
+              "type": "data",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/sessionbox/__init__.py",
+              "type": "py",
+              "lines": 5,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/sessionbox/__pycache__/__init__.cpython-311.pyc",
+              "type": "data",
+              "lines": 3,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/sessionbox/__pycache__/client.cpython-311.pyc",
+              "type": "data",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/sessionbox/client.py",
+              "type": "py",
+              "lines": 41,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/gemini-api/HANDOFF.md",
+              "type": "md",
+              "lines": 95,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/gemini-api/api-client.mjs",
+              "type": "mjs",
+              "lines": 801,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/gemini-api/demo.html",
+              "type": "html",
+              "lines": 161,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/gemini-api/icon.png",
+              "type": "data",
+              "lines": 117,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/gemini-api/info.json",
+              "type": "config",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/gemini-api/main.js",
+              "type": "js",
+              "lines": 94,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/gemini-api/service/accounts.mjs",
+              "type": "mjs",
+              "lines": 53,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/gemini-api/service/server.mjs",
+              "type": "mjs",
+              "lines": 529,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/gemini-api/service/sessionbox.mjs",
+              "type": "mjs",
+              "lines": 12,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/HANDOFF.md",
+              "type": "md",
+              "lines": 113,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/api-client.mjs",
+              "type": "mjs",
+              "lines": 1017,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/demo.html",
+              "type": "html",
+              "lines": 117,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/icon.png",
+              "type": "data",
+              "lines": 34,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/info.json",
+              "type": "config",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/main.js",
+              "type": "js",
+              "lines": 46,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/scripts/real-test.mjs",
+              "type": "mjs",
+              "lines": 43,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/service/accounts.mjs",
+              "type": "mjs",
+              "lines": 47,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/service/server.mjs",
+              "type": "mjs",
+              "lines": 291,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/jimeng-api/service/sessionbox.mjs",
+              "type": "mjs",
+              "lines": 12,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/HANDOFF.md",
+              "type": "md",
+              "lines": 120,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/api-client.mjs",
+              "type": "mjs",
+              "lines": 202,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/demo.html",
+              "type": "html",
+              "lines": 115,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/icon.png",
+              "type": "data",
+              "lines": 271,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/info.json",
+              "type": "config",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/main.js",
+              "type": "js",
+              "lines": 45,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/service/accounts.mjs",
+              "type": "mjs",
+              "lines": 117,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/service/server.mjs",
+              "type": "mjs",
+              "lines": 235,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/service/sessionbox.mjs",
+              "type": "mjs",
+              "lines": 12,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/liblib-api/HANDOFF.md",
+              "type": "md",
+              "lines": 104,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/liblib-api/api-client.mjs",
+              "type": "mjs",
+              "lines": 556,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/liblib-api/demo.html",
+              "type": "html",
+              "lines": 185,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/liblib-api/icon.png",
+              "type": "data",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/liblib-api/info.json",
+              "type": "config",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/liblib-api/main.js",
+              "type": "js",
+              "lines": 43,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/liblib-api/service/accounts.mjs",
+              "type": "mjs",
+              "lines": 48,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/liblib-api/service/server.mjs",
+              "type": "mjs",
+              "lines": 380,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/liblib-api/service/sessionbox.mjs",
+              "type": "mjs",
+              "lines": 12,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/plugin-1776139403056/icon.png",
+              "type": "data",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/plugin-1776139403056/info.json",
+              "type": "config",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/plugin-1776139403056/main.js",
+              "type": "js",
+              "lines": 42,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/plugin-1776139403056/view.js",
+              "type": "js",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/demo.html",
+              "type": "html",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/icon.png",
+              "type": "data",
+              "lines": 112,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/info.json",
+              "type": "config",
+              "lines": 10,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/main.js",
+              "type": "js",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/__pycache__/qianwen_client.cpython-311.pyc",
+              "type": "data",
+              "lines": 262,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/__pycache__/qianwen_client.cpython-312.pyc",
+              "type": "data",
+              "lines": 223,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/__pycache__/qianwen_server.cpython-311.pyc",
+              "type": "data",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/qianwen_client.py",
+              "type": "py",
+              "lines": 454,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/qianwen_server.py",
+              "type": "py",
+              "lines": 42,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/requirements.txt",
+              "type": "data",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/sessionbox/__init__.py",
+              "type": "py",
+              "lines": 5,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/sessionbox/__pycache__/__init__.cpython-311.pyc",
+              "type": "data",
+              "lines": 3,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/sessionbox/__pycache__/client.cpython-311.pyc",
+              "type": "data",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/qianwen-api/service/sessionbox/client.py",
+              "type": "py",
+              "lines": 41,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/test-plugin/icon.png",
+              "type": "data",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/test-plugin/info.json",
+              "type": "config",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/test-plugin/main.js",
+              "type": "js",
+              "lines": 40,
+              "role": ""
+            },
+            {
+              "path": "resources/plugins/test-plugin/view.js",
+              "type": "js",
+              "lines": 21,
+              "role": ""
+            }
+          ],
+          "tests": [
+            {
+              "path": "resources/plugins/dola-api/service/tests/server.test.mjs",
+              "type": "mjs",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/tests/__pycache__/test_login_state.cpython-311.pyc",
+              "type": "data",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/tests/__pycache__/test_request_diagnostics.cpython-311.pyc",
+              "type": "data",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/tests/test_login_state.py",
+              "type": "py",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "resources/plugins/doubao-api/service/tests/test_request_diagnostics.py",
+              "type": "py",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "resources/plugins/gemini-api/service/tests/server.test.mjs",
+              "type": "mjs",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "resources/plugins/jimeng-api/service/tests/server.test.mjs",
+              "type": "mjs",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "resources/plugins/l0veyou-api/service/tests/server.test.mjs",
+              "type": "mjs",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "resources/plugins/liblib-api/service/tests/sdk-check.mjs",
+              "type": "mjs",
+              "note": "单元/集成测试"
+            },
+            {
+              "path": "resources/plugins/liblib-api/service/tests/server.test.mjs",
+              "type": "mjs",
+              "note": "单元/集成测试"
+            }
+          ]
+        },
+        {
+          "id": "plugins.out",
+          "name": "插件构建产物",
+          "desc": "plugins/ 下的 zip 与 manifest",
+          "files": [
+            {
+              "path": "plugins/chatglm-api.zip",
+              "type": "data",
+              "lines": 374,
+              "role": ""
+            },
+            {
+              "path": "plugins/chatglm-api/icon.png",
+              "type": "data",
+              "lines": 4,
+              "role": ""
+            },
+            {
+              "path": "plugins/dola-api.zip",
+              "type": "data",
+              "lines": 247,
+              "role": ""
+            },
+            {
+              "path": "plugins/dola-api/icon.png",
+              "type": "data",
+              "lines": 101,
+              "role": ""
+            },
+            {
+              "path": "plugins/doubao-api.zip",
+              "type": "data",
+              "lines": 1767,
+              "role": ""
+            },
+            {
+              "path": "plugins/doubao-api/icon.png",
+              "type": "data",
+              "lines": 154,
+              "role": ""
+            },
+            {
+              "path": "plugins/gemini-api.zip",
+              "type": "data",
+              "lines": 256,
+              "role": ""
+            },
+            {
+              "path": "plugins/gemini-api/icon.png",
+              "type": "data",
+              "lines": 117,
+              "role": ""
+            },
+            {
+              "path": "plugins/group-tab-filter.zip",
+              "type": "data",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "plugins/group-tab-filter/icon.png",
+              "type": "data",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "plugins/jimeng-api.zip",
+              "type": "data",
+              "lines": 229,
+              "role": ""
+            },
+            {
+              "path": "plugins/jimeng-api/icon.png",
+              "type": "data",
+              "lines": 34,
+              "role": ""
+            },
+            {
+              "path": "plugins/l0veyou-api.zip",
+              "type": "data",
+              "lines": 139,
+              "role": ""
+            },
+            {
+              "path": "plugins/l0veyou-api/icon.png",
+              "type": "data",
+              "lines": 271,
+              "role": ""
+            },
+            {
+              "path": "plugins/liblib-api.zip",
+              "type": "data",
+              "lines": 167,
+              "role": ""
+            },
+            {
+              "path": "plugins/liblib-api/icon.png",
+              "type": "data",
+              "lines": 15,
+              "role": ""
+            },
+            {
+              "path": "plugins/plugin-1776139403056.zip",
+              "type": "data",
+              "lines": 16,
+              "role": ""
+            },
+            {
+              "path": "plugins/plugin-1776139403056/icon.png",
+              "type": "data",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "plugins/plugins.json",
+              "type": "config",
+              "lines": 181,
+              "role": ""
+            },
+            {
+              "path": "plugins/qianwen-api.zip",
+              "type": "data",
+              "lines": 190,
+              "role": ""
+            },
+            {
+              "path": "plugins/qianwen-api/icon.png",
+              "type": "data",
+              "lines": 112,
+              "role": ""
+            },
+            {
+              "path": "plugins/test-plugin.zip",
+              "type": "data",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "plugins/test-plugin/icon.png",
+              "type": "data",
+              "lines": 11,
+              "role": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "docs",
+      "name": "文档",
+      "icon": "📚",
+      "children": [
+        {
+          "id": "docs.guides",
+          "name": "文档与规划",
+          "desc": "CLAUDE 索引、设计文档、动画规划、zcode 计划",
+          "files": [
+            {
+              "path": ".gitignore",
+              "type": "data",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": ".zcode/plans/plan-sess_1d0df231-8670-424b-8760-50ad0fd8f6cb.md",
+              "type": "md",
+              "lines": 53,
+              "role": ""
+            },
+            {
+              "path": ".zcode/plans/plan-sess_5e0793c9-8968-4110-be94-8a8024818593.md",
+              "type": "md",
+              "lines": 59,
+              "role": ""
+            },
+            {
+              "path": ".zcode/plans/plan-sess_80bbd924-fa58-4aff-90b6-25d83107d6b7.md",
+              "type": "md",
+              "lines": 61,
+              "role": ""
+            },
+            {
+              "path": ".zcodeignore",
+              "type": "data",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "AGENTS.md",
+              "type": "md",
+              "lines": 51,
+              "role": ""
+            },
+            {
+              "path": "CLAUDE.md",
+              "type": "md",
+              "lines": 81,
+              "role": ""
+            },
+            {
+              "path": "DESIGN.md",
+              "type": "md",
+              "lines": 257,
+              "role": ""
+            },
+            {
+              "path": "README.md",
+              "type": "md",
+              "lines": 61,
+              "role": ""
+            },
+            {
+              "path": "claude/changelog.md",
+              "type": "md",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "claude/conventions.md",
+              "type": "md",
+              "lines": 62,
+              "role": ""
+            },
+            {
+              "path": "claude/data-model.md",
+              "type": "md",
+              "lines": 71,
+              "role": ""
+            },
+            {
+              "path": "claude/dependencies-and-config.md",
+              "type": "md",
+              "lines": 57,
+              "role": ""
+            },
+            {
+              "path": "claude/entrypoints.md",
+              "type": "md",
+              "lines": 65,
+              "role": ""
+            },
+            {
+              "path": "claude/faq.md",
+              "type": "md",
+              "lines": 57,
+              "role": ""
+            },
+            {
+              "path": "claude/file-map.md",
+              "type": "md",
+              "lines": 48,
+              "role": ""
+            },
+            {
+              "path": "claude/module-responsibilities.md",
+              "type": "md",
+              "lines": 36,
+              "role": ""
+            },
+            {
+              "path": "claude/overview.md",
+              "type": "md",
+              "lines": 38,
+              "role": ""
+            },
+            {
+              "path": "claude/public-interfaces.md",
+              "type": "md",
+              "lines": 46,
+              "role": ""
+            },
+            {
+              "path": "claude/report.md",
+              "type": "md",
+              "lines": 41,
+              "role": ""
+            },
+            {
+              "path": "claude/testing-and-quality.md",
+              "type": "md",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "docs/chat-store-scoped-redesign.md",
+              "type": "md",
+              "lines": 162,
+              "role": ""
+            },
+            {
+              "path": "docs/feature_map.html",
+              "type": "html",
+              "lines": 958,
+              "role": ""
+            },
+            {
+              "path": "docs/feature_map.json",
+              "type": "config",
+              "lines": 4980,
+              "role": ""
+            },
+            {
+              "path": "docs/page-container-model.md",
+              "type": "md",
+              "lines": 82,
+              "role": ""
+            },
+            {
+              "path": "docs/switch-binding.md",
+              "type": "md",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "electron/CLAUDE.md",
+              "type": "md",
+              "lines": 38,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/changelog.md",
+              "type": "md",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/conventions.md",
+              "type": "md",
+              "lines": 13,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/data-model.md",
+              "type": "md",
+              "lines": 57,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/dependencies-and-config.md",
+              "type": "md",
+              "lines": 27,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/entrypoints.md",
+              "type": "md",
+              "lines": 32,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/faq.md",
+              "type": "md",
+              "lines": 24,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/file-map.md",
+              "type": "md",
+              "lines": 51,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/module-responsibilities.md",
+              "type": "md",
+              "lines": 25,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/overview.md",
+              "type": "md",
+              "lines": 20,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/public-interfaces.md",
+              "type": "md",
+              "lines": 70,
+              "role": ""
+            },
+            {
+              "path": "electron/claude/testing-and-quality.md",
+              "type": "md",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "eslint-report.md",
+              "type": "md",
+              "lines": 38,
+              "role": ""
+            },
+            {
+              "path": "plans/001-animation-foundation.md",
+              "type": "md",
+              "lines": 139,
+              "role": ""
+            },
+            {
+              "path": "plans/002-tab-enter-leave.md",
+              "type": "md",
+              "lines": 365,
+              "role": ""
+            },
+            {
+              "path": "plans/003-button-press-feedback.md",
+              "type": "md",
+              "lines": 68,
+              "role": ""
+            },
+            {
+              "path": "plans/004-tabitem-transitions-icon-collapse.md",
+              "type": "md",
+              "lines": 123,
+              "role": ""
+            },
+            {
+              "path": "plans/005-collapsible-height-animation.md",
+              "type": "md",
+              "lines": 101,
+              "role": ""
+            },
+            {
+              "path": "plans/006-tabitem-size-changes.md",
+              "type": "md",
+              "lines": 147,
+              "role": ""
+            },
+            {
+              "path": "plans/README.md",
+              "type": "md",
+              "lines": 32,
+              "role": ""
+            },
+            {
+              "path": "src/CLAUDE.md",
+              "type": "md",
+              "lines": 39,
+              "role": ""
+            },
+            {
+              "path": "src/claude/changelog.md",
+              "type": "md",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "src/claude/conventions.md",
+              "type": "md",
+              "lines": 11,
+              "role": ""
+            },
+            {
+              "path": "src/claude/data-model.md",
+              "type": "md",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/claude/dependencies-and-config.md",
+              "type": "md",
+              "lines": 22,
+              "role": ""
+            },
+            {
+              "path": "src/claude/entrypoints.md",
+              "type": "md",
+              "lines": 8,
+              "role": ""
+            },
+            {
+              "path": "src/claude/faq.md",
+              "type": "md",
+              "lines": 26,
+              "role": ""
+            },
+            {
+              "path": "src/claude/file-map.md",
+              "type": "md",
+              "lines": 17,
+              "role": ""
+            },
+            {
+              "path": "src/claude/module-responsibilities.md",
+              "type": "md",
+              "lines": 18,
+              "role": ""
+            },
+            {
+              "path": "src/claude/overview.md",
+              "type": "md",
+              "lines": 19,
+              "role": ""
+            },
+            {
+              "path": "src/claude/public-interfaces.md",
+              "type": "md",
+              "lines": 65,
+              "role": ""
+            },
+            {
+              "path": "src/claude/testing-and-quality.md",
+              "type": "md",
+              "lines": 8,
+              "role": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "assets",
+      "name": "资源",
+      "icon": "🖼️",
+      "children": [
+        {
+          "id": "assets.icons",
+          "name": "应用图标资源",
+          "desc": "窗口/托盘图标",
+          "files": [
+            {
+              "path": "resources/icon.icns",
+              "type": "data",
+              "lines": 3866,
+              "role": ""
+            },
+            {
+              "path": "resources/icon.png",
+              "type": "data",
+              "lines": 4431,
+              "role": ""
+            },
+            {
+              "path": "resources/trayIcon.png",
+              "type": "data",
+              "lines": 14,
+              "role": ""
+            },
+            {
+              "path": "resources/trayIconTemplate@2x.png",
+              "type": "data",
+              "lines": 4,
+              "role": ""
+            },
+            {
+              "path": "resources/unknow.ico",
+              "type": "data",
+              "lines": 1,
+              "role": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "vendored": [
+    {
+      "path": "packages/electron-chrome-extensions",
+      "name": "electron-chrome-extensions",
+      "version": "workspace fork (Electron 官方库魔改)",
+      "files": 136,
+      "role": "Chrome 扩展宿主支持库（workspace 子包，GPL），为 SessionBox 定制改造"
+    },
+    {
+      "path": "tmp-analysis/chatglm-main.js",
+      "name": "chatglm-main.js",
+      "version": "-",
+      "files": 1,
+      "role": "外部 JS 逆向分析样本（5.2 万行，仅查阅用）"
+    }
+  ],
+  "unmapped": [
+    {
+      "path": "packages/electron-chrome-extensions/dist/esm/browser-action.mjs",
+      "reason": "vendored 子包构建产物（模块级收录）"
+    },
+    {
+      "path": "packages/electron-chrome-extensions/dist/esm/index.mjs",
+      "reason": "vendored 子包构建产物（模块级收录）"
+    },
+    {
+      "path": ".claude/index.json",
+      "reason": "本地 Claude 工具配置"
+    },
+    {
+      "path": ".claude/settings.local.json",
+      "reason": "本地 Claude 工具配置"
+    },
+    {
+      "path": ".codegraph/.gitignore",
+      "reason": "codegraph 索引目录"
+    },
+    {
+      "path": "win_packages/aria2/aria2c.exe",
+      "reason": "第三方 aria2 二进制"
+    },
+    {
+      "path": "win_packages/aria2/aria2.conf",
+      "reason": "aria2 附带配置"
+    },
+    {
+      "path": "win_packages/aria2/控制台.html",
+      "reason": "aria2 附带页面"
+    },
+    {
+      "path": "win_packages/aria2/点击启动aria2c.bat",
+      "reason": "aria2 启动脚本"
+    },
+    {
+      "path": "mac_packages/aria2/.gitkeep",
+      "reason": "占位"
+    },
+    {
+      "path": "resources/.DS_Store",
+      "reason": "macOS 元数据"
+    },
+    {
+      "path": "resources/plugins/doubao-api/service/doubao2api/__pycache__",
+      "reason": "Python 字节码缓存"
+    }
+  ]
+}
