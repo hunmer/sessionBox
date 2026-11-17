@@ -2,14 +2,15 @@
 
 # preload/ 对外接口（`window.api`）
 
-`window.api` 暴露 **32 个命名空间**（实际现状）：
+`window.api` 暴露 **36 个命名空间**（2026-11-17 实测）：
 
 ```
 workspace group container page proxy tab
 bookmark bookmarkFolder bookmarkCheck extension window settings
-mutedSites password theme searchEngine sniffer shortcut split
-download chat aiProvider browser plugin updater system
-mcp agent skill debugger
+mutedSites password theme wallpaper searchEngine siteData
+sync data sniffer shortcut split download chat
+aiProvider browser plugin updater system mcp
+agent skill debugger profile
 + openExternal(url)   # 系统浏览器打开
 + on(event, callback) # 订阅主进程事件，返回清理函数
 ```
@@ -25,7 +26,11 @@ mcp agent skill debugger
 - `mutedSites`：静音网站管理
 - `password`：密码/笔记 CRUD + 按站点查询 + 清空
 - `theme`：主题控制
+- `wallpaper`：壁纸导入（文件选择）/列表/删除/设置
 - `searchEngine`：搜索引擎管理
+- `siteData`：站点数据（getInfo / clear / importCookies / exportCookies）
+- `sync`：同步配置读写、连接测试、容器 Cookie 导出
+- `data`：同步数据应用（setContainerCookies / applyContainers / applyProxies / applyBookmarks / exportSaveFile）
 - `sniffer`：网络嗅探开关/域名/状态
 - `shortcut`：快捷键列表/更新/清除/重置
 - `split`：分屏状态/方案/多视图 bounds
@@ -39,7 +44,8 @@ mcp agent skill debugger
 - `mcp`：MCP Server 启停/状态
 - `agent`：Agent 工具执行（execTool）
 - `skill`：技能列表/搜索/读写/删除
-- `debugger`：调试器窗口与操作录制/回放（createWindow 等）
+- `debugger`：操作录制/回放（getTabs/getActionRun/clearActionSteps/injectActionRecorder/startActionRecord/stopActionRecord/highlightActionStep/playActionRun/saveActionPreset/onActionStep 等；独立调试器窗口已移除）
+- `profile`：多 Profile 管理（list/create/current/launch/createDesktopShortcut/openSelector）
 
 > IPC 通道细节见 [electron/claude/public-interfaces.md](../../electron/claude/public-interfaces.md)。
 

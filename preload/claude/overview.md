@@ -6,7 +6,7 @@ Electron **预加载脚本**，运行在渲染进程的隔离上下文，通过 
 
 - 入口 `preload/index.ts`，在主窗口创建时经 `webPreferences.preload` 加载。
 - 类型声明在 `preload/index.d.ts`（`IpcAPI` 接口）。
-- 另有调试器专用预加载（`electron/debugger-preload.ts`、`debugger-replay-preload.ts`），属独立窗口，不在本目录。
+- 另有悬浮球专用预加载 `electron/floating-ball-preload.ts`（第二构建入口，暴露 `window.floatingBall`），属独立小窗，不在本目录。
 
 ## 设计取舍
 
