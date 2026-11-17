@@ -359,6 +359,46 @@ function groupMenuItems(group: Group, Item: typeof ContextMenuItem): VNode[] {
   ]
 }
 
+/** 页面右键菜单：「在桌面创建快捷方式」子菜单（4 种模式） */
+function contextMenuShortcutSub(page: Page): VNode {
+  return h(ContextMenuSub, null, {
+    trigger: () =>
+      h(ContextMenuSubTrigger, null, () => [
+        h(ExternalLink, { class: 'w-4 h-4 mr-2' }),
+        '在桌面创建快捷方式',
+      ]),
+    default: () =>
+      h(ContextMenuSubContent, null, () =>
+        SHORTCUT_MODES.map(({ mode, label }) =>
+          h(ContextMenuItem, {
+            key: mode,
+            onClick: () => void createDesktopShortcut(page.id, mode),
+          }, () => label),
+        ),
+      ),
+  })
+}
+
+/** 页面右键菜单项集合：新建子页面 / 编辑 / 桌面快捷方式子菜单 / 删除 */
+function pageContextMenuItems(page: Page): VNode[] {
+  return [
+    h(ContextMenuItem, { onClick: () => emit('addSubPage', page.id) }, () => [
+      h(Plus, { class: 'w-4 h-4 mr-2' }),
+      '新建子页面',
+    ]),
+    h(ContextMenuItem, { onClick: () => emit('editPage', page) }, () => [
+      h(Pencil, { class: 'w-4 h-4 mr-2' }),
+      '编辑',
+    ]),
+    contextMenuShortcutSub(page),
+    h(ContextMenuSeparator),
+    h(ContextMenuItem, { class: 'text-destructive', onClick: () => emit('deletePage', page) }, () => [
+      h(Trash2, { class: 'w-4 h-4 mr-2' }),
+      '删除',
+    ]),
+  ]
+}
+
 function menuRenderer(node: FolderTreeNodeData): VNode {
   const group = groupMap.value.get(node.id)
   if (group) {
@@ -368,63 +408,86 @@ function menuRenderer(node: FolderTreeNodeData): VNode {
   const item = pageMap.value.get(node.id)
   if (!item) return h('div')
 
-  const page = item.page
-  return h('div', { class: 'flex flex-col' }, [
-    h(ContextMenuItem, { onClick: () => emit('addSubPage', page.id) }, () => [
-      h(Plus, { class: 'w-4 h-4 mr-2' }),
-      '新建子页面',
-    ]),
-    h(ContextMenuItem, { onClick: () => emit('editPage', page) }, () => [
-      h(Pencil, { class: 'w-4 h-4 mr-2' }),
-      '编辑',
-    ]),
-    h(ContextMenuSub, null, {
-      trigger: () =>
-        h(ContextMenuSubTrigger, null, () => [
-          h(ExternalLink, { class: 'w-4 h-4 mr-2' }),
-          '在桌面创建快捷方式',
-        ]),
-      default: () =>
-        h(
-          ContextMenuSubContent,
-          null,
-          () =>
-            SHORTCUT_MODES.map(({ mode, label }) =>
-              h(ContextMenuItem, {
-                key: mode,
-                onClick: () => void createDesktopShortcut(page.id, mode),
-              }, () => label),
-            ),
-        ),
-    }),
-    h(ContextMenuSeparator),
-    h(ContextMenuItem, { class: 'text-destructive', onClick: () => emit('deletePage', page) }, () => [
-      h(Trash2, { class: 'w-4 h-4 mr-2' }),
-      '删除',
-    ]),
-  ])
+  return h('div', { class: 'flex flex-col' }, pageContextMenuItems(item.page))
 }
 
 // 页签徽标：1 个标签页 → X 直接关闭；多个 → 数字按钮 Popover 列表（常显，对齐原行为）
-function renderTabBadge(pageId: string): VNode | null {
-  const tabs = pageTabsOf(pageId)
-  if (tabs.length === 0) return null
 
-  if (tabs.length === 1) {
-    return h(
-      'button',
-      {
-        class:
-          'p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0',
-        onClick: (e: MouseEvent) => {
-          e.stopPropagation()
-          void tabStore.closeTab(tabs[0].id)
-        },
+/** 单标签页：X 按钮，点击直接关闭该标签页 */
+function renderTabCloseButton(tab: Tab): VNode {
+  return h(
+    'button',
+    {
+      class:
+        'p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0',
+      onClick: (e: MouseEvent) => {
+        e.stopPropagation()
+        void tabStore.closeTab(tab.id)
       },
-      () => h(X, { class: 'w-3.5 h-3.5' }),
-    )
-  }
+    },
+    () => h(X, { class: 'w-3.5 h-3.5' }),
+  )
+}
 
+/** Popover 列表行：标题 + hover 才显示的单行关闭按钮 */
+function renderTabListItem(tab: Tab): VNode {
+  return h(
+    'div',
+    {
+      key: tab.id,
+      class: 'flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted group/tab-item',
+    },
+    [
+      h(
+        'span',
+        { class: 'flex-1 text-xs truncate', title: tab.title || tab.url },
+        () => tab.title || tab.url,
+      ),
+      h(
+        'button',
+        {
+          class:
+            'opacity-0 group-hover/tab-item:opacity-100 p-0.5 rounded hover:bg-destructive/10 text-destructive transition-opacity shrink-0',
+          onClick: () => void tabStore.closeTab(tab.id),
+        },
+        () => h(X, { class: 'w-3 h-3' }),
+      ),
+    ],
+  )
+}
+
+/** Popover 内容：标题行（含「全部关闭」）+ 标签页列表 */
+function renderTabsPopoverContent(tabs: Tab[]): VNode {
+  return h(
+    PopoverContent,
+    {
+      align: 'end',
+      class: 'p-2 w-56',
+      onClick: (e: MouseEvent) => e.stopPropagation(),
+    },
+    () => [
+      h('div', { class: 'flex items-center justify-between mb-1.5 px-1' }, [
+        h('span', { class: 'text-xs font-medium text-muted-foreground' }, () => '打开的标签页'),
+        h(
+          'button',
+          {
+            class: 'text-xs text-destructive hover:underline',
+            onClick: () => {
+              for (const tab of tabs) void tabStore.closeTab(tab.id)
+            },
+          },
+          () => '全部关闭',
+        ),
+      ]),
+      h('div', { class: 'flex flex-col gap-0.5 max-h-48 overflow-y-auto' }, () =>
+        tabs.map(renderTabListItem),
+      ),
+    ],
+  )
+}
+
+/** 多标签页：数字徽标按钮 + Popover 标签页列表 */
+function renderTabsPopover(tabs: Tab[]): VNode {
   return h(Popover, null, {
     trigger: () =>
       h(PopoverTrigger, { asChild: true }, () =>
@@ -438,140 +501,126 @@ function renderTabBadge(pageId: string): VNode | null {
           () => h('span', { class: 'text-[10px] leading-none' }, String(tabs.length)),
         ),
       ),
+    default: () => renderTabsPopoverContent(tabs),
+  })
+}
+
+function renderTabBadge(pageId: string): VNode | null {
+  const tabs = pageTabsOf(pageId)
+  if (tabs.length === 0) return null
+  if (tabs.length === 1) return renderTabCloseButton(tabs[0])
+  return renderTabsPopover(tabs)
+}
+
+// 行尾操作区：页签徽标（常显）+ MoreHorizontal 下拉（hover 才显示）
+
+/** 「在桌面创建快捷方式」子菜单（下拉菜单版，4 种模式） */
+function dropdownShortcutSub(page: Page): VNode {
+  return h(DropdownMenuSub, null, {
+    trigger: () =>
+      h(DropdownMenuSubTrigger, null, () => [
+        h(ExternalLink, { class: 'w-4 h-4 mr-2' }),
+        '在桌面创建快捷方式',
+      ]),
     default: () =>
       h(
-        PopoverContent,
-        {
-          align: 'end',
-          class: 'p-2 w-56',
-          onClick: (e: MouseEvent) => e.stopPropagation(),
-        },
-        () => [
-          h('div', { class: 'flex items-center justify-between mb-1.5 px-1' }, [
-            h('span', { class: 'text-xs font-medium text-muted-foreground' }, () => '打开的标签页'),
-            h(
-              'button',
-              {
-                class: 'text-xs text-destructive hover:underline',
-                onClick: () => {
-                  for (const tab of tabs) void tabStore.closeTab(tab.id)
-                },
-              },
-              () => '全部关闭',
-            ),
-          ]),
-          h('div', { class: 'flex flex-col gap-0.5 max-h-48 overflow-y-auto' }, () =>
-            tabs.map((tab) =>
-              h(
-                'div',
-                {
-                  key: tab.id,
-                  class: 'flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted group/tab-item',
-                },
-                [
-                  h(
-                    'span',
-                    { class: 'flex-1 text-xs truncate', title: tab.title || tab.url },
-                    () => tab.title || tab.url,
-                  ),
-                  h(
-                    'button',
-                    {
-                      class:
-                        'opacity-0 group-hover/tab-item:opacity-100 p-0.5 rounded hover:bg-destructive/10 text-destructive transition-opacity shrink-0',
-                      onClick: () => void tabStore.closeTab(tab.id),
-                    },
-                    () => h(X, { class: 'w-3 h-3' }),
-                  ),
-                ],
-              ),
-            ),
+        DropdownMenuSubContent,
+        null,
+        () =>
+          SHORTCUT_MODES.map(({ mode, label }) =>
+            h(DropdownMenuItem, {
+              key: mode,
+              onClick: () => void createDesktopShortcut(page.id, mode),
+            }, () => label),
           ),
-        ],
       ),
   })
 }
 
-// 行尾操作区：页签徽标（常显）+ MoreHorizontal 下拉（hover 才显示）
+/** 分组下拉菜单项集合：新建页面 / 编辑分组 / 删除分组 */
+function groupDropdownItems(group: Group): VNode[] {
+  return [
+    h(DropdownMenuItem, { onClick: () => emit('addPage', group.id) }, () => [
+      h(Plus, { class: 'w-4 h-4 mr-2' }),
+      '新建页面',
+    ]),
+    h(DropdownMenuItem, { onClick: () => emit('editGroup', group) }, () => [
+      h(Pencil, { class: 'w-4 h-4 mr-2' }),
+      '编辑分组',
+    ]),
+    h(DropdownMenuSeparator),
+    h(DropdownMenuItem, { class: 'text-destructive', onClick: () => emit('deleteGroup', group) }, () => [
+      h(Trash2, { class: 'w-4 h-4 mr-2' }),
+      '删除分组',
+    ]),
+  ]
+}
+
+/** 页面下拉菜单项集合：新建子页面 / 编辑 / 桌面快捷方式子菜单 / 删除 */
+function pageDropdownItems(page: Page): VNode[] {
+  return [
+    h(DropdownMenuItem, { onClick: () => emit('addSubPage', page.id) }, () => [
+      h(Plus, { class: 'w-4 h-4 mr-2' }),
+      '新建子页面',
+    ]),
+    h(DropdownMenuItem, { onClick: () => emit('editPage', page) }, () => [
+      h(Pencil, { class: 'w-4 h-4 mr-2' }),
+      '编辑',
+    ]),
+    dropdownShortcutSub(page),
+    h(DropdownMenuSeparator),
+    h(DropdownMenuItem, { class: 'text-destructive', onClick: () => emit('deletePage', page) }, () => [
+      h(Trash2, { class: 'w-4 h-4 mr-2' }),
+      '删除',
+    ]),
+  ]
+}
+
+/** 分组行尾：MoreHorizontal 下拉（新建页面 / 编辑分组 / 删除分组） */
+function groupActions(group: Group): VNode {
+  return h('div', { class: 'inline-flex items-center gap-1' }, [
+    renderMoreMenu(groupDropdownItems(group)),
+  ])
+}
+
+/** 页面行尾：页签徽标 + MoreHorizontal 下拉（新建子页面 / 编辑 / 桌面快捷方式 / 删除） */
+function pageActions(nodeId: string, page: Page): VNode {
+  return h('div', { class: 'inline-flex items-center gap-1' }, [
+    renderTabBadge(nodeId),
+    renderMoreMenu(pageDropdownItems(page)),
+  ])
+}
+
 function actionsRenderer(node: FolderTreeNodeData): VNode {
   const group = groupMap.value.get(node.id)
   if (group) {
-    return h('div', { class: 'inline-flex items-center gap-1' }, [
-      renderMoreMenu([
-        h(DropdownMenuItem, { onClick: () => emit('addPage', group.id) }, () => [
-          h(Plus, { class: 'w-4 h-4 mr-2' }),
-          '新建页面',
-        ]),
-        h(DropdownMenuItem, { onClick: () => emit('editGroup', group) }, () => [
-          h(Pencil, { class: 'w-4 h-4 mr-2' }),
-          '编辑分组',
-        ]),
-        h(DropdownMenuSeparator),
-        h(DropdownMenuItem, { class: 'text-destructive', onClick: () => emit('deleteGroup', group) }, () => [
-          h(Trash2, { class: 'w-4 h-4 mr-2' }),
-          '删除分组',
-        ]),
-      ]),
-    ])
+    return groupActions(group)
   }
 
   const item = pageMap.value.get(node.id)
   if (!item) return h('div')
 
-  const page = item.page
-  return h('div', { class: 'inline-flex items-center gap-1' }, [
-    renderTabBadge(node.id),
-    renderMoreMenu([
-      h(DropdownMenuItem, { onClick: () => emit('addSubPage', page.id) }, () => [
-        h(Plus, { class: 'w-4 h-4 mr-2' }),
-        '新建子页面',
-      ]),
-      h(DropdownMenuItem, { onClick: () => emit('editPage', page) }, () => [
-        h(Pencil, { class: 'w-4 h-4 mr-2' }),
-        '编辑',
-      ]),
-      h(DropdownMenuSub, null, {
-        trigger: () =>
-          h(DropdownMenuSubTrigger, null, () => [
-            h(ExternalLink, { class: 'w-4 h-4 mr-2' }),
-            '在桌面创建快捷方式',
-          ]),
-        default: () =>
-          h(
-            DropdownMenuSubContent,
-            null,
-            () =>
-              SHORTCUT_MODES.map(({ mode, label }) =>
-                h(DropdownMenuItem, {
-                  key: mode,
-                  onClick: () => void createDesktopShortcut(page.id, mode),
-                }, () => label),
-              ),
-          ),
-      }),
-      h(DropdownMenuSeparator),
-      h(DropdownMenuItem, { class: 'text-destructive', onClick: () => emit('deletePage', page) }, () => [
-        h(Trash2, { class: 'w-4 h-4 mr-2' }),
-        '删除',
-      ]),
-    ]),
-  ])
+  return pageActions(node.id, item.page)
+}
+
+/** MoreHorizontal 下拉触发按钮（阻止冒泡，避免触发节点点击/选中） */
+function renderMoreMenuTrigger(): VNode {
+  return h(DropdownMenuTrigger, { asChild: true }, () =>
+    h(
+      'button',
+      {
+        class:
+          'ft-action-hover p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-opacity',
+        onClick: (e: MouseEvent) => e.stopPropagation(),
+      },
+      () => h(MoreHorizontal, { class: 'w-4 h-4' }),
+    ),
+  )
 }
 
 function renderMoreMenu(items: VNode[]): VNode {
   return h(DropdownMenu, null, {
-    trigger: () =>
-      h(DropdownMenuTrigger, { asChild: true }, () =>
-        h(
-          'button',
-          {
-            class:
-              'ft-action-hover p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-opacity',
-            onClick: (e: MouseEvent) => e.stopPropagation(),
-          },
-          () => h(MoreHorizontal, { class: 'w-4 h-4' }),
-        ),
-      ),
+    trigger: renderMoreMenuTrigger,
     default: () => h(DropdownMenuContent, { align: 'start' }, () => items),
   })
 }

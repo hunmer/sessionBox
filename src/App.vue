@@ -592,142 +592,119 @@ useIpcEvent('tab:request-bounds', () => {
 })
 
 // 快捷键动作统一执行入口：主进程 on:shortcut 事件、命令面板 provider、快捷键速查弹窗共用
+// 各动作实现拆分为独立小函数 + shortcutActionHandlers 命令表，行为与原 switch 逐项等价
+
+/** 在工作区标签页中循环切换（offset = 1 下一个 / -1 上一个） */
+function switchTabCyclically(offset: 1 | -1) {
+  const tabs = tabStore.workspaceTabs
+  if (tabs.length < 2) return
+  const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
+  const target = tabs[(idx + offset + tabs.length) % tabs.length]
+  if (target) tabStore.switchTab(target.id)
+}
+
+/** 循环切换工作区（offset = 1 下一个 / -1 上一个） */
+function switchWorkspaceCyclically(offset: 1 | -1) {
+  const sorted = workspaceStore.sortedWorkspaces
+  if (sorted.length < 2) return
+  const curIdx = sorted.findIndex(w => w.id === workspaceStore.activeWorkspaceId)
+  const target = sorted[(curIdx + offset + sorted.length) % sorted.length]
+  if (target) workspaceStore.activate(target.id)
+}
+
+/** 刷新当前标签页；无激活标签页（内部页面）时刷新整个应用页面 */
+function reloadActiveTabOrWindow() {
+  const tab = tabStore.activeTab
+  if (tab) tabStore.reload(tab.id)
+  else window.location.reload()
+}
+
+/** 聚焦地址栏输入框 */
+function focusAddressInput() {
+  document.querySelector<HTMLInputElement>('[data-address-input]')?.focus()
+}
+
+/** toggle-sidebar：沉浸模式下切换左侧悬浮面板，普通模式下折叠/展开侧边栏 */
+function toggleSidebarOrImmersivePanel() {
+  if (immersiveMode.value) {
+    if (immersivePanelVisible.value.left) {
+      hideImmersivePanel('left')
+    } else {
+      showImmersivePanel('left')
+    }
+  } else {
+    toggleSidebar()
+  }
+}
+
+/** 打开 Electron 应用自身的开发者工具（网页的开发者工具唯一入口在 TabLayoutMenu 菜单） */
+function toggleAppDevTools() {
+  window.api.window.toggleDevTools()
+}
+
+// 命令表：actionId → 处理函数
+const shortcutActionHandlers: Record<string, () => void> = {
+  'new-tab': () => { newTabDialogOpen.value = true },
+  'close-tab': () => {
+    const tab = tabStore.activeTab
+    if (tab) tabStore.closeTab(tab.id)
+  },
+  'next-tab': () => switchTabCyclically(1),
+  'prev-tab': () => switchTabCyclically(-1),
+  'toggle-sidebar': toggleSidebarOrImmersivePanel,
+  // 由 Sidebar 内部处理，此处通过全局事件通知
+  'new-container': () => window.dispatchEvent(new CustomEvent('shortcut:new-container')),
+  'reload-tab': reloadActiveTabOrWindow,
+  'go-back': () => {
+    const tab = tabStore.activeTab
+    if (tab) tabStore.goBack(tab.id)
+  },
+  'go-forward': () => {
+    const tab = tabStore.activeTab
+    if (tab) tabStore.goForward(tab.id)
+  },
+  'focus-address': focusAddressInput,
+  'toggle-fullscreen': () => window.api.window.toggleFullscreen(),
+  'tab-overview': () => { tabOverviewOpen.value = !tabOverviewOpen.value },
+  'restore-tab': () => tabStore.restoreTab(),
+  'goto-tab-last': () => tabStore.gotoLastTab(),
+  'reload-tab-f5': reloadActiveTabOrWindow,
+  'force-reload': () => {
+    const tab = tabStore.activeTab
+    if (tab) tabStore.forceReload(tab.id)
+  },
+  'toggle-bookmark-bar': () => tabStore.toggleBookmarkBar(),
+  // 收藏切换与新增对话框在 TabLayoutMenu 内部，通过全局事件复用（与 new-container 同模式）
+  'toggle-favorite': () => window.dispatchEvent(new CustomEvent('shortcut:toggle-favorite')),
+  'open-downloads': () => tabStore.openInternalPage('downloads'),
+  'open-history': () => tabStore.openInternalPage('history'),
+  'prev-workspace': () => switchWorkspaceCyclically(-1),
+  'next-workspace': () => switchWorkspaceCyclically(1),
+  'zoom-in': () => {
+    const tab = tabStore.activeTab
+    if (tab) tabStore.zoomIn(tab.id)
+  },
+  'zoom-out': () => {
+    const tab = tabStore.activeTab
+    if (tab) tabStore.zoomOut(tab.id)
+  },
+  'zoom-reset': () => {
+    const tab = tabStore.activeTab
+    if (tab) tabStore.zoomReset(tab.id)
+  },
+  'open-devtools': toggleAppDevTools,
+  'open-devtools-alt': toggleAppDevTools,
+  'focus-address-f6': focusAddressInput,
+  'shortcut-help': () => shortcutStore.toggleHelp(),
+}
+// goto-tab-1 ~ goto-tab-8：定位到工作区第 N 个标签页
+for (let n = 1; n <= 8; n++) {
+  shortcutActionHandlers[`goto-tab-${n}`] = () => tabStore.gotoTab(n)
+}
+
 function handleShortcutAction(actionId: string) {
   console.log('[App] 快捷键动作触发:', actionId)
-  const tab = tabStore.activeTab
-  switch (actionId) {
-    case 'new-tab': {
-      newTabDialogOpen.value = true
-      break
-    }
-    case 'close-tab':
-      if (tab) tabStore.closeTab(tab.id)
-      break
-    case 'next-tab': {
-      const tabs = tabStore.workspaceTabs
-      if (tabs.length < 2) break
-      const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
-      const next = tabs[(idx + 1) % tabs.length]
-      if (next) tabStore.switchTab(next.id)
-      break
-    }
-    case 'prev-tab': {
-      const tabs = tabStore.workspaceTabs
-      if (tabs.length < 2) break
-      const idx = tabs.findIndex(t => t.id === tabStore.activeTabId)
-      const prev = tabs[(idx - 1 + tabs.length) % tabs.length]
-      if (prev) tabStore.switchTab(prev.id)
-      break
-    }
-    case 'toggle-sidebar':
-      if (immersiveMode.value) {
-        if (immersivePanelVisible.value.left) {
-          hideImmersivePanel('left')
-        } else {
-          showImmersivePanel('left')
-        }
-      } else {
-        toggleSidebar()
-      }
-      break
-    case 'new-container':
-      // 由 Sidebar 内部处理，此处通过全局事件通知
-      window.dispatchEvent(new CustomEvent('shortcut:new-container'))
-      break
-    case 'reload-tab':
-      if (tab) tabStore.reload(tab.id)
-      else window.location.reload()
-      break
-    case 'go-back':
-      if (tab) tabStore.goBack(tab.id)
-      break
-    case 'go-forward':
-      if (tab) tabStore.goForward(tab.id)
-      break
-    case 'focus-address': {
-      const input = document.querySelector<HTMLInputElement>('[data-address-input]')
-      input?.focus()
-      break
-    }
-    case 'toggle-fullscreen':
-      window.api.window.toggleFullscreen()
-      break
-    case 'tab-overview':
-      tabOverviewOpen.value = !tabOverviewOpen.value
-      break
-    case 'restore-tab':
-      tabStore.restoreTab()
-      break
-    case 'goto-tab-1': tabStore.gotoTab(1); break
-    case 'goto-tab-2': tabStore.gotoTab(2); break
-    case 'goto-tab-3': tabStore.gotoTab(3); break
-    case 'goto-tab-4': tabStore.gotoTab(4); break
-    case 'goto-tab-5': tabStore.gotoTab(5); break
-    case 'goto-tab-6': tabStore.gotoTab(6); break
-    case 'goto-tab-7': tabStore.gotoTab(7); break
-    case 'goto-tab-8': tabStore.gotoTab(8); break
-    case 'goto-tab-last':
-      tabStore.gotoLastTab()
-      break
-    case 'reload-tab-f5':
-      if (tab) tabStore.reload(tab.id)
-      else window.location.reload()
-      break
-    case 'force-reload':
-      if (tab) tabStore.forceReload(tab.id)
-      break
-    case 'toggle-bookmark-bar':
-      tabStore.toggleBookmarkBar()
-      break
-    case 'toggle-favorite':
-      // 收藏切换与新增对话框在 TabLayoutMenu 内部，通过全局事件复用（与 new-container 同模式）
-      window.dispatchEvent(new CustomEvent('shortcut:toggle-favorite'))
-      break
-    case 'open-downloads':
-      tabStore.openInternalPage('downloads')
-      break
-    case 'open-history':
-      tabStore.openInternalPage('history')
-      break
-    case 'prev-workspace': {
-      const sorted = workspaceStore.sortedWorkspaces
-      if (sorted.length < 2) break
-      const curIdx = sorted.findIndex(w => w.id === workspaceStore.activeWorkspaceId)
-      const prev = sorted[(curIdx - 1 + sorted.length) % sorted.length]
-      if (prev) workspaceStore.activate(prev.id)
-      break
-    }
-    case 'next-workspace': {
-      const sorted = workspaceStore.sortedWorkspaces
-      if (sorted.length < 2) break
-      const curIdx = sorted.findIndex(w => w.id === workspaceStore.activeWorkspaceId)
-      const next = sorted[(curIdx + 1) % sorted.length]
-      if (next) workspaceStore.activate(next.id)
-      break
-    }
-    case 'zoom-in':
-      if (tab) tabStore.zoomIn(tab.id)
-      break
-    case 'zoom-out':
-      if (tab) tabStore.zoomOut(tab.id)
-      break
-    case 'zoom-reset':
-      if (tab) tabStore.zoomReset(tab.id)
-      break
-    case 'open-devtools':
-    case 'open-devtools-alt':
-      // 快捷键打开的是 Electron 应用自身的开发者工具；网页的开发者工具唯一入口在 TabLayoutMenu 菜单
-      window.api.window.toggleDevTools()
-      break
-    case 'focus-address-f6': {
-      const input = document.querySelector<HTMLInputElement>('[data-address-input]')
-      input?.focus()
-      break
-    }
-    case 'shortcut-help':
-      shortcutStore.toggleHelp()
-      break
-  }
+  shortcutActionHandlers[actionId]?.()
 }
 
 registerShortcutActionHandler(handleShortcutAction)
