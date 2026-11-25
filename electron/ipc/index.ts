@@ -526,6 +526,10 @@ function registerWindowIpc(): void {
   })
 
   ipcMain.handle('window:close', (e) => {
+    console.info('[Window] renderer close requested', {
+      timestamp: new Date().toISOString(),
+      webContentsId: e.sender.id
+    })
     BrowserWindow.fromWebContents(e.sender)?.close()
   })
 

@@ -1,6 +1,7 @@
 // 必须第一个 import：profile 启动参数的 userData 重定向要先于所有服务模块执行
 import { DEFAULT_PROFILE_ID, IS_PROFILE_SELECTOR, PROFILE_ID } from './bootstrap'
-import { app, BrowserWindow, crashReporter, nativeImage, protocol, net, session } from 'electron'
+import { app, BrowserWindow, Menu, crashReporter, nativeImage, protocol, net, session } from 'electron'
+import { configureApplicationMenu } from './services/application-menu'
 import { join } from 'path'
 import { initProcmConsole, shutdownProcmConsole } from './services/procm'
 import { initFileLogger } from './services/logger'
@@ -234,6 +235,8 @@ if (!gotTheLock) {
   }
 
   function createWindow(): void {
+    configureApplicationMenu(Menu)
+    console.info('[Shortcut] 默认应用菜单已移除', { defaultCloseAccelerator: false })
     const iconPath = app.isPackaged
       ? join(process.resourcesPath, 'icon.png')
       : join(__dirname, '../../resources/icon.png')
@@ -313,6 +316,13 @@ if (!gotTheLock) {
 
     // 窗口关闭时隐藏到托盘或直接退出（取决于用户设置）
     mainWindow.on('close', (e) => {
+      console.info('[Window] close requested', {
+        timestamp: new Date().toISOString(),
+        windowId: mainWindow.id,
+        isQuitting,
+        activeTabId: webviewManager.getActiveTabId(),
+        minimizeOnClose: getMinimizeOnClose()
+      })
       // 选择页进程：直接关闭退出，不进托盘也不保存主窗口状态
       if (IS_PROFILE_SELECTOR) return
       if (!isQuitting) {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createCloseTabShortcutHandler } from './close-tab-shortcut.ts'
+const { createCloseTabShortcutHandler }: typeof import('./close-tab-shortcut') =
+  await import(new URL('./close-tab-shortcut.ts', import.meta.url).href)
 
 function deferred() {
   let resolve!: () => void
