@@ -113,6 +113,12 @@ const chromeExtensionTabIds = computed(() =>
     .filter((tabId): tabId is string => !!tabId && shouldShowChromeExtensionBanner(tabId))
 )
 
+const loadingTabIds = computed(() =>
+  [...tabStore.navStates.entries()]
+    .filter(([, state]) => state.isLoading)
+    .map(([tabId]) => tabId)
+)
+
 const displayNode = computed<SplitNode | null>(() => {
   if (fullscreenPaneId.value) {
     return { kind: 'pane', paneId: fullscreenPaneId.value }
@@ -150,6 +156,20 @@ useIpcEvent('tab:request-bounds', () => {
   nextTick(() => sendPaneBounds())
 })
 
+// 侧边栏折叠/展开、窗口缩放等外部布局变化不会改变 pane 结构，
+// 需监听分屏容器尺寸变化并重新上报各窗格 bounds（与非分屏的
+// App.vue bindWebviewContainerObserver 对应）
+const splitRootEl = ref<HTMLElement | null>(null)
+let splitResizeObserver: ResizeObserver | null = null
+
+watch(splitRootEl, (el) => {
+  splitResizeObserver?.disconnect()
+  splitResizeObserver = null
+  if (!el) return
+  splitResizeObserver = new ResizeObserver(() => sendPaneBounds())
+  splitResizeObserver.observe(el)
+})
+
 function handlePaneClick(paneId?: string | null) {
   if (!paneId) return
   splitStore.focusPane(paneId)
@@ -165,6 +185,13 @@ function handlePaneFullscreen(paneId: string) {
   splitStore.focusPane(paneId)
   fullscreenPaneId.value = fullscreenPaneId.value === paneId ? null : paneId
   nextTick(() => sendPaneBounds())
+}
+
+function handlePaneReload(paneId: string) {
+  const tabId = paneMap.value[paneId]?.activeTabId
+  if (!tabId) return
+
+  tabStore.reload(tabId)
 }
 
 async function handlePaneCloseTab(paneId: string) {
@@ -366,6 +393,8 @@ watch(
 )
 
 onUnmounted(() => {
+  splitResizeObserver?.disconnect()
+  splitResizeObserver = null
   setForcedWebviewBlocked(false)
   window.api.tab.setOverlayVisible(!isWebviewBlocked.value)
 })
@@ -395,7 +424,7 @@ onUnmounted(() => {
     />
   </div>
 
-  <div v-else class="absolute inset-0">
+  <div v-else ref="splitRootEl" class="absolute inset-0">
     <template v-if="displayNode">
       <div class="absolute inset-0">
         <SplitLayoutTree
@@ -409,6 +438,7 @@ onUnmounted(() => {
           :preview="preview"
           :google-auth-tab-ids="googleAuthTabIds"
           :chrome-extension-tab-ids="chromeExtensionTabIds"
+          :loading-tab-ids="loadingTabIds"
           @pane-click="handlePaneClick"
           @request-add-tab="handleRequestAddTab"
           @branch-layout="handleBranchLayout"
@@ -419,6 +449,7 @@ onUnmounted(() => {
           @drop-pane="handleDropPane"
           @pane-fullscreen="handlePaneFullscreen"
           @pane-remove="handlePaneRemove"
+          @pane-reload="handlePaneReload"
           @pane-close-tab="handlePaneCloseTab"
           @dismiss-auth="dismissAuthBanner"
           @dismiss-chrome-extension="dismissChromeExtensionBanner"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { GripVertical, Maximize2, Minimize2, Minus, X } from 'lucide-vue-next'
+import { GripVertical, Maximize2, Minimize2, Minus, RefreshCw, X } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import type { SplitDropPosition, SplitNode, SplitPane } from '@/types'
@@ -22,6 +22,7 @@ const props = withDefaults(defineProps<{
   preview: { targetPaneId: string; position: SplitDropPosition } | null
   googleAuthTabIds: string[]
   chromeExtensionTabIds: string[]
+  loadingTabIds: string[]
   branchPath?: number[]
 }>(), {
   branchPath: () => [],
@@ -39,6 +40,7 @@ const emit = defineEmits<{
   'drag-over-pane': [event: DragEvent, paneId: string]
   'drop-pane': [event: DragEvent, paneId: string]
   'pane-fullscreen': [paneId: string]
+  'pane-reload': [paneId: string]
   'pane-close-tab': [paneId: string]
   'pane-remove': [paneId: string]
   'dismiss-auth': [tabId: string]
@@ -59,6 +61,9 @@ const isFocused = computed(() => props.node.kind === 'pane' && props.focusedPane
 const isDragSource = computed(() => props.node.kind === 'pane' && props.draggingPaneId === props.node.paneId)
 const isFullscreenPane = computed(() => props.node.kind === 'pane' && props.fullscreenPaneId === props.node.paneId)
 const hasActiveTab = computed(() => !!pane.value?.activeTabId)
+const isTabLoading = computed(() =>
+  !!pane.value?.activeTabId && props.loadingTabIds.includes(pane.value.activeTabId)
+)
 const authTabId = computed(() => {
   const tabId = pane.value?.activeTabId
   return tabId && props.googleAuthTabIds.includes(tabId) ? tabId : null
@@ -107,6 +112,7 @@ function hotspotClass(position: SplitDropPosition): string {
             :preview="preview"
             :google-auth-tab-ids="googleAuthTabIds"
             :chrome-extension-tab-ids="chromeExtensionTabIds"
+            :loading-tab-ids="loadingTabIds"
             :branch-path="[...branchPath, index]"
             @pane-click="emit('pane-click', $event)"
             @request-add-tab="emit('request-add-tab', $event)"
@@ -117,6 +123,7 @@ function hotspotClass(position: SplitDropPosition): string {
             @drag-over-pane="(event, paneId) => emit('drag-over-pane', event, paneId)"
             @drop-pane="(event, paneId) => emit('drop-pane', event, paneId)"
             @pane-fullscreen="emit('pane-fullscreen', $event)"
+            @pane-reload="emit('pane-reload', $event)"
             @pane-close-tab="emit('pane-close-tab', $event)"
             @pane-remove="emit('pane-remove', $event)"
             @dismiss-auth="emit('dismiss-auth', $event)"
@@ -156,6 +163,19 @@ function hotspotClass(position: SplitDropPosition): string {
           @dragend="emit('drag-end')"
         >
           <GripVertical class="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="h-6 w-6 rounded-md"
+          title="刷新页面"
+          :disabled="!hasActiveTab"
+          @click.stop="emit('pane-reload', node.paneId)"
+        >
+          <RefreshCw
+            class="size-3.5"
+            :class="isTabLoading ? 'animate-spin' : ''"
+          />
         </Button>
         <Button
           variant="ghost"

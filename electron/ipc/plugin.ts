@@ -1,9 +1,30 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog } from 'electron'
 import { pluginManager } from '../services/plugin-manager'
 
 export function registerPluginIpcHandlers(): void {
   ipcMain.handle('plugin:list', () => {
     return pluginManager.list()
+  })
+
+  ipcMain.handle('plugin:get-dir', () => {
+    return {
+      current: pluginManager.getPluginsDir(),
+      default: pluginManager.getDefaultPluginsDir(),
+      isCustom: pluginManager.isCustomPluginsDir()
+    }
+  })
+
+  ipcMain.handle('plugin:set-dir', (_e, dir: string) => {
+    return pluginManager.setPluginsDir(dir || '')
+  })
+
+  ipcMain.handle('plugin:pick-dir', async () => {
+    const result = await dialog.showOpenDialog({
+      title: '选择插件目录',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
   })
 
   ipcMain.handle('plugin:enable', (_e, pluginId: string) => {

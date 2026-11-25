@@ -7,6 +7,7 @@ import { handleBeforeInputEvent } from '../shortcut-manager'
 import { cacheFaviconFromUrl } from '../favicon-cache'
 import { pluginEventBus, broadcastToRenderer } from '../plugin-event-bus'
 import { addDownload, checkConnection, getAria2Config, isAria2Fetchable } from '../aria2'
+import { isExternalDownloaderReady, launchExternalDownload } from '../external-downloader'
 import { trackDownload } from '../system-downloads'
 import { resolveDownloadPath } from '../download-path'
 import { join } from 'path'
@@ -269,6 +270,20 @@ function ensureSessionDownloadHandler(
       }
       // 纳入系统下载跟踪：blob/data/空 URL 等也能在下载列表里看进度
       trackDownload(item)
+    }
+
+    // 自定义外部下载程序优先级最高：启用且 URL 可被外部程序获取时转交。
+    // blob:/data: 等仅存在于渲染进程内存中，外部程序同样无法获取，走系统下载器。
+    if (isExternalDownloaderReady() && isAria2Fetchable(url)) {
+      const referer = wc && !wc.isDestroyed() ? wc.getURL() : ''
+      const launched = launchExternalDownload({ url, filename, referer })
+      if (launched) {
+        event.preventDefault()
+        return
+      }
+      // 启动失败（路径不存在等）：回退系统下载器，避免文件丢失
+      fallbackToSystem()
+      return
     }
 
     // 未启用 aria2，或 URL 无法被 aria2 获取（blob:/data:/空等，仅存在于渲染进程内存中）

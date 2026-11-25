@@ -932,7 +932,8 @@ class WebviewManager {
     try {
       const image = await entry.view.webContents.capturePage()
       if (image.isEmpty()) return null
-      const resized = image.resize({ width: 320 })
+      // 概览对话框预览卡片已放大（80vw 网格 2~4 列），640 宽避免放大模糊
+      const resized = image.resize({ width: 640 })
       return resized.toDataURL()
     } catch {
       return null

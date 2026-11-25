@@ -42,6 +42,12 @@ export interface Aria2Config {
   notifyOnStart: boolean
   notifyOnSuccess: boolean
   notifyOnFailure: boolean
+  /** 自定义外部下载程序：启用后可拦截的下载转交外部程序处理 */
+  externalDownloaderEnabled: boolean
+  /** 外部下载程序可执行文件路径 */
+  externalDownloaderPath: string
+  /** 外部下载程序启动参数模板，支持 {url} / {filename} / {referer} 变量 */
+  externalDownloaderArgs: string
 }
 
 export const useDownloadStore = defineStore('download', () => {

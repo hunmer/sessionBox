@@ -64,9 +64,10 @@ export function useBranchLines(options: {
 
       const rowRect = el.getBoundingClientRect()
       const parentRect = parentEl.getBoundingClientRect()
-      // padding-left 缩进代替 @he-tree wrapper，iconOffset 恒加 (level-1)*LINE_INDENT
+      // 行通过 padding-left 缩进，横坐标只取层级，不读取带滑入动画 translateX 的 rect.left。
+      // 初始展开时行高不变，ResizeObserver 不保证在动画结束后补测，会把瞬时偏移留在线上。
       const iconOffset = (info.level - 1) * LINE_INDENT
-      const endX = rowRect.left - layerRect.left + 7 + iconOffset
+      const endX = 7 + iconOffset
       const trunkX = endX - 10
       const startY = parentRect.bottom - layerRect.top
       const y = rowRect.top - layerRect.top + rowRect.height / 2

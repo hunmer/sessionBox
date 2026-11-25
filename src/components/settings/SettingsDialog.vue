@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import {
-  Settings, Palette, Settings2, LayoutList, Keyboard, Globe, Info, Download, Search, Box, Server, Bookmark, CloudCog, KeyRound
+  Settings, Palette, Settings2, LayoutList, Keyboard, Globe, Info, Download, Search, Box, Server, Bookmark, CloudCog, KeyRound, Puzzle
 } from 'lucide-vue-next'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import SettingsGeneral from './SettingsGeneral.vue'
@@ -17,6 +17,7 @@ import SettingsMCP from './SettingsMCP.vue'
 import SettingsBookmark from './SettingsBookmark.vue'
 import SettingsSync from './SettingsSync.vue'
 import SettingsSessionApi from './SettingsSessionApi.vue'
+import SettingsPlugins from './SettingsPlugins.vue'
 
 const props = defineProps<{ open: boolean; initialTab?: string }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
@@ -31,6 +32,7 @@ const tabs = [
   { key: 'sites', label: '网站', icon: Globe },
   { key: 'download', label: '下载', icon: Download },
   { key: 'search', label: '搜索', icon: Search },
+  { key: 'plugins', label: '插件', icon: Puzzle },
   { key: 'mcp', label: 'MCP', icon: Server },
   { key: 'session-api', label: 'HTTP 服务', icon: KeyRound },
   { key: 'sync', label: '数据同步', icon: CloudCog },
@@ -51,7 +53,7 @@ watch(() => props.open, (open) => {
     :open="open"
     @update:open="emit('update:open', $event)"
   >
-    <DialogContent class="sm:max-w-2xl max-h-[70vh] flex flex-col p-0 gap-0">
+    <DialogContent class="sm:max-w-2xl h-[70vh] flex flex-col p-0 gap-0">
       <DialogHeader class="px-6 pt-6 pb-4 border-b">
         <DialogTitle class="flex items-center gap-2">
           <Settings class="w-4 h-4" />
@@ -88,6 +90,7 @@ watch(() => props.open, (open) => {
           <SettingsSites v-else-if="activeTab === 'sites'" />
           <SettingsDownload v-else-if="activeTab === 'download'" />
           <SettingsSearch v-else-if="activeTab === 'search'" />
+          <SettingsPlugins v-else-if="activeTab === 'plugins'" />
           <SettingsMCP v-else-if="activeTab === 'mcp'" />
           <SettingsSessionApi v-else-if="activeTab === 'session-api'" />
           <SettingsSync v-else-if="activeTab === 'sync'" />

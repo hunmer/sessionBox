@@ -1,8 +1,8 @@
-import { join, basename } from 'path'
+import { join, basename, resolve } from 'path'
 import { pathToFileURL } from 'node:url'
-import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { app, BrowserWindow, shell, dialog } from 'electron'
-import { getSessionApiSettings } from './store'
+import { getSessionApiSettings, getCustomPluginsDir, setCustomPluginsDir } from './store'
 import AdmZip from 'adm-zip'
 import { pluginEventBus } from './plugin-event-bus'
 import { PluginStorage } from './plugin-storage'
@@ -34,11 +34,51 @@ class PluginManager {
 
   constructor() {
     this.userDataPath = app.getPath('userData')
-    // 开发环境从项目 resources/plugins/ 加载，生产环境从 {userData}/plugins/ 加载
-    this.pluginsDir = app.isPackaged
+    // 自定义目录优先；否则开发环境从项目 resources/plugins/ 加载，生产环境从 {userData}/plugins/ 加载
+    this.pluginsDir = getCustomPluginsDir() || this.getDefaultPluginsDir()
+    this.loadDisabledList()
+  }
+
+  /** 默认插件目录（未自定义时生效） */
+  getDefaultPluginsDir(): string {
+    return app.isPackaged
       ? join(this.userDataPath, 'plugins')
       : join(__dirname, '../../resources/plugins')
-    this.loadDisabledList()
+  }
+
+  /** 当前生效的插件目录 */
+  getPluginsDir(): string {
+    return this.pluginsDir
+  }
+
+  /** 是否使用了自定义插件目录 */
+  isCustomPluginsDir(): boolean {
+    return !!getCustomPluginsDir()
+  }
+
+  /**
+   * 切换插件目录并重新加载全部插件
+   * @param dir 新目录绝对路径；传空字符串恢复默认目录
+   */
+  setPluginsDir(dir: string): { success: boolean; error?: string } {
+    const target = dir ? resolve(dir) : this.getDefaultPluginsDir()
+    if (dir) {
+      if (!existsSync(target) || !statSync(target).isDirectory()) {
+        return { success: false, error: `目录不存在: ${target}` }
+      }
+    }
+    setCustomPluginsDir(dir)
+    if (target === this.pluginsDir) {
+      return { success: true }
+    }
+    console.log(`[PluginManager] 切换插件目录: ${this.pluginsDir} -> ${target}`)
+    // 卸载全部插件后从新目录重新加载
+    this.shutdown()
+    this.pluginsDir = target
+    if (existsSync(this.pluginsDir)) {
+      this.loadAll()
+    }
+    return { success: true }
   }
 
   private loadDisabledList(): void {

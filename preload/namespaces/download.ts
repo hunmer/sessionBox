@@ -34,6 +34,10 @@ export function createDownloadApi() {
     getFilePath: (dir: string, filename: string): Promise<string> => ipcRenderer.invoke('download:getFilePath', dir, filename),
     startDrag: (filePath: string): void => ipcRenderer.send('download:startDrag', filePath),
     openFile: (filePath: string): Promise<void> => ipcRenderer.invoke('download:openFile', filePath),
-    pickDirectory: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('download:pickDirectory', defaultPath)
+    pickDirectory: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('download:pickDirectory', defaultPath),
+    /** 复制下载地址到系统剪贴板 */
+    copyUrl: (url: string): Promise<void> => ipcRenderer.invoke('download:copyUrl', url),
+    /** 选择外部下载程序可执行文件 */
+    pickExecutable: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('download:pickExecutable', defaultPath)
   }
 }

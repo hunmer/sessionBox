@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { Server, RefreshCw } from 'lucide-vue-next'
+import { Server, RefreshCw, FolderOpen } from 'lucide-vue-next'
 
 const store = useDownloadStore()
 const editConfig = ref<Record<string, any>>({})
@@ -101,6 +101,12 @@ async function handleToggleConnection() {
     await store.start()
   }
 }
+
+/** 选择外部下载程序可执行文件 */
+async function pickExecutable() {
+  const picked = await window.api.download.pickExecutable(editConfig.value.externalDownloaderPath || undefined)
+  if (picked) saveField('externalDownloaderPath', picked)
+}
 </script>
 
 <template>
@@ -185,6 +191,68 @@ async function handleToggleConnection() {
             @update:model-value="saveField('autoStart', $event)"
           />
         </div>
+      </div>
+    </section>
+
+    <Separator />
+
+    <!-- 自定义外部下载程序 -->
+    <section>
+      <h3 class="text-sm font-medium mb-3">
+        外部下载程序
+      </h3>
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <label class="text-xs text-muted-foreground">使用自定义外部下载程序接管下载</label>
+          <Switch
+            :model-value="editConfig.externalDownloaderEnabled"
+            @update:model-value="saveField('externalDownloaderEnabled', $event)"
+          />
+        </div>
+
+        <template v-if="editConfig.externalDownloaderEnabled">
+          <div class="space-y-1">
+            <label class="text-xs text-muted-foreground">程序路径</label>
+            <div class="flex gap-2">
+              <Input
+                :model-value="editConfig.externalDownloaderPath"
+                placeholder="选择或输入下载程序路径"
+                class="font-mono"
+                @update:model-value="saveField('externalDownloaderPath', $event)"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                class="shrink-0"
+                @click="pickExecutable"
+              >
+                <FolderOpen class="w-3.5 h-3.5 mr-1" /> 浏览
+              </Button>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs text-muted-foreground">启动参数</label>
+            <Input
+              :model-value="editConfig.externalDownloaderArgs"
+              placeholder="{url}"
+              class="font-mono"
+              @update:model-value="saveField('externalDownloaderArgs', $event)"
+            />
+            <div class="rounded-md bg-muted/40 px-2.5 py-2 text-[11px] text-muted-foreground space-y-1">
+              <p class="font-medium text-foreground/70">
+                可用变量：
+              </p>
+              <p><code class="text-foreground/80">{url}</code> 下载地址</p>
+              <p><code class="text-foreground/80">{filename}</code> 文件名</p>
+              <p><code class="text-foreground/80">{referer}</code> 来源页地址</p>
+              <p class="text-foreground/50 pt-0.5">
+                参数未包含 <code class="text-foreground/70">{url}</code> 时会把下载地址追加到末尾；留空则只传下载地址。
+                启用后，可拦截的下载（http/https/ftp/magnet 等）将转交外部程序处理，任务不会出现在应用内下载列表。
+              </p>
+            </div>
+          </div>
+        </template>
       </div>
     </section>
 

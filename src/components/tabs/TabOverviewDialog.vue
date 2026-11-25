@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { Search, Snowflake, Globe, Bookmark, History, Download, Layers } from 'lucide-vue-next'
 import { Dialog, DialogScrollContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useContainerStore } from '@/stores/container'
@@ -84,6 +84,28 @@ const displayTabs = computed(() => {
 
 // ====== 截图逻辑 ======
 
+/** 定时统一刷新间隔（毫秒） */
+const REFRESH_INTERVAL_MS = 10_000
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+function stopAutoRefresh() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+function startAutoRefresh() {
+  stopAutoRefresh()
+  refreshTimer = setInterval(() => {
+    // 上一轮截图未完成时跳过本次，避免请求堆积
+    if (props.open && !loading.value) {
+      captureScreenshots()
+    }
+  }, REFRESH_INTERVAL_MS)
+}
+
 async function captureScreenshots() {
   const tabIds = displayTabs.value
     .filter((t) => !tabStore.frozenTabIds.has(t.id) && !t.url.startsWith('sessionbox://'))
@@ -134,11 +156,11 @@ async function handleTabClick(tab: Tab) {
 // ====== 键盘导航 ======
 
 function getGridColumns(): number {
-  if (!gridRef.value) return 4
-  const width = gridRef.value.clientWidth
-  if (width >= 900) return 5
-  if (width >= 700) return 4
-  return 3
+  if (!gridRef.value) return 2
+  const cols = getComputedStyle(gridRef.value)
+    .gridTemplateColumns.split(' ')
+    .filter(Boolean).length
+  return cols > 0 ? cols : 2
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -183,11 +205,15 @@ watch(
       searchQuery.value = ''
       focusedIndex.value = -1
       await captureScreenshots()
+      startAutoRefresh()
     } else {
+      stopAutoRefresh()
       screenshots.value.clear()
     }
   }
 )
+
+onUnmounted(stopAutoRefresh)
 
 // 切换工作区时重新截图
 watch(selectedWorkspaceId, () => {
@@ -204,7 +230,7 @@ watch(selectedWorkspaceId, () => {
     @update:open="emit('update:open', $event)"
   >
     <DialogScrollContent
-      class="w-[85vw] sm:max-w-[960px] max-h-[85vh] p-4 gap-3"
+      class="w-[80vw] h-[80vh] sm:max-w-none max-h-[80vh] overflow-y-auto p-4 gap-3"
       show-close-button
     >
       <DialogHeader>
@@ -265,7 +291,7 @@ watch(selectedWorkspaceId, () => {
       <div
         v-else-if="displayTabs.length > 0"
         ref="gridRef"
-        class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"
+        class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
         @keydown="handleKeydown"
       >
         <button

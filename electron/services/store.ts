@@ -791,6 +791,15 @@ export function setRestoreLastUrl(enabled: boolean): void {
   store.set('restoreLastUrl', enabled)
 }
 
+/** 自定义插件目录（空字符串表示使用默认目录） */
+export function getCustomPluginsDir(): string {
+  return store.get('customPluginsDir', '')
+}
+
+export function setCustomPluginsDir(dir: string): void {
+  store.set('customPluginsDir', dir)
+}
+
 export function getTabImplementation(): TabImplementation {
   const implementation = store.get('tabImplementation', 'webview')
   return implementation === 'browsercontent' ? 'browsercontent' : 'webview'

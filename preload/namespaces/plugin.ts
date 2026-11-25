@@ -1,9 +1,13 @@
 import { ipcRenderer } from 'electron'
-import type { PluginMeta } from './types'
+import type { PluginMeta, PluginsDirInfo } from './types'
 
 export function createPluginApi() {
   return {
     list: (): Promise<PluginMeta[]> => ipcRenderer.invoke('plugin:list'),
+    getDir: (): Promise<PluginsDirInfo> => ipcRenderer.invoke('plugin:get-dir'),
+    setDir: (dir: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('plugin:set-dir', dir),
+    pickDir: (): Promise<string | null> => ipcRenderer.invoke('plugin:pick-dir'),
     enable: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugin:enable', pluginId),
     disable: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugin:disable', pluginId),
     getView: (pluginId: string): Promise<string | null> => ipcRenderer.invoke('plugin:get-view', pluginId),

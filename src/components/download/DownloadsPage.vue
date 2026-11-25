@@ -17,12 +17,17 @@ import {
   Trash2,
   Settings,
   ArrowDownToLine,
-  Loader2,
   Server,
-  CircleCheck,
   FolderOpen,
   Plus,
-  RotateCw
+  RotateCw,
+  Copy,
+  FileVideo,
+  FileAudio,
+  FileArchive,
+  FileImage,
+  FileText,
+  File
 } from 'lucide-vue-next'
 import AddDownloadDialog from './AddDownloadDialog.vue'
 
@@ -77,6 +82,19 @@ function getFileCategory(filename: string): string | null {
     if (extensions.includes(ext)) return category
   }
   return null
+}
+
+// 文件类型图标映射（始终按文件类型显示，不随下载状态变化）
+const FILE_ICON_MAP: Record<string, { icon: typeof File; class: string }> = {
+  video: { icon: FileVideo, class: 'text-purple-500' },
+  audio: { icon: FileAudio, class: 'text-pink-500' },
+  archive: { icon: FileArchive, class: 'text-orange-500' },
+  image: { icon: FileImage, class: 'text-blue-500' },
+  document: { icon: FileText, class: 'text-emerald-500' }
+}
+
+function getFileIcon(filename: string): { icon: typeof File; class: string } {
+  return FILE_ICON_MAP[getFileCategory(filename) ?? ''] ?? { icon: File, class: 'text-muted-foreground' }
 }
 
 function extractHostname(url: string): string {
@@ -165,6 +183,12 @@ async function openFile(task: { dir: string; filename: string; status: string })
 async function showInFolder(task: { dir: string; filename: string }) {
   const filePath = await getTaskFilePath(task)
   await window.api.download.showInFolder(filePath)
+}
+
+/** 复制下载地址到系统剪贴板 */
+async function copyUrl(task: { url: string }) {
+  if (!task.url) return
+  await window.api.download.copyUrl(task.url)
 }
 
 // 拖拽状态：记录当前正在拖拽的文件路径
@@ -342,27 +366,12 @@ function onDragStart(event: DragEvent) {
                 @dragstart="onDragStart"
                 @dblclick="openFile(task)"
               >
-                <!-- 文件图标 -->
+                <!-- 文件图标（按文件类型显示，与下载状态无关） -->
                 <div class="shrink-0 w-8 h-8 rounded bg-muted flex items-center justify-center">
-                  <Download
-                    v-if="task.status === 'active'"
-                    class="w-4 h-4 text-green-500"
-                  />
-                  <Pause
-                    v-else-if="task.status === 'paused'"
-                    class="w-4 h-4 text-yellow-500"
-                  />
-                  <Loader2
-                    v-else-if="task.status === 'waiting'"
-                    class="w-4 h-4 text-muted-foreground animate-spin"
-                  />
-                  <CircleCheck
-                    v-else-if="task.status === 'complete'"
-                    class="w-4 h-4 text-green-500"
-                  />
-                  <X
-                    v-else-if="task.status === 'error'"
-                    class="w-4 h-4 text-red-500"
+                  <component
+                    :is="getFileIcon(task.filename || task.url).icon"
+                    class="w-4 h-4"
+                    :class="getFileIcon(task.filename || task.url).class"
                   />
                 </div>
 
@@ -452,6 +461,16 @@ function onDragStart(event: DragEvent) {
                     @click="store.retry(task)"
                   >
                     <RotateCw class="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    v-if="task.url"
+                    size="icon"
+                    variant="ghost"
+                    class="h-7 w-7"
+                    title="复制下载地址"
+                    @click="copyUrl(task)"
+                  >
+                    <Copy class="w-3.5 h-3.5" />
                   </Button>
                   <Button
                     v-if="task.status === 'complete' && task.filename"

@@ -168,6 +168,16 @@ export interface PluginMeta {
   iconPath: string
 }
 
+/** 插件目录信息（plugin:get-dir 返回） */
+export interface PluginsDirInfo {
+  /** 当前生效的插件目录 */
+  current: string
+  /** 默认插件目录（未自定义时生效） */
+  default: string
+  /** 是否使用了自定义目录 */
+  isCustom: boolean
+}
+
 // 搜索引擎
 export interface SearchEngine {
   id: string

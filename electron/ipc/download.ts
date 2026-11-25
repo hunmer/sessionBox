@@ -1,4 +1,4 @@
-import { ipcMain, shell, nativeImage, dialog, BrowserWindow } from 'electron'
+import { ipcMain, shell, nativeImage, dialog, clipboard, BrowserWindow } from 'electron'
 import path from 'path'
 import {
   checkConnection,
@@ -7,6 +7,7 @@ import {
   startAria2,
   stopAria2,
   addDownload,
+  isAria2Fetchable,
   pauseDownload,
   resumeDownload,
   removeDownload,
@@ -19,6 +20,7 @@ import {
   stopNotificationMonitor
 } from '../services/aria2'
 import { getTasks as getSystemTasks, removeTask as removeSystemTask, pauseTask as pauseSystemTask, resumeTask as resumeSystemTask, clearFinished as clearSystemFinished, clearAll as clearSystemAll } from '../services/system-downloads'
+import { isExternalDownloaderReady, launchExternalDownload } from '../services/external-downloader'
 import { webviewManager } from '../services/webview-manager'
 
 export function registerDownloadIpcHandlers(): void {
@@ -45,9 +47,14 @@ export function registerDownloadIpcHandlers(): void {
     webviewManager.setAria2Enabled(false)
   })
 
-  ipcMain.handle('download:add', (_e, url: string, options?: { filename?: string; dir?: string; headers?: string[]; cookies?: string; referer?: string; category?: string }) =>
-    addDownload(url, options)
-  )
+  ipcMain.handle('download:add', (_e, url: string, options?: { filename?: string; dir?: string; headers?: string[]; cookies?: string; referer?: string; category?: string }) => {
+    // 自定义外部下载程序：手动添加/重试同样转交外部程序（不进入 aria2，也不跟踪进度）
+    if (isExternalDownloaderReady() && isAria2Fetchable(url)) {
+      const ok = launchExternalDownload({ url, filename: options?.filename, referer: options?.referer })
+      if (ok) return `ext_${Date.now()}`
+    }
+    return addDownload(url, options)
+  })
 
   ipcMain.handle('download:pause', (_e, gid: string) => pauseDownload(gid))
 
@@ -123,6 +130,31 @@ export function registerDownloadIpcHandlers(): void {
           defaultPath,
           properties: ['openDirectory', 'createDirectory']
         })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
+
+  /** 复制下载地址到系统剪贴板（主进程 clipboard，不依赖渲染进程焦点） */
+  ipcMain.handle('download:copyUrl', (_e, url: string) => {
+    clipboard.writeText(url)
+  })
+
+  /** 选择外部下载程序可执行文件 */
+  ipcMain.handle('download:pickExecutable', async (_e, defaultPath?: string) => {
+    const win = BrowserWindow.getFocusedWindow()
+    const options: Electron.OpenDialogOptions = {
+      title: '选择下载程序',
+      defaultPath,
+      properties: ['openFile'],
+      filters:
+        process.platform === 'win32'
+          ? [
+              { name: '可执行文件', extensions: ['exe', 'bat', 'cmd'] },
+              { name: '所有文件', extensions: ['*'] }
+            ]
+          : [{ name: '所有文件', extensions: ['*'] }]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0]
   })
