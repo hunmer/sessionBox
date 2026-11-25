@@ -48,6 +48,7 @@ import { useIpcEvent } from '@/composables/useIpc'
 import { isOverlayActive, isWebviewBlocked, setForcedWebviewBlocked, startWebviewOverlayDetection, stopWebviewOverlayDetection } from '@/lib/webview-overlay'
 import { registerShortcutActionHandler } from '@/lib/shortcut-action'
 import { useShortcutStore } from '@/stores/shortcut'
+import { createCloseTabShortcutHandler } from '@/lib/close-tab-shortcut'
 import type { TabImplementation } from '../preload'
 
 type ImmersiveEdge = 'top' | 'left' | 'right' | 'bottom'
@@ -642,12 +643,19 @@ function toggleAppDevTools() {
   window.api.window.toggleDevTools()
 }
 
+const closeTabFromShortcut = createCloseTabShortcutHandler({
+  getActiveTab: () => tabStore.activeTab,
+  getTabCount: () => tabStore.tabs.length,
+  isClosing: () => tabStore.closingTabIds.size > 0,
+  closeTab: (tabId) => tabStore.closeTab(tabId),
+  closeWindow: () => window.api.window.close()
+})
+
 // 命令表：actionId → 处理函数
 const shortcutActionHandlers: Record<string, () => void> = {
   'new-tab': () => { newTabDialogOpen.value = true },
   'close-tab': () => {
-    const tab = tabStore.activeTab
-    if (tab) tabStore.closeTab(tab.id)
+    void closeTabFromShortcut().catch(error => console.error('[Shortcut] 关闭标签失败:', error))
   },
   'next-tab': () => switchTabCyclically(1),
   'prev-tab': () => switchTabCyclically(-1),

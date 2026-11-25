@@ -90,6 +90,17 @@ function onBookmarkSelect(ev: Event) {
   comboboxOpen.value = false
 }
 
+/** 常见网站快捷入口 */
+const quickSites = [
+  { name: '抖音创作平台', url: 'https://creator.douyin.com', icon: 'https://creator.douyin.com/favicon.ico' },
+  { name: '视频号平台', url: 'https://channels.weixin.qq.com', icon: 'https://channels.weixin.qq.com/favicon.ico' },
+] as const
+
+/** 快捷站点图标加载失败时隐藏 img */
+function onQuickSiteIconError(e: Event) {
+  ;(e.target as HTMLElement).style.display = 'none'
+}
+
 /** 代理下拉选项 */
 const proxyOptions = computed(() => proxyStore.proxies)
 
@@ -272,6 +283,28 @@ function handleDelete() {
               </Command>
             </PopoverContent>
           </Popover>
+
+          <!-- 常见网站快捷入口 -->
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              v-for="site in quickSites"
+              :key="site.url"
+              type="button"
+              :title="site.url"
+              class="flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              @click="url = site.url"
+            >
+              <span class="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden">
+                <img
+                  :src="site.icon"
+                  alt=""
+                  class="h-4 w-4 object-contain"
+                  @error="onQuickSiteIconError"
+                >
+              </span>
+              <span class="truncate">{{ site.name }}</span>
+            </button>
+          </div>
         </div>
 
         <!-- 容器 -->

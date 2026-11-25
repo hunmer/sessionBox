@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
-import { Search, Snowflake, Globe, Bookmark, History, Download, Layers } from 'lucide-vue-next'
+import { Search, Snowflake, Globe, Bookmark, History, Download, Layers, X } from 'lucide-vue-next'
 import { Dialog, DialogScrollContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useContainerStore } from '@/stores/container'
 import { usePageStore } from '@/stores/page'
@@ -85,7 +85,7 @@ const displayTabs = computed(() => {
 // ====== 截图逻辑 ======
 
 /** 定时统一刷新间隔（毫秒） */
-const REFRESH_INTERVAL_MS = 10_000
+const REFRESH_INTERVAL_MS = 5_000
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
@@ -99,14 +99,14 @@ function stopAutoRefresh() {
 function startAutoRefresh() {
   stopAutoRefresh()
   refreshTimer = setInterval(() => {
-    // 上一轮截图未完成时跳过本次，避免请求堆积
+    // 上一轮截图未完成时跳过本次，避免请求堆积；静默刷新不打断界面
     if (props.open && !loading.value) {
-      captureScreenshots()
+      captureScreenshots(true)
     }
   }, REFRESH_INTERVAL_MS)
 }
 
-async function captureScreenshots() {
+async function captureScreenshots(silent = false) {
   const tabIds = displayTabs.value
     .filter((t) => !tabStore.frozenTabIds.has(t.id) && !t.url.startsWith('sessionbox://'))
     .map((t) => t.id)
@@ -116,12 +116,13 @@ async function captureScreenshots() {
     return
   }
 
-  loading.value = true
+  // silent（定时刷新）时不切换 loading，避免网格被加载占位替换导致高度跳动
+  if (!silent) loading.value = true
   try {
     const results = await api.tab.capture(tabIds)
     screenshots.value = new Map(Object.entries(results))
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -151,6 +152,12 @@ async function handleTabClick(tab: Tab) {
 
   await tabStore.switchTab(tab.id)
   emit('update:open', false)
+}
+
+async function handleCloseTab(tab: Tab) {
+  focusedIndex.value = -1
+  await tabStore.closeTab(tab.id)
+  screenshots.value.delete(tab.id)
 }
 
 // ====== 键盘导航 ======
@@ -230,7 +237,7 @@ watch(selectedWorkspaceId, () => {
     @update:open="emit('update:open', $event)"
   >
     <DialogScrollContent
-      class="w-[80vw] h-[80vh] sm:max-w-none max-h-[80vh] overflow-y-auto p-4 gap-3"
+      class="w-[80vw] h-[80vh] sm:max-w-none max-h-[80vh] content-start overflow-y-auto p-4 gap-3"
       show-close-button
     >
       <DialogHeader>
@@ -370,10 +377,21 @@ watch(selectedWorkspaceId, () => {
             </p>
           </div>
 
+          <!-- 关闭按钮（卡片为 button，此处用 span+role 避免 button 嵌套） -->
+          <span
+            role="button"
+            aria-label="关闭标签页"
+            tabindex="-1"
+            class="absolute top-1.5 right-1.5 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-black/50 hover:bg-black/75 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            @click.stop="handleCloseTab(tab)"
+          >
+            <X class="w-3.5 h-3.5" />
+          </span>
+
           <!-- 当前激活指示点 -->
           <div
             v-if="tab.id === tabStore.activeTabId"
-            class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary shadow-sm"
+            class="absolute top-1.5 left-1.5 w-2 h-2 rounded-full bg-primary shadow-sm"
           />
         </button>
       </div>
